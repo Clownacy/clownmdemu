@@ -1531,7 +1531,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MOVEQ:
 			case INSTRUCTION_DIVU:
 			case INSTRUCTION_DIVS:
-			/*case INSTRUCTION_CMPA:*/
 			case INSTRUCTION_MULU:
 			case INSTRUCTION_MULS:
 			case INSTRUCTION_EXG:
