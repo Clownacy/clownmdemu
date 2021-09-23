@@ -532,13 +532,13 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 		unsigned char operation_size;
 		DecodedAddressMode source_decoded_address_mode, destination_decoded_address_mode;
-		unsigned long source_value, destination_value;
+		unsigned long source_value, destination_value, result_value;
 		Instruction instruction = INSTRUCTION_UNKNOWN;
 
 		state->program_counter += 2;
 
 		/* Set to 0 to shut up dumbass compiler warnings */
-		operation_size = source_value = destination_value = 0;
+		operation_size = source_value = destination_value = result_value = 0;
 
 		/* Figure out which instruction this is */
 		switch (opcode & 0xF000)
@@ -1552,14 +1552,14 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ORI_TO_SR:
 			case INSTRUCTION_ORI:
 			case INSTRUCTION_OR:
-				destination_value |= source_value;
+				result_value = destination_value | source_value;
 				break;
 
 			case INSTRUCTION_ANDI_TO_CCR:
 			case INSTRUCTION_ANDI_TO_SR:
 			case INSTRUCTION_ANDI:
 			case INSTRUCTION_AND:
-				destination_value &= source_value;
+				result_value = destination_value & source_value;
 				break;
 
 			case INSTRUCTION_SUBI:
@@ -1567,19 +1567,19 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_SUB:
 			case INSTRUCTION_CMPM:
 			case INSTRUCTION_CMP:
-				destination_value -= source_value;
+				result_value = destination_value - source_value;
 				break;
 
 			case INSTRUCTION_ADDI:
 			case INSTRUCTION_ADD:
-				destination_value += source_value;
+				result_value = destination_value + source_value;
 				break;
 
 			case INSTRUCTION_EORI_TO_CCR:
 			case INSTRUCTION_EORI_TO_SR:
 			case INSTRUCTION_EORI:
 			case INSTRUCTION_EOR:
-				destination_value ^= source_value;
+				result_value = destination_value ^ source_value;
 				break;
 
 			case INSTRUCTION_BTST_STATIC:
@@ -1602,17 +1602,17 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 					case INSTRUCTION_BCHG_STATIC:
 					case INSTRUCTION_BCHG_DYNAMIC:
-						destination_value ^= 1ul << source_value;
+						result_value = destination_value ^ (1ul << source_value);
 						break;
 
 					case INSTRUCTION_BCLR_STATIC:
 					case INSTRUCTION_BCLR_DYNAMIC:
-						destination_value &= ~(1ul << source_value);
+						result_value = destination_value & ~(1ul << source_value);
 						break;
 
 					case INSTRUCTION_BSET_STATIC:
 					case INSTRUCTION_BSET_DYNAMIC:
-						destination_value |= 1ul << source_value;
+						result_value = destination_value | (1ul << source_value);
 						break;
 
 					default:
@@ -1629,7 +1629,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_MOVEA:
-				destination_value = operation_size == 2 ? SIGN_EXTEND(source_value, 15) : source_value;
+				result_value = operation_size == 2 ? SIGN_EXTEND(source_value, 15) : source_value;
 				break;
 
 			case INSTRUCTION_MOVE:
@@ -1637,7 +1637,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MOVE_TO_CCR:
 			case INSTRUCTION_MOVE_TO_SR:
 			case INSTRUCTION_LEA:
-				destination_value = source_value;
+				result_value = source_value;
 				break;
 
 			case INSTRUCTION_LINK:
@@ -1665,19 +1665,19 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_CLR:
-				destination_value = 0;
+				result_value = 0;
 				break;
 
 			case INSTRUCTION_NEG:
-				destination_value = -destination_value;
+				result_value = -destination_value;
 				break;
 
 			case INSTRUCTION_NOT:
-				destination_value = ~destination_value;
+				result_value = ~destination_value;
 				break;
 
 			case INSTRUCTION_EXT:
-				destination_value = SIGN_EXTEND(destination_value, opcode & 0x0040 ? 15 : 7);
+				result_value = SIGN_EXTEND(destination_value, opcode & 0x0040 ? 15 : 7);
 				break;
 
 			case INSTRUCTION_NBCD:
@@ -1686,7 +1686,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_SWAP:
-				destination_value = ((destination_value & 0x0000FFFF) << 16) | ((destination_value & 0xFFFF0000) >> 16);
+				result_value = ((destination_value & 0x0000FFFF) << 16) | ((destination_value & 0xFFFF0000) >> 16);
 				break;
 
 			case INSTRUCTION_PEA:
@@ -1705,7 +1705,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				state->status_register |= CONDITION_CODE_NEGATIVE * !!(destination_value & 0x80);
 				state->status_register |= CONDITION_CODE_ZERO * !!(destination_value == 0);
 
-				destination_value |= 0x80;
+				result_value = destination_value | 0x80;
 				break;
 
 			case INSTRUCTION_TRAP:
@@ -1887,15 +1887,15 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_ADDQ:
-				destination_value += opcode_secondary_register + 1;
+				result_value = destination_value + opcode_secondary_register + 1;
 				break;
 
 			case INSTRUCTION_SUBQ:
-				destination_value -= opcode_secondary_register + 1;
+				result_value = destination_value - opcode_secondary_register - 1;
 				break;
 
 			case INSTRUCTION_SCC:
-				destination_value = IsOpcodeConditionTrue(state, opcode) ? 0xFF : 0;
+				result_value = IsOpcodeConditionTrue(state, opcode) ? 0xFF : 0;
 				break;
 
 			case INSTRUCTION_DBCC:
@@ -1921,7 +1921,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_MOVEQ:
-				destination_value = SIGN_EXTEND(opcode & 0x00FF, 7);
+				result_value = SIGN_EXTEND(opcode & 0x00FF, 7);
 				break;
 
 			case INSTRUCTION_DIVU:
@@ -1998,7 +1998,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				if (!opcode_bit_8)
 					source_value = SIGN_EXTEND(source_value, 15);
 
-				destination_value -= source_value;
+				result_value = destination_value - source_value;
 
 				break;
 
@@ -2060,7 +2060,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				if (!opcode_bit_8)
 					source_value = SIGN_EXTEND(source_value, 15);
 
-				destination_value += source_value;
+				result_value = destination_value + source_value;
 
 				break;
 
@@ -2077,6 +2077,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				const unsigned long original_sign_bit = destination_value & sign_bit_bitmask;
 				unsigned char i;
 				unsigned char count;
+
+				result_value = destination_value;
 
 				switch (instruction)
 				{
@@ -2108,30 +2110,30 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					for (i = 0; i < count; ++i)
 					{
 						state->status_register &= ~(CONDITION_CODE_EXTEND | CONDITION_CODE_CARRY);
-						state->status_register |= (CONDITION_CODE_EXTEND | CONDITION_CODE_CARRY) * !!(destination_value & sign_bit_bitmask);
+						state->status_register |= (CONDITION_CODE_EXTEND | CONDITION_CODE_CARRY) * !!(result_value & sign_bit_bitmask);
 
 						switch (instruction)
 						{
 							case INSTRUCTION_ASD_MEMORY:
 							case INSTRUCTION_ASD_REGISTER:
-								state->status_register |= CONDITION_CODE_OVERFLOW * ((destination_value & sign_bit_bitmask) != original_sign_bit);
-								destination_value <<= 1;
+								state->status_register |= CONDITION_CODE_OVERFLOW * ((result_value & sign_bit_bitmask) != original_sign_bit);
+								result_value <<= 1;
 								break;
 
 							case INSTRUCTION_LSD_MEMORY:
 							case INSTRUCTION_LSD_REGISTER:
-								destination_value <<= 1;
+								result_value <<= 1;
 								break;
 
 							case INSTRUCTION_ROXD_MEMORY:
 							case INSTRUCTION_ROXD_REGISTER:
-								destination_value <<= 1;
-								destination_value |= 1 * !!(state->status_register & CONDITION_CODE_EXTEND);
+								result_value <<= 1;
+								result_value |= 1 * !!(state->status_register & CONDITION_CODE_EXTEND);
 								break;
 
 							case INSTRUCTION_ROD_MEMORY:
 							case INSTRUCTION_ROD_REGISTER:
-								destination_value = (destination_value << 1) | (1 * !!(destination_value & sign_bit_bitmask));
+								result_value = (result_value << 1) | (1 * !!(result_value & sign_bit_bitmask));
 								break;
 
 							default:
@@ -2146,30 +2148,30 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					for (i = 0; i < count; ++i)
 					{
 						state->status_register &= ~(CONDITION_CODE_EXTEND | CONDITION_CODE_CARRY);
-						state->status_register |= (CONDITION_CODE_EXTEND | CONDITION_CODE_CARRY) * !!(destination_value & 1);
+						state->status_register |= (CONDITION_CODE_EXTEND | CONDITION_CODE_CARRY) * !!(result_value & 1);
 
 						switch (instruction)
 						{
 							case INSTRUCTION_ASD_MEMORY:
 							case INSTRUCTION_ASD_REGISTER:
-								destination_value >>= 1;
-								destination_value |= original_sign_bit;
+								result_value >>= 1;
+								result_value |= original_sign_bit;
 								break;
 
 							case INSTRUCTION_LSD_MEMORY:
 							case INSTRUCTION_LSD_REGISTER:
-								destination_value >>= 1;
+								result_value >>= 1;
 								break;
 
 							case INSTRUCTION_ROXD_MEMORY:
 							case INSTRUCTION_ROXD_REGISTER:
-								destination_value >>= 1;
-								destination_value |= sign_bit_bitmask * !!(state->status_register & CONDITION_CODE_EXTEND);
+								result_value >>= 1;
+								result_value |= sign_bit_bitmask * !!(state->status_register & CONDITION_CODE_EXTEND);
 								break;
 
 							case INSTRUCTION_ROD_MEMORY:
 							case INSTRUCTION_ROD_REGISTER:
-								destination_value = (destination_value >> 1) | (sign_bit_bitmask * !!(destination_value & sign_bit_bitmask));
+								result_value = (result_value >> 1) | (sign_bit_bitmask * !!(result_value & sign_bit_bitmask));
 								break;
 
 							default:
@@ -2200,8 +2202,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ANDI:
 			case INSTRUCTION_EORI:
 				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW | CONDITION_CODE_CARRY); 
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(destination_value & (1ul << (operation_size * 8ul - 1ul)));
-				state->status_register |= CONDITION_CODE_ZERO * !!(destination_value != 0);
+				state->status_register |= CONDITION_CODE_NEGATIVE * !!(result_value & (1ul << (operation_size * 8ul - 1ul)));
+				state->status_register |= CONDITION_CODE_ZERO * !!(result_value != 0);
 				break;
 
 			case INSTRUCTION_TST:
@@ -2241,7 +2243,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_EORI_TO_CCR:
 			case INSTRUCTION_MOVE_TO_CCR:
 				/* Write to condition code register */
-				state->status_register = (destination_value & 0xFF) | (state->status_register & 0xFF00);
+				state->status_register = (result_value & 0xFF) | (state->status_register & 0xFF00);
 				break;
 
 			case INSTRUCTION_ORI_TO_SR:
@@ -2249,7 +2251,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_EORI_TO_SR:
 			case INSTRUCTION_MOVE_TO_SR:
 				/* Write to status register */
-				state->status_register = destination_value;
+				state->status_register = result_value;
 				break;
 
 			case INSTRUCTION_ORI:
@@ -2299,7 +2301,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ROXD_REGISTER:
 			case INSTRUCTION_ROD_REGISTER:
 				/* Write to destination */
-				SetValueUsingDecodedAddressMode(callbacks, &destination_decoded_address_mode, destination_value);
+				SetValueUsingDecodedAddressMode(callbacks, &destination_decoded_address_mode, result_value);
 				break;
 
 			case INSTRUCTION_CMPI:
