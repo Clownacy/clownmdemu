@@ -1729,7 +1729,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_STOP:
 				/* TODO */
+				/*if (supervisor_mode)
+					state->status_register = source_value;
+				else
+					TRAP();*/
 				UNIMPLEMENTED_INSTRUCTION("STOP");
+
 				break;
 
 			case INSTRUCTION_RTE:
