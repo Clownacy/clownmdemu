@@ -1021,6 +1021,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_LSD_MEMORY:
 			case INSTRUCTION_ROXD_MEMORY:
 			case INSTRUCTION_ROD_MEMORY:
+			case INSTRUCTION_STOP:
 				/* Hardcoded to a word */
 				operation_size = 2;
 				break;
@@ -1120,7 +1121,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MOVE_USP:
 			case INSTRUCTION_RESET:
 			case INSTRUCTION_NOP:
-			case INSTRUCTION_STOP:
 			case INSTRUCTION_RTE:
 			case INSTRUCTION_RTS:
 			case INSTRUCTION_TRAPV:
@@ -1159,6 +1159,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_LINK:
 			case INSTRUCTION_MOVEM:
 			case INSTRUCTION_DBCC:
+			case INSTRUCTION_STOP:
 				/* Immediate value (any size) */
 				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);
 				source_value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
@@ -1268,7 +1269,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MOVE_USP:
 			case INSTRUCTION_RESET:
 			case INSTRUCTION_NOP:
-			case INSTRUCTION_STOP:
 			case INSTRUCTION_RTE:
 			case INSTRUCTION_RTS:
 			case INSTRUCTION_TRAPV:
