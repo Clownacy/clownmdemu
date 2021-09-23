@@ -2257,11 +2257,9 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ORI:
 			case INSTRUCTION_ANDI:
 			case INSTRUCTION_EORI:
-			case INSTRUCTION_BTST_STATIC:
 			case INSTRUCTION_BCHG_STATIC:
 			case INSTRUCTION_BCLR_STATIC:
 			case INSTRUCTION_BSET_STATIC:
-			case INSTRUCTION_BTST_DYNAMIC:
 			case INSTRUCTION_BCHG_DYNAMIC:
 			case INSTRUCTION_BCLR_DYNAMIC:
 			case INSTRUCTION_BSET_DYNAMIC:
@@ -2305,6 +2303,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_CMPI:
+			case INSTRUCTION_BTST_STATIC:
+			case INSTRUCTION_BTST_DYNAMIC:
 			case INSTRUCTION_MOVEP:
 			case INSTRUCTION_PEA:
 			case INSTRUCTION_ILLEGAL:
