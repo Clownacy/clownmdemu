@@ -2211,6 +2211,151 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 		#endif
 		}
+
+		/* Update the condition codes in the following order: */
+		/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
+		{
+			const unsigned long msb_mask = 1ul << (operation_size * 8ul - 1ul);
+			const cc_bool sm = !!(source_value & msb_mask);
+			const cc_bool dm = !!(destination_value & msb_mask);
+			const cc_bool rm = !!(result_value & msb_mask);
+
+			/* Update CARRY condition code */
+			switch (instruction)
+			{
+				case INSTRUCTION_ABCD:
+					/* TODO - "Decimal carry" */
+					break;
+
+				case INSTRUCTION_SBCD:
+				case INSTRUCTION_NBCD:
+					/* TODO - "Decimal borrow" */
+					break;
+
+				case INSTRUCTION_ADDQ:
+					/* Condition codes are not affected when the destination is an address register */
+					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+						break;
+					/* Fallthrough */
+				case INSTRUCTION_ADD:
+				case INSTRUCTION_ADDI:
+				case INSTRUCTION_ADDX:
+					state->status_register &= ~CONDITION_CODE_CARRY;
+					state->status_register |= CONDITION_CODE_CARRY * ((sm && dm) || (!rm && dm) || (sm && !rm));
+					break;
+
+				case INSTRUCTION_SUBQ:
+					/* Condition codes are not affected when the destination is an address register */
+					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+						break;
+					/* Fallthrough */
+				case INSTRUCTION_SUB:
+				case INSTRUCTION_SUBI:
+				case INSTRUCTION_SUBX:
+				case INSTRUCTION_CMP:
+				case INSTRUCTION_CMPA:
+				case INSTRUCTION_CMPI:
+				case INSTRUCTION_CMPM:
+					state->status_register &= ~CONDITION_CODE_CARRY;
+					state->status_register |= CONDITION_CODE_CARRY * ((sm && !dm) || (rm && !dm) || (sm && rm));
+					break;
+
+				case INSTRUCTION_NEG:
+				case INSTRUCTION_NEGX:
+					state->status_register &= ~CONDITION_CODE_CARRY;
+					state->status_register |= CONDITION_CODE_CARRY * (dm || rm);
+					break;
+
+				case INSTRUCTION_ASD_MEMORY:
+				case INSTRUCTION_LSD_MEMORY:
+				case INSTRUCTION_ROXD_MEMORY:
+				case INSTRUCTION_ROD_MEMORY:
+				case INSTRUCTION_ASD_REGISTER:
+				case INSTRUCTION_LSD_REGISTER:
+				case INSTRUCTION_ROXD_REGISTER:
+				case INSTRUCTION_ROD_REGISTER:
+					/* The condition codes are set in the actual instruction code */
+					break;
+
+				case INSTRUCTION_AND:
+				case INSTRUCTION_ANDI:
+				case INSTRUCTION_EOR:
+				case INSTRUCTION_EORI:
+				case INSTRUCTION_MOVEQ:
+				case INSTRUCTION_MOVE:
+				case INSTRUCTION_OR:
+				case INSTRUCTION_ORI:
+				case INSTRUCTION_CLR:
+				case INSTRUCTION_EXT:
+				case INSTRUCTION_NOT:
+				case INSTRUCTION_TAS:
+				case INSTRUCTION_TST:
+				case INSTRUCTION_DIVS:
+				case INSTRUCTION_DIVU:
+				case INSTRUCTION_MULS:
+				case INSTRUCTION_MULU:
+				case INSTRUCTION_SWAP:
+					/* Always cleared */
+					state->status_register &= ~CONDITION_CODE_CARRY;
+					break;
+
+				case INSTRUCTION_BTST_STATIC:
+				case INSTRUCTION_BCHG_STATIC:
+				case INSTRUCTION_BCLR_STATIC:
+				case INSTRUCTION_BSET_STATIC:
+				case INSTRUCTION_BTST_DYNAMIC:
+				case INSTRUCTION_BCHG_DYNAMIC:
+				case INSTRUCTION_BCLR_DYNAMIC:
+				case INSTRUCTION_BSET_DYNAMIC:
+					/* Unaltered */
+					break;
+
+				case INSTRUCTION_CHK:
+					/* Undefined */
+					break;
+
+				case INSTRUCTION_ADDA:
+				case INSTRUCTION_ANDI_TO_CCR:
+				case INSTRUCTION_ANDI_TO_SR:
+				case INSTRUCTION_BCC:
+				case INSTRUCTION_BRA:
+				case INSTRUCTION_BSR:
+				case INSTRUCTION_DBCC:
+				case INSTRUCTION_EORI_TO_CCR:
+				case INSTRUCTION_EORI_TO_SR:
+				case INSTRUCTION_EXG:
+				case INSTRUCTION_JMP:
+				case INSTRUCTION_JSR:
+				case INSTRUCTION_ILLEGAL:
+				case INSTRUCTION_LEA:
+				case INSTRUCTION_LINK:
+				case INSTRUCTION_MOVE_FROM_SR:
+				case INSTRUCTION_MOVE_TO_CCR:
+				case INSTRUCTION_MOVE_TO_SR:
+				case INSTRUCTION_MOVE_USP:
+				case INSTRUCTION_MOVEA:
+				case INSTRUCTION_MOVEM:
+				case INSTRUCTION_MOVEP:
+				case INSTRUCTION_NOP:
+				case INSTRUCTION_ORI_TO_CCR:
+				case INSTRUCTION_ORI_TO_SR:
+				case INSTRUCTION_PEA:
+				case INSTRUCTION_RESET:
+				case INSTRUCTION_RTE:
+				case INSTRUCTION_RTR:
+				case INSTRUCTION_RTS:
+				case INSTRUCTION_SCC:
+				case INSTRUCTION_STOP:
+				case INSTRUCTION_SUBA:
+				case INSTRUCTION_TRAP:
+				case INSTRUCTION_TRAPV:
+				case INSTRUCTION_UNLK:
+				case INSTRUCTION_UNKNOWN:
+					/* These instructions don't affect condition codes (unless they write to them directly) */
+					break;
+			}
+		}
+
 #if 0
 		/* Update condition codes */
 		switch (instruction)
