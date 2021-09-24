@@ -70,7 +70,8 @@ static void M68kWriteCallback(void *user_data, unsigned long address, unsigned c
 
 	if (/*address >= 0 &&*/ address < state->rom.size)
 	{
-		state->rom.buffer[address] = value;
+		/*state->rom.buffer[address] = value;*/
+		PrintError("68k attempted to write to ROM at 0x%X", address);
 	}
 	else if (address >= 0xA00000 && address <= 0xA01FFF)
 	{
