@@ -1320,6 +1320,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER, opcode_secondary_register);
 				break;
 
+			case INSTRUCTION_MOVE:
 			case INSTRUCTION_MOVEP:
 			case INSTRUCTION_MOVEA:
 				/* Secondary address mode */ 
@@ -1396,7 +1397,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ANDI_TO_SR:
 			case INSTRUCTION_EORI_TO_CCR:
 			case INSTRUCTION_EORI_TO_SR:
-			case INSTRUCTION_MOVE:
 			case INSTRUCTION_MOVE_TO_CCR:
 			case INSTRUCTION_MOVE_TO_SR:
 			case INSTRUCTION_PEA:
