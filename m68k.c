@@ -353,7 +353,7 @@ static void DecodeAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *
 			/* Register */
 			decoded_address_mode->type = DECODED_ADDRESS_MODE_TYPE_REGISTER;
 			decoded_address_mode->data.reg.address = &(address_mode == ADDRESS_MODE_ADDRESS_REGISTER ? state->address_registers : state->data_registers)[reg];
-			decoded_address_mode->data.reg.operation_size_bitmask = (1ul << (operation_size_in_bytes * 8ul)) - 1ul;
+			decoded_address_mode->data.reg.operation_size_bitmask = 0xFFFFFFFF >> (32 - operation_size_in_bytes * 8);
 			break;
 
 		default:
