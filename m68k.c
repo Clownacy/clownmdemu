@@ -7,6 +7,12 @@
 
 #include "error.h"
 
+#define DEBUG_STUFF
+
+#ifdef DEBUG_STUFF
+#include <stdio.h>
+#endif
+
 #define SIGN_EXTEND(value, sign_bit) (((value) & ((1ul << (sign_bit)) - 1ul)) - ((value) & (1ul << (sign_bit))))
 #define UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(value, sign_bit, type) (((value) & (1ul << (sign_bit))) ? -(type)(-(value) & ((1ul << (sign_bit)) - 1ul)) : (type)((value) & ((1ul << (sign_bit)) - 1ul)))
 #define SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(value, type) ((value) < 0 ? -(type)-(value) : (type)(value))
@@ -2888,5 +2894,104 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				/* Doesn't write anything */
 				break;
 		}
+
+	#ifdef DEBUG_STUFF
+		{
+			const char* const instruction_strings[] = {
+				"INSTRUCTION_ABCD",
+				"INSTRUCTION_ADD",
+				"INSTRUCTION_ADDA",
+				"INSTRUCTION_ADDI",
+				"INSTRUCTION_ADDQ",
+				"INSTRUCTION_ADDX",
+				"INSTRUCTION_AND",
+				"INSTRUCTION_ANDI",
+				"INSTRUCTION_ANDI_TO_CCR",
+				"INSTRUCTION_ANDI_TO_SR",
+				"INSTRUCTION_ASD_MEMORY",
+				"INSTRUCTION_ASD_REGISTER",
+				"INSTRUCTION_BCC",
+				"INSTRUCTION_BCHG_DYNAMIC",
+				"INSTRUCTION_BCHG_STATIC",
+				"INSTRUCTION_BCLR_DYNAMIC",
+				"INSTRUCTION_BCLR_STATIC",
+				"INSTRUCTION_BRA",
+				"INSTRUCTION_BSET_DYNAMIC",
+				"INSTRUCTION_BSET_STATIC",
+				"INSTRUCTION_BSR",
+				"INSTRUCTION_BTST_DYNAMIC",
+				"INSTRUCTION_BTST_STATIC",
+				"INSTRUCTION_CHK",
+				"INSTRUCTION_CLR",
+				"INSTRUCTION_CMP",
+				"INSTRUCTION_CMPA",
+				"INSTRUCTION_CMPI",
+				"INSTRUCTION_CMPM",
+				"INSTRUCTION_DBCC",
+				"INSTRUCTION_DIVS",
+				"INSTRUCTION_DIVU",
+				"INSTRUCTION_EOR",
+				"INSTRUCTION_EORI",
+				"INSTRUCTION_EORI_TO_CCR",
+				"INSTRUCTION_EORI_TO_SR",
+				"INSTRUCTION_EXG",
+				"INSTRUCTION_EXT",
+				"INSTRUCTION_ILLEGAL",
+				"INSTRUCTION_JMP",
+				"INSTRUCTION_JSR",
+				"INSTRUCTION_LEA",
+				"INSTRUCTION_LINK",
+				"INSTRUCTION_LSD_MEMORY",
+				"INSTRUCTION_LSD_REGISTER",
+				"INSTRUCTION_MOVE",
+				"INSTRUCTION_MOVE_FROM_SR",
+				"INSTRUCTION_MOVE_TO_CCR",
+				"INSTRUCTION_MOVE_TO_SR",
+				"INSTRUCTION_MOVE_USP",
+				"INSTRUCTION_MOVEA",
+				"INSTRUCTION_MOVEM",
+				"INSTRUCTION_MOVEP",
+				"INSTRUCTION_MOVEQ",
+				"INSTRUCTION_MULS",
+				"INSTRUCTION_MULU",
+				"INSTRUCTION_NBCD",
+				"INSTRUCTION_NEG",
+				"INSTRUCTION_NEGX",
+				"INSTRUCTION_NOP",
+				"INSTRUCTION_NOT",
+				"INSTRUCTION_OR",
+				"INSTRUCTION_ORI",
+				"INSTRUCTION_ORI_TO_CCR",
+				"INSTRUCTION_ORI_TO_SR",
+				"INSTRUCTION_PEA",
+				"INSTRUCTION_RESET",
+				"INSTRUCTION_ROD_MEMORY",
+				"INSTRUCTION_ROD_REGISTER",
+				"INSTRUCTION_ROXD_MEMORY",
+				"INSTRUCTION_ROXD_REGISTER",
+				"INSTRUCTION_RTE",
+				"INSTRUCTION_RTR",
+				"INSTRUCTION_RTS",
+				"INSTRUCTION_SBCD",
+				"INSTRUCTION_SCC",
+				"INSTRUCTION_STOP",
+				"INSTRUCTION_SUB",
+				"INSTRUCTION_SUBA",
+				"INSTRUCTION_SUBI",
+				"INSTRUCTION_SUBQ",
+				"INSTRUCTION_SUBX",
+				"INSTRUCTION_SWAP",
+				"INSTRUCTION_TAS",
+				"INSTRUCTION_TRAP",
+				"INSTRUCTION_TRAPV",
+				"INSTRUCTION_TST",
+				"INSTRUCTION_UNLK",
+
+				"INSTRUCTION_UNKNOWN"
+			};
+
+			printf("0x%.8lX - %s\n", state->program_counter, instruction_strings[instruction]);
+		}
+	#endif
 	}
 }
