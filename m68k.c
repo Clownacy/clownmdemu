@@ -499,24 +499,35 @@ static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned short opcode)
 
 void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 {
-	/* Supervisor bit set, interrupt mask blanked */
-	/* TODO - Verify what this should actually be */
-	state->status_register = 0x2000;
-
 	state->address_registers[7] = ReadLongWord(callbacks, 0);
 	state->program_counter = ReadLongWord(callbacks, 4);
+
+	state->status_register &= 0x00FF;
+	/* Set supervisor bit */
+	state->status_register |= 0x2000;
+	/* Set interrupt mask set to 7 */
+	state->status_register |= 0x0700;
 }
 
 void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned char level)
 {
 	assert(level >= 1 && level <= 7);
 
-	state->address_registers[7] -= 4;
-	WriteLongWord(callbacks, state->address_registers[7], state->program_counter);
-	state->address_registers[7] -= 2;
-	WriteWord(callbacks, state->address_registers[7], state->status_register);
+	if (level == 7 || (level << 8) > (state->status_register & 0x0700))
+	{
+		state->address_registers[7] -= 4;
+		WriteLongWord(callbacks, state->address_registers[7], state->program_counter);
+		state->address_registers[7] -= 2;
+		WriteWord(callbacks, state->address_registers[7], state->status_register);
 
-	state->program_counter = ReadLongWord(callbacks, 24 + level * 4);
+		state->status_register &= 0x00FF;
+		/* Set supervisor bit */
+		state->status_register |= 0x2000;
+		/* Set interrupt mask set to current level */
+		state->status_register |= level << 8;
+
+		state->program_counter = ReadLongWord(callbacks, 0x60 + level * 4);
+	}
 }
 
 void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
