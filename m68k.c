@@ -1636,6 +1636,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MOVE_TO_CCR:
 			case INSTRUCTION_MOVE_TO_SR:
 			case INSTRUCTION_LEA:
+			case INSTRUCTION_TST:
 				result_value = source_value;
 				break;
 
@@ -2201,7 +2202,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 			}
 
-			case INSTRUCTION_TST:
 			case INSTRUCTION_UNKNOWN:
 				/* Doesn't do anything */
 				break;
