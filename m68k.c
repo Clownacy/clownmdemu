@@ -267,6 +267,11 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 			state->program_counter += operation_size_in_bytes;
 		}
 	}
+	else if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT)
+	{
+		/* Address register indirect */
+		address = state->address_registers[reg];
+	}
 	else if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
 	{
 		/* Address register indirect with predecrement */
