@@ -1002,7 +1002,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ORI_TO_CCR:
 			case INSTRUCTION_ANDI_TO_CCR:
 			case INSTRUCTION_EORI_TO_CCR:
-			case INSTRUCTION_MOVE_TO_CCR:
 			case INSTRUCTION_NBCD:
 			case INSTRUCTION_TAS:
 			case INSTRUCTION_SCC:
@@ -1017,6 +1016,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_EORI_TO_SR:
 			case INSTRUCTION_MOVE_FROM_SR:
 			case INSTRUCTION_MOVE_TO_SR:
+			case INSTRUCTION_MOVE_TO_CCR:
 			case INSTRUCTION_LINK:
 			case INSTRUCTION_MOVEM:
 			case INSTRUCTION_CHK:
