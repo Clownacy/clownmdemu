@@ -2521,7 +2521,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_SUBI:
 				case INSTRUCTION_SUBQ:
 				case INSTRUCTION_SWAP:
-				case INSTRUCTION_TAS:
 				case INSTRUCTION_TST:
 					/* Standard behaviour: set if result is zero */
 					state->status_register &= ~CONDITION_CODE_ZERO;
@@ -2532,10 +2531,118 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_DIVU:
 				case INSTRUCTION_MULS:
 				case INSTRUCTION_MULU:
+				case INSTRUCTION_TAS:
 					/* The condition code is set in the actual instruction code */
 					break;
 
 				case INSTRUCTION_CHK:
+					/* Undefined */
+					break;
+
+				case INSTRUCTION_ADDA:
+				case INSTRUCTION_ANDI_TO_CCR:
+				case INSTRUCTION_ANDI_TO_SR:
+				case INSTRUCTION_BCC:
+				case INSTRUCTION_BCHG_DYNAMIC:
+				case INSTRUCTION_BCHG_STATIC:
+				case INSTRUCTION_BCLR_DYNAMIC:
+				case INSTRUCTION_BCLR_STATIC:
+				case INSTRUCTION_BRA:
+				case INSTRUCTION_BSET_DYNAMIC:
+				case INSTRUCTION_BSET_STATIC:
+				case INSTRUCTION_BSR:
+				case INSTRUCTION_BTST_DYNAMIC:
+				case INSTRUCTION_BTST_STATIC:
+				case INSTRUCTION_DBCC:
+				case INSTRUCTION_EORI_TO_CCR:
+				case INSTRUCTION_EORI_TO_SR:
+				case INSTRUCTION_EXG:
+				case INSTRUCTION_JMP:
+				case INSTRUCTION_JSR:
+				case INSTRUCTION_ILLEGAL:
+				case INSTRUCTION_LEA:
+				case INSTRUCTION_LINK:
+				case INSTRUCTION_MOVE_FROM_SR:
+				case INSTRUCTION_MOVE_TO_CCR:
+				case INSTRUCTION_MOVE_TO_SR:
+				case INSTRUCTION_MOVE_USP:
+				case INSTRUCTION_MOVEA:
+				case INSTRUCTION_MOVEM:
+				case INSTRUCTION_MOVEP:
+				case INSTRUCTION_NOP:
+				case INSTRUCTION_ORI_TO_CCR:
+				case INSTRUCTION_ORI_TO_SR:
+				case INSTRUCTION_PEA:
+				case INSTRUCTION_RESET:
+				case INSTRUCTION_RTE:
+				case INSTRUCTION_RTR:
+				case INSTRUCTION_RTS:
+				case INSTRUCTION_SCC:
+				case INSTRUCTION_STOP:
+				case INSTRUCTION_SUBA:
+				case INSTRUCTION_TRAP:
+				case INSTRUCTION_TRAPV:
+				case INSTRUCTION_UNLK:
+				case INSTRUCTION_UNKNOWN:
+					/* These instructions don't affect condition codes (unless they write to them directly) */
+					break;
+			}
+
+			/* Update NEGATIVE condition code */
+			switch (instruction)
+			{
+				case INSTRUCTION_CHK:
+				case INSTRUCTION_DIVS:
+				case INSTRUCTION_DIVU:
+				case INSTRUCTION_MULS:
+				case INSTRUCTION_MULU:
+				case INSTRUCTION_TAS:
+					/* The condition code is set in the actual instruction code */
+					break;
+
+				case INSTRUCTION_ADD:
+				case INSTRUCTION_ADDI:
+				case INSTRUCTION_ADDQ:
+				case INSTRUCTION_ADDX:
+				case INSTRUCTION_AND:
+				case INSTRUCTION_ANDI:
+				case INSTRUCTION_ASD_REGISTER:
+				case INSTRUCTION_ASD_MEMORY:
+				case INSTRUCTION_CLR:
+				case INSTRUCTION_CMP:
+				case INSTRUCTION_CMPA:
+				case INSTRUCTION_CMPI:
+				case INSTRUCTION_CMPM:
+				case INSTRUCTION_EOR:
+				case INSTRUCTION_EORI:
+				case INSTRUCTION_EXT:
+				case INSTRUCTION_LSD_REGISTER:
+				case INSTRUCTION_LSD_MEMORY:
+				case INSTRUCTION_MOVE:
+				case INSTRUCTION_MOVEQ:
+				case INSTRUCTION_NEG:
+				case INSTRUCTION_NEGX:
+				case INSTRUCTION_NOT:
+				case INSTRUCTION_OR:
+				case INSTRUCTION_ORI:
+				case INSTRUCTION_ROD_REGISTER:
+				case INSTRUCTION_ROD_MEMORY:
+				case INSTRUCTION_ROXD_REGISTER:
+				case INSTRUCTION_ROXD_MEMORY:
+				case INSTRUCTION_SUB:
+				case INSTRUCTION_SUBI:
+				case INSTRUCTION_SUBQ:
+				case INSTRUCTION_SUBX:
+				case INSTRUCTION_SWAP:
+				case INSTRUCTION_TST:
+					/* Standard behaviour: set if result value is negative */
+					state->status_register &= ~CONDITION_CODE_NEGATIVE;
+					state->status_register |= CONDITION_CODE_NEGATIVE * !!(result_value & msb_mask);
+					break;
+
+				case INSTRUCTION_ABCD:
+				case INSTRUCTION_NBCD:
+				case INSTRUCTION_SBCD:
 					/* Undefined */
 					break;
 
