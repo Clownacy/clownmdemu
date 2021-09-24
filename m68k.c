@@ -1769,7 +1769,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				size_t i;
 				unsigned short bitfield;
 
-				unsigned char delta;
+				signed char delta;
 				unsigned long (*read_function)(const M68k_ReadWriteCallbacks *callbacks, unsigned long address);
 				void (*write_function)(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value);
 
