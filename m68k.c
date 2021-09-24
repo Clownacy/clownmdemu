@@ -39,26 +39,6 @@ enum
 	ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE                         = 4
 };
 
-typedef enum Condition
-{
-	CONDITION_TRUE             =  0 << 8,
-	CONDITION_FALSE            =  1 << 8,
-	CONDITION_HIGHER           =  2 << 8,
-	CONDITION_LOWER_OR_SAME    =  3 << 8,
-	CONDITION_CARRY_CLEAR      =  4 << 8,
-	CONDITION_CARRY_SET        =  5 << 8,
-	CONDITION_NOT_EQUAL        =  6 << 8,
-	CONDITION_EQUAL            =  7 << 8,
-	CONDITION_OVERFLOW_CLEAR   =  8 << 8,
-	CONDITION_OVERFLOW_SET     =  9 << 8,
-	CONDITION_PLUS             = 10 << 8,
-	CONDITION_MINUS            = 11 << 8,
-	CONDITION_GREATER_OR_EQUAL = 12 << 8,
-	CONDITION_LESS_THAN        = 13 << 8,
-	CONDITION_GREATER_THAN     = 14 << 8,
-	CONDITION_LESS_OR_EQUAL    = 15 << 8
-} Condition;
-
 enum
 {
 	CONDITION_CODE_CARRY    = 1 << 0,
@@ -444,54 +424,70 @@ static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned short opcode)
 	const cc_bool zero = !!(state->status_register & CONDITION_CODE_ZERO);
 	const cc_bool negative = !!(state->status_register & CONDITION_CODE_NEGATIVE);
 
-	switch ((Condition)(opcode & 0x0F00))
+	switch (opcode & 0x0F00)
 	{
-		case CONDITION_TRUE:
+		case 0 << 8:
+			/* True */
 			return cc_true;
 
-		case CONDITION_FALSE:
+		case 1 << 8:
+			/* False */
 			return cc_false;
 
-		case CONDITION_HIGHER:
+		case 2 << 8:
+			/* Higher */
 			return !carry && !zero;
 
-		case CONDITION_LOWER_OR_SAME:
+		case 3 << 8:
+			/* Lower or same */
 			return carry || zero;
 
-		case CONDITION_CARRY_CLEAR:
+		case 4 << 8:
+			/* Carry clear */
 			return !carry;
 
-		case CONDITION_CARRY_SET:
+		case 5 << 8:
+			/* Carry set */
 			return carry;
 
-		case CONDITION_NOT_EQUAL:
+		case 6 << 8:
+			/* Not equal */
 			return !zero;
 
-		case CONDITION_EQUAL:
+		case 7 << 8:
+			/* Equal */
 			return zero;
 
-		case CONDITION_OVERFLOW_CLEAR:
+		case 8 << 8:
+			/* Overflow clear */
 			return !overflow;
 
-		case CONDITION_OVERFLOW_SET:
+		case 9 << 8:
+			/* Overflow set */
 			return overflow;
 
-		case CONDITION_PLUS:
+		case 10 << 8:
+			/* Plus */
 			return !negative;
 
-		case CONDITION_MINUS:
+		case 11 << 8:
+			/* Minus */
 			return negative;
 
-		case CONDITION_GREATER_OR_EQUAL:
+		case 12 << 8:
+			/* Greater or equal */
 			return (negative && overflow) || (!negative && !overflow);
 
-		case CONDITION_LESS_THAN:
+		case 13 << 8:
+			/* Less than */
 			return (negative && !overflow) || (!negative && overflow);
 
-		case CONDITION_GREATER_THAN:
+		case 14 << 8:
+			/* Greater than */
 			return (negative && overflow && !zero) || (!negative && !overflow && !zero);
 
-		case CONDITION_LESS_OR_EQUAL:
+		case 15 << 8:
+			/* Less or equal */
 			return zero || (negative && !overflow) || (!negative && overflow);
 
 		default:
