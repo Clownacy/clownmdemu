@@ -14,8 +14,8 @@
 #endif
 
 #define SIGN_EXTEND(value, sign_bit) (((value) & ((1ul << (sign_bit)) - 1ul)) - ((value) & (1ul << (sign_bit))))
-#define UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(value, sign_bit, type) (((value) & (1ul << (sign_bit))) ? -(type)(-(value) & ((1ul << (sign_bit)) - 1ul)) : (type)((value) & ((1ul << (sign_bit)) - 1ul)))
-#define SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(value, type) ((value) < 0 ? -(type)-(value) : (type)(value))
+#define UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(value, sign_bit) (((value) & (1ul << (sign_bit))) ? -(long)(-(value) & ((1ul << ((sign_bit) + 1ul)) - 1ul)) : (long)((value) & ((1ul << ((sign_bit) + 1ul)) - 1ul)))
+#define SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(value) ((value) < 0 ? -(unsigned long)-(value) : (unsigned long)(value))
 #define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%X", state->program_counter)
 
 typedef enum AddressMode
@@ -310,8 +310,8 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 			const cc_bool is_address_register = !!(extension_word & 0x8000);
 			const unsigned char displacement_reg = (extension_word >> 12) & 7;
 			const cc_bool is_longword = !!(extension_word & 0x0800);
-			const signed char displacement_literal_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(extension_word, 7, signed char);
-			const long displacement_reg_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE((is_address_register ? state->address_registers : state->data_registers)[displacement_reg], is_longword ? 31 : 15, long);
+			const signed char displacement_literal_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(extension_word, 7);
+			const long displacement_reg_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE((is_address_register ? state->address_registers : state->data_registers)[displacement_reg], is_longword ? 31 : 15);
 
 			address += displacement_reg_value;
 			address += displacement_literal_value;
@@ -1637,7 +1637,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				state->address_registers[opcode_primary_register] = state->address_registers[7];
 
 				/* Offset the stack pointer by the immediate value */
-				state->address_registers[7] += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15, short);
+				state->address_registers[7] += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15);
 
 				break;
 
@@ -1887,7 +1887,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					if (loop_counter-- != 0)
 					{
 						state->program_counter -= 2;
-						state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15, short);
+						state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15);
 					}
 
 					state->data_registers[opcode_primary_register] &= ~0xFFFF;
@@ -1912,12 +1912,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				if ((opcode & 0x00FF) != 0)
 				{
-					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(opcode, 7, signed char);
+					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(opcode, 7);
 				}
 				else
 				{
 					state->program_counter -= 2;
-					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15, short);
+					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15);
 				}
 
 				break;
@@ -1956,8 +1956,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_DIVS:
 			{
-				const short signed_source_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15, short);
-				const long signed_destination_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(destination_value, 31, long);
+				const short signed_source_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15);
+				const long signed_destination_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(destination_value, 31);
 
 				const long quotient = signed_destination_value / signed_source_value;
 
@@ -1976,7 +1976,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				{
 					const short remainder = signed_destination_value % signed_source_value;
 
-					state->data_registers[opcode_secondary_register] = (SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(quotient, unsigned short) & 0xFFFF) | ((SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(remainder, unsigned short) & 0xFFFF) << 16);
+					state->data_registers[opcode_secondary_register] = (SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(quotient) & 0xFFFF) | ((SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(remainder) & 0xFFFF) << 16);
 				}
 
 				state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->data_registers[opcode_secondary_register] & 0x8000);
@@ -2014,9 +2014,9 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_MULS:
 			{
-				const short multiplier = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value & 0xFFFF, 15, short);
-				const short multiplicand = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(state->data_registers[opcode_secondary_register] & 0xFFFF, 15, short);
-				state->data_registers[opcode_secondary_register] = SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(multiplicand * multiplier, unsigned long);
+				const short multiplier = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value & 0xFFFF, 15);
+				const short multiplicand = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(state->data_registers[opcode_secondary_register] & 0xFFFF, 15);
+				state->data_registers[opcode_secondary_register] = SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(multiplicand * multiplier);
 				break;
 			}
 
