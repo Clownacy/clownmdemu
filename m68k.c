@@ -1340,9 +1340,9 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ADD:
 				/* Primary address mode or secondary data register, based on direction bit */
 				if (opcode_bit_8)
-					DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode_primary_address_mode, opcode_primary_register);
+					DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode_primary_address_mode, opcode_primary_register);
 				else
-					DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode_secondary_register);
+					DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode_secondary_register);
 					
 				break;
 
