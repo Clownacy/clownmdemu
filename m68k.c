@@ -755,11 +755,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						}
 					}
 				}
-				else if ((opcode & 0x0B80) == 0x0880)
-				{
-					instruction = INSTRUCTION_MOVEM;
-				}
-				else if (opcode_secondary_register == 4)
+				else if ((opcode & 0x0200) == 0)
 				{
 					if ((opcode & 0x01B8) == 0x0080)
 						instruction = INSTRUCTION_EXT;
@@ -769,6 +765,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						instruction = INSTRUCTION_SWAP;
 					else if ((opcode & 0x01C0) == 0x0040)
 						instruction = INSTRUCTION_PEA;
+					else if ((opcode & 0x0B80) == 0x0880)
+						instruction = INSTRUCTION_MOVEM;
 				}
 				else if (opcode == 0x4AFC)
 				{
