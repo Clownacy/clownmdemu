@@ -14,7 +14,7 @@
 #endif
 
 #define SIGN_EXTEND(value, sign_bit) (((value) & ((1ul << (sign_bit)) - 1ul)) - ((value) & (1ul << (sign_bit))))
-#define UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(value, sign_bit) (((value) & (1ul << (sign_bit))) ? -(long)(-(value) & ((1ul << ((sign_bit) + 1ul)) - 1ul)) : (long)((value) & ((1ul << ((sign_bit) + 1ul)) - 1ul)))
+#define UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(value, mask) (((value) & ((mask >> 1) + 1)) ? -(long)(-(value) & mask) : (long)((value) & mask))
 #define SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(value) ((value) < 0 ? -(unsigned long)-(value) : (unsigned long)(value))
 #define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%X", state->program_counter)
 
@@ -310,8 +310,8 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 			const cc_bool is_address_register = !!(extension_word & 0x8000);
 			const unsigned char displacement_reg = (extension_word >> 12) & 7;
 			const cc_bool is_longword = !!(extension_word & 0x0800);
-			const signed char displacement_literal_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(extension_word, 7);
-			const long displacement_reg_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE((is_address_register ? state->address_registers : state->data_registers)[displacement_reg], is_longword ? 31 : 15);
+			const signed char displacement_literal_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(extension_word, 0xFF);
+			const long displacement_reg_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE((is_address_register ? state->address_registers : state->data_registers)[displacement_reg], is_longword ? 0xFFFFFFFF : 0xFFFF);
 
 			address += displacement_reg_value;
 			address += displacement_literal_value;
@@ -1637,7 +1637,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				state->address_registers[opcode_primary_register] = state->address_registers[7];
 
 				/* Offset the stack pointer by the immediate value */
-				state->address_registers[7] += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15);
+				state->address_registers[7] += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 0xFFFF);
 
 				break;
 
@@ -1887,7 +1887,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					if (loop_counter-- != 0)
 					{
 						state->program_counter -= 2;
-						state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15);
+						state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 0xFFFF);
 					}
 
 					state->data_registers[opcode_primary_register] &= ~0xFFFF;
@@ -1912,12 +1912,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				if ((opcode & 0x00FF) != 0)
 				{
-					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(opcode, 7);
+					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(opcode, 0xFF);
 				}
 				else
 				{
 					state->program_counter -= 2;
-					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15);
+					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 0xFFFF);
 				}
 
 				break;
@@ -1956,8 +1956,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_DIVS:
 			{
-				const short signed_source_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15);
-				const long signed_destination_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(destination_value, 31);
+				const short signed_source_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 0xFFFF);
+				const long signed_destination_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(destination_value, 0xFFFFFFFF);
 
 				const long quotient = signed_destination_value / signed_source_value;
 
@@ -2014,8 +2014,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_MULS:
 			{
-				const short multiplier = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value & 0xFFFF, 15);
-				const short multiplicand = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(state->data_registers[opcode_secondary_register] & 0xFFFF, 15);
+				const short multiplier = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value & 0xFFFF, 0xFFFF);
+				const short multiplicand = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(state->data_registers[opcode_secondary_register] & 0xFFFF, 0xFFFF);
 				state->data_registers[opcode_secondary_register] = SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(multiplicand * multiplier);
 				break;
 			}
