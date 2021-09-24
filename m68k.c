@@ -1889,7 +1889,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_DBCC:
 				if (!IsOpcodeConditionTrue(state, opcode) && --state->data_registers[opcode_primary_register] != (unsigned long)-1)
-					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15, short) - 2;
+				{
+					state->program_counter -= 2;
+					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15, short);
+				}
 
 				break;
 
@@ -1908,9 +1911,14 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				}
 
 				if ((opcode & 0x00FF) != 0)
+				{
 					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(opcode, 7, signed char);
+				}
 				else
-					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15, short) - 2;
+				{
+					state->program_counter -= 2;
+					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 15, short);
+				}
 
 				break;
 
