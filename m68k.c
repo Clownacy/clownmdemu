@@ -1575,7 +1575,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_BSET_DYNAMIC:
 				/* Set the zero flag to the specified bit */
 				state->status_register &= ~CONDITION_CODE_ZERO;
-				state->status_register |= CONDITION_CODE_ZERO * !!(destination_value & (1ul << source_value));
+				state->status_register |= CONDITION_CODE_ZERO * !(destination_value & (1ul << source_value));
 
 				switch (instruction)
 				{
