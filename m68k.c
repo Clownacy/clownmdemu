@@ -1868,11 +1868,11 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_ADDQ:
-				result_value = destination_value + (((opcode_secondary_register - 1) & 7) + 1); /* A little math trick to turn 0 into 8 */
+				result_value = destination_value + (((opcode_secondary_register - 1u) & 7u) + 1u); /* A little math trick to turn 0 into 8 */
 				break;
 
 			case INSTRUCTION_SUBQ:
-				result_value = destination_value - (((opcode_secondary_register - 1) & 7) + 1); /* A little math trick to turn 0 into 8 */
+				result_value = destination_value - (((opcode_secondary_register - 1u) & 7u) + 1u); /* A little math trick to turn 0 into 8 */
 				break;
 
 			case INSTRUCTION_SCC:
