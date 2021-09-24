@@ -1251,6 +1251,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MULU:
 			case INSTRUCTION_MULS:
 			case INSTRUCTION_ADDA:
+			case INSTRUCTION_TST:
 				/* Primary address mode */
 				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode_primary_address_mode, opcode_primary_register);
 				source_value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
@@ -1266,7 +1267,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_SWAP:
 			case INSTRUCTION_ILLEGAL:
 			case INSTRUCTION_TAS:
-			case INSTRUCTION_TST:
 			case INSTRUCTION_TRAP:
 			case INSTRUCTION_UNLK:
 			case INSTRUCTION_MOVE_USP:
@@ -1374,7 +1374,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_NOT:
 			case INSTRUCTION_NBCD:
 			case INSTRUCTION_TAS:
-			case INSTRUCTION_TST:
 			case INSTRUCTION_MOVE_FROM_SR:
 			case INSTRUCTION_CLR:
 			case INSTRUCTION_ADDQ:
@@ -1423,6 +1422,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MULU:
 			case INSTRUCTION_MULS:
 			case INSTRUCTION_EXG:
+			case INSTRUCTION_TST:
 			case INSTRUCTION_UNKNOWN:
 				/* Doesn't have a destination address mode to decode */
 				break;
@@ -1460,7 +1460,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_NOT:
 			case INSTRUCTION_NBCD:
 			case INSTRUCTION_TAS:
-			case INSTRUCTION_TST:
 			case INSTRUCTION_EXT:
 			case INSTRUCTION_SWAP:
 			case INSTRUCTION_ADDQ:
@@ -1527,6 +1526,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MULU:
 			case INSTRUCTION_MULS:
 			case INSTRUCTION_EXG:
+			case INSTRUCTION_TST:
 			case INSTRUCTION_UNKNOWN:
 				/* Doesn't read its destination (if it even has one) */
 				break;
