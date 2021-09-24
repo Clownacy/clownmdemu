@@ -2095,7 +2095,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					case INSTRUCTION_LSD_REGISTER:
 					case INSTRUCTION_ROXD_REGISTER:
 					case INSTRUCTION_ROD_REGISTER:
-						count = opcode & 0x0020 ? state->data_registers[opcode_secondary_register] % 64 : ((opcode_secondary_register - 1) & 7) + 1; /* A little math trick to turn 0 into 8 */
+						count = opcode & 0x0020 ? state->data_registers[opcode_secondary_register] % 64ul : ((opcode_secondary_register - 1ul) & 7ul) + 1ul; /* A little math trick to turn 0 into 8 */
 						break;
 
 					default:
