@@ -2207,7 +2207,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 		/* Update the condition codes in the following order: */
 		/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 		{
-			const unsigned long msb_mask = 1ul << (operation_size * 8ul - 1ul);
+			const unsigned long msb_mask = 1ul << (operation_size * 8 - 1);
 			const cc_bool sm = !!(source_value & msb_mask);
 			const cc_bool dm = !!(destination_value & msb_mask);
 			const cc_bool rm = !!(result_value & msb_mask);
