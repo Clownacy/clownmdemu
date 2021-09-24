@@ -1890,7 +1890,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 0xFFFF);
 					}
 
-					state->data_registers[opcode_primary_register] &= ~0xFFFF;
+					state->data_registers[opcode_primary_register] &= ~0xFFFFul;
 					state->data_registers[opcode_primary_register] |= loop_counter;
 				}
 
