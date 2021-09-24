@@ -2999,6 +2999,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			};
 
 			fprintf(stderr, "0x%.8lX - %s\n", state->program_counter, instruction_strings[instruction]);
+			state->program_counter |= 0; /* Something to latch a breakpoint onto */
 		}
 	#endif
 	}
