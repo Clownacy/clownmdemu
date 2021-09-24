@@ -288,7 +288,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 			address = state->address_registers[reg];
 		}
 
-		if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT)
+		if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT || (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_DISPLACEMENT))
 		{
 			/* Add displacement */
 			address += ReadWord(callbacks, state->program_counter);
