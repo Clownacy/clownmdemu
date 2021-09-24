@@ -2411,7 +2411,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TAS:
 				case INSTRUCTION_TST:
 					/* Always cleared */
-					state->status_register &= ~CONDITION_CODE_CARRY;
+					state->status_register &= ~CONDITION_CODE_OVERFLOW;
 					break;
 
 				case INSTRUCTION_ABCD:
@@ -2720,8 +2720,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_SUBQ:
 				case INSTRUCTION_SUBX:
 					/* Standard behaviour: set to CARRY */
-					state->status_register &= ~CONDITION_CODE_NEGATIVE;
-					state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->status_register & CONDITION_CODE_CARRY);
+					state->status_register &= ~CONDITION_CODE_EXTEND;
+					state->status_register |= CONDITION_CODE_EXTEND * !!(state->status_register & CONDITION_CODE_CARRY);
 					break;
 
 				case INSTRUCTION_AND:
