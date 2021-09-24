@@ -499,6 +499,10 @@ static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned short opcode)
 
 void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 {
+	/* Supervisor bit set, interrupt mask blanked */
+	/* TODO - Verify what this should actually be */
+	state->status_register = 0x2000;
+
 	state->address_registers[7] = ReadLongWord(callbacks, 0);
 	state->program_counter = ReadLongWord(callbacks, 4);
 }
