@@ -2075,7 +2075,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ROXD_REGISTER:
 			case INSTRUCTION_ROD_REGISTER:
 			{
-				const unsigned long sign_bit_bitmask = 1ul << (operation_size * 8ul - 1ul);
+				const unsigned long sign_bit_bitmask = 1ul << (operation_size * 8 - 1);
 				const unsigned long original_sign_bit = destination_value & sign_bit_bitmask;
 				unsigned char i;
 				unsigned char count;
@@ -2095,7 +2095,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					case INSTRUCTION_LSD_REGISTER:
 					case INSTRUCTION_ROXD_REGISTER:
 					case INSTRUCTION_ROD_REGISTER:
-						count = opcode & 0x0020 ? state->data_registers[opcode_secondary_register] % 64ul : ((opcode_secondary_register - 1ul) & 7ul) + 1ul; /* A little math trick to turn 0 into 8 */
+						count = opcode & 0x0020 ? state->data_registers[opcode_secondary_register] % 64 : ((opcode_secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8 */
 						break;
 
 					default:
