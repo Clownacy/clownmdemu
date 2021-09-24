@@ -1711,11 +1711,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				UNIMPLEMENTED_INSTRUCTION("RESET");
 				break;
 
-			case INSTRUCTION_NOP:
-				/* TODO */
-				UNIMPLEMENTED_INSTRUCTION("NOP");
-				break;
-
 			case INSTRUCTION_STOP:
 				/* TODO */
 				/*if (supervisor_mode)
@@ -2199,6 +2194,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 			}
 
+			case INSTRUCTION_NOP:
 			case INSTRUCTION_UNKNOWN:
 				/* Doesn't do anything */
 				break;
