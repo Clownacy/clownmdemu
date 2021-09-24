@@ -1805,18 +1805,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						{
 							/* Register to memory */
 							if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
-							{
-								memory_address += delta;
-								write_function(callbacks, memory_address, state->address_registers[7 - i]);
-							}
+								write_function(callbacks, memory_address + delta, state->address_registers[7 - i]);
 							else
-							{
 								write_function(callbacks, memory_address, state->data_registers[i]);
-							}
 						}
 
-						if (opcode_primary_address_mode != ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
-							memory_address += delta;
+						memory_address += delta;
 					}
 
 					bitfield >>= 1;
@@ -1836,18 +1830,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						{
 							/* Register to memory */
 							if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
-							{
-								memory_address += delta;
-								write_function(callbacks, memory_address, state->data_registers[7 - i]);
-							}
+								write_function(callbacks, memory_address + delta, state->data_registers[7 - i]);
 							else
-							{
 								write_function(callbacks, memory_address, state->address_registers[i]);
-							}
 						}
 
-						if (opcode_primary_address_mode != ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
-							memory_address += delta;
+						memory_address += delta;
 					}
 
 					bitfield >>= 1;
