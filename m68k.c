@@ -2516,7 +2516,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TST:
 					/* Standard behaviour: set if result is zero; clear otherwise */
 					state->status_register &= ~CONDITION_CODE_ZERO;
-					state->status_register |= CONDITION_CODE_ZERO * ((result_value & ((msb_mask << 1) - 1)) == 0);
+					state->status_register |= CONDITION_CODE_ZERO * ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0);
 					break;
 
 				case INSTRUCTION_DIVS:
