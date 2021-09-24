@@ -7,8 +7,6 @@
 
 #include "error.h"
 
-/*#define SHUT_UP*/
-
 #define SIGN_EXTEND(value, sign_bit) (((value) & ((1ul << (sign_bit)) - 1ul)) - ((value) & (1ul << (sign_bit))))
 #define UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(value, sign_bit, type) (((value) & (1ul << (sign_bit))) ? -(type)(-(value) & ((1ul << (sign_bit)) - 1ul)) : (type)((value) & ((1ul << (sign_bit)) - 1ul)))
 #define SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(value, type) ((value) < 0 ? -(type)-(value) : (type)(value))
@@ -1134,11 +1132,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_UNKNOWN:
 				/* Doesn't have any sizes */
 				break;
-
-		#ifdef SHUT_UP
-			default:
-				break;
-		#endif
 		}
 
 		/* Obtain source value */
@@ -1289,11 +1282,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_UNKNOWN:
 				/* Doesn't have a source value */
 				break;
-
-		#ifdef SHUT_UP
-			default:
-				break;
-		#endif
 		}
 
 		/* Decode destination address mode */
@@ -1428,11 +1416,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_UNKNOWN:
 				/* Doesn't have a destination address mode to decode */
 				break;
-
-		#ifdef SHUT_UP
-			default:
-				break;
-		#endif
 		}
 
 		/* Obtain destination value */
@@ -1537,11 +1520,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_UNKNOWN:
 				/* Doesn't read its destination (if it even has one) */
 				break;
-
-		#ifdef SHUT_UP
-			default:
-				break;
-		#endif
 		}
 
 		/* Do the actual instruction */
@@ -2210,11 +2188,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_UNKNOWN:
 				/* Doesn't do anything */
 				break;
-
-		#ifdef SHUT_UP
-			default:
-				break;
-		#endif
 		}
 
 		/* Update the condition codes in the following order: */
@@ -2808,47 +2781,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			}
 		}
 
-#if 0
-		/* Update condition codes */
-		switch (instruction)
-		{
-			case INSTRUCTION_ORI:
-			case INSTRUCTION_ANDI:
-			case INSTRUCTION_EORI:
-				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW | CONDITION_CODE_CARRY); 
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(result_value & (1ul << (operation_size * 8ul - 1ul)));
-				state->status_register |= CONDITION_CODE_ZERO * !!(result_value != 0);
-				break;
-
-			case INSTRUCTION_TST:
-				/* TODO */
-				break;
-
-			case INSTRUCTION_ORI_TO_CCR:
-			case INSTRUCTION_ORI_TO_SR:
-			case INSTRUCTION_ANDI_TO_CCR:
-			case INSTRUCTION_ANDI_TO_SR:
-			case INSTRUCTION_EORI_TO_CCR:
-			case INSTRUCTION_EORI_TO_SR:
-			case INSTRUCTION_BTST_STATIC:
-			case INSTRUCTION_BCHG_STATIC:
-			case INSTRUCTION_BCLR_STATIC:
-			case INSTRUCTION_BSET_STATIC:
-			case INSTRUCTION_BTST_DYNAMIC:
-			case INSTRUCTION_BCHG_DYNAMIC:
-			case INSTRUCTION_BCLR_DYNAMIC:
-			case INSTRUCTION_BSET_DYNAMIC:
-			case INSTRUCTION_LINK:
-			case INSTRUCTION_UNLK:
-				/* Does not affect condition codes */
-				break;
-
-		#ifdef SHUT_UP
-			default:
-				break;
-		#endif
-		}
-#endif
 		/* Write output to destination */
 		switch (instruction)
 		{
@@ -2955,57 +2887,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_UNKNOWN:
 				/* Doesn't write anything */
 				break;
-
-		#ifdef SHUT_UP
-			default:
-				break;
-		#endif
 		}
 	}
 }
-
-#if 0
-							/* EORI */
-
-							/* Do source value (always immediate) */
-							DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size_in_bytes, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);
-							value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
-
-							/* Do destination value */
-							if (opcode_primary_address_mode == ADDRESS_MODE_SPECIAL && opcode_primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
-							{
-								/* EORI to SR/CCR */
-								value ^= state->status_register;
-							}
-							else
-							{
-								/* Standard EORI */
-								DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size_in_bytes, opcode_primary_address_mode, opcode_primary_register);
-								value ^= GetValueUsingDecodedAddressMode(callbacks, &destination_decoded_address_mode);
-								SetValueUsingDecodedAddressMode(callbacks, &destination_decoded_address_mode, value);
-
-								/* Update condition codes */
-								state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW | CONDITION_CODE_CARRY); 
-								state->status_register |= CONDITION_CODE_NEGATIVE * !!(value & (1ul << (operation_size_in_bytes * 8ul - 1ul)));
-								state->status_register |= CONDITION_CODE_ZERO * !!(value != 0);
-							}
-
-				{
-					/* EOR */
-
-					/* Do source value (always a data register) */
-					DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size_in_bytes, ADDRESS_MODE_DATA_REGISTER, opcode_secondary_register);
-					value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
-
-					/* Do destination value */
-					DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size_in_bytes, opcode_primary_address_mode, opcode_primary_register);
-					value ^= GetValueUsingDecodedAddressMode(callbacks, &destination_decoded_address_mode);
-					SetValueUsingDecodedAddressMode(callbacks, &destination_decoded_address_mode, value);
-
-					/* Update condition codes */
-					state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW | CONDITION_CODE_CARRY); 
-					state->status_register |= CONDITION_CODE_NEGATIVE * !!(value & (1ul << (operation_size_in_bytes * 8ul - 1ul)));
-					state->status_register |= CONDITION_CODE_ZERO * !!(value != 0);
-
-				}
-#endif
