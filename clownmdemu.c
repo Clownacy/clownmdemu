@@ -34,6 +34,7 @@ typedef struct ClownMDEmu_State
 
 	M68k_State m68k;
 	unsigned char m68k_ram[0x10000];
+	unsigned char z80_ram[0x2000];
 } ClownMDEmu_State;
 
 static unsigned char M68kReadCallback(void *user_data, unsigned long address)
@@ -45,6 +46,10 @@ static unsigned char M68kReadCallback(void *user_data, unsigned long address)
 	if (/*address >= 0 &&*/ address < state->rom.size)
 	{
 		return state->rom.buffer[address];
+	}
+	else if (address >= 0xA00000 && address <= 0xA01FFF)
+	{
+		return state->z80_ram[address & 0x1FFF];
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
@@ -66,6 +71,10 @@ static void M68kWriteCallback(void *user_data, unsigned long address, unsigned c
 	if (/*address >= 0 &&*/ address < state->rom.size)
 	{
 		state->rom.buffer[address] = value;
+	}
+	else if (address >= 0xA00000 && address <= 0xA01FFF)
+	{
+		state->z80_ram[address & 0x1FFF] = value;
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
