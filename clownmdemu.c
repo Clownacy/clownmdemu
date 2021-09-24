@@ -128,11 +128,13 @@ void ClownMDEmu_Iterate(void *state_void, void (*video_callback)(void *pixels, s
 			/*DoZ80Cycle(state);*/
 		}
 
-		/*DoHInt(state);*/
+		/* Do H-Int */
+		M68k_Interrupt(&state->m68k, &m68k_read_write_callbacks, 4);
 		/*RenderScanline(state);*/
 	}
 
-	/*DoVInt(state);*/
+	/* Do V-Int */
+	M68k_Interrupt(&state->m68k, &m68k_read_write_callbacks, 6);
 	/*UpdateFM(state);*/
 	/*UpdatePSG(state);*/
 	(void)video_callback;/*video_callback();*/
