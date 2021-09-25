@@ -1941,7 +1941,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				if (source_value == 0)
 					TRAP();*/
 
-				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW | CONDITION_CODE_CARRY);
+				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW);
 
 				/* Overflow detection */
 				if (quotient > 0xFFFF)
@@ -1955,7 +1955,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					state->data_registers[opcode_secondary_register] = quotient | (remainder << 16);
 				}
 
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->data_registers[opcode_secondary_register] & 0x8000);
+				state->status_register |= CONDITION_CODE_NEGATIVE * !!(quotient & 0x8000);
 				state->status_register |= CONDITION_CODE_ZERO * (quotient == 0);
 
 				break;
@@ -1968,7 +1968,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				const long quotient = signed_destination_value / signed_source_value;
 
-				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW | CONDITION_CODE_CARRY);
+				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW);
 
 				/* TODO
 				if (source_value == 0)
@@ -1986,7 +1986,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					state->data_registers[opcode_secondary_register] = (SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(quotient) & 0xFFFF) | ((SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(remainder) & 0xFFFF) << 16);
 				}
 
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->data_registers[opcode_secondary_register] & 0x8000);
+				state->status_register |= CONDITION_CODE_NEGATIVE * !!(quotient & 0x8000);
 				state->status_register |= CONDITION_CODE_ZERO * (quotient == 0);
 
 				break;
@@ -2015,7 +2015,13 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			{
 				const unsigned short multiplier = source_value & 0xFFFF;
 				const unsigned short multiplicand = state->data_registers[opcode_secondary_register] & 0xFFFF;
+
 				state->data_registers[opcode_secondary_register] = multiplicand * multiplier;
+
+				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW);
+				state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->data_registers[opcode_secondary_register] & 0x80000000);
+				state->status_register |= CONDITION_CODE_ZERO * (state->data_registers[opcode_secondary_register] == 0);
+
 				break;
 			}
 
@@ -2023,7 +2029,13 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			{
 				const long multiplier = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 0xFFFF);
 				const long multiplicand = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(state->data_registers[opcode_secondary_register], 0xFFFF);
+
 				state->data_registers[opcode_secondary_register] = SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(multiplicand * multiplier);
+
+				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW);
+				state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->data_registers[opcode_secondary_register] & 0x80000000);
+				state->status_register |= CONDITION_CODE_ZERO * (state->data_registers[opcode_secondary_register] == 0);
+
 				break;
 			}
 
