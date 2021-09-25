@@ -13,9 +13,10 @@
 #include <stdio.h>
 #endif
 
-#define SIGN_EXTEND(value, sign_bit) (((value) & ((1ul << (sign_bit)) - 1ul)) - ((value) & (1ul << (sign_bit))))
-#define UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(value, mask) (((value) & (((unsigned long)(mask) >> 1) + 1)) ? -(long)(-(value) & (mask)) : (long)((value) & (mask)))
+#define SIGN_EXTEND(value, bitmask) (((value) & ((bitmask) >> 1ul)) - ((value) & (((bitmask) >> 1ul) + 1ul)))
+#define UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(value, bitmask) (((value) & (((bitmask) >> 1ul) + 1ul)) ? -(long)(-(value) & (bitmask)) : (long)((value) & (bitmask)))
 #define SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(value) ((value) < 0 ? -(unsigned long)-(value) : (unsigned long)(value))
+
 #define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%X", state->program_counter)
 
 typedef enum AddressMode
@@ -223,7 +224,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 		/* Absolute short */
 		const unsigned short short_address = ReadWord(callbacks, state->program_counter);
 
-		address = SIGN_EXTEND(short_address, 15); /* & 0xFFFFFFFF; TODO - Is this AND unnecessary? */
+		address = SIGN_EXTEND(short_address, 0xFFFF); /* & 0xFFFFFFFF; TODO - Is this AND unnecessary? */
 		state->program_counter += 2;
 	}
 	else if (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_LONG)
@@ -290,7 +291,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 			const cc_bool is_address_register = !!(extension_word & 0x8000);
 			const unsigned char displacement_reg = (extension_word >> 12) & 7;
 			const cc_bool is_longword = !!(extension_word & 0x0800);
-			const signed char displacement_literal_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(extension_word, 0xFF);
+			const short displacement_literal_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(extension_word, 0xFF);
 			const long displacement_reg_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE((is_address_register ? state->address_registers : state->data_registers)[displacement_reg], is_longword ? 0xFFFFFFFF : 0xFFFF);
 
 			address += displacement_reg_value;
@@ -1627,7 +1628,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_MOVEA:
-				result_value = operation_size == 2 ? SIGN_EXTEND(source_value, 15) : source_value;
+				result_value = operation_size == 2 ? SIGN_EXTEND(source_value, 0xFFFF) : source_value;
 				break;
 
 			case INSTRUCTION_MOVE:
@@ -1676,7 +1677,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_EXT:
-				result_value = SIGN_EXTEND(destination_value, opcode & 0x0040 ? 15 : 7);
+				result_value = SIGN_EXTEND(destination_value, opcode & 0x0040 ? 0xFFFF : 0xFF);
 				break;
 
 			case INSTRUCTION_NBCD:
@@ -1929,7 +1930,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_MOVEQ:
-				result_value = SIGN_EXTEND(opcode & 0x00FF, 7);
+				result_value = SIGN_EXTEND(opcode, 0xFF);
 				break;
 
 			case INSTRUCTION_DIVU:
@@ -1949,12 +1950,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				}
 				else
 				{
-					const unsigned short remainder = destination_value % source_value;
+					const unsigned short remainder = state->data_registers[opcode_secondary_register] % source_value;
 
 					state->data_registers[opcode_secondary_register] = quotient | (remainder << 16);
 				}
 
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->data_registers[opcode_secondary_register] & 0x8000);
+				state->status_register |= CONDITION_CODE_NEGATIVE * !!(destination_value & 0x8000);
 				state->status_register |= CONDITION_CODE_ZERO * (quotient == 0);
 
 				break;
@@ -1985,7 +1986,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					state->data_registers[opcode_secondary_register] = (SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(quotient) & 0xFFFF) | ((SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(remainder) & 0xFFFF) << 16);
 				}
 
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->data_registers[opcode_secondary_register] & 0x8000);
+				state->status_register |= CONDITION_CODE_NEGATIVE * !!(destination_value & 0x8000);
 				state->status_register |= CONDITION_CODE_ZERO * (quotient == 0);
 
 				break;
@@ -2004,7 +2005,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_SUBA:
 			case INSTRUCTION_CMPA:
 				if (!opcode_bit_8)
-					source_value = SIGN_EXTEND(source_value, 15);
+					source_value = SIGN_EXTEND(source_value, 0xFFFF);
 
 				result_value = destination_value - source_value;
 
@@ -2020,8 +2021,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_MULS:
 			{
-				const short multiplier = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value & 0xFFFF, 0xFFFF);
-				const short multiplicand = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(state->data_registers[opcode_secondary_register] & 0xFFFF, 0xFFFF);
+				const long multiplier = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 0xFFFF);
+				const long multiplicand = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(state->data_registers[opcode_secondary_register], 0xFFFF);
 				state->data_registers[opcode_secondary_register] = SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(multiplicand * multiplier);
 				break;
 			}
@@ -2066,7 +2067,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_ADDA:
 				if (!opcode_bit_8)
-					source_value = SIGN_EXTEND(source_value, 15);
+					source_value = SIGN_EXTEND(source_value, 0xFFFF);
 
 				result_value = destination_value + source_value;
 
