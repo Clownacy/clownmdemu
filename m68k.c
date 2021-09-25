@@ -2018,7 +2018,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				state->data_registers[opcode_secondary_register] = multiplicand * multiplier;
 
-				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW);
+				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO);
 				state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->data_registers[opcode_secondary_register] & 0x80000000);
 				state->status_register |= CONDITION_CODE_ZERO * (state->data_registers[opcode_secondary_register] == 0);
 
@@ -2032,7 +2032,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				state->data_registers[opcode_secondary_register] = SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(multiplicand * multiplier);
 
-				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW);
+				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO);
 				state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->data_registers[opcode_secondary_register] & 0x80000000);
 				state->status_register |= CONDITION_CODE_ZERO * (state->data_registers[opcode_secondary_register] == 0);
 
@@ -2407,8 +2407,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_DIVU:
 				case INSTRUCTION_LSD_REGISTER:
 				case INSTRUCTION_LSD_MEMORY:
-				case INSTRUCTION_MULS:
-				case INSTRUCTION_MULU:
 				case INSTRUCTION_ROD_REGISTER:
 				case INSTRUCTION_ROD_MEMORY:
 				case INSTRUCTION_ROXD_REGISTER:
@@ -2424,6 +2422,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_EXT:
 				case INSTRUCTION_MOVE:
 				case INSTRUCTION_MOVEQ:
+				case INSTRUCTION_MULS:
+				case INSTRUCTION_MULU:
 				case INSTRUCTION_NOT:
 				case INSTRUCTION_OR:
 				case INSTRUCTION_ORI:
