@@ -1935,7 +1935,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_DIVU:
 			{
-				const unsigned long quotient = destination_value / source_value;
+				const unsigned long quotient = state->data_registers[opcode_secondary_register] / source_value;
 
 				/* TODO
 				if (source_value == 0)
@@ -1955,7 +1955,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					state->data_registers[opcode_secondary_register] = quotient | (remainder << 16);
 				}
 
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(destination_value & 0x8000);
+				state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->data_registers[opcode_secondary_register] & 0x8000);
 				state->status_register |= CONDITION_CODE_ZERO * (quotient == 0);
 
 				break;
@@ -1964,7 +1964,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_DIVS:
 			{
 				const short signed_source_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 0xFFFF);
-				const long signed_destination_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(destination_value, 0xFFFFFFFF);
+				const long signed_destination_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(state->data_registers[opcode_secondary_register], 0xFFFFFFFF);
 
 				const long quotient = signed_destination_value / signed_source_value;
 
@@ -1986,7 +1986,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					state->data_registers[opcode_secondary_register] = (SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(quotient) & 0xFFFF) | ((SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(remainder) & 0xFFFF) << 16);
 				}
 
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(destination_value & 0x8000);
+				state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->data_registers[opcode_secondary_register] & 0x8000);
 				state->status_register |= CONDITION_CODE_ZERO * (quotient == 0);
 
 				break;
