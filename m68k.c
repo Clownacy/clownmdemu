@@ -172,9 +172,8 @@ static unsigned long ReadLongWord(const M68k_ReadWriteCallbacks *callbacks, unsi
 	}
 
 	value = 0;
-	value |= callbacks->read_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true);
-	value <<= 16;
-	value |= callbacks->read_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true);
+	value |= callbacks->read_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true) << 16;
+	value |= callbacks->read_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true) <<  0;
 
 	return value;
 }
