@@ -25,8 +25,8 @@ void VDP_Init(VDP_State *state)
 
 	state->plane_width = 32;
 	state->plane_height = 32;
-	state->plane_width_bitmask = state->plane_width * 8 - 1;
-	state->plane_height_bitmask = state->plane_height * 8 - 1;
+	state->plane_width_bitmask = state->plane_width - 1;
+	state->plane_height_bitmask = state->plane_height - 1;
 
 	state->screen_width = 320;
 	state->screen_height = 224;
@@ -79,7 +79,7 @@ void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rende
 				break;
 		}
 
-		plane_x_in_pixels = hscroll + (i * 8);
+		plane_x_in_pixels = hscroll + i;
 		plane_y_in_pixels = vscroll + scanline;
 
 		plane_x_in_tiles = (plane_x_in_pixels / 8) & state->plane_width_bitmask;
@@ -90,12 +90,12 @@ void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rende
 		tile_x = plane_x_in_pixels & 7;
 		tile_y = plane_y_in_pixels & 7;
 
-		tile_data = state->vram[(tile_metadata & 0x7FFF) + tile_y * 2 + tile_x / 4];
+		tile_data = state->vram[(tile_metadata & 0x7FF) * (8 * 8 / 4) + tile_y * 2 + tile_x / 4];
 
 		colour_index = (tile_data >> (4 * (tile_x & 3))) & 0xF;
 
 		pixels[i * 2 + 1] = 0;
-		pixels[i * 2 + 1] = colour_index << 2;
+		pixels[i * 2 + 0] = colour_index << 1;
 	}
 
 	scanline_rendered_callback(scanline, pixels, state->screen_width, state->screen_height);
@@ -366,8 +366,8 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 							break;
 					}
 
-					state->plane_width_bitmask = state->plane_width * 8 - 1;
-					state->plane_height_bitmask = state->plane_height * 8 - 1;
+					state->plane_width_bitmask = state->plane_width - 1;
+					state->plane_height_bitmask = state->plane_height - 1;
 				}
 
 				break;
