@@ -18,7 +18,15 @@ void VDP_RenderScanline(VDP_State *state, void (*scanline_rendered_callback)(voi
 	scanline_rendered_callback(scanline, 320, 224);
 }
 
-unsigned short VDP_ReadStatus(VDP_State *state)
+unsigned short VDP_ReadData(VDP_State *state)
+{
+	/* TODO - Reading from the data port causes real Mega Drives to crash (if the VDP isn't in read mode) */
+	/* TODO */
+	(void)state;
+	return 0;
+}
+
+unsigned short VDP_ReadControl(VDP_State *state)
 {
 	/* TODO */
 	(void)state;

@@ -69,11 +69,12 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 	}
 	else if (address == 0xC00000 || address == 0xC00002)
 	{
-		/* TODO - Reading from the data port causes real Mega Drives to crash */
+		/* TODO - Reading from the data port causes real Mega Drives to crash (if the VDP isn't in read mode) */
+		value = VDP_ReadData(&state->vdp);
 	}
 	else if (address == 0xC00004 || address == 0xC00006)
 	{
-		value = VDP_ReadStatus(&state->vdp);
+		value = VDP_ReadControl(&state->vdp);
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
