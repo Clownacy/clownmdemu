@@ -37,6 +37,33 @@ typedef struct ClownMDEmu_State
 	VDP_State vdp;
 } ClownMDEmu_State;
 
+/* VDP memory access callback */
+
+static unsigned short VDPReadCallback(void *user_data, unsigned long address)
+{
+	ClownMDEmu_State *state = (ClownMDEmu_State*)user_data;
+	unsigned short value = 0;
+
+	if (/*address >= 0 &&*/ address < state->rom.size)
+	{
+		value |= state->rom.buffer[address + 0] << 8;
+		value |= state->rom.buffer[address + 1] << 0;
+	}
+	else if (address >= 0xE00000 && address <= 0xFFFFFF)
+	{
+		value |= state->m68k_ram[(address + 0) & 0xFFFF] << 8;
+		value |= state->m68k_ram[(address + 1) & 0xFFFF] << 0;
+	}
+	else
+	{
+		PrintError("VDP attempted to read invalid memory at 0x%X", address);
+	}
+
+	return value;
+}
+
+/* 68k memory access callbacks */
+
 static unsigned short M68kReadCallback(void *user_data, unsigned long address, cc_bool high_byte, cc_bool low_byte)
 {
 	ClownMDEmu_State *state = (ClownMDEmu_State*)user_data;
@@ -54,7 +81,6 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 		if (high_byte && low_byte)
 		{
 			PrintError("68k attempted to perform word-sized read of Z80 memory");
-			value = 0;
 		}
 		else
 		{
@@ -85,7 +111,6 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 	else
 	{
 		PrintError("68k attempted to read invalid memory at 0x%X", address);
-		value = 0;
 	}
 
 	return value;
@@ -128,7 +153,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool hi
 	}
 	else if (address == 0xC00004 || address == 0xC00006)
 	{
-		VDP_WriteControl(&state->vdp, value);
+		VDP_WriteControl(&state->vdp, value, VDPReadCallback, state);
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{

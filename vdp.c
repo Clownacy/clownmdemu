@@ -6,15 +6,16 @@
 
 void VDP_Init(VDP_State *state)
 {
+	state->access.write_pending = cc_false;
+
 	state->access.read_mode = cc_false;
 	state->access.selected_buffer = state->vram;
-	state->access.selected_buffer_size = sizeof(state->vram);
+	state->access.selected_buffer_size_mask = sizeof(state->vram) / sizeof(unsigned short) - 1;
 	state->access.index = 0;
 	state->access.increment = 0;
 
-	state->access.awaiting_dma_destination_address = cc_false;
-
-	state->access.write_pending = cc_false;
+	state->dma.awaiting_destination_address = cc_false;
+	state->dma.source_address = 0;
 
 	state->plane_a_address = 0;
 	state->plane_b_address = 0;
@@ -22,10 +23,10 @@ void VDP_Init(VDP_State *state)
 	state->sprite_table_address = 0;
 	state->hscroll_address = 0;
 
-	state->plane_width = 32 * 8;
-	state->plane_height = 32 * 8;
-	state->plane_width_bitmask = state->plane_width - 1;
-	state->plane_height_bitmask = state->plane_height - 1;
+	state->plane_width = 32;
+	state->plane_height = 32;
+	state->plane_width_bitmask = state->plane_width * 8 - 1;
+	state->plane_height_bitmask = state->plane_height * 8 - 1;
 
 	state->screen_width = 320;
 	state->screen_height = 224;
@@ -111,7 +112,7 @@ unsigned short VDP_ReadData(VDP_State *state)
 	}
 	else
 	{
-		value = state->access.selected_buffer[(state->access.index * 2) & state->access.selected_buffer_size];
+		value = state->access.selected_buffer[state->access.index & state->access.selected_buffer_size_mask];
 
 		state->access.index += state->access.increment;
 	}
@@ -128,6 +129,9 @@ unsigned short VDP_ReadControl(VDP_State *state)
 	   boot code makes use of this features. */
 	state->access.write_pending = cc_false;
 
+	/* Not sure about this though */
+	state->dma.awaiting_destination_address = cc_false;
+
 	return 0;
 }
 
@@ -139,53 +143,74 @@ void VDP_WriteData(VDP_State *state, unsigned short value)
 	}
 	else
 	{
-		state->access.selected_buffer[state->access.index & state->access.selected_buffer_size] = value;
+		state->access.selected_buffer[state->access.index & state->access.selected_buffer_size_mask] = value;
 
 		state->access.index += state->access.increment;
 	}
 }
 
-void VDP_WriteControl(VDP_State *state, unsigned short value)
+void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*read_callback)(void *user_data, unsigned long address), void *user_data)
 {
 	if (state->access.write_pending)
 	{
 		/* This command is setting up for a memory access (part 2) */
+		const unsigned short destination_address = (state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
+		unsigned char access_mode = ((state->access.cached_write >> 12) & 3) | ((value >> 2) & 0x3C);
+
+		if (state->dma.awaiting_destination_address)
+			access_mode &= 7;
+
 		state->access.write_pending = cc_false;
 
-		if (state->access.awaiting_dma_destination_address)
+		state->access.index = destination_address;
+		state->access.read_mode = (state->access.cached_write & 0xC000) == 0;
+
+		switch (access_mode)
+		{
+			case 0: /* VRAM read */
+			case 1: /* VRAM write */
+				state->access.selected_buffer = state->vram;
+				state->access.selected_buffer_size_mask = sizeof(state->vram) / sizeof(unsigned short) - 1;
+				break;
+
+			case 8: /* CRAM read */
+			case 3: /* CRAM write */
+				state->access.selected_buffer = state->cram;
+				state->access.selected_buffer_size_mask = sizeof(state->cram) / sizeof(unsigned short) - 1;
+				break;
+
+			case 4: /* VSRAM read */
+			case 5: /* VSRAM write */
+				state->access.selected_buffer = state->vsram;
+				state->access.selected_buffer_size_mask = sizeof(state->vsram) / sizeof(unsigned short) - 1;
+				break;
+
+			default: /* Invalid */
+				PrintError("Invalid VDP access mode specified (0x%X)", access_mode);
+				break;
+		}
+
+		if (state->dma.awaiting_destination_address)
 		{
 			/* Firing DMA */
-		}
-		else
-		{
-			/* Setting up for data port reads/writes */
-			const unsigned char access_mode = ((state->access.cached_write >> 12) & 3) | ((value >> 2) & 0x3C);
+			unsigned short i;
 
-			state->access.index = (state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
-			state->access.read_mode = (state->access.cached_write & 0xC000) == 0;
+			state->dma.awaiting_destination_address = cc_false;
 
-			switch (access_mode)
+			switch (state->dma.mode)
 			{
-				case 0: /* VRAM read */
-				case 1: /* VRAM write */
-					state->access.selected_buffer = state->vram;
-					state->access.selected_buffer_size = sizeof(state->vram) - 1;
+				case VDP_DMA_MODE_MEMORY_TO_VRAM:
+					for (i = 0; i < state->dma.length; ++i)
+						state->access.selected_buffer[(destination_address + i) & state->access.selected_buffer_size_mask] = read_callback(user_data, (state->dma.source_address & 0xFFFF0000) | ((state->dma.source_address + i * 2) & 0xFFFF));
+
 					break;
 
-				case 8: /* CRAM read */
-				case 3: /* CRAM write */
-					state->access.selected_buffer = state->cram;
-					state->access.selected_buffer_size = sizeof(state->cram) - 1;
+				case VDP_DMA_MODE_FILL:
+					/* TODO */
 					break;
 
-				case 4: /* VSRAM read */
-				case 5: /* VSRAM write */
-					state->access.selected_buffer = state->vsram;
-					state->access.selected_buffer_size = sizeof(state->vsram) - 1;
-					break;
-
-				default: /* Invalid */
-					PrintError("Invalid VDP access mode specified (0x%X)", access_mode);
+				case VDP_DMA_MODE_COPY:
+					/* TODO */
 					break;
 			}
 		}
@@ -297,7 +322,7 @@ void VDP_WriteControl(VDP_State *state, unsigned short value)
 				const unsigned char width_index  = (data >> 0) & 3;
 				const unsigned char height_index = (data >> 4) & 3;
 
-				if ((width_index ^ height_index) != 3)
+				if ((width_index == 3 && height_index != 0) || (height_index == 3 && width_index != 0))
 				{
 					PrintError("Selected plane size exceeds 64x64/32x128/128x32");
 				}
@@ -306,11 +331,11 @@ void VDP_WriteControl(VDP_State *state, unsigned short value)
 					switch (width_index)
 					{
 						case 0:
-							state->plane_width = 32 * 8;
+							state->plane_width = 32;
 							break;
 
 						case 1:
-							state->plane_width = 64 * 8;
+							state->plane_width = 64;
 							break;
 
 						case 2:
@@ -318,18 +343,18 @@ void VDP_WriteControl(VDP_State *state, unsigned short value)
 							break;
 
 						case 3:
-							state->plane_width = 128 * 8;
+							state->plane_width = 128;
 							break;
 					}
 
 					switch (height_index)
 					{
 						case 0:
-							state->plane_height = 32 * 8;
+							state->plane_height = 32;
 							break;
 
 						case 1:
-							state->plane_height = 64 * 8;
+							state->plane_height = 64;
 							break;
 
 						case 2:
@@ -337,7 +362,7 @@ void VDP_WriteControl(VDP_State *state, unsigned short value)
 							break;
 
 						case 3:
-							state->plane_height = 128 * 8;
+							state->plane_height = 128;
 							break;
 					}
 
@@ -360,28 +385,45 @@ void VDP_WriteControl(VDP_State *state, unsigned short value)
 
 			case 19:
 				/* DMA LENGTH COUNTER LOW */
-				/* TODO */
+				state->dma.length &= ~(0xFF << 0);
+				state->dma.length |= data << 0;
 				break;
 
 			case 20:
 				/* DMA LENGTH COUNTER HIGH */
-				/* TODO */
+				state->dma.length &= ~(0xFF << 8);
+				state->dma.length |= data << 8;
 				break;
 
 			case 21:
 				/* DMA SOURCE ADDRESS LOW */
-				/* TODO */
+				state->dma.source_address &= ~(0xFF << 0);
+				state->dma.source_address |= data << 0;
 				break;
 
 			case 22:
 				/* DMA SOURCE ADDRESS MID. */
-				/* TODO */
+				state->dma.source_address &= ~(0xFF << 8);
+				state->dma.source_address |= data << 8;
 				break;
 
 			case 23:
 				/* DMA SOURCE ADDRESS HIGH */
-				/* TODO */
-				state->access.awaiting_dma_destination_address = cc_true;
+				state->dma.source_address &= ~(0xFF << 16);
+
+				if (data & 0x80)
+				{
+					state->dma.source_address |= (data & 0x7F) << 16;
+					state->dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
+				}
+				else
+				{
+					state->dma.source_address |= (data & 0x3F) << 16;
+					state->dma.mode = data & 0x40 ? VDP_DMA_MODE_COPY : VDP_DMA_MODE_FILL;
+				}
+
+				state->dma.awaiting_destination_address = cc_true;
+
 				break;
 
 			case 6:

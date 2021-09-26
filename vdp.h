@@ -11,28 +11,39 @@ typedef struct VDP_State
 {
 	struct
 	{
-		cc_bool read_mode;
-		unsigned short *selected_buffer;
-		size_t selected_buffer_size;
-		size_t index;
-		size_t increment;
-
-		cc_bool awaiting_dma_destination_address;
-
 		cc_bool write_pending;
 		unsigned short cached_write;
+
+		cc_bool read_mode;
+		unsigned short *selected_buffer;
+		unsigned short selected_buffer_size_mask;
+		unsigned short index;
+		unsigned short increment;
 	} access;
 
-	size_t plane_a_address;
-	size_t plane_b_address;
-	size_t window_address;
-	size_t sprite_table_address;
-	size_t hscroll_address;
+	struct
+	{
+		enum
+		{
+			VDP_DMA_MODE_MEMORY_TO_VRAM,
+			VDP_DMA_MODE_FILL,
+			VDP_DMA_MODE_COPY
+		} mode;
+		unsigned long source_address;
+		unsigned short length;
+		cc_bool awaiting_destination_address;
+	} dma;
 
-	size_t plane_width;
-	size_t plane_height;
-	size_t plane_width_bitmask;
-	size_t plane_height_bitmask;
+	unsigned short plane_a_address;
+	unsigned short plane_b_address;
+	unsigned short window_address;
+	unsigned short sprite_table_address;
+	unsigned short hscroll_address;
+
+	unsigned short plane_width;
+	unsigned short plane_height;
+	unsigned short plane_width_bitmask;
+	unsigned short plane_height_bitmask;
 
 	size_t screen_width;
 	size_t screen_height;
@@ -61,6 +72,6 @@ void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rende
 unsigned short VDP_ReadData(VDP_State *state);
 unsigned short VDP_ReadControl(VDP_State *state);
 void VDP_WriteData(VDP_State *state, unsigned short value);
-void VDP_WriteControl(VDP_State *state, unsigned short value);
+void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*read_callback)(void *user_data, unsigned long address), void *user_data);
 
 #endif /* VDP_H */
