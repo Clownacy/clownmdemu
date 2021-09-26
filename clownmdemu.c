@@ -147,8 +147,7 @@ void ClownMDEmu_Init(void *state_void)
 {
 	ClownMDEmu_State *state = (ClownMDEmu_State*)state_void;
 
-	/* Initialise VDP lookup table */
-	(void)state;/*InitVDP(state);*/
+	VDP_Init(&state->vdp);
 }
 
 void ClownMDEmu_Deinit(void *state_void)
@@ -159,7 +158,7 @@ void ClownMDEmu_Deinit(void *state_void)
 	(void)state;
 }
 
-void ClownMDEmu_Iterate(void *state_void, void (*video_callback)(void *pixels, size_t width, size_t height))
+void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(void *pixels, size_t screen_width, size_t screen_height))
 {
 	/* TODO - user callbacks for reading input and showing video */
 
@@ -184,7 +183,7 @@ void ClownMDEmu_Iterate(void *state_void, void (*video_callback)(void *pixels, s
 			/*DoZ80Cycle(state);*/
 		}
 
-		/*RenderScanline(state);*/
+		VDP_RenderScanline(&state->vdp, scanline_rendered_callback);
 		/* Do H-Int */
 		M68k_Interrupt(&state->m68k, &m68k_read_write_callbacks, 4);
 	}
@@ -193,8 +192,6 @@ void ClownMDEmu_Iterate(void *state_void, void (*video_callback)(void *pixels, s
 	M68k_Interrupt(&state->m68k, &m68k_read_write_callbacks, 6);
 	/*UpdateFM(state);*/
 	/*UpdatePSG(state);*/
-	(void)video_callback;/*video_callback();*/
-	/*PresentFinalImageToUser(state);*/
 }
 
 /* TODO - Replace this with a function that retrieves a pointer to the internal buffer, to avoid a needless memcpy */
