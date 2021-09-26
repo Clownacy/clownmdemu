@@ -3,10 +3,23 @@
 
 #include <stddef.h>
 
+#include "clowncommon.h"
+
 #define MAX_SCANLINE_WIDTH 320
 
 typedef struct VDP_State
 {
+	struct
+	{
+		cc_bool read_mode;
+		unsigned char *selected_buffer;
+		size_t selected_buffer_size;
+		size_t index;
+	} access;
+
+	cc_bool write_pending;
+	unsigned short cached_write;
+
 	unsigned char vram[0x10000];
 	unsigned char cram[4 * 16 * 2];
 	unsigned char vsram[MAX_SCANLINE_WIDTH / 16 * 2];
