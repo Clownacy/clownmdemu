@@ -2,8 +2,6 @@
 
 #include <stddef.h>
 
-#define MAX_SCANLINE_WIDTH 320
-
 void VDP_Init(VDP_State *state)
 {
 	/* TODO */

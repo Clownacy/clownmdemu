@@ -3,9 +3,13 @@
 
 #include <stddef.h>
 
+#define MAX_SCANLINE_WIDTH 320
+
 typedef struct VDP_State
 {
 	unsigned char vram[0x10000];
+	unsigned char cram[4 * 16 * 2];
+	unsigned char vsram[MAX_SCANLINE_WIDTH / 16 * 2];
 } VDP_State;
 
 void VDP_Init(VDP_State *state);
