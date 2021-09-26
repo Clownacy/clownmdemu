@@ -37,49 +37,88 @@ typedef struct ClownMDEmu_State
 	unsigned char z80_ram[0x2000];
 } ClownMDEmu_State;
 
-static unsigned char M68kReadCallback(void *user_data, unsigned long address)
+static unsigned short M68kReadCallback(void *user_data, unsigned long address, cc_bool high_byte, cc_bool low_byte)
 {
 	ClownMDEmu_State *state = (ClownMDEmu_State*)user_data;
-
-	address &= 0xFFFFFF; /* The 68k's address bus is 24-bit */
+	unsigned short value = 0;
 
 	if (/*address >= 0 &&*/ address < state->rom.size)
 	{
-		return state->rom.buffer[address];
+		if (high_byte)
+			value |= state->rom.buffer[address + 0] << 8;
+		if (low_byte)
+			value |= state->rom.buffer[address + 1] << 0;
 	}
 	else if (address >= 0xA00000 && address <= 0xA01FFF)
 	{
-		return state->z80_ram[address & 0x1FFF];
+		if (high_byte && low_byte)
+		{
+			PrintError("68k attempted to perform word-sized read of Z80 memory");
+			value = 0;
+		}
+		else
+		{
+			address -= 0xA00000;
+
+			if (high_byte)
+				value |= state->z80_ram[address + 0] << 8;
+			else if (low_byte)
+				value |= state->z80_ram[address + 1] << 0;
+		}
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
-		return state->m68k_ram[address & 0xFFFF];
+		if (high_byte)
+			value |= state->m68k_ram[(address + 0) & 0xFFFF] << 8;
+		if (low_byte)
+			value |= state->m68k_ram[(address + 1) & 0xFFFF] << 0;
 	}
 	else
 	{
 		PrintError("68k attempted to read invalid memory at 0x%X", address);
-		return 0;
+		value = 0;
 	}
+
+	return value;
 }
 
-static void M68kWriteCallback(void *user_data, unsigned long address, unsigned char value)
+static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool high_byte, cc_bool low_byte, unsigned short value)
 {
 	ClownMDEmu_State *state = (ClownMDEmu_State*)user_data;
 
-	address &= 0xFFFFFF; /* The 68k's address bus is 24-bit */
-
 	if (/*address >= 0 &&*/ address < state->rom.size)
 	{
-		/*state->rom.buffer[address] = value;*/
+		/*
+		if (high_byte)
+			state->rom.buffer[address + 0] = (unsigned char)((value >> 8) & 0xFF);
+		if (low_byte)
+			state->rom.buffer[address + 1] = (unsigned char)((value >> 0) & 0xFF);
+		*/
+
 		PrintError("68k attempted to write to ROM at 0x%X", address);
 	}
 	else if (address >= 0xA00000 && address <= 0xA01FFF)
 	{
-		state->z80_ram[address & 0x1FFF] = value;
+		if (high_byte && low_byte)
+		{
+			PrintError("68k attempted to perform word-sized write of Z80 memory");
+		}
+		else
+		{
+			address -= 0xA00000;
+
+			if (high_byte)
+				state->z80_ram[address + 0] = (unsigned char)((value >> 8) & 0xFF);
+			else if (low_byte)
+				state->z80_ram[address + 1] = (unsigned char)((value >> 0) & 0xFF);
+		}
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
-		state->m68k_ram[address & 0xFFFF] = value;
+		if (high_byte)
+			state->m68k_ram[(address + 0) & 0xFFFF] = (unsigned char)((value >> 8) & 0xFF);
+		if (low_byte)
+			state->m68k_ram[(address + 1) & 0xFFFF] = (unsigned char)((value >> 0) & 0xFF);
 	}
 	else
 	{

@@ -145,70 +145,59 @@ typedef enum Instruction
 
 /* Memory reads */
 
-#define READ_BYTES(callbacks, address, value, total_bytes)\
-{\
-	unsigned int i;\
-\
-	value = 0;\
-	for (i = 0; i < (total_bytes); ++i)\
-		value |= (callbacks)->read_callback((callbacks)->user_data, ((address) + i) & 0xFFFFFFFF) << (((total_bytes) - 1 - i) * 8);\
-}
-
 static unsigned long ReadByte(const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
 {
-	unsigned long value;
+	const cc_bool odd = !!(address & 1);
 
-	READ_BYTES(callbacks, address, value, 1)
-
-	return value;
+	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, !odd, odd) >> (odd ? 0 : 8);
 }
 
 static unsigned long ReadWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
 {
-	unsigned long value;
+	if (address & 1)
+	{
+		/* TODO - Address error */
+	}
 
-	READ_BYTES(callbacks, address, value, 2)
-
-	return value;
+	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, cc_true, cc_true);
 }
 
 static unsigned long ReadLongWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
 {
 	unsigned long value;
 
-	READ_BYTES(callbacks, address, value, 4)
+	if (address & 1)
+	{
+		/* TODO - Address error */
+	}
+
+	value = 0;
+	value |= callbacks->read_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true);
+	value <<= 16;
+	value |= callbacks->read_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true);
 
 	return value;
 }
 
-#undef READ_BYTES
-
 /* Memory writes */
-
-#define WRITE_BYTES(callbacks, address, value, total_bytes)\
-{\
-	unsigned long i;\
-\
-	for (i = 0; i < (total_bytes); ++i)\
-		(callbacks)->write_callback((callbacks)->user_data, ((address) + i) & 0xFFFFFFFF, ((value) >> (((total_bytes) - 1 - i) * 8)) & 0xFF);\
-}
 
 static void WriteByte(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
 {
-	WRITE_BYTES(callbacks, address, value, 1)
+	const cc_bool odd = !!(address & 1);
+
+	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, !odd, odd, (unsigned short)value << (odd ? 0 : 8));
 }
 
 static void WriteWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
 {
-	WRITE_BYTES(callbacks, address, value, 2)
+	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, cc_true, cc_true, (unsigned short)value);
 }
 
 static void WriteLongWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
 {
-	WRITE_BYTES(callbacks, address, value, 4)
+	callbacks->write_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true, (unsigned short)((value >> 16) & 0xFFFF));
+	callbacks->write_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true, (unsigned short)((value >>  0) & 0xFFFF));
 }
-
-#undef WRITE_BYTES
 
 /* Misc. utility */
 

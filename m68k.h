@@ -1,6 +1,8 @@
 #ifndef M68K_H
 #define M68K_H
 
+#include "clowncommon.h"
+
 typedef struct M68k_State
 {
 	unsigned long data_registers[8];
@@ -13,8 +15,8 @@ typedef struct M68k_State
 
 typedef struct M68k_ReadWriteCallbacks
 {
-	unsigned char (*read_callback)(void *user_data, unsigned long address);
-	void (*write_callback)(void *user_data, unsigned long address, unsigned char value);
+	unsigned short (*read_callback)(void *user_data, unsigned long address, cc_bool high_byte, cc_bool low_byte);
+	void (*write_callback)(void *user_data, unsigned long address, cc_bool high_byte, cc_bool low_byte, unsigned short value);
 	void *user_data;
 } M68k_ReadWriteCallbacks;
 
