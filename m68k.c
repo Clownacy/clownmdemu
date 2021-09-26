@@ -2124,12 +2124,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						state->status_register &= ~CONDITION_CODE_CARRY;
 						state->status_register |= CONDITION_CODE_CARRY * !!(result_value & sign_bit_bitmask);
 
-						if (instruction != INSTRUCTION_ROD_MEMORY && instruction != INSTRUCTION_ROD_REGISTER)
-						{
-							state->status_register &= ~CONDITION_CODE_EXTEND;
-							state->status_register |= CONDITION_CODE_EXTEND * !!(state->status_register & CONDITION_CODE_CARRY);
-						}
-
 						switch (instruction)
 						{
 							case INSTRUCTION_ASD_MEMORY:
@@ -2158,6 +2152,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 								/* Shut up dumbass compiler warnings */
 								break;
 						}
+
+						if (instruction != INSTRUCTION_ROD_MEMORY && instruction != INSTRUCTION_ROD_REGISTER)
+						{
+							state->status_register &= ~CONDITION_CODE_EXTEND;
+							state->status_register |= CONDITION_CODE_EXTEND * !!(state->status_register & CONDITION_CODE_CARRY);
+						}
 					}
 				}
 				else
@@ -2167,13 +2167,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					{
 						state->status_register &= ~CONDITION_CODE_CARRY;
 						state->status_register |= CONDITION_CODE_CARRY * !!(result_value & 1);
-
-						if (instruction != INSTRUCTION_ROD_MEMORY && instruction != INSTRUCTION_ROD_REGISTER)
-						{
-							state->status_register &= ~CONDITION_CODE_EXTEND;
-							state->status_register |= CONDITION_CODE_EXTEND * !!(state->status_register & CONDITION_CODE_CARRY);
-						}
-
 
 						switch (instruction)
 						{
@@ -2202,6 +2195,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 							default:
 								/* Shut up dumbass compiler warnings */
 								break;
+						}
+
+						if (instruction != INSTRUCTION_ROD_MEMORY && instruction != INSTRUCTION_ROD_REGISTER)
+						{
+							state->status_register &= ~CONDITION_CODE_EXTEND;
+							state->status_register |= CONDITION_CODE_EXTEND * !!(state->status_register & CONDITION_CODE_CARRY);
 						}
 					}
 				}
