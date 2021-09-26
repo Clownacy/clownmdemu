@@ -282,6 +282,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 			const unsigned char displacement_reg = (extension_word >> 12) & 7;
 			const cc_bool is_longword = !!(extension_word & 0x0800);
 			const unsigned long displacement_literal_value = SIGN_EXTEND(extension_word, 0xFF);
+			/* TODO - Is an address register ever used here on the 68k? */
 			const unsigned long displacement_reg_value = SIGN_EXTEND((is_address_register ? state->address_registers : state->data_registers)[displacement_reg], is_longword ? 0xFFFFFFFF : 0xFFFF);
 
 			address += displacement_reg_value;
