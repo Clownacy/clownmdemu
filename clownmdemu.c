@@ -12,7 +12,6 @@
 #include "vdp.h"
 /*#include "z80.h"*/
 
-
 #define MASTER_CLOCK_NTSC 53693175
 #define MASTER_CLOCK_PAL  53203424
 
@@ -159,7 +158,7 @@ void ClownMDEmu_Deinit(void *state_void)
 	(void)state;
 }
 
-void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(void *pixels, size_t screen_width, size_t screen_height))
+void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(size_t scanline, void *pixels, size_t screen_width, size_t screen_height))
 {
 	/* TODO - user callbacks for reading input and showing video */
 
@@ -184,7 +183,7 @@ void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(voi
 			/*DoZ80Cycle(state);*/
 		}
 
-		VDP_RenderScanline(&state->vdp, scanline_rendered_callback);
+		VDP_RenderScanline(&state->vdp, i, scanline_rendered_callback);
 		/* Do H-Int */
 		M68k_Interrupt(&state->m68k, &m68k_read_write_callbacks, 4);
 	}
