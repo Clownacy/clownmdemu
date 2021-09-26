@@ -2121,7 +2121,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						state->status_register &= ~CONDITION_CODE_CARRY;
 						state->status_register |= CONDITION_CODE_CARRY * !!(result_value & sign_bit_bitmask);
 
-						if (instruction != INSTRUCTION_ROD_MEMORY && INSTRUCTION_ROD_REGISTER)
+						if (instruction != INSTRUCTION_ROD_MEMORY && instruction != INSTRUCTION_ROD_REGISTER)
 						{
 							state->status_register &= ~CONDITION_CODE_EXTEND;
 							state->status_register |= CONDITION_CODE_EXTEND * !!(state->status_register & CONDITION_CODE_CARRY);
@@ -2165,7 +2165,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						state->status_register &= ~CONDITION_CODE_CARRY;
 						state->status_register |= CONDITION_CODE_CARRY * !!(result_value & 1);
 
-						if (instruction != INSTRUCTION_ROD_MEMORY && INSTRUCTION_ROD_REGISTER)
+						if (instruction != INSTRUCTION_ROD_MEMORY && instruction != INSTRUCTION_ROD_REGISTER)
 						{
 							state->status_register &= ~CONDITION_CODE_EXTEND;
 							state->status_register |= CONDITION_CODE_EXTEND * !!(state->status_register & CONDITION_CODE_CARRY);
@@ -2193,7 +2193,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 							case INSTRUCTION_ROD_MEMORY:
 							case INSTRUCTION_ROD_REGISTER:
-								result_value = (result_value >> 1) | (sign_bit_bitmask * !!(result_value & sign_bit_bitmask));
+								result_value = (result_value >> 1) | (sign_bit_bitmask * !!(result_value & 1));
 								break;
 
 							default:
