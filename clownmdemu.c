@@ -90,9 +90,9 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool hi
 	{
 		/*
 		if (high_byte)
-			state->rom.buffer[address + 0] = (unsigned char)((value >> 8) & 0xFF);
+			state->rom.buffer[address + 0] = (unsigned char)(value >> 8) & 0xFF;
 		if (low_byte)
-			state->rom.buffer[address + 1] = (unsigned char)((value >> 0) & 0xFF);
+			state->rom.buffer[address + 1] = (unsigned char)(value >> 0) & 0xFF;
 		*/
 
 		PrintError("68k attempted to write to ROM at 0x%X", address);
@@ -108,17 +108,17 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool hi
 			address -= 0xA00000;
 
 			if (high_byte)
-				state->z80_ram[address + 0] = (unsigned char)((value >> 8) & 0xFF);
+				state->z80_ram[address + 0] = (unsigned char)(value >> 8) & 0xFF;
 			else if (low_byte)
-				state->z80_ram[address + 1] = (unsigned char)((value >> 0) & 0xFF);
+				state->z80_ram[address + 1] = (unsigned char)(value >> 0) & 0xFF;
 		}
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
 		if (high_byte)
-			state->m68k_ram[(address + 0) & 0xFFFF] = (unsigned char)((value >> 8) & 0xFF);
+			state->m68k_ram[(address + 0) & 0xFFFF] = (unsigned char)(value >> 8) & 0xFF;
 		if (low_byte)
-			state->m68k_ram[(address + 1) & 0xFFFF] = (unsigned char)((value >> 0) & 0xFF);
+			state->m68k_ram[(address + 1) & 0xFFFF] = (unsigned char)(value >> 0) & 0xFF;
 	}
 	else
 	{

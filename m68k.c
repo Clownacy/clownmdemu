@@ -195,8 +195,8 @@ static void WriteWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long ad
 
 static void WriteLongWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
 {
-	callbacks->write_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true, (unsigned short)((value >> 16) & 0xFFFF));
-	callbacks->write_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true, (unsigned short)((value >>  0) & 0xFFFF));
+	callbacks->write_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true, (unsigned short)(value >> 16) & 0xFFFF);
+	callbacks->write_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true, (unsigned short)(value >>  0) & 0xFFFF);
 }
 
 /* Misc. utility */
