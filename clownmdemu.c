@@ -9,7 +9,7 @@
 /*#include "fm.h"*/
 #include "m68k.h"
 /*#include "psg.h"*/
-/*#include "vdp.h"*/
+#include "vdp.h"
 /*#include "z80.h"*/
 
 
@@ -35,6 +35,7 @@ typedef struct ClownMDEmu_State
 	M68k_State m68k;
 	unsigned char m68k_ram[0x10000];
 	unsigned char z80_ram[0x2000];
+	VDP_State vdp;
 } ClownMDEmu_State;
 
 static unsigned short M68kReadCallback(void *user_data, unsigned long address, cc_bool high_byte, cc_bool low_byte)
@@ -65,6 +66,14 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 			else if (low_byte)
 				value |= state->z80_ram[address + 1] << 0;
 		}
+	}
+	else if (address == 0xC00000 || address == 0xC00002)
+	{
+		/* TODO - Reading from the data port causes real Mega Drives to crash */
+	}
+	else if (address == 0xC00004 || address == 0xC00006)
+	{
+		value = VDP_ReadStatus(&state->vdp);
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
@@ -112,6 +121,14 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool hi
 			else if (low_byte)
 				state->z80_ram[address + 1] = (unsigned char)(value >> 0) & 0xFF;
 		}
+	}
+	else if (address == 0xC00000 || address == 0xC00002)
+	{
+		VDP_WriteData(&state->vdp, value);
+	}
+	else if (address == 0xC00004 || address == 0xC00006)
+	{
+		VDP_WriteControl(&state->vdp, value);
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{

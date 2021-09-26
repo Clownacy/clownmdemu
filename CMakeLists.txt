@@ -10,6 +10,8 @@ add_library(clownmdemu
 	"error.h"
 	"m68k.c"
 	"m68k.h"
+	"vdp.c"
+	"vdp.h"
 )
 
 set_target_properties(clownmdemu PROPERTIES
