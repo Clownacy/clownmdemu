@@ -271,7 +271,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 			/* Add displacement */
 			const unsigned short displacement = ReadWord(callbacks, state->program_counter);
 
-			address += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(displacement, 0xFFFF);
+			address += SIGN_EXTEND(displacement, 0xFFFF);
 			state->program_counter += 2;
 		}
 		else if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_INDEX || (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_INDEX))
@@ -281,8 +281,8 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 			const cc_bool is_address_register = !!(extension_word & 0x8000);
 			const unsigned char displacement_reg = (extension_word >> 12) & 7;
 			const cc_bool is_longword = !!(extension_word & 0x0800);
-			const short displacement_literal_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(extension_word, 0xFF);
-			const long displacement_reg_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE((is_address_register ? state->address_registers : state->data_registers)[displacement_reg], is_longword ? 0xFFFFFFFF : 0xFFFF);
+			const unsigned long displacement_literal_value = SIGN_EXTEND(extension_word, 0xFF);
+			const unsigned long displacement_reg_value = SIGN_EXTEND((is_address_register ? state->address_registers : state->data_registers)[displacement_reg], is_longword ? 0xFFFFFFFF : 0xFFFF);
 
 			address += displacement_reg_value;
 			address += displacement_literal_value;
@@ -1639,7 +1639,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				state->address_registers[opcode_primary_register] = state->address_registers[7];
 
 				/* Offset the stack pointer by the immediate value */
-				state->address_registers[7] += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 0xFFFF);
+				state->address_registers[7] += SIGN_EXTEND(source_value, 0xFFFF);
 
 				break;
 
@@ -1884,7 +1884,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					if (loop_counter-- != 0)
 					{
 						state->program_counter -= 2;
-						state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 0xFFFF);
+						state->program_counter += SIGN_EXTEND(source_value, 0xFFFF);
 					}
 
 					state->data_registers[opcode_primary_register] &= ~0xFFFFul;
@@ -1909,12 +1909,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				if ((opcode & 0x00FF) != 0)
 				{
-					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(opcode, 0xFF);
+					state->program_counter += SIGN_EXTEND(opcode, 0xFF);
 				}
 				else
 				{
 					state->program_counter -= 2;
-					state->program_counter += UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 0xFFFF);
+					state->program_counter += SIGN_EXTEND(source_value, 0xFFFF);
 				}
 
 				break;
