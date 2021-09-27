@@ -2,6 +2,8 @@
 
 #include <stddef.h>
 
+#include "clowncommon.h"
+
 #include "error.h"
 
 void VDP_Init(VDP_State *state)
@@ -10,7 +12,7 @@ void VDP_Init(VDP_State *state)
 
 	state->access.read_mode = cc_false;
 	state->access.selected_buffer = state->vram;
-	state->access.selected_buffer_size_mask = sizeof(state->vram) / sizeof(unsigned short) - 1;
+	state->access.selected_buffer_size_mask = CC_COUNT_OF(state->vram) - 1;
 	state->access.index = 0;
 	state->access.increment = 0;
 
@@ -126,10 +128,10 @@ unsigned short VDP_ReadControl(VDP_State *state)
 
 	/* Reading from the control port aborts the VDP waiting for a second command word to be written.
 	   This doesn't appear to be documented in the official SDK manuals we have, but the official
-	   boot code makes use of this features. */
+	   boot code makes use of this feature. */
 	state->access.write_pending = cc_false;
 
-	/* Not sure about this though */
+	/* ...Not sure about this though. */
 	state->dma.awaiting_destination_address = cc_false;
 
 	return 0;
@@ -170,19 +172,19 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 			case 0: /* VRAM read */
 			case 1: /* VRAM write */
 				state->access.selected_buffer = state->vram;
-				state->access.selected_buffer_size_mask = sizeof(state->vram) / sizeof(unsigned short) - 1;
+				state->access.selected_buffer_size_mask = CC_COUNT_OF(state->vram) - 1;
 				break;
 
 			case 8: /* CRAM read */
 			case 3: /* CRAM write */
 				state->access.selected_buffer = state->cram;
-				state->access.selected_buffer_size_mask = sizeof(state->cram) / sizeof(unsigned short) - 1;
+				state->access.selected_buffer_size_mask = CC_COUNT_OF(state->cram) - 1;
 				break;
 
 			case 4: /* VSRAM read */
 			case 5: /* VSRAM write */
 				state->access.selected_buffer = state->vsram;
-				state->access.selected_buffer_size_mask = sizeof(state->vsram) / sizeof(unsigned short) - 1;
+				state->access.selected_buffer_size_mask = CC_COUNT_OF(state->vsram) - 1;
 				break;
 
 			default: /* Invalid */
@@ -201,7 +203,17 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 			{
 				case VDP_DMA_MODE_MEMORY_TO_VRAM:
 					for (i = 0; i < state->dma.length; ++i)
-						state->access.selected_buffer[(destination_address + i) & state->access.selected_buffer_size_mask] = read_callback(user_data, (state->dma.source_address & 0xFFFF0000) | ((state->dma.source_address + i * 2) & 0xFFFF));
+					{
+						const unsigned long source_address_high_bits = state->dma.source_address & ~0xFFFFul;
+						unsigned short source_address_low_bits = (unsigned short)state->dma.source_address & 0xFFFFul;
+
+						state->access.selected_buffer[state->access.index & state->access.selected_buffer_size_mask] = read_callback(user_data, source_address_high_bits | source_address_low_bits);
+
+						source_address_low_bits += 2;
+						source_address_low_bits &= 0xFFFF;
+
+						state->access.index += state->access.increment;
+					}
 
 					break;
 
@@ -241,22 +253,22 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 
 			case 2:
 				/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL A */
-				state->plane_a_address = (size_t)(data & 0x38) << (10 - 1);
+				state->plane_a_address = (data & 0x38) << (10 - 1);
 				break;
 
 			case 3:
 				/* PATTERN NAME TABLE BASE ADDRESS FOR WINDOW */
-				state->window_address = (size_t)(data & 0x3E) << (10 - 1);
+				state->window_address = (data & 0x3E) << (10 - 1);
 				break;
 
 			case 4:
 				/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL B */
-				state->plane_b_address = (size_t)(data & 7) << (13 - 1);
+				state->plane_b_address = (data & 7) << (13 - 1);
 				break;
 
 			case 5:
 				/* SPRITE ATTRIBUTE TABLE BASE ADDRESS */
-				state->sprite_table_address = (size_t)(data & 0x7F) << (9 - 1);
+				state->sprite_table_address = (data & 0x7F) << (9 - 1);
 				break;
 
 			case 7:
@@ -304,7 +316,7 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 
 			case 13:
 				/* H SCROLL DATA TABLE BASE ADDRESS */
-				state->hscroll_address = (size_t)(data & 0x3F) << (10 - 1);
+				state->hscroll_address = (data & 0x3F) << (10 - 1);
 				break;
 
 			case 15:
