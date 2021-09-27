@@ -1925,60 +1925,43 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_DIVU:
-			{
-				const unsigned long quotient = state->data_registers[opcode_secondary_register] / source_value;
-
-				/* TODO
-				if (source_value == 0)
-					TRAP();*/
-
-				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW);
-
-				/* Overflow detection */
-				if (quotient > 0xFFFF)
-				{
-					state->status_register |= CONDITION_CODE_OVERFLOW;
-				}
-				else
-				{
-					const unsigned short remainder = state->data_registers[opcode_secondary_register] % source_value;
-
-					state->data_registers[opcode_secondary_register] = quotient | (remainder << 16);
-				}
-
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(quotient & 0x8000);
-				state->status_register |= CONDITION_CODE_ZERO * (quotient == 0);
-
-				break;
-			}
-
 			case INSTRUCTION_DIVS:
 			{
-				const short signed_source_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 0xFFFF);
-				const long signed_destination_value = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(state->data_registers[opcode_secondary_register], 0xFFFFFFFF);
+				const cc_bool source_is_negative = instruction == INSTRUCTION_DIVS && source_value & 0x8000;
+				const cc_bool destination_is_negative = instruction == INSTRUCTION_DIVS && destination_value & 0x80000000;
+				const cc_bool result_is_negative = source_is_negative != destination_is_negative;
 
-				const long quotient = signed_destination_value / signed_source_value;
+				const unsigned short absolute_source_value = source_is_negative ? -SIGN_EXTEND(source_value, 0xFFFF) : source_value;
+				const unsigned long absolute_destination_value = destination_is_negative ? -SIGN_EXTEND(state->data_registers[opcode_secondary_register], 0xFFFFFFFF) : state->data_registers[opcode_secondary_register];
 
-				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW);
-
-				/* TODO
 				if (source_value == 0)
-					TRAP();*/
-
-				/* Overflow detection */
-				if (quotient < -0x8000 || quotient > 0x7FFF)
 				{
-					state->status_register |= CONDITION_CODE_OVERFLOW;
+					/* TODO */
+					/*TRAP();*/
 				}
 				else
 				{
-					const short remainder = signed_destination_value % signed_source_value;
+					const unsigned long absolute_quotient = absolute_destination_value / absolute_source_value;
+					const unsigned long quotient = result_is_negative ? -absolute_quotient : absolute_quotient;
 
-					state->data_registers[opcode_secondary_register] = (SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(quotient) & 0xFFFF) | ((SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(remainder) & 0xFFFF) << 16);
+					state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW);
+
+					/* Overflow detection */
+					if (absolute_quotient > (instruction == INSTRUCTION_DIVU ? 0xFFFF : result_is_negative ? 0x8000 : 0x7FFF))
+					{
+						state->status_register |= CONDITION_CODE_OVERFLOW;
+					}
+					else
+					{
+						const unsigned short absolute_remainder = absolute_destination_value % absolute_source_value;
+						const unsigned short remainder = destination_is_negative ? -absolute_remainder : absolute_remainder;
+
+						state->data_registers[opcode_secondary_register] = (quotient & 0xFFFF) | ((remainder & 0xFFFF) << 16);
+					}
+
+					state->status_register |= CONDITION_CODE_NEGATIVE * !!(quotient & 0x8000);
+					state->status_register |= CONDITION_CODE_ZERO * (quotient == 0);
 				}
-
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(quotient & 0x8000);
-				state->status_register |= CONDITION_CODE_ZERO * (quotient == 0);
 
 				break;
 			}
