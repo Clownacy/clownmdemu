@@ -14,8 +14,6 @@
 #endif
 
 #define SIGN_EXTEND(value, bitmask) (((value) & ((bitmask) >> 1ul)) - ((value) & (((bitmask) >> 1ul) + 1ul)))
-#define UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(value, bitmask) (((value) & (((bitmask) >> 1ul) + 1ul)) ? -(long)(-(value) & (bitmask)) : (long)((value) & (bitmask)))
-#define SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(value) ((value) < 0 ? -(unsigned long)-(value) : (unsigned long)(value))
 
 #define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%X", state->program_counter)
 
