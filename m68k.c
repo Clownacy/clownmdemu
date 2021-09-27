@@ -1986,29 +1986,23 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_MULU:
-			{
-				const unsigned short multiplier = source_value & 0xFFFF;
-				const unsigned short multiplicand = state->data_registers[opcode_secondary_register] & 0xFFFF;
-
-				state->data_registers[opcode_secondary_register] = multiplicand * multiplier;
-
-				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO);
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->data_registers[opcode_secondary_register] & 0x80000000);
-				state->status_register |= CONDITION_CODE_ZERO * (state->data_registers[opcode_secondary_register] == 0);
-
-				break;
-			}
-
 			case INSTRUCTION_MULS:
 			{
-				const long multiplier = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(source_value, 0xFFFF);
-				const long multiplicand = UNSIGNED_TWOS_COMPLEMENT_TO_SIGNED_NATIVE(state->data_registers[opcode_secondary_register], 0xFFFF);
+				const cc_bool multiplier_is_negative = instruction == INSTRUCTION_MULS && source_value & 0x8000;
+				const cc_bool multiplicand_is_negative = instruction == INSTRUCTION_MULS && state->data_registers[opcode_secondary_register] & 0x8000;
+				const cc_bool result_is_negative = multiplier_is_negative != multiplicand_is_negative;
 
-				state->data_registers[opcode_secondary_register] = SIGNED_NATIVE_TO_UNSIGNED_TWOS_COMPLEMENT(multiplicand * multiplier);
+				const unsigned short multiplier = multiplier_is_negative ? -SIGN_EXTEND(source_value, 0xFFFF) : source_value;
+				const unsigned short multiplicand = multiplicand_is_negative ? -SIGN_EXTEND(state->data_registers[opcode_secondary_register], 0xFFFF) : state->data_registers[opcode_secondary_register];
+
+				const unsigned long absolute_result = (unsigned long)multiplicand * multiplier;
+				const unsigned long result = result_is_negative ? -absolute_result : absolute_result;
+
+				state->data_registers[opcode_secondary_register] = result;
 
 				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO);
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(state->data_registers[opcode_secondary_register] & 0x80000000);
-				state->status_register |= CONDITION_CODE_ZERO * (state->data_registers[opcode_secondary_register] == 0);
+				state->status_register |= CONDITION_CODE_NEGATIVE * !!(result & 0x80000000);
+				state->status_register |= CONDITION_CODE_ZERO * (result == 0);
 
 				break;
 			}
