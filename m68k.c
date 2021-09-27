@@ -547,10 +547,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 		state->program_counter += 2;
 
-		/* Set to default values to shut up dumbass compiler warnings */
-		operation_size = 1; /* Cannot be 0 otherwise a later subtraction will underflow */
-		source_value = destination_value = result_value = 0;
-
 		/* Figure out which instruction this is */
 		switch (opcode & 0xF000)
 		{
