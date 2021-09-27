@@ -2683,7 +2683,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_ROD_MEMORY:
 				case INSTRUCTION_ROXD_REGISTER:
 				case INSTRUCTION_ROXD_MEMORY:
-				case INSTRUCTION_TAS:
 					/* The condition code is set in the actual instruction code */
 					break;
 
@@ -2722,6 +2721,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_OR:
 				case INSTRUCTION_ORI:
 				case INSTRUCTION_SWAP:
+				case INSTRUCTION_TAS:
 				case INSTRUCTION_TST:
 					/* Unaffected */
 					break;
