@@ -35,7 +35,7 @@ static void InitBlitLookupTable(VDP_State *state)
 			   (think of a low-priority plane A pixel being drawn
 			   over a high-priority transparent plane B pixel) */
 			if ((output & palette_index_mask) == 0)
-				output &= priority_mask;
+				output &= ~priority_mask;
 
 			state->blit_lookup[old][new] = output;
 		}
