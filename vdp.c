@@ -51,7 +51,7 @@ void VDP_Init(VDP_State *state)
 
 void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rendered_callback)(size_t scanline, void *pixels, size_t screen_width, size_t screen_height))
 {
-	unsigned char pixels[MAX_SCANLINE_WIDTH * 2];
+	unsigned char pixels[MAX_SCANLINE_WIDTH * 3];
 	size_t i;
 
 	for (i = 0; i < state->screen_width; ++i)
@@ -141,10 +141,10 @@ void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rende
 		green = (colour >> 5) & 7;
 		blue = (colour >> 9) & 7;
 
-		/* Rearrange the colour into little-endian RGB565 */
-		/* TODO - I doubt this should be little-endian on big-endian hardware */
-		pixels[i * 2 + 0] = blue << 2;
-		pixels[i * 2 + 1] = (red << 5) | green;
+		/* Rearrange the colour into RGB24 */
+		pixels[i * 3 + 0] = red << 5;
+		pixels[i * 3 + 1] = green << 5;
+		pixels[i * 3 + 2] = blue << 5;
 	}
 
 	scanline_rendered_callback(scanline, pixels, state->screen_width, state->screen_height);
