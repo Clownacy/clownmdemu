@@ -6,6 +6,15 @@
 
 #include "error.h"
 
+static unsigned short* DecodeAndIncrementAccessAddress(VDP_State *state)
+{
+	unsigned short *address = &state->access.selected_buffer[(state->access.index / 2) & state->access.selected_buffer_size_mask];
+
+	state->access.index += state->access.increment;
+
+	return address;
+}
+
 void VDP_Init(VDP_State *state)
 {
 	state->access.write_pending = cc_false;
@@ -114,9 +123,7 @@ unsigned short VDP_ReadData(VDP_State *state)
 	}
 	else
 	{
-		value = state->access.selected_buffer[state->access.index & state->access.selected_buffer_size_mask];
-
-		state->access.index += state->access.increment;
+		value = *DecodeAndIncrementAccessAddress(state);
 	}
 
 	return value;
@@ -145,9 +152,7 @@ void VDP_WriteData(VDP_State *state, unsigned short value)
 	}
 	else
 	{
-		state->access.selected_buffer[state->access.index & state->access.selected_buffer_size_mask] = value;
-
-		state->access.index += state->access.increment;
+		*DecodeAndIncrementAccessAddress(state) = value;
 	}
 }
 
@@ -207,12 +212,10 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 						const unsigned long source_address_high_bits = state->dma.source_address & ~0xFFFFul;
 						unsigned short source_address_low_bits = (unsigned short)state->dma.source_address & 0xFFFFul;
 
-						state->access.selected_buffer[state->access.index & state->access.selected_buffer_size_mask] = read_callback(user_data, source_address_high_bits | source_address_low_bits);
+						*DecodeAndIncrementAccessAddress(state) = read_callback(user_data, source_address_high_bits | source_address_low_bits);
 
 						source_address_low_bits += 2;
 						source_address_low_bits &= 0xFFFF;
-
-						state->access.index += state->access.increment;
 					}
 
 					break;
@@ -321,11 +324,7 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 
 			case 15:
 				/* AUTO INCREMENT DATA */
-				state->access.increment = data / 2;
-
-				if (data & 1)
-					PrintError("Odd VDP increment delta specified");
-
+				state->access.increment = data;
 				break;
 
 			case 16:
