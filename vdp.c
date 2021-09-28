@@ -24,9 +24,9 @@ static void InitBlitLookupTable(VDP_State *state)
 
 			if ((new & palette_index_mask) == 0)
 				output = old;	/* New pixel failed the alpha-test */
-			else if ((old & priority_mask) == 0 || (old & palette_index_mask) == 0)
+			else if (!(old & priority_mask) || (old & palette_index_mask) == 0)
 				output = new;	/* Old pixel had lower priority or it was transparent */
-			else if ((new & priority_mask) == 0)
+			else if (!(new & priority_mask))
 				output = old;	/* New pixel had lower priority */
 			else
 				output = new;	/* New pixel had higher priority */
@@ -127,7 +127,7 @@ static unsigned char GetPixelFromPlane(VDP_State *state, unsigned short x, unsig
 	palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
 
 	/* Merge the priority, palette line, and palette line index into the final pixel */
-	return palette_line_index | (tile_palette_line << 4) | (tile_priority << 7);
+	return palette_line_index | (tile_palette_line << 4) | (tile_priority << 6);
 }
 
 void VDP_Init(VDP_State *state)
