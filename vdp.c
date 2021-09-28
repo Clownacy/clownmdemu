@@ -60,7 +60,14 @@ void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rende
 		size_t plane_x_in_pixels, plane_y_in_pixels;
 		size_t plane_x_in_tiles, plane_y_in_tiles;
 		size_t tile_x, tile_y;
+
 		unsigned short tile_metadata;
+		unsigned short tile_index;
+		cc_bool tile_priority;
+		unsigned char tile_palette_line;
+		cc_bool tile_y_flip;
+		cc_bool tile_x_flip;
+
 		unsigned short tile_data;
 		size_t colour_index;
 
@@ -97,13 +104,21 @@ void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rende
 		plane_y_in_tiles = (plane_y_in_pixels / 8) & state->plane_height_bitmask;
 
 		tile_metadata = state->vram[state->plane_a_address + plane_y_in_tiles * state->plane_width + plane_x_in_tiles];
+		tile_index = tile_metadata & 0x7FF;
+		tile_priority = !!(tile_metadata & 0x8000);
+		tile_palette_line = (tile_metadata >> 13) & 3;
+		tile_y_flip = !!(tile_metadata & 0x1000);
+		tile_x_flip = !!(tile_metadata & 0x0800);
 
 		tile_x = plane_x_in_pixels & 7;
 		tile_y = plane_y_in_pixels & 7;
 
-		tile_data = state->vram[(tile_metadata & 0x7FF) * (8 * 8 / 4) + tile_y * 2 + tile_x / 4];
+		tile_x ^= tile_x_flip ? 7 : 0;
+		tile_y ^= tile_y_flip ? 7 : 0;
 
-		colour_index = (tile_data >> (4 * (tile_x & 3))) & 0xF;
+		tile_data = state->vram[tile_index * (8 * 8 / 4) + tile_y * 2 + tile_x / 4];
+
+		colour_index = (tile_data >> (4 * ((tile_x & 3) ^ 3))) & 0xF;
 
 		pixels[i * 2 + 1] = 0;
 		pixels[i * 2 + 0] = colour_index << 1;
