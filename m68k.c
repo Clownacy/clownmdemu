@@ -2831,6 +2831,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_AND:
 			case INSTRUCTION_ADD:
 			case INSTRUCTION_ADDX:
+			case INSTRUCTION_ADDA:
+			case INSTRUCTION_SUBA:
 			case INSTRUCTION_ASD_MEMORY:
 			case INSTRUCTION_LSD_MEMORY:
 			case INSTRUCTION_ROXD_MEMORY:
@@ -2843,7 +2845,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				SetValueUsingDecodedAddressMode(callbacks, &destination_decoded_address_mode, result_value);
 				break;
 
-			case INSTRUCTION_ADDA:
 			case INSTRUCTION_BCC:
 			case INSTRUCTION_BRA:
 			case INSTRUCTION_BSR:
@@ -2874,7 +2875,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_RTR:
 			case INSTRUCTION_RTS:
 			case INSTRUCTION_STOP:
-			case INSTRUCTION_SUBA:
 			case INSTRUCTION_TRAP:
 			case INSTRUCTION_TRAPV:
 			case INSTRUCTION_TST:
