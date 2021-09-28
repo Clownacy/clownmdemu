@@ -293,12 +293,11 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 					for (i = 0; i < state->dma.length; ++i)
 					{
 						const unsigned long source_address_high_bits = state->dma.source_address & ~0xFFFFul;
-						unsigned short source_address_low_bits = (unsigned short)state->dma.source_address & 0xFFFFul;
+						unsigned short source_address_low_bits = (unsigned short)state->dma.source_address & 0xFFFF;
 
-						*DecodeAndIncrementAccessAddress(state) = read_callback(user_data, source_address_high_bits | source_address_low_bits);
+						*DecodeAndIncrementAccessAddress(state) = read_callback(user_data, (source_address_high_bits | source_address_low_bits) << 1);
 
-						source_address_low_bits += 2;
-						source_address_low_bits &= 0xFFFF;
+						source_address_low_bits = (source_address_low_bits + 1) & 0xFFFF;
 					}
 
 					break;
@@ -479,41 +478,41 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 
 			case 19:
 				/* DMA LENGTH COUNTER LOW */
-				state->dma.length &= ~(0xFF << 0);
-				state->dma.length |= data << 0;
+				state->dma.length &= ~((unsigned short)0xFF << 0);
+				state->dma.length |= (unsigned short)data << 0;
 				break;
 
 			case 20:
 				/* DMA LENGTH COUNTER HIGH */
-				state->dma.length &= ~(0xFF << 8);
-				state->dma.length |= data << 8;
+				state->dma.length &= ~((unsigned short)0xFF << 8);
+				state->dma.length |= (unsigned short)data << 8;
 				break;
 
 			case 21:
 				/* DMA SOURCE ADDRESS LOW */
-				state->dma.source_address &= ~(0xFF << 0);
-				state->dma.source_address |= data << 0;
+				state->dma.source_address &= ~((unsigned long)0xFF << 0);
+				state->dma.source_address |= (unsigned long)data << 0;
 				break;
 
 			case 22:
 				/* DMA SOURCE ADDRESS MID. */
-				state->dma.source_address &= ~(0xFF << 8);
-				state->dma.source_address |= data << 8;
+				state->dma.source_address &= ~((unsigned long)0xFF << 8);
+				state->dma.source_address |= (unsigned long)data << 8;
 				break;
 
 			case 23:
 				/* DMA SOURCE ADDRESS HIGH */
-				state->dma.source_address &= ~(0xFF << 16);
+				state->dma.source_address &= ~((unsigned long)0xFF << 16);
 
 				if (data & 0x80)
 				{
-					state->dma.source_address |= (data & 0x7F) << 16;
-					state->dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
+					state->dma.source_address |= (unsigned long)(data & 0x3F) << 16;
+					state->dma.mode = data & 0x40 ? VDP_DMA_MODE_COPY : VDP_DMA_MODE_FILL;
 				}
 				else
 				{
-					state->dma.source_address |= (data & 0x3F) << 16;
-					state->dma.mode = data & 0x40 ? VDP_DMA_MODE_COPY : VDP_DMA_MODE_FILL;
+					state->dma.source_address |= (unsigned long)(data & 0x7F) << 16;
+					state->dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
 				}
 
 				state->dma.awaiting_destination_address = cc_true;
