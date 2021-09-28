@@ -69,8 +69,13 @@ void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rende
 		cc_bool tile_x_flip;
 
 		unsigned short tile_data;
-		size_t colour_index;
+		unsigned char colour_index;
+		unsigned short colour;
+		unsigned char red;
+		unsigned char green;
+		unsigned char blue;
 
+		/* Get the horizontal scroll value */
 		switch (state->hscroll_mode)
 		{
 			case VDP_HSCROLL_MODE_FULL:
@@ -86,6 +91,7 @@ void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rende
 				break;
 		}
 
+		/* Get the vertical scroll value */
 		switch (state->vscroll_mode)
 		{
 			case VDP_VSCROLL_MODE_FULL:
@@ -97,12 +103,19 @@ void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rende
 				break;
 		}
 
+		/* Get the coordinates of the pixel to be drawn (in the plane) */
 		plane_x_in_pixels = hscroll + i;
 		plane_y_in_pixels = vscroll + scanline;
 
+		/* Get the coordinates of the pixel to be drawn (in the tile) */
+		tile_x = plane_x_in_pixels & 7;
+		tile_y = plane_y_in_pixels & 7;
+
+		/* Get the coordinates of the tile to be drawn */
 		plane_x_in_tiles = (plane_x_in_pixels / 8) & state->plane_width_bitmask;
 		plane_y_in_tiles = (plane_y_in_pixels / 8) & state->plane_height_bitmask;
 
+		/* Obtain and decode tile metadata */
 		tile_metadata = state->vram[state->plane_a_address + plane_y_in_tiles * state->plane_width + plane_x_in_tiles];
 		tile_index = tile_metadata & 0x7FF;
 		tile_priority = !!(tile_metadata & 0x8000);
@@ -110,18 +123,28 @@ void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rende
 		tile_y_flip = !!(tile_metadata & 0x1000);
 		tile_x_flip = !!(tile_metadata & 0x0800);
 
-		tile_x = plane_x_in_pixels & 7;
-		tile_y = plane_y_in_pixels & 7;
-
+		/* Perform tile flipping if needed */
 		tile_x ^= tile_x_flip ? 7 : 0;
 		tile_y ^= tile_y_flip ? 7 : 0;
 
+		/* Read a word of tile data */
 		tile_data = state->vram[tile_index * (8 * 8 / 4) + tile_y * 2 + tile_x / 4];
 
-		colour_index = (tile_data >> (4 * ((tile_x & 3) ^ 3))) & 0xF;
+		/* Obtain the index into Colour RAM */
+		colour_index = ((tile_data >> (4 * ((tile_x & 3) ^ 3))) & 0xF) | (tile_palette_line << 4);
 
-		pixels[i * 2 + 1] = 0;
-		pixels[i * 2 + 0] = colour_index << 1;
+		/* Obtain the Mega Drive-format colour from Colour RAM */
+		colour = state->cram[colour_index];
+
+		/* Decompose the colour into its individual RGB colour channels */
+		red = (colour >> 1) & 7;
+		green = (colour >> 5) & 7;
+		blue = (colour >> 9) & 7;
+
+		/* Rearrange the colour into little-endian RGB565 */
+		/* TODO - I doubt this should be little-endian on big-endian hardware */
+		pixels[i * 2 + 0] = blue << 2;
+		pixels[i * 2 + 1] = (red << 5) | green;
 	}
 
 	scanline_rendered_callback(scanline, pixels, state->screen_width, state->screen_height);
