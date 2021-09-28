@@ -49,6 +49,8 @@ typedef struct VDP_State
 	unsigned short screen_width;
 	unsigned short screen_height;
 
+	cc_bool display_enabled; /* TODO - Actually use this */
+	cc_bool dma_enabled;
 	cc_bool v_int_enabled;
 	cc_bool h_int_enabled;
 

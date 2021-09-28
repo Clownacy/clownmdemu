@@ -157,6 +157,8 @@ void VDP_Init(VDP_State *state)
 	state->screen_width = 320;
 	state->screen_height = 224;
 
+	state->display_enabled = cc_false;
+	state->dma_enabled = cc_false;
 	state->v_int_enabled = cc_false;
 	state->h_int_enabled = cc_false;
 
@@ -286,32 +288,35 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 		if (state->dma.awaiting_destination_address)
 		{
 			/* Firing DMA */
-			unsigned short i;
-
 			state->dma.awaiting_destination_address = cc_false;
 
-			switch (state->dma.mode)
+			if (state->dma_enabled)
 			{
-				case VDP_DMA_MODE_MEMORY_TO_VRAM:
-					for (i = 0; i < state->dma.length; ++i)
-					{
-						const unsigned long source_address_high_bits = state->dma.source_address & ~0xFFFFul;
-						unsigned short source_address_low_bits = (unsigned short)state->dma.source_address & 0xFFFF;
+				unsigned short i;
 
-						*DecodeAndIncrementAccessAddress(state) = read_callback(user_data, (source_address_high_bits | source_address_low_bits) << 1);
+				switch (state->dma.mode)
+				{
+					case VDP_DMA_MODE_MEMORY_TO_VRAM:
+						for (i = 0; i < state->dma.length; ++i)
+						{
+							const unsigned long source_address_high_bits = state->dma.source_address & ~0xFFFFul;
+							unsigned short source_address_low_bits = (unsigned short)state->dma.source_address & 0xFFFF;
 
-						source_address_low_bits = (source_address_low_bits + 1) & 0xFFFF;
-					}
+							*DecodeAndIncrementAccessAddress(state) = read_callback(user_data, (source_address_high_bits | source_address_low_bits) << 1);
 
-					break;
+							source_address_low_bits = (source_address_low_bits + 1) & 0xFFFF;
+						}
 
-				case VDP_DMA_MODE_FILL:
-					/* TODO */
-					break;
+						break;
 
-				case VDP_DMA_MODE_COPY:
-					/* TODO */
-					break;
+					case VDP_DMA_MODE_FILL:
+						/* TODO */
+						break;
+
+					case VDP_DMA_MODE_COPY:
+						/* TODO */
+						break;
+				}
 			}
 		}
 	}
@@ -337,7 +342,9 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 
 			case 1:
 				/* MODE SET REGISTER NO.2 */
+				state->display_enabled = !!(data & 0x40);
 				state->v_int_enabled = !!(data & 0x20);
+				state->dma_enabled = !!(data & 0x10);
 				/* TODO */
 				break;
 
