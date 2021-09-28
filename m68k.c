@@ -1546,6 +1546,11 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				result_value = destination_value & source_value;
 				break;
 
+			case INSTRUCTION_SUBA:
+			case INSTRUCTION_CMPA:
+				if (!opcode_bit_8)
+					source_value = SIGN_EXTEND(source_value, 0xFFFF);
+				/* Fallthrough */
 			case INSTRUCTION_SUBI:
 			case INSTRUCTION_CMPI:
 			case INSTRUCTION_SUB:
@@ -1554,6 +1559,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				result_value = destination_value - source_value;
 				break;
 
+			case INSTRUCTION_ADDA:
+				if (!opcode_bit_8)
+					source_value = SIGN_EXTEND(source_value, 0xFFFF);
+				/* Fallthrough */
 			case INSTRUCTION_ADDI:
 			case INSTRUCTION_ADD:
 				result_value = destination_value + source_value;
@@ -1973,15 +1982,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				UNIMPLEMENTED_INSTRUCTION("SUBX");
 				break;
 
-			case INSTRUCTION_SUBA:
-			case INSTRUCTION_CMPA:
-				if (!opcode_bit_8)
-					source_value = SIGN_EXTEND(source_value, 0xFFFF);
-
-				result_value = destination_value - source_value;
-
-				break;
-
 			case INSTRUCTION_MULU:
 			case INSTRUCTION_MULS:
 			{
@@ -2040,14 +2040,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ADDX:
 				/* TODO */
 				UNIMPLEMENTED_INSTRUCTION("ADDX");
-				break;
-
-			case INSTRUCTION_ADDA:
-				if (!opcode_bit_8)
-					source_value = SIGN_EXTEND(source_value, 0xFFFF);
-
-				result_value = destination_value + source_value;
-
 				break;
 
 			case INSTRUCTION_ASD_MEMORY:
