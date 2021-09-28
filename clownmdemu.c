@@ -281,8 +281,11 @@ void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(uns
 		}
 	}
 
-	/* Do V-Int */
-	M68k_Interrupt(&state->m68k, &m68k_read_write_callbacks, 6);
+	if (state->vdp.v_int_enabled)
+	{
+		/* Do V-Int */
+		M68k_Interrupt(&state->m68k, &m68k_read_write_callbacks, 6);
+	}
 	/*UpdateFM(state);*/
 	/*UpdatePSG(state);*/
 }
