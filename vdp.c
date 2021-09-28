@@ -170,30 +170,21 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 
 	for (i = 0; i < state->screen_width; ++i)
 	{
-		unsigned char plane_b_pixel;
-		unsigned char plane_a_pixel;
-		unsigned char final_pixel;
-
-		unsigned short colour;
-		unsigned char red;
-		unsigned char green;
-		unsigned char blue;
-
 		/* Get Plane B pixel */
-		plane_b_pixel = GetPixelFromPlane(state, i, scanline, state->vram + state->plane_b_address, state->vram + state->hscroll_address + 1, state->vsram + 1);
+		const unsigned char plane_b_pixel = GetPixelFromPlane(state, i, scanline, state->vram + state->plane_b_address, state->vram + state->hscroll_address + 1, state->vsram + 1);
 
 		/* Get Plane A pixel */
-		plane_a_pixel = GetPixelFromPlane(state, i, scanline, state->vram + state->plane_a_address, state->vram + state->hscroll_address + 0, state->vsram + 0);
+		const unsigned char plane_a_pixel = GetPixelFromPlane(state, i, scanline, state->vram + state->plane_a_address, state->vram + state->hscroll_address + 0, state->vsram + 0);
 
-		final_pixel = state->blit_lookup[plane_b_pixel][plane_a_pixel];
+		const unsigned char final_pixel = state->blit_lookup[plane_b_pixel][plane_a_pixel];
 
 		/* Obtain the Mega Drive-format colour from Colour RAM */
-		colour = state->cram[final_pixel & 0x7F];
+		const unsigned short colour = state->cram[final_pixel & 0x7F];
 
 		/* Decompose the colour into its individual RGB colour channels */
-		red = (colour >> 1) & 7;
-		green = (colour >> 5) & 7;
-		blue = (colour >> 9) & 7;
+		const unsigned char red = (colour >> 1) & 7;
+		const unsigned char green = (colour >> 5) & 7;
+		const unsigned char blue = (colour >> 9) & 7;
 
 		/* Rearrange the colour into RGB24 */
 		pixels[i * 3 + 0] = red << 5;
