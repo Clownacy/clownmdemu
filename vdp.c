@@ -297,17 +297,19 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 				switch (state->dma.mode)
 				{
 					case VDP_DMA_MODE_MEMORY_TO_VRAM:
+					{
+						const unsigned long source_address_high_bits = state->dma.source_address & ~0xFFFFul;
+						unsigned short source_address_low_bits = (unsigned short)state->dma.source_address & 0xFFFF;
+
 						for (i = 0; i < state->dma.length; ++i)
 						{
-							const unsigned long source_address_high_bits = state->dma.source_address & ~0xFFFFul;
-							unsigned short source_address_low_bits = (unsigned short)state->dma.source_address & 0xFFFF;
-
 							*DecodeAndIncrementAccessAddress(state) = read_callback(user_data, (source_address_high_bits | source_address_low_bits) << 1);
 
 							source_address_low_bits = (source_address_low_bits + 1) & 0xFFFF;
 						}
 
 						break;
+					}
 
 					case VDP_DMA_MODE_FILL:
 						/* TODO */
