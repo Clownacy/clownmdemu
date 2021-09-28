@@ -92,6 +92,30 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 				value |= state->z80_ram[address + 1] << 0;
 		}
 	}
+	else if (address == 0xA04000)
+	{
+		/* TODO - YM2612 A0 + D0 */
+	}
+	else if (address == 0xA04002)
+	{
+		/* TODO - YM2612 A1 + D1 */
+	}
+	else if (address >= 0xA10000 && address <= 0xA1001F)
+	{
+		/* TODO - I/O AREA */
+	}
+	else if (address == 0xA11000)
+	{
+		/* TODO - MEMORY MODE */
+	}
+	else if (address == 0xA11100)
+	{
+		/* TODO - Z80 BUSREQ */
+	}
+	else if (address == 0xA11200)
+	{
+		/* TODO - Z80 RESET */
+	}
 	else if (address == 0xC00000 || address == 0xC00002)
 	{
 		/* TODO - Reading from the data port causes real Mega Drives to crash (if the VDP isn't in read mode) */
@@ -100,6 +124,14 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 	else if (address == 0xC00004 || address == 0xC00006)
 	{
 		value = VDP_ReadControl(&state->vdp);
+	}
+	else if (address == 0xC00008)
+	{
+		/* TODO - H/V COUNTER */
+	}
+	else if (address == 0xC00010)
+	{
+		/* TODO - PSG */
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
@@ -147,6 +179,30 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool hi
 				state->z80_ram[address + 1] = (unsigned char)(value >> 0) & 0xFF;
 		}
 	}
+	else if (address == 0xA04000)
+	{
+		/* TODO - YM2612 A0 + D0 */
+	}
+	else if (address == 0xA04002)
+	{
+		/* TODO - YM2612 A1 + D1 */
+	}
+	else if (address >= 0xA10000 && address <= 0xA1001F)
+	{
+		/* TODO - I/O AREA */
+	}
+	else if (address == 0xA11000)
+	{
+		/* TODO - MEMORY MODE */
+	}
+	else if (address == 0xA11100)
+	{
+		/* TODO - Z80 BUSREQ */
+	}
+	else if (address == 0xA11200)
+	{
+		/* TODO - Z80 RESET */
+	}
 	else if (address == 0xC00000 || address == 0xC00002)
 	{
 		VDP_WriteData(&state->vdp, value);
@@ -154,6 +210,14 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool hi
 	else if (address == 0xC00004 || address == 0xC00006)
 	{
 		VDP_WriteControl(&state->vdp, value, VDPReadCallback, state);
+	}
+	else if (address == 0xC00008)
+	{
+		/* TODO - H/V COUNTER */
+	}
+	else if (address == 0xC00010)
+	{
+		/* TODO - PSG */
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
