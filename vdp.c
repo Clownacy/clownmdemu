@@ -157,7 +157,7 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 	{
 		/* This command is setting up for a memory access (part 2) */
 		const unsigned short destination_address = (state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
-		unsigned char access_mode = ((state->access.cached_write >> 12) & 3) | ((value >> 2) & 0x3C);
+		unsigned char access_mode = ((state->access.cached_write >> 14) & 3) | ((value >> 2) & 0x3C);
 
 		if (state->dma.awaiting_destination_address)
 			access_mode &= 7;
