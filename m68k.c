@@ -540,7 +540,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 		const AddressMode opcode_secondary_address_mode = (opcode >> 6) & 7;
 		const unsigned char opcode_secondary_register = (opcode >> 9) & 7;
 
-		unsigned char operation_size;
+		unsigned char operation_size = 1; /* Set to 1 by default to prevent an invalid shift later on */
 		DecodedAddressMode source_decoded_address_mode, destination_decoded_address_mode;
 		unsigned long source_value, destination_value, result_value;
 		Instruction instruction = INSTRUCTION_UNKNOWN;
