@@ -305,6 +305,7 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 						{
 							*DecodeAndIncrementAccessAddress(state) = read_callback(user_data, (source_address_high_bits | source_address_low_bits) << 1);
 
+							/* Emulate the 128KiB DMA wrap-around bug */
 							source_address_low_bits = (source_address_low_bits + 1) & 0xFFFF;
 						}
 

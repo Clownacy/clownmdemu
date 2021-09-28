@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+/* TODO - Make this a callback to the user */
 void PrintError(const char *fmt, ...)
 {
 	va_list args;
