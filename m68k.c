@@ -1475,6 +1475,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ADD:
 			case INSTRUCTION_ADDX:
 			case INSTRUCTION_ADDA:
+			case INSTRUCTION_CLR: /* For some reason CLR reads from its destination even though it doesn't use it */
+			case INSTRUCTION_SCC: /* For some reason SCC reads from its destination even though it doesn't use it */
 			case INSTRUCTION_ASD_MEMORY:
 			case INSTRUCTION_LSD_MEMORY:
 			case INSTRUCTION_ROXD_MEMORY:
@@ -1509,10 +1511,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MOVEP:
 			case INSTRUCTION_MOVEA:
 			case INSTRUCTION_MOVE_FROM_SR:
-			case INSTRUCTION_CLR:
 			case INSTRUCTION_LEA:
 			case INSTRUCTION_CHK:
-			case INSTRUCTION_SCC:
 			case INSTRUCTION_DBCC:
 			case INSTRUCTION_BRA:
 			case INSTRUCTION_BSR:
