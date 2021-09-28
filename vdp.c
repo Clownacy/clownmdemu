@@ -165,7 +165,7 @@ void VDP_Init(VDP_State *state)
 
 void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanline_rendered_callback)(unsigned short scanline, void *pixels, unsigned short screen_width, unsigned short screen_height))
 {
-	unsigned char pixels[MAX_SCANLINE_WIDTH * 3];
+	unsigned char pixels[VDP_MAX_SCANLINE_WIDTH * 3];
 	unsigned short i;
 
 	for (i = 0; i < state->screen_width; ++i)
