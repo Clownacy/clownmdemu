@@ -157,6 +157,8 @@ void VDP_Init(VDP_State *state)
 	state->screen_width = 320;
 	state->screen_height = 224;
 
+	state->h_int_enabled = cc_false;
+
 	state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
 
@@ -328,6 +330,7 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 		{
 			case 0:
 				/* MODE SET REGISTER NO.1 */
+				state->h_int_enabled = !!(data & 0x10);
 				/* TODO */
 				break;
 
