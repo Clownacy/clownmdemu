@@ -57,8 +57,8 @@ void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rende
 	for (i = 0; i < state->screen_width; ++i)
 	{
 		size_t hscroll, vscroll;
-		size_t plane_x_in_pixels, plane_y_in_pixels;
-		size_t plane_x_in_tiles, plane_y_in_tiles;
+		size_t pixel_x_in_plane, pixel_y_in_plane;
+		size_t pixel_x_in_tile, pixel_y_in_tile;
 		size_t tile_x, tile_y;
 
 		unsigned short tile_metadata;
@@ -104,19 +104,19 @@ void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rende
 		}
 
 		/* Get the coordinates of the pixel to be drawn (in the plane) */
-		plane_x_in_pixels = hscroll + i;
-		plane_y_in_pixels = vscroll + scanline;
+		pixel_x_in_plane = hscroll + i;
+		pixel_y_in_plane = vscroll + scanline;
 
 		/* Get the coordinates of the pixel to be drawn (in the tile) */
-		tile_x = plane_x_in_pixels & 7;
-		tile_y = plane_y_in_pixels & 7;
+		pixel_x_in_tile = pixel_x_in_plane & 7;
+		pixel_y_in_tile = pixel_y_in_plane & 7;
 
 		/* Get the coordinates of the tile to be drawn */
-		plane_x_in_tiles = (plane_x_in_pixels / 8) & state->plane_width_bitmask;
-		plane_y_in_tiles = (plane_y_in_pixels / 8) & state->plane_height_bitmask;
+		tile_x = (pixel_x_in_plane / 8) & state->plane_width_bitmask;
+		tile_y = (pixel_y_in_plane / 8) & state->plane_height_bitmask;
 
 		/* Obtain and decode tile metadata */
-		tile_metadata = state->vram[state->plane_a_address + plane_y_in_tiles * state->plane_width + plane_x_in_tiles];
+		tile_metadata = state->vram[state->plane_a_address + tile_y * state->plane_width + tile_x];
 		tile_index = tile_metadata & 0x7FF;
 		tile_priority = !!(tile_metadata & 0x8000);
 		tile_palette_line = (tile_metadata >> 13) & 3;
@@ -124,14 +124,14 @@ void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rende
 		tile_x_flip = !!(tile_metadata & 0x0800);
 
 		/* Perform tile flipping if needed */
-		tile_x ^= tile_x_flip ? 7 : 0;
-		tile_y ^= tile_y_flip ? 7 : 0;
+		pixel_x_in_tile ^= tile_x_flip ? 7 : 0;
+		pixel_y_in_tile ^= tile_y_flip ? 7 : 0;
 
 		/* Read a word of tile data */
-		tile_data = state->vram[tile_index * (8 * 8 / 4) + tile_y * 2 + tile_x / 4];
+		tile_data = state->vram[tile_index * (8 * 8 / 4) + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
 
 		/* Obtain the index into Colour RAM */
-		colour_index = ((tile_data >> (4 * ((tile_x & 3) ^ 3))) & 0xF) | (tile_palette_line << 4);
+		colour_index = ((tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF) | (tile_palette_line << 4);
 
 		/* Obtain the Mega Drive-format colour from Colour RAM */
 		colour = state->cram[colour_index];
