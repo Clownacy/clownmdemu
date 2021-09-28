@@ -6,6 +6,7 @@
 #include "clowncommon.h"
 
 #define MAX_SCANLINE_WIDTH 320
+#define VDP_INDEXED_PIXEL_VARIATION (1 << (1 + 2 + 4))
 
 typedef struct VDP_State
 {
@@ -45,8 +46,8 @@ typedef struct VDP_State
 	unsigned short plane_width_bitmask;
 	unsigned short plane_height_bitmask;
 
-	size_t screen_width;
-	size_t screen_height;
+	unsigned short screen_width;
+	unsigned short screen_height;
 
 	enum
 	{
@@ -64,10 +65,12 @@ typedef struct VDP_State
 	unsigned short vram[0x8000];
 	unsigned short cram[4 * 16];
 	unsigned short vsram[MAX_SCANLINE_WIDTH / 16];
+
+	unsigned char blit_lookup[VDP_INDEXED_PIXEL_VARIATION][VDP_INDEXED_PIXEL_VARIATION];
 } VDP_State;
 
 void VDP_Init(VDP_State *state);
-void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rendered_callback)(size_t scanline, void *pixels, size_t screen_width, size_t screen_height));
+void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanline_rendered_callback)(unsigned short scanline, void *pixels, unsigned short screen_width, unsigned short screen_height));
 
 unsigned short VDP_ReadData(VDP_State *state);
 unsigned short VDP_ReadControl(VDP_State *state);

@@ -6,6 +6,42 @@
 
 #include "error.h"
 
+/* This essentially pre-computes the VDP's depth-test and alpha-test,
+   generating a lookup table to eliminate the need to perform these
+   every time a pixel is blitted. This provides a *massive* speed boost. */
+static void InitBlitLookupTable(VDP_State *state)
+{
+	const unsigned int palette_index_mask = 0xF;
+	const unsigned int priority_mask = 0x40;
+
+	unsigned int old, new;
+
+	for (old = 0; old < VDP_INDEXED_PIXEL_VARIATION; ++old)
+	{
+		for (new = 0; new < VDP_INDEXED_PIXEL_VARIATION; ++new)
+		{
+			unsigned char output;
+
+			if ((new & palette_index_mask) == 0)
+				output = old;	/* New pixel failed the alpha-test */
+			else if ((old & priority_mask) == 0 || (old & palette_index_mask) == 0)
+				output = new;	/* Old pixel had lower priority or it was transparent */
+			else if ((new & priority_mask) == 0)
+				output = old;	/* New pixel had lower priority */
+			else
+				output = new;	/* New pixel had higher priority */
+
+			/* Don't allow transparent pixels to have priority bit
+			   (think of a low-priority plane A pixel being drawn
+			   over a high-priority transparent plane B pixel) */
+			if ((output & palette_index_mask) == 0)
+				output &= priority_mask;
+
+			state->blit_lookup[old][new] = output;
+		}
+	}
+}
+
 static unsigned short* DecodeAndIncrementAccessAddress(VDP_State *state)
 {
 	unsigned short *address = &state->access.selected_buffer[(state->access.index / 2) & state->access.selected_buffer_size_mask];
@@ -13,6 +49,85 @@ static unsigned short* DecodeAndIncrementAccessAddress(VDP_State *state)
 	state->access.index += state->access.increment;
 
 	return address;
+}
+
+static unsigned char GetPixelFromPlane(VDP_State *state, unsigned short x, unsigned short y, unsigned short *plane_buffer, unsigned short *hscroll_buffer, unsigned short *vscroll_buffer)
+{
+	unsigned int hscroll, vscroll;
+	unsigned int pixel_x_in_plane, pixel_y_in_plane;
+	unsigned int pixel_x_in_tile, pixel_y_in_tile;
+	unsigned int tile_x, tile_y;
+
+	unsigned int tile_metadata;
+	unsigned int tile_index;
+	cc_bool tile_priority;
+	unsigned int tile_palette_line;
+	cc_bool tile_y_flip;
+	cc_bool tile_x_flip;
+
+	unsigned int tile_data;
+	unsigned int palette_line_index;
+
+	/* Get the horizontal scroll value */
+	switch (state->hscroll_mode)
+	{
+		case VDP_HSCROLL_MODE_FULL:
+			hscroll = hscroll_buffer[0];
+			break;
+
+		case VDP_HSCROLL_MODE_1CELL:
+			hscroll = hscroll_buffer[(y / 8) * 2];
+			break;
+
+		case VDP_HSCROLL_MODE_1LINE:
+			hscroll = hscroll_buffer[y * 2];
+			break;
+	}
+
+	/* Get the vertical scroll value */
+	switch (state->vscroll_mode)
+	{
+		case VDP_VSCROLL_MODE_FULL:
+			vscroll = vscroll_buffer[0];
+			break;
+
+		case VDP_VSCROLL_MODE_2CELL:
+			vscroll = vscroll_buffer[(x / 16) * 2];
+			break;
+	}
+
+	/* Get the coordinates of the pixel to be drawn (in the plane) */
+	pixel_x_in_plane = -hscroll + x;
+	pixel_y_in_plane = -vscroll + y;
+
+	/* Get the coordinates of the pixel to be drawn (in the tile) */
+	pixel_x_in_tile = pixel_x_in_plane & 7;
+	pixel_y_in_tile = pixel_y_in_plane & 7;
+
+	/* Get the coordinates of the tile to be drawn */
+	tile_x = (pixel_x_in_plane / 8) & state->plane_width_bitmask;
+	tile_y = (pixel_y_in_plane / 8) & state->plane_height_bitmask;
+
+	/* Obtain and decode tile metadata */
+	tile_metadata = plane_buffer[tile_y * state->plane_width + tile_x];
+	tile_index = tile_metadata & 0x7FF;
+	tile_priority = !!(tile_metadata & 0x8000);
+	tile_palette_line = (tile_metadata >> 13) & 3;
+	tile_y_flip = !!(tile_metadata & 0x1000);
+	tile_x_flip = !!(tile_metadata & 0x0800);
+
+	/* Perform tile flipping if needed */
+	pixel_x_in_tile ^= tile_x_flip ? 7 : 0;
+	pixel_y_in_tile ^= tile_y_flip ? 7 : 0;
+
+	/* Read a word of tile data */
+	tile_data = state->vram[tile_index * (8 * 8 / 4) + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+
+	/* Obtain the index into the palette line */
+	palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
+
+	/* Merge the priority, palette line, and palette line index into the final pixel */
+	return palette_line_index | (tile_palette_line << 4) | (tile_priority << 7);
 }
 
 void VDP_Init(VDP_State *state)
@@ -45,96 +160,35 @@ void VDP_Init(VDP_State *state)
 	state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
 
-	/* Initialise VDP lookup table */
-	/* TODO */
+	InitBlitLookupTable(state);
 }
 
-void VDP_RenderScanline(VDP_State *state, size_t scanline, void (*scanline_rendered_callback)(size_t scanline, void *pixels, size_t screen_width, size_t screen_height))
+void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanline_rendered_callback)(unsigned short scanline, void *pixels, unsigned short screen_width, unsigned short screen_height))
 {
 	unsigned char pixels[MAX_SCANLINE_WIDTH * 3];
-	size_t i;
+	unsigned short i;
 
 	for (i = 0; i < state->screen_width; ++i)
 	{
-		size_t hscroll, vscroll;
-		size_t pixel_x_in_plane, pixel_y_in_plane;
-		size_t pixel_x_in_tile, pixel_y_in_tile;
-		size_t tile_x, tile_y;
+		unsigned char plane_b_pixel;
+		unsigned char plane_a_pixel;
+		unsigned char final_pixel;
 
-		unsigned short tile_metadata;
-		unsigned short tile_index;
-		cc_bool tile_priority;
-		unsigned char tile_palette_line;
-		cc_bool tile_y_flip;
-		cc_bool tile_x_flip;
-
-		unsigned short tile_data;
-		unsigned char colour_index;
 		unsigned short colour;
 		unsigned char red;
 		unsigned char green;
 		unsigned char blue;
 
-		/* Get the horizontal scroll value */
-		switch (state->hscroll_mode)
-		{
-			case VDP_HSCROLL_MODE_FULL:
-				hscroll = state->vram[state->hscroll_address];
-				break;
+		/* Get Plane B pixel */
+		plane_b_pixel = GetPixelFromPlane(state, i, scanline, state->vram + state->plane_b_address, state->vram + state->hscroll_address + 1, state->vsram + 1);
 
-			case VDP_HSCROLL_MODE_1CELL:
-				hscroll = state->vram[state->hscroll_address + (scanline / 8) * 2];
-				break;
+		/* Get Plane A pixel */
+		plane_a_pixel = GetPixelFromPlane(state, i, scanline, state->vram + state->plane_a_address, state->vram + state->hscroll_address + 0, state->vsram + 0);
 
-			case VDP_HSCROLL_MODE_1LINE:
-				hscroll = state->vram[state->hscroll_address + scanline * 2];
-				break;
-		}
-
-		/* Get the vertical scroll value */
-		switch (state->vscroll_mode)
-		{
-			case VDP_VSCROLL_MODE_FULL:
-				vscroll = state->vsram[0];
-				break;
-
-			case VDP_VSCROLL_MODE_2CELL:
-				vscroll = state->vsram[(i / 16) * 2];
-				break;
-		}
-
-		/* Get the coordinates of the pixel to be drawn (in the plane) */
-		pixel_x_in_plane = hscroll + i;
-		pixel_y_in_plane = vscroll + scanline;
-
-		/* Get the coordinates of the pixel to be drawn (in the tile) */
-		pixel_x_in_tile = pixel_x_in_plane & 7;
-		pixel_y_in_tile = pixel_y_in_plane & 7;
-
-		/* Get the coordinates of the tile to be drawn */
-		tile_x = (pixel_x_in_plane / 8) & state->plane_width_bitmask;
-		tile_y = (pixel_y_in_plane / 8) & state->plane_height_bitmask;
-
-		/* Obtain and decode tile metadata */
-		tile_metadata = state->vram[state->plane_a_address + tile_y * state->plane_width + tile_x];
-		tile_index = tile_metadata & 0x7FF;
-		tile_priority = !!(tile_metadata & 0x8000);
-		tile_palette_line = (tile_metadata >> 13) & 3;
-		tile_y_flip = !!(tile_metadata & 0x1000);
-		tile_x_flip = !!(tile_metadata & 0x0800);
-
-		/* Perform tile flipping if needed */
-		pixel_x_in_tile ^= tile_x_flip ? 7 : 0;
-		pixel_y_in_tile ^= tile_y_flip ? 7 : 0;
-
-		/* Read a word of tile data */
-		tile_data = state->vram[tile_index * (8 * 8 / 4) + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
-
-		/* Obtain the index into Colour RAM */
-		colour_index = ((tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF) | (tile_palette_line << 4);
+		final_pixel = state->blit_lookup[plane_b_pixel][plane_a_pixel];
 
 		/* Obtain the Mega Drive-format colour from Colour RAM */
-		colour = state->cram[colour_index];
+		colour = state->cram[final_pixel & 0x7F];
 
 		/* Decompose the colour into its individual RGB colour channels */
 		red = (colour >> 1) & 7;
