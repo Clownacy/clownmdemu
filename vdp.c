@@ -231,7 +231,8 @@ unsigned short VDP_ReadControl(VDP_State *state)
 	/* ...Not sure about this though. */
 	state->dma.awaiting_destination_address = cc_false;
 
-	return 0;
+	/* Set the 'V-blanking' and 'H-blanking bits', since active-scan is currently instant in this emulator */
+	return (1 << 2) | (1 << 3);
 }
 
 void VDP_WriteData(VDP_State *state, unsigned short value)
