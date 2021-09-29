@@ -16,7 +16,7 @@ typedef struct VDP_State
 		unsigned short cached_write;
 
 		cc_bool read_mode;
-		unsigned short *selected_buffer;
+		unsigned short *selected_buffer; /* TODO - Pointers in the state are BAD: remove it! */
 		unsigned short selected_buffer_size_mask;
 		unsigned short index;
 		unsigned short increment;
