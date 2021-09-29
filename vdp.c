@@ -186,7 +186,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 		const unsigned char final_pixel = state->blit_lookup[plane_b_pixel][plane_a_pixel];
 
 		/* Obtain the Mega Drive-format colour from Colour RAM */
-		const unsigned short colour = state->cram[final_pixel & 0x7F];
+		const unsigned short colour = state->cram[final_pixel & 0x3F];
 
 		/* Decompose the colour into its individual RGB colour channels */
 		const unsigned char red = (colour >> 1) & 7;
