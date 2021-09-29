@@ -7,7 +7,7 @@
 
 #include "error.h"
 
-#define DEBUG_STUFF
+/*#define DEBUG_STUFF*/
 
 #ifdef DEBUG_STUFF
 #include <stdio.h>
