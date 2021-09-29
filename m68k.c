@@ -323,7 +323,7 @@ static void DecodeAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *
 			/* Register */
 			decoded_address_mode->type = DECODED_ADDRESS_MODE_TYPE_REGISTER;
 			decoded_address_mode->data.reg.address = &(address_mode == ADDRESS_MODE_ADDRESS_REGISTER ? state->address_registers : state->data_registers)[reg];
-			decoded_address_mode->data.reg.operation_size_bitmask = ~(0xFFFFFFFFul << (operation_size_in_bytes * 8));
+			decoded_address_mode->data.reg.operation_size_bitmask = ~(~0ul << (operation_size_in_bytes * 8));
 			break;
 
 		default:
@@ -1770,19 +1770,16 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				unsigned short bitfield;
 
 				signed char delta;
-				unsigned long (*read_function)(const M68k_ReadWriteCallbacks *callbacks, unsigned long address);
 				void (*write_function)(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value);
 
 				if (opcode & 0x0040)
 				{
 					delta = 4;
-					read_function = ReadLongWord;
 					write_function = WriteLongWord;
 				}
 				else
 				{
 					delta = 2;
-					read_function = ReadWord;
 					write_function = WriteWord;
 				}
 
@@ -1799,7 +1796,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						if (opcode & 0x0400)
 						{
 							/* Memory to register */
-							state->data_registers[i] = read_function(callbacks, memory_address);
+							if (opcode & 0x0040)
+								state->data_registers[i] = ReadLongWord(callbacks, memory_address);
+							else
+								state->data_registers[i] = SIGN_EXTEND(ReadWord(callbacks, memory_address), 0xFFFF);
 						}
 						else
 						{
@@ -1824,7 +1824,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						if (opcode & 0x0400)
 						{
 							/* Memory to register */
-							state->address_registers[i] = read_function(callbacks, memory_address);
+							if (opcode & 0x0040)
+								state->address_registers[i] = ReadLongWord(callbacks, memory_address);
+							else
+								state->address_registers[i] = SIGN_EXTEND(ReadWord(callbacks, memory_address), 0xFFFF);
 						}
 						else
 						{
@@ -1841,25 +1844,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					bitfield >>= 1;
 				}
 
-				switch (opcode_primary_address_mode)
-				{
-					case ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT:
-					case ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT:
-						bitfield = source_value;
-
-						for (i = 0; i < 16; ++i)
-						{
-							if (bitfield & 1)
-								state->address_registers[opcode_primary_register] += delta;
-
-							bitfield >>= 1;
-						}
-						
-						break;
-
-					default:
-						break;
-				}
+				if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT || opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT)
+					state->address_registers[opcode_primary_register] = memory_address;
 
 				break;
 			}
@@ -2490,7 +2476,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TST:
 					/* Standard behaviour: set if result is zero; clear otherwise */
 					state->status_register &= ~CONDITION_CODE_ZERO;
-					state->status_register |= CONDITION_CODE_ZERO * ((result_value & ~(0xFFFFFFFFul << (operation_size * 8))) == 0);
+					state->status_register |= CONDITION_CODE_ZERO * ((result_value & ~(~0ul << (operation_size * 8))) == 0);
 					break;
 
 				case INSTRUCTION_DIVS:
