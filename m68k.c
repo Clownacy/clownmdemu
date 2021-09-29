@@ -210,7 +210,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 		/* Absolute short */
 		const unsigned short short_address = ReadWord(callbacks, state->program_counter);
 
-		address = SIGN_EXTEND(short_address, 0xFFFF); /* & 0xFFFFFFFF; TODO - Is this AND unnecessary? */
+		address = SIGN_EXTEND(short_address, 0xFFFF);
 		state->program_counter += 2;
 	}
 	else if (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_LONG)
