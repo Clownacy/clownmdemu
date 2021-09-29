@@ -9,6 +9,8 @@
 /* This essentially pre-computes the VDP's depth-test and alpha-test,
    generating a lookup table to eliminate the need to perform these
    every time a pixel is blitted. This provides a *massive* speed boost. */
+/* TODO - Maybe make this into a giant pre-computed array so that it
+   doesn't have to take up space in the state struct? */
 static void InitBlitLookupTable(VDP_State *state)
 {
 	const unsigned int palette_index_mask = 0xF;
