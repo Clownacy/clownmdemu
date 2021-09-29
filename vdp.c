@@ -98,7 +98,7 @@ static unsigned char GetPixelFromPlane(VDP_State *state, unsigned short x, unsig
 
 	/* Get the coordinates of the pixel to be drawn (in the plane) */
 	pixel_x_in_plane = -hscroll + x;
-	pixel_y_in_plane = -vscroll + y;
+	pixel_y_in_plane = vscroll + y;
 
 	/* Get the coordinates of the pixel to be drawn (in the tile) */
 	pixel_x_in_tile = pixel_x_in_plane & 7;
