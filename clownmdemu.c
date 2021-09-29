@@ -103,6 +103,14 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 	else if (address >= 0xA10000 && address <= 0xA1001F)
 	{
 		/* TODO - I/O AREA */
+		switch (address)
+		{
+			case 0xA10002:
+			case 0xA10004:
+			case 0xA10006:
+				value = 0xFF; /* Button bits are held high by default */
+				break;
+		}
 	}
 	else if (address == 0xA11000)
 	{
