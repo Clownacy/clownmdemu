@@ -69,7 +69,7 @@ typedef struct VDP_State
 
 	unsigned short vram[0x8000];
 	unsigned short cram[4 * 16];
-	unsigned short vsram[VDP_MAX_SCANLINE_WIDTH / 16];
+	unsigned short vsram[VDP_MAX_SCANLINE_WIDTH / 16 * 2];
 
 	unsigned char blit_lookup[VDP_INDEXED_PIXEL_VARIATION][VDP_INDEXED_PIXEL_VARIATION];
 } VDP_State;

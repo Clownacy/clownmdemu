@@ -86,6 +86,9 @@ static unsigned char GetPixelFromPlane(VDP_State *state, unsigned short x, unsig
 			break;
 	}
 
+	/* Get the X coordinate of the pixel to be drawn (in the plane) */
+	pixel_x_in_plane = -hscroll + x;
+
 	/* Get the vertical scroll value */
 	switch (state->vscroll_mode)
 	{
@@ -94,12 +97,11 @@ static unsigned char GetPixelFromPlane(VDP_State *state, unsigned short x, unsig
 			break;
 
 		case VDP_VSCROLL_MODE_2CELL:
-			vscroll = vscroll_buffer[(x / 16) * 2];
+			vscroll = vscroll_buffer[((pixel_x_in_plane / 16) % CC_COUNT_OF(state->vsram)) * 2];
 			break;
 	}
 
-	/* Get the coordinates of the pixel to be drawn (in the plane) */
-	pixel_x_in_plane = -hscroll + x;
+	/* Get the Y coordinate of the pixel to be drawn (in the plane) */
 	pixel_y_in_plane = vscroll + y;
 
 	/* Get the coordinates of the pixel to be drawn (in the tile) */
