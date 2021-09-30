@@ -54,6 +54,8 @@ typedef struct VDP_State
 	cc_bool v_int_enabled;
 	cc_bool h_int_enabled;
 
+	unsigned char background_colour;
+
 	enum
 	{
 		VDP_HSCROLL_MODE_FULL,
