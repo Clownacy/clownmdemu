@@ -15,8 +15,8 @@ typedef struct M68k_State
 
 typedef struct M68k_ReadWriteCallbacks
 {
-	unsigned short (*read_callback)(void *user_data, unsigned long address, cc_bool high_byte, cc_bool low_byte);
-	void (*write_callback)(void *user_data, unsigned long address, cc_bool high_byte, cc_bool low_byte, unsigned short value);
+	unsigned short (*read_callback)(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte);
+	void (*write_callback)(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned short value);
 	void *user_data;
 } M68k_ReadWriteCallbacks;
 

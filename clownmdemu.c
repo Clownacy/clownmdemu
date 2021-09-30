@@ -35,7 +35,18 @@ typedef struct ClownMDEmu_State
 	unsigned char m68k_ram[0x10000];
 	unsigned char z80_ram[0x2000];
 	VDP_State vdp;
+	struct
+	{
+		unsigned char control;
+		unsigned char data;
+	} joypads[3];
 } ClownMDEmu_State;
+
+typedef struct CallbackUserData
+{
+	ClownMDEmu_State *state;
+	unsigned char (*read_input_callback)(unsigned char button_id);
+} CallbackUserData;
 
 /* VDP memory access callback */
 
@@ -64,21 +75,22 @@ static unsigned short VDPReadCallback(void *user_data, unsigned long address)
 
 /* 68k memory access callbacks */
 
-static unsigned short M68kReadCallback(void *user_data, unsigned long address, cc_bool high_byte, cc_bool low_byte)
+static unsigned short M68kReadCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte)
 {
-	ClownMDEmu_State *state = (ClownMDEmu_State*)user_data;
+	CallbackUserData *callback_user_data = (CallbackUserData*)user_data;
+	ClownMDEmu_State *state = callback_user_data->state;
 	unsigned short value = 0;
 
 	if (/*address >= 0 &&*/ address < state->rom.size)
 	{
-		if (high_byte)
+		if (do_high_byte)
 			value |= state->rom.buffer[address + 0] << 8;
-		if (low_byte)
+		if (do_low_byte)
 			value |= state->rom.buffer[address + 1] << 0;
 	}
 	else if (address >= 0xA00000 && address <= 0xA01FFF)
 	{
-		if (high_byte && low_byte)
+		if (do_high_byte && do_low_byte)
 		{
 			PrintError("68k attempted to perform word-sized read of Z80 memory");
 		}
@@ -86,9 +98,9 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 		{
 			address -= 0xA00000;
 
-			if (high_byte)
+			if (do_high_byte)
 				value |= state->z80_ram[address + 0] << 8;
-			else if (low_byte)
+			else if (do_low_byte)
 				value |= state->z80_ram[address + 1] << 0;
 		}
 	}
@@ -106,9 +118,45 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 		switch (address)
 		{
 			case 0xA10002:
+				if (do_low_byte)
+				{
+					value |= state->joypads[0].data;
+
+					if (value & 0x40)
+					{
+						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_C) << 5;
+						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_B) << 4;
+						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_RIGHT) << 3;
+						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_LEFT) << 2;
+						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_DOWN) << 1;
+						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_UP) << 0;
+					}
+					else
+					{
+						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_START) << 5;
+						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_A) << 4;
+						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_DOWN) << 1;
+						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_UP) << 0;
+					}
+				}
+
+				break;
+
 			case 0xA10004:
 			case 0xA10006:
-				value = 0xFF; /* Button bits are held high by default */
+				value = 0xFF;
+				break;
+
+			case 0xA10008:
+			case 0xA1000A:
+			case 0xA1000C:
+				if (do_low_byte)
+				{
+					const unsigned int joypad_index = (address - 0xA10008) / 2;
+
+					value = state->joypads[joypad_index].control;
+				}
+
 				break;
 		}
 	}
@@ -143,9 +191,9 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
-		if (high_byte)
+		if (do_high_byte)
 			value |= state->m68k_ram[(address + 0) & 0xFFFF] << 8;
-		if (low_byte)
+		if (do_low_byte)
 			value |= state->m68k_ram[(address + 1) & 0xFFFF] << 0;
 	}
 	else
@@ -156,24 +204,28 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 	return value;
 }
 
-static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool high_byte, cc_bool low_byte, unsigned short value)
+static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned short value)
 {
-	ClownMDEmu_State *state = (ClownMDEmu_State*)user_data;
+	CallbackUserData *callback_user_data = (CallbackUserData*)user_data;
+	ClownMDEmu_State *state = callback_user_data->state;
+
+	const unsigned char high_byte = (unsigned char)(value >> 8) & 0xFF;
+	const unsigned char low_byte = (unsigned char)(value >> 0) & 0xFF;
 
 	if (/*address >= 0 &&*/ address < state->rom.size)
 	{
 		/*
-		if (high_byte)
-			state->rom.buffer[address + 0] = (unsigned char)(value >> 8) & 0xFF;
-		if (low_byte)
-			state->rom.buffer[address + 1] = (unsigned char)(value >> 0) & 0xFF;
+		if (do_high_byte)
+			state->rom.buffer[address + 0] = high_byte;
+		if (do_low_byte)
+			state->rom.buffer[address + 1] = low_byte;
 		*/
 
 		PrintError("68k attempted to write to ROM at 0x%X", address);
 	}
 	else if (address >= 0xA00000 && address <= 0xA01FFF)
 	{
-		if (high_byte && low_byte)
+		if (do_high_byte && do_low_byte)
 		{
 			PrintError("68k attempted to perform word-sized write of Z80 memory");
 		}
@@ -181,10 +233,10 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool hi
 		{
 			address -= 0xA00000;
 
-			if (high_byte)
-				state->z80_ram[address + 0] = (unsigned char)(value >> 8) & 0xFF;
-			else if (low_byte)
-				state->z80_ram[address + 1] = (unsigned char)(value >> 0) & 0xFF;
+			if (do_high_byte)
+				state->z80_ram[address + 0] = high_byte;
+			else if (do_low_byte)
+				state->z80_ram[address + 1] = low_byte;
 		}
 	}
 	else if (address == 0xA04000)
@@ -198,6 +250,32 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool hi
 	else if (address >= 0xA10000 && address <= 0xA1001F)
 	{
 		/* TODO - I/O AREA */
+		switch (address)
+		{
+			case 0xA10002:
+			case 0xA10004:
+			case 0xA10006:
+				if (do_low_byte)
+				{
+					const unsigned int joypad_index = (address - 0xA10002) / 2;
+
+					state->joypads[joypad_index].data = low_byte & state->joypads[joypad_index].control;
+				}
+
+				break;
+
+			case 0xA10008:
+			case 0xA1000A:
+			case 0xA1000C:
+				if (do_low_byte)
+				{
+					const unsigned int joypad_index = (address - 0xA10008) / 2;
+
+					state->joypads[joypad_index].control = low_byte;
+				}
+
+				break;
+		}
 	}
 	else if (address == 0xA11000)
 	{
@@ -229,10 +307,10 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool hi
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
-		if (high_byte)
-			state->m68k_ram[(address + 0) & 0xFFFF] = (unsigned char)(value >> 8) & 0xFF;
-		if (low_byte)
-			state->m68k_ram[(address + 1) & 0xFFFF] = (unsigned char)(value >> 0) & 0xFF;
+		if (do_high_byte)
+			state->m68k_ram[(address + 0) & 0xFFFF] = high_byte;
+		if (do_low_byte)
+			state->m68k_ram[(address + 1) & 0xFFFF] = low_byte;
 	}
 	else
 	{
@@ -255,17 +333,21 @@ void ClownMDEmu_Deinit(void *state_void)
 	(void)state;
 }
 
-void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(unsigned short scanline, void *pixels, unsigned short screen_width, unsigned short screen_height))
+void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(unsigned short scanline, void *pixels, unsigned short screen_width, unsigned short screen_height), unsigned char (*read_input_callback)(unsigned char button_id))
 {
 	/* TODO - user callbacks for reading input and showing video */
 
 	ClownMDEmu_State *state = (ClownMDEmu_State*)state_void;
 	size_t i, j;
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
+	CallbackUserData callback_user_data;
+
+	callback_user_data.state = state;
+	callback_user_data.read_input_callback = read_input_callback;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
-	m68k_read_write_callbacks.user_data = state;
+	m68k_read_write_callbacks.user_data = &callback_user_data;
 
 	/*ReadInput(state);*/
 
@@ -322,10 +404,14 @@ void ClownMDEmu_Reset(void *state_void)
 {
 	ClownMDEmu_State *state = (ClownMDEmu_State*)state_void;
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
+	CallbackUserData callback_user_data;
+
+	callback_user_data.state = state;
+	callback_user_data.read_input_callback = NULL; /* TODO - Please rethink this */
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
-	m68k_read_write_callbacks.user_data = state;
+	m68k_read_write_callbacks.user_data = &callback_user_data;
 
 	M68k_Reset(&state->m68k, &m68k_read_write_callbacks);
 }
