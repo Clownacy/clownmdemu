@@ -240,9 +240,9 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 		const unsigned int blue = (colour >> 9) & 7;
 
 		/* Rearrange the colour into RGB24 */
-		pixels[i * 3 + 0] = red << 5;
-		pixels[i * 3 + 1] = green << 5;
-		pixels[i * 3 + 2] = blue << 5;
+		pixels[i * 3 + 0] = (red << 5) | (red << 2) | (red >> 1);
+		pixels[i * 3 + 1] = (green << 5) | (green << 2) | (green >> 1);
+		pixels[i * 3 + 2] = (blue << 5) | (blue << 2) | (blue >> 1);
 	}
 
 	/* Send the RGB pixels to be rendered */
