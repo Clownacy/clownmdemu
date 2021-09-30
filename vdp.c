@@ -255,7 +255,9 @@ unsigned short VDP_ReadData(VDP_State *state)
 
 	if (!state->access.read_mode)
 	{
-		/* TODO - If I remember right, real Mega Drives crash when this happens */
+		/* According to GENESIS SOFTWARE DEVELOPMENT MANUAL (COMPLEMENT) section 4.1,
+		   this should cause the 68k to hang */
+		/* TODO */
 		PrintError("Data was read from the VDP data port while the VDP was in write mode");
 	}
 	else
@@ -287,10 +289,16 @@ void VDP_WriteData(VDP_State *state, unsigned short value)
 {
 	if (state->access.read_mode)
 	{
+		/* Invalid input, but defined behaviour */
 		PrintError("Data was written to the VDP data port while the VDP was in read mode");
+
+		/* According to GENESIS SOFTWARE DEVELOPMENT MANUAL (COMPLEMENT) section 4.1,
+		   data should not be written, but the address should be incremented */
+		state->access.index += state->access.increment;
 	}
 	else if (state->dma.awaiting_fill_value)
 	{
+		/* Perform DMA fill */
 		unsigned int i = 0;
 
 		state->dma.awaiting_fill_value = cc_false;
@@ -300,6 +308,7 @@ void VDP_WriteData(VDP_State *state, unsigned short value)
 	}
 	else
 	{
+		/* Write the value to memory */
 		*DecodeAndIncrementAccessAddress(state) = value;
 	}
 }
