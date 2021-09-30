@@ -1620,9 +1620,44 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 
 			case INSTRUCTION_MOVEP:
-				/* TODO */
-				UNIMPLEMENTED_INSTRUCTION("MOVEP");
+			{
+				unsigned long memory_address = DecodeMemoryAddressMode(state, callbacks, 0, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_INDEX, opcode_primary_register);
+
+				switch (opcode_bits_6_and_7)
+				{
+					case 0:
+						/* Memory to register (word) */
+						state->data_registers[opcode_secondary_register] &= ~0xFFFFul;
+						state->data_registers[opcode_secondary_register] |= ReadByte(callbacks, memory_address + 2 * 0) << 8 * 1;
+						state->data_registers[opcode_secondary_register] |= ReadByte(callbacks, memory_address + 2 * 1) << 8 * 0;
+						break;
+
+					case 1:
+						/* Memory to register (longword) */
+						state->data_registers[opcode_secondary_register] = 0;
+						state->data_registers[opcode_secondary_register] |= ReadByte(callbacks, memory_address + 2 * 0) << 8 * 3;
+						state->data_registers[opcode_secondary_register] |= ReadByte(callbacks, memory_address + 2 * 1) << 8 * 2;
+						state->data_registers[opcode_secondary_register] |= ReadByte(callbacks, memory_address + 2 * 2) << 8 * 1;
+						state->data_registers[opcode_secondary_register] |= ReadByte(callbacks, memory_address + 2 * 3) << 8 * 0;
+						break;
+
+					case 2:
+						/* Register to memory (word) */
+						WriteByte(callbacks, memory_address + 2 * 0, state->data_registers[opcode_secondary_register] >> 8 * 1);
+						WriteByte(callbacks, memory_address + 2 * 1, state->data_registers[opcode_secondary_register] >> 8 * 0);
+						break;
+
+					case 3:
+						/* Register to memory (longword) */
+						WriteByte(callbacks, memory_address + 2 * 0, state->data_registers[opcode_secondary_register] >> 8 * 3);
+						WriteByte(callbacks, memory_address + 2 * 1, state->data_registers[opcode_secondary_register] >> 8 * 2);
+						WriteByte(callbacks, memory_address + 2 * 2, state->data_registers[opcode_secondary_register] >> 8 * 1);
+						WriteByte(callbacks, memory_address + 2 * 3, state->data_registers[opcode_secondary_register] >> 8 * 0);
+						break;
+				}
+
 				break;
+			}
 
 			case INSTRUCTION_MOVEA:
 				result_value = operation_size == 2 ? SIGN_EXTEND(source_value, 0xFFFF) : source_value;
