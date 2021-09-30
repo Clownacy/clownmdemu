@@ -1922,7 +1922,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				const cc_bool result_is_negative = source_is_negative != destination_is_negative;
 
 				const unsigned short absolute_source_value = source_is_negative ? -SIGN_EXTEND(source_value, 0xFFFF) : source_value;
-				const unsigned long absolute_destination_value = destination_is_negative ? -SIGN_EXTEND(state->data_registers[opcode_secondary_register], 0xFFFFFFFF) : state->data_registers[opcode_secondary_register];
+				const unsigned long absolute_destination_value = destination_is_negative ? -SIGN_EXTEND(state->data_registers[opcode_secondary_register], 0xFFFFFFFF) : state->data_registers[opcode_secondary_register] & 0xFFFFFFFF;
 
 				if (source_value == 0)
 				{
@@ -1974,7 +1974,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				const cc_bool result_is_negative = multiplier_is_negative != multiplicand_is_negative;
 
 				const unsigned short multiplier = multiplier_is_negative ? -SIGN_EXTEND(source_value, 0xFFFF) : source_value;
-				const unsigned short multiplicand = multiplicand_is_negative ? -SIGN_EXTEND(state->data_registers[opcode_secondary_register], 0xFFFF) : state->data_registers[opcode_secondary_register];
+				const unsigned short multiplicand = multiplicand_is_negative ? -SIGN_EXTEND(state->data_registers[opcode_secondary_register], 0xFFFF) : state->data_registers[opcode_secondary_register] & 0xFFFF;
 
 				const unsigned long absolute_result = (unsigned long)multiplicand * multiplier;
 				const unsigned long result = result_is_negative ? -absolute_result : absolute_result;
