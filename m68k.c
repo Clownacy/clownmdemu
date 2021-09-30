@@ -414,69 +414,69 @@ static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned short opcode)
 	const cc_bool zero = !!(state->status_register & CONDITION_CODE_ZERO);
 	const cc_bool negative = !!(state->status_register & CONDITION_CODE_NEGATIVE);
 
-	switch (opcode & 0x0F00)
+	switch ((opcode >> 8) & 0xF)
 	{
-		case 0 << 8:
+		case 0:
 			/* True */
 			return cc_true;
 
-		case 1 << 8:
+		case 1:
 			/* False */
 			return cc_false;
 
-		case 2 << 8:
+		case 2:
 			/* Higher */
 			return !carry && !zero;
 
-		case 3 << 8:
+		case 3:
 			/* Lower or same */
 			return carry || zero;
 
-		case 4 << 8:
+		case 4:
 			/* Carry clear */
 			return !carry;
 
-		case 5 << 8:
+		case 5:
 			/* Carry set */
 			return carry;
 
-		case 6 << 8:
+		case 6:
 			/* Not equal */
 			return !zero;
 
-		case 7 << 8:
+		case 7:
 			/* Equal */
 			return zero;
 
-		case 8 << 8:
+		case 8:
 			/* Overflow clear */
 			return !overflow;
 
-		case 9 << 8:
+		case 9:
 			/* Overflow set */
 			return overflow;
 
-		case 10 << 8:
+		case 10:
 			/* Plus */
 			return !negative;
 
-		case 11 << 8:
+		case 11:
 			/* Minus */
 			return negative;
 
-		case 12 << 8:
+		case 12:
 			/* Greater or equal */
 			return (negative && overflow) || (!negative && !overflow);
 
-		case 13 << 8:
+		case 13:
 			/* Less than */
 			return (negative && !overflow) || (!negative && overflow);
 
-		case 14 << 8:
+		case 14:
 			/* Greater than */
 			return (negative && overflow && !zero) || (!negative && !overflow && !zero);
 
-		case 15 << 8:
+		case 15:
 			/* Less or equal */
 			return zero || (negative && !overflow) || (!negative && overflow);
 
