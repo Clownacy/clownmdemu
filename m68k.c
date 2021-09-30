@@ -1918,7 +1918,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_DIVU:
 			{
 				const cc_bool source_is_negative = instruction == INSTRUCTION_DIVS && source_value & 0x8000;
-				const cc_bool destination_is_negative = instruction == INSTRUCTION_DIVS && destination_value & 0x80000000;
+				const cc_bool destination_is_negative = instruction == INSTRUCTION_DIVS && state->data_registers[opcode_secondary_register] & 0x80000000;
 				const cc_bool result_is_negative = source_is_negative != destination_is_negative;
 
 				const unsigned short absolute_source_value = source_is_negative ? -SIGN_EXTEND(source_value, 0xFFFF) : source_value;
