@@ -33,6 +33,7 @@ typedef struct VDP_State
 		unsigned long source_address;
 		unsigned short length;
 		cc_bool awaiting_destination_address;
+		cc_bool awaiting_fill_value;
 	} dma;
 
 	unsigned short plane_a_address;

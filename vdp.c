@@ -170,8 +170,9 @@ void VDP_Init(VDP_State *state)
 	state->access.index = 0;
 	state->access.increment = 0;
 
-	state->dma.awaiting_destination_address = cc_false;
 	state->dma.source_address = 0;
+	state->dma.awaiting_destination_address = cc_false;
+	state->dma.awaiting_fill_value = cc_false;
 
 	state->plane_a_address = 0;
 	state->plane_b_address = 0;
@@ -276,6 +277,7 @@ unsigned short VDP_ReadControl(VDP_State *state)
 
 	/* ...Not sure about this though. */
 	state->dma.awaiting_destination_address = cc_false;
+	state->dma.awaiting_fill_value = cc_false;
 
 	/* Set the 'V-blanking' and 'H-blanking bits', since active-scan is currently instant in this emulator */
 	return (1 << 2) | (1 << 3);
@@ -286,6 +288,15 @@ void VDP_WriteData(VDP_State *state, unsigned short value)
 	if (state->access.read_mode)
 	{
 		PrintError("Data was written to the VDP data port while the VDP was in read mode");
+	}
+	else if (state->dma.awaiting_fill_value)
+	{
+		unsigned int i = 0;
+
+		state->dma.awaiting_fill_value = cc_false;
+
+		for (i = 0; i < state->dma.length; ++i)
+			*DecodeAndIncrementAccessAddress(state) = value;
 	}
 	else
 	{
@@ -362,7 +373,7 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 					}
 
 					case VDP_DMA_MODE_FILL:
-						/* TODO */
+						state->dma.awaiting_fill_value = cc_true;
 						break;
 
 					case VDP_DMA_MODE_COPY:
