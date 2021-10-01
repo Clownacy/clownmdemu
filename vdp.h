@@ -72,7 +72,11 @@ typedef struct VDP_State
 
 	unsigned short vram[0x8000];
 	unsigned short cram[4 * 16];
-	unsigned short vsram[VDP_MAX_SCANLINE_WIDTH / 16 * 2];
+	/* http://gendev.spritesmind.net/forum/viewtopic.php?p=36727#p36727 */
+	/* According to Mask of Destiny on SpritesMind, later models of Mega Drive (MD2 VA4 and later) have 64 words
+	   of VSRAM, instead of the 40 words that earlier models have. This is convenient for me because 64 is a power
+	   of 2, while 40 is not, which allows me to use bitmasks instead of slow modulos. */
+	unsigned short vsram[64];
 
 	unsigned char blit_lookup[VDP_INDEXED_PIXEL_VARIATION][VDP_INDEXED_PIXEL_VARIATION];
 } VDP_State;

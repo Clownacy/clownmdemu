@@ -117,7 +117,7 @@ static void RenderPlaneScanline(VDP_State *state, unsigned char *metapixels, uns
 				break;
 
 			case VDP_VSCROLL_MODE_2CELL:
-				vscroll = vscroll_buffer[((i - EXTRA_TILES) / 2 % CC_COUNT_OF(state->vsram)) * 2];
+				vscroll = vscroll_buffer[(((i - EXTRA_TILES) / 2) * 2) % CC_COUNT_OF(state->vsram)];
 				break;
 		}
 
