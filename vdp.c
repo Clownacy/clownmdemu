@@ -85,7 +85,7 @@ static void RenderPlaneScanline(VDP_State *state, unsigned char *metapixels, uns
 	hscroll_scroll_offset = hscroll % 16;
 
 	/* Get the value used to offset the reads from the plane map */
-	plane_x_offset = -((hscroll - hscroll_scroll_offset) / 8) - EXTRA_TILES;
+	plane_x_offset = -EXTRA_TILES + -((hscroll - hscroll_scroll_offset) / 8);
 
 	/* Obtain the pointer used to write metapixels to the buffer */
 	metapixels_pointer = metapixels + hscroll_scroll_offset;
@@ -117,7 +117,7 @@ static void RenderPlaneScanline(VDP_State *state, unsigned char *metapixels, uns
 				break;
 
 			case VDP_VSCROLL_MODE_2CELL:
-				vscroll = vscroll_buffer[(((i - EXTRA_TILES) / 2) * 2) % CC_COUNT_OF(state->vsram)];
+				vscroll = vscroll_buffer[(((-EXTRA_TILES + i) / 2) * 2) % CC_COUNT_OF(state->vsram)];
 				break;
 		}
 
