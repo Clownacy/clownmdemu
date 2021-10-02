@@ -1916,7 +1916,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					}
 
 					state->data_registers[opcode_primary_register] &= ~0xFFFFul;
-					state->data_registers[opcode_primary_register] |= loop_counter;
+					state->data_registers[opcode_primary_register] |= loop_counter & 0xFFFF;
 				}
 
 				break;
