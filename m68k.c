@@ -991,6 +991,11 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				}
 				
 				break;
+
+			default:
+				/* TODO - Illegal instruction exception */
+				PrintError("Illegal instruction at 0x%lX", state->program_counter);
+				break;
 		}
 
 		/* Determine operation sizes */
