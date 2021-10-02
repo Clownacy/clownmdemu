@@ -201,14 +201,14 @@ static void WriteLongWord(const M68k_ReadWriteCallbacks *callbacks, unsigned lon
 static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned char operation_size_in_bytes, AddressMode address_mode, unsigned char reg)
 {
 	/* The stack pointer moves two bytes instead of one byte, for alignment purposes */
-	const unsigned char increment_decrement_size = (reg == 7 && operation_size_in_bytes == 1) ? 2 : operation_size_in_bytes;
+	const unsigned int increment_decrement_size = (reg == 7 && operation_size_in_bytes == 1) ? 2 : operation_size_in_bytes;
 
 	unsigned long address;
 
 	if (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_SHORT)
 	{
 		/* Absolute short */
-		const unsigned short short_address = ReadWord(callbacks, state->program_counter);
+		const unsigned int short_address = ReadWord(callbacks, state->program_counter);
 
 		address = SIGN_EXTEND(short_address, 0xFFFF);
 		state->program_counter += 2;
@@ -267,7 +267,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 		if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT || (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_DISPLACEMENT))
 		{
 			/* Add displacement */
-			const unsigned short displacement = ReadWord(callbacks, state->program_counter);
+			const unsigned int displacement = ReadWord(callbacks, state->program_counter);
 
 			address += SIGN_EXTEND(displacement, 0xFFFF);
 			state->program_counter += 2;
@@ -275,9 +275,9 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 		else if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_INDEX || (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_INDEX))
 		{
 			/* Add index register and index literal */
-			const unsigned short extension_word = ReadWord(callbacks, state->program_counter);
+			const unsigned int extension_word = ReadWord(callbacks, state->program_counter);
 			const cc_bool is_address_register = !!(extension_word & 0x8000);
-			const unsigned char displacement_reg = (extension_word >> 12) & 7;
+			const unsigned int displacement_reg = (extension_word >> 12) & 7;
 			const cc_bool is_longword = !!(extension_word & 0x0800);
 			const unsigned long displacement_literal_value = SIGN_EXTEND(extension_word, 0xFF);
 			/* TODO - Is an address register ever used here on the 68k? */
@@ -530,17 +530,17 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 	else
 	{
 		/* Process new instruction */
-		const unsigned short opcode = ReadWord(callbacks, state->program_counter);
+		const unsigned int opcode = ReadWord(callbacks, state->program_counter);
 
-		const unsigned char opcode_bits_6_and_7 = (opcode >> 6) & 3;
+		const unsigned int opcode_bits_6_and_7 = (opcode >> 6) & 3;
 		const cc_bool opcode_bit_8 = !!(opcode & 0x100);
 
-		const unsigned char opcode_primary_register = (opcode >> 0) & 7;
+		const unsigned int opcode_primary_register = (opcode >> 0) & 7;
 		const AddressMode opcode_primary_address_mode = (opcode >> 3) & 7;
 		const AddressMode opcode_secondary_address_mode = (opcode >> 6) & 7;
-		const unsigned char opcode_secondary_register = (opcode >> 9) & 7;
+		const unsigned int opcode_secondary_register = (opcode >> 9) & 7;
 
-		unsigned char operation_size = 1; /* Set to 1 by default to prevent an invalid shift later on */
+		unsigned int operation_size = 1; /* Set to 1 by default to prevent an invalid shift later on */
 		DecodedAddressMode source_decoded_address_mode, destination_decoded_address_mode;
 		unsigned long source_value, destination_value, result_value;
 		Instruction instruction = INSTRUCTION_UNKNOWN;
@@ -1806,10 +1806,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			{
 				/* Hot damn is this a mess */
 				unsigned long memory_address = DecodeMemoryAddressMode(state, callbacks, 0, opcode_primary_address_mode, opcode_primary_register);
-				size_t i;
-				unsigned short bitfield;
+				unsigned int i;
+				unsigned int bitfield;
 
-				signed char delta;
+				int delta;
 				void (*write_function)(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value);
 
 				if (opcode & 0x0040)
@@ -1902,7 +1902,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_DBCC:
 				if (!IsOpcodeConditionTrue(state, opcode))
 				{
-					unsigned short loop_counter = state->data_registers[opcode_primary_register] & 0xFFFF;
+					unsigned int loop_counter = state->data_registers[opcode_primary_register] & 0xFFFF;
 
 					if (loop_counter-- != 0)
 					{
@@ -1953,7 +1953,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				const cc_bool destination_is_negative = instruction == INSTRUCTION_DIVS && state->data_registers[opcode_secondary_register] & 0x80000000;
 				const cc_bool result_is_negative = source_is_negative != destination_is_negative;
 
-				const unsigned short absolute_source_value = source_is_negative ? -SIGN_EXTEND(source_value, 0xFFFF) : source_value;
+				const unsigned int absolute_source_value = source_is_negative ? -SIGN_EXTEND(source_value, 0xFFFF) : source_value;
 				const unsigned long absolute_destination_value = destination_is_negative ? -SIGN_EXTEND(state->data_registers[opcode_secondary_register], 0xFFFFFFFF) : state->data_registers[opcode_secondary_register] & 0xFFFFFFFF;
 
 				if (source_value == 0)
@@ -1975,8 +1975,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					}
 					else
 					{
-						const unsigned short absolute_remainder = absolute_destination_value % absolute_source_value;
-						const unsigned short remainder = destination_is_negative ? -absolute_remainder : absolute_remainder;
+						const unsigned int absolute_remainder = absolute_destination_value % absolute_source_value;
+						const unsigned int remainder = destination_is_negative ? -absolute_remainder : absolute_remainder;
 
 						state->data_registers[opcode_secondary_register] = (quotient & 0xFFFF) | ((remainder & 0xFFFF) << 16);
 					}
@@ -2005,8 +2005,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				const cc_bool multiplicand_is_negative = instruction == INSTRUCTION_MULS && state->data_registers[opcode_secondary_register] & 0x8000;
 				const cc_bool result_is_negative = multiplier_is_negative != multiplicand_is_negative;
 
-				const unsigned short multiplier = multiplier_is_negative ? -SIGN_EXTEND(source_value, 0xFFFF) : source_value;
-				const unsigned short multiplicand = multiplicand_is_negative ? -SIGN_EXTEND(state->data_registers[opcode_secondary_register], 0xFFFF) : state->data_registers[opcode_secondary_register] & 0xFFFF;
+				const unsigned int multiplier = multiplier_is_negative ? -SIGN_EXTEND(source_value, 0xFFFF) : source_value;
+				const unsigned int multiplicand = multiplicand_is_negative ? -SIGN_EXTEND(state->data_registers[opcode_secondary_register], 0xFFFF) : state->data_registers[opcode_secondary_register] & 0xFFFF;
 
 				const unsigned long absolute_result = (unsigned long)multiplicand * multiplier;
 				const unsigned long result = result_is_negative ? -absolute_result : absolute_result;
@@ -2069,8 +2069,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			{
 				const unsigned long sign_bit_bitmask = 1ul << (operation_size * 8 - 1);
 				const unsigned long original_sign_bit = destination_value & sign_bit_bitmask;
-				unsigned char i;
-				unsigned char count;
+				unsigned int i;
+				unsigned int count;
 
 				result_value = destination_value;
 
