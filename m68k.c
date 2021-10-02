@@ -542,7 +542,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 		unsigned int operation_size = 1; /* Set to 1 by default to prevent an invalid shift later on */
 		DecodedAddressMode source_decoded_address_mode, destination_decoded_address_mode;
-		unsigned long source_value, destination_value, result_value;
+		unsigned long source_value = 0, destination_value = 0, result_value = 0;
 		Instruction instruction = INSTRUCTION_UNKNOWN;
 
 		state->program_counter += 2;

@@ -71,6 +71,7 @@ static void RenderPlaneScanline(VDP_State *state, unsigned char *metapixels, uns
 	/* Get the horizontal scroll value */
 	switch (state->hscroll_mode)
 	{
+		default:
 		case VDP_HSCROLL_MODE_FULL:
 			hscroll = hscroll_buffer[0];
 			break;
@@ -115,6 +116,7 @@ static void RenderPlaneScanline(VDP_State *state, unsigned char *metapixels, uns
 		/* Get the vertical scroll value */
 		switch (state->vscroll_mode)
 		{
+			default:
 			case VDP_VSCROLL_MODE_FULL:
 				vscroll = vscroll_buffer[0];
 				break;
