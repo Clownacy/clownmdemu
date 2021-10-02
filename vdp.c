@@ -303,6 +303,9 @@ void VDP_WriteData(VDP_State *state, unsigned short value)
 
 		state->dma.awaiting_fill_value = cc_false;
 
+		if (state->dma.length == 0)
+			state->dma.length = 0x10000;
+
 		for (i = 0; i < state->dma.length; ++i)
 			*DecodeAndIncrementAccessAddress(state) = value;
 	}
@@ -369,6 +372,9 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 					{
 						const unsigned long source_address_high_bits = state->dma.source_address & ~0xFFFFul;
 						unsigned short source_address_low_bits = (unsigned short)state->dma.source_address & 0xFFFF;
+
+						if (state->dma.length == 0)
+							state->dma.length = 0x10000;
 
 						for (i = 0; i < state->dma.length; ++i)
 						{

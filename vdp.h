@@ -31,7 +31,7 @@ typedef struct VDP_State
 			VDP_DMA_MODE_COPY
 		} mode;
 		unsigned long source_address;
-		unsigned short length;
+		unsigned long length;
 		cc_bool awaiting_destination_address;
 		cc_bool awaiting_fill_value;
 	} dma;
