@@ -2477,9 +2477,13 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					/* TODO - "Cleared if the result is nonzero; unchanged otherwise" */
 					break;
 
+				case INSTRUCTION_ADDQ:
+				case INSTRUCTION_SUBQ:
+					/* Condition codes are not affected when the destination is an address register */
+					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+						break;
 				case INSTRUCTION_ADD:
 				case INSTRUCTION_ADDI:
-				case INSTRUCTION_ADDQ:
 				case INSTRUCTION_AND:
 				case INSTRUCTION_ANDI:
 				case INSTRUCTION_ASD_REGISTER:
@@ -2506,7 +2510,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_ROXD_MEMORY:
 				case INSTRUCTION_SUB:
 				case INSTRUCTION_SUBI:
-				case INSTRUCTION_SUBQ:
 				case INSTRUCTION_SWAP:
 				case INSTRUCTION_TST:
 					/* Standard behaviour: set if result is zero; clear otherwise */
@@ -2587,9 +2590,13 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					/* The condition code is set in the actual instruction code */
 					break;
 
+				case INSTRUCTION_ADDQ:
+				case INSTRUCTION_SUBQ:
+					/* Condition codes are not affected when the destination is an address register */
+					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+						break;
 				case INSTRUCTION_ADD:
 				case INSTRUCTION_ADDI:
-				case INSTRUCTION_ADDQ:
 				case INSTRUCTION_ADDX:
 				case INSTRUCTION_AND:
 				case INSTRUCTION_ANDI:
@@ -2618,7 +2625,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_ROXD_MEMORY:
 				case INSTRUCTION_SUB:
 				case INSTRUCTION_SUBI:
-				case INSTRUCTION_SUBQ:
 				case INSTRUCTION_SUBX:
 				case INSTRUCTION_SWAP:
 				case INSTRUCTION_TST:
@@ -2700,10 +2706,14 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					/* The condition code is set in the actual instruction code */
 					break;
 
+				case INSTRUCTION_ADDQ:
+				case INSTRUCTION_SUBQ:
+					/* Condition codes are not affected when the destination is an address register */
+					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+						break;
 				case INSTRUCTION_ABCD:
 				case INSTRUCTION_ADD:
 				case INSTRUCTION_ADDI:
-				case INSTRUCTION_ADDQ:
 				case INSTRUCTION_ADDX:
 				case INSTRUCTION_NBCD:
 				case INSTRUCTION_NEG:
@@ -2711,7 +2721,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_SBCD:
 				case INSTRUCTION_SUB:
 				case INSTRUCTION_SUBI:
-				case INSTRUCTION_SUBQ:
 				case INSTRUCTION_SUBX:
 					/* Standard behaviour: set to CARRY */
 					state->status_register &= ~CONDITION_CODE_EXTEND;
