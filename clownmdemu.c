@@ -114,6 +114,12 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 		/* TODO - I/O AREA */
 		switch (address)
 		{
+			case 0xA10000:
+				if (do_low_byte)
+					value |= (1 << 7) | (1 << 5);	/* Bit 7 set = overseas model, bit 5 set = no Mega CD attached */
+
+				break;
+
 			case 0xA10002:
 				if (do_low_byte)
 				{
