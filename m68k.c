@@ -1235,6 +1235,11 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				source_value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
 				break;
 
+			case INSTRUCTION_ADDQ:
+			case INSTRUCTION_SUBQ:
+				source_value = ((opcode_secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8 */
+				break;
+
 			case INSTRUCTION_MOVEA:
 			case INSTRUCTION_MOVE:
 			case INSTRUCTION_MOVE_TO_CCR:
@@ -1273,8 +1278,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_RTS:
 			case INSTRUCTION_TRAPV:
 			case INSTRUCTION_RTR:
-			case INSTRUCTION_ADDQ:
-			case INSTRUCTION_SUBQ:
 			case INSTRUCTION_SCC:
 			case INSTRUCTION_MOVEQ:
 			case INSTRUCTION_EXG:
@@ -1556,6 +1559,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_CMPM:
 			case INSTRUCTION_SUB:
 			case INSTRUCTION_SUBI:
+			case INSTRUCTION_SUBQ:
 				result_value = destination_value - source_value;
 				break;
 
@@ -1565,6 +1569,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				/* Fallthrough */
 			case INSTRUCTION_ADD:
 			case INSTRUCTION_ADDI:
+			case INSTRUCTION_ADDQ:
 				result_value = destination_value + source_value;
 				break;
 
@@ -1888,14 +1893,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_CHK:
 				/* TODO */
 				UNIMPLEMENTED_INSTRUCTION("CHK");
-				break;
-
-			case INSTRUCTION_ADDQ:
-				result_value = destination_value + (((opcode_secondary_register - 1u) & 7u) + 1u); /* A little math trick to turn 0 into 8 */
-				break;
-
-			case INSTRUCTION_SUBQ:
-				result_value = destination_value - (((opcode_secondary_register - 1u) & 7u) + 1u); /* A little math trick to turn 0 into 8 */
 				break;
 
 			case INSTRUCTION_SCC:
