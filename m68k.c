@@ -2482,6 +2482,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					/* Condition codes are not affected when the destination is an address register */
 					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 						break;
+					/* Fallthrough */
 				case INSTRUCTION_ADD:
 				case INSTRUCTION_ADDI:
 				case INSTRUCTION_AND:
@@ -2595,6 +2596,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					/* Condition codes are not affected when the destination is an address register */
 					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 						break;
+					/* Fallthrough */
 				case INSTRUCTION_ADD:
 				case INSTRUCTION_ADDI:
 				case INSTRUCTION_ADDX:
@@ -2711,6 +2713,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					/* Condition codes are not affected when the destination is an address register */
 					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 						break;
+					/* Fallthrough */
 				case INSTRUCTION_ABCD:
 				case INSTRUCTION_ADD:
 				case INSTRUCTION_ADDI:
