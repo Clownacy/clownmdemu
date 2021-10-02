@@ -189,12 +189,13 @@ void VDP_Init(VDP_State *state)
 	state->plane_width_bitmask = state->plane_width - 1;
 	state->plane_height_bitmask = state->plane_height - 1;
 
-	state->screen_width = 320;
-	state->screen_height = 224;
-
 	state->display_enabled = cc_false;
 	state->v_int_enabled = cc_false;
 	state->h_int_enabled = cc_false;
+	state->h40_enabled = cc_false;
+	state->v30_enabled = cc_false;
+	state->shadow_highlight_enabled = cc_false;
+	state->interlace_mode_2_enabled = cc_false;
 
 	state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
@@ -249,7 +250,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	}
 
 	/* Send the RGB pixels to be rendered */
-	scanline_rendered_callback(scanline, pixels, state->screen_width, state->screen_height);
+	scanline_rendered_callback(scanline, pixels, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) * 8);
 }
 
 unsigned short VDP_ReadData(VDP_State *state)
@@ -391,15 +392,16 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 		{
 			case 0:
 				/* MODE SET REGISTER NO.1 */
-				state->h_int_enabled = !!(data & 0x10);
+				state->h_int_enabled = !!(data & (1 << 4));
 				/* TODO */
 				break;
 
 			case 1:
 				/* MODE SET REGISTER NO.2 */
-				state->display_enabled = !!(data & 0x40);
-				state->v_int_enabled = !!(data & 0x20);
-				state->dma.enabled = !!(data & 0x10);
+				state->display_enabled = !!(data & (1 << 6));
+				state->v_int_enabled = !!(data & (1 << 5));
+				state->dma.enabled = !!(data & (1 << 4));
+				state->v30_enabled = !!(data & (1 << 3));
 				/* TODO */
 				break;
 
@@ -464,6 +466,9 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 			case 12:
 				/* MODE SET REGISTER NO.4 */
 				/* TODO */
+				state->h40_enabled = !!(data & ((1 << 7) | (1 << 0)));
+				state->shadow_highlight_enabled = !!(data & (1 << 3));
+				state->interlace_mode_2_enabled = !!(data & (1 << 2));
 				break;
 
 			case 13:

@@ -15,9 +15,6 @@
 #define MASTER_CLOCK_NTSC 53693175
 #define MASTER_CLOCK_PAL  53203424
 
-/* TODO - alternate vertical resolutions */
-#define VERTICAL_RESOLUTION 224
-
 #define ROM_BUFFER_SIZE (1024 * 1024 * 4) /* 4MiB */
 
 typedef struct ClownMDEmu_State
@@ -351,9 +348,9 @@ void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(uns
 
 	/*ReadInput(state);*/
 
-	for (i = 0; i < VERTICAL_RESOLUTION; ++i)
+	for (i = 0; i < (state->vdp.v30_enabled ? 30 : 28) * 8; ++i)
 	{
-		for (j = 0; j < (state->pal ? MASTER_CLOCK_PAL : MASTER_CLOCK_NTSC) / (state->pal ? 50 : 60) / VERTICAL_RESOLUTION / 7 / 2 / 10; ++j) /* The division by 10 is temporary until instruction cycle counts are added */
+		for (j = 0; j < (state->pal ? MASTER_CLOCK_PAL : MASTER_CLOCK_NTSC) / (state->pal ? 50 : 60) / ((state->vdp.v30_enabled ? 30 : 28) * 8) / 7 / 2 / 10; ++j) /* The division by 10 is temporary until instruction cycle counts are added */
 		{
 			/* TODO - Not completely accurate: the 68k is MASTER_CLOCK/7, but the Z80 is MASTER_CLOCK/15.
 			   I'll need to find a common multiple to make this accurate. */

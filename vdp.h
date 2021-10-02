@@ -48,12 +48,13 @@ typedef struct VDP_State
 	unsigned short plane_width_bitmask;
 	unsigned short plane_height_bitmask;
 
-	unsigned short screen_width;
-	unsigned short screen_height;
-
 	cc_bool display_enabled; /* TODO - Actually use this */
 	cc_bool v_int_enabled;
 	cc_bool h_int_enabled;
+	cc_bool h40_enabled;
+	cc_bool v30_enabled;
+	cc_bool shadow_highlight_enabled; /* TODO - This too */
+	cc_bool interlace_mode_2_enabled; /* TODO - And this */
 
 	unsigned char background_colour;
 
