@@ -157,7 +157,7 @@ static void RenderPlaneScanline(VDP_State *state, unsigned char *metapixels, uns
 			/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
 			const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
 
-			*metapixels_pointer = state->blit_lookup[*metapixels_pointer][metapixel];
+			*metapixels_pointer = state->blit_lookup[metapixel][*metapixels_pointer];
 			++metapixels_pointer;
 		}
 	}
@@ -208,7 +208,8 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	#define MAX_SPRITE_SIZE (8 * 4)
 
 	unsigned int i;
-	unsigned int sprite_index = 0;
+	unsigned int sprite_index;
+	unsigned char original_colour_0;
 
 	/* The original hardware has a bug where if you use V-scroll and H-scroll at the same time,
 	   the partially off-screen leftmost column will use an invalid V-scroll value.
@@ -221,26 +222,32 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	   it's fully on-screen or not. This is why VDP_MAX_SCANLINE_WIDTH is rounded up to 8.
 	   In both cases, these extra bytes exist to catch the 'overflow' values that are written
 	   outside the visible portion of the buffer. */
-	unsigned char metapixels[16 + (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 * 8 + (16 - 1)];
+	/*unsigned char plane_metapixels[16 + (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 * 8 + (16 - 1)];*/
+
+	/* The padding bytes of the left and right are for allowing sprites to overdraw at the
+	   edges of the screen. */
+	/*unsigned char sprite_metapixels[(MAX_SPRITE_SIZE - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_SIZE - 1)];*/
+
+	/* Both of the above buffers have been combined into this one */
+	unsigned char metapixels[(MAX_SPRITE_SIZE - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_SIZE - 1)];
 
 	/* This is multipled by 3 because it holds RGB values */
 	unsigned char pixels[VDP_MAX_SCANLINE_WIDTH * 3];
 
-	unsigned char sprite_metapixels[(MAX_SPRITE_SIZE - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_SIZE - 1)];
-
 	/* Fill the scanline buffer with the background colour */
-	memset(metapixels, state->background_colour, sizeof(metapixels));
+	/*memset(plane_metapixels, state->background_colour, sizeof(metapixels));*/
 
-	/* Render Plane B */
-	RenderPlaneScanline(state, metapixels, scanline, state->vram + state->plane_b_address, state->vram + state->hscroll_address + 1, state->vsram + 1);
+	/* Clear the scanline buffer, so that the sprite blitter
+	   knows which pixels haven't been drawn yet. */
+	/*memset(sprite_metapixels, 0, sizeof(sprite_metapixels));*/
 
-	/* Render Plane A */
-	RenderPlaneScanline(state, metapixels, scanline, state->vram + state->plane_a_address, state->vram + state->hscroll_address + 0, state->vsram + 0);
-
-	/* Fill the scanline buffer with the background colour */
-	memset(sprite_metapixels, 0, sizeof(sprite_metapixels));
+	/* Clear the scanline buffer, so that the sprite blitter
+	   knows which pixels haven't been drawn yet. */
+	memset(metapixels, 0, sizeof(metapixels));
 
 	/* Render the sprites */
+	sprite_index = 0;
+
 	do
 	{
 		/* Decode sprite data */
@@ -267,7 +274,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 
 			if (x + width * 8 > 128 && x < 128 + (state->h40_enabled ? 40 : 32) * 8 - 1)
 			{
-				unsigned char *sprite_metapixels_pointer = sprite_metapixels + (MAX_SPRITE_SIZE - 1) + x - 128;
+				unsigned char *metapixels_pointer = metapixels + (MAX_SPRITE_SIZE - 1) + x - 128;
 
 				y_in_sprite = tile_y_flip ? height * 8 - y_in_sprite - 1 : y_in_sprite;
 
@@ -293,8 +300,8 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 						/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
 						const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
 
-						*sprite_metapixels_pointer |= metapixel & -(unsigned int)(*sprite_metapixels_pointer == 0) & -(unsigned int)(palette_line_index != 0);
-						++sprite_metapixels_pointer;
+						*metapixels_pointer |= metapixel & -(unsigned int)(*metapixels_pointer == 0) & -(unsigned int)(palette_line_index != 0);
+						++metapixels_pointer;
 					}
 				}
 			}
@@ -304,14 +311,21 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	}
 	while (sprite_index != 0);
 
-	for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
-		metapixels[16 + i] = state->blit_lookup[metapixels[16 + i]][sprite_metapixels[MAX_SPRITE_SIZE - 1 + i]];
+	/* Render Plane A */
+	RenderPlaneScanline(state, /* Previously just plane_metapixels */ metapixels + (MAX_SPRITE_SIZE - 1) - 16, scanline, state->vram + state->plane_a_address, state->vram + state->hscroll_address + 0, state->vsram + 0);
+
+	/* Render Plane B */
+	RenderPlaneScanline(state, /* Previously just plane_metapixels */ metapixels + (MAX_SPRITE_SIZE - 1) - 16, scanline, state->vram + state->plane_b_address, state->vram + state->hscroll_address + 1, state->vsram + 1);
+
+	/* A little trick to apply the background colour, even though the background colour pixels are all set to colour 0 */
+	original_colour_0 = state->cram[0];
+	state->cram[0] = state->cram[state->background_colour];
 
 	/* Convert the metapixels to RGB pixels */
 	for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
 	{
 		/* Obtain the Mega Drive-format colour from Colour RAM */
-		const unsigned int colour = state->cram[metapixels[16 + i] & 0x3F];
+		const unsigned int colour = state->cram[metapixels[(MAX_SPRITE_SIZE - 1) + i] & 0x3F];
 
 		/* Decompose the colour into its individual RGB colour channels */
 		const unsigned int red = (colour >> 1) & 7;
@@ -323,6 +337,8 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 		pixels[i * 3 + 1] = (green << 5) | (green << 2) | (green >> 1);
 		pixels[i * 3 + 2] = (blue << 5) | (blue << 2) | (blue >> 1);
 	}
+
+	state->cram[0] = original_colour_0;
 
 	/* Send the RGB pixels to be rendered */
 	scanline_rendered_callback(scanline, pixels, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) * 8);
