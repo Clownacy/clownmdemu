@@ -211,6 +211,9 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	unsigned int sprite_index;
 	unsigned char original_colour_0;
 
+	unsigned int sprite_limit = state->h40_enabled ? 20 : 16;
+	unsigned int pixel_limit = state->h40_enabled ? 320 : 256;
+
 	/* The original hardware has a bug where if you use V-scroll and H-scroll at the same time,
 	   the partially off-screen leftmost column will use an invalid V-scroll value.
 	   To simulate this, 16 extra pixels are rendered at the left size of the scanline.
@@ -270,7 +273,10 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 
 		if (y_in_sprite < height * 8)
 		{
-			/* TODO - Sprite limit */
+			/* This is a masking sprite: prevent all
+			   remaining sprites from being drawn */
+			if (x == 0)
+				break;
 
 			if (x + width * 8 > 128 && x < 128 + (state->h40_enabled ? 40 : 32) * 8 - 1)
 			{
@@ -302,14 +308,30 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 
 						*metapixels_pointer |= metapixel & -(unsigned int)(*metapixels_pointer == 0) & -(unsigned int)(palette_line_index != 0);
 						++metapixels_pointer;
+
+						--pixel_limit;
+
+						if (pixel_limit == 0)
+							goto DoneWithSprites;
 					}
 				}
 			}
+			else
+			{
+				if (pixel_limit <= width * 8)
+					break;
+
+				pixel_limit -= width * 8;
+			}
+
+			if (--sprite_limit == 0)
+				break;
 		}
 
 		sprite_index = link;
 	}
 	while (sprite_index != 0);
+DoneWithSprites:
 
 	/* Render Plane A */
 	RenderPlaneScanline(state, /* Previously just plane_metapixels */ metapixels + (MAX_SPRITE_SIZE - 1) - 16, scanline, state->vram + state->plane_a_address, state->vram + state->hscroll_address + 0, state->vsram + 0);
