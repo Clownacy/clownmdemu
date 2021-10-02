@@ -205,7 +205,10 @@ void VDP_Init(VDP_State *state)
 
 void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanline_rendered_callback)(unsigned short scanline, void *pixels, unsigned short screen_width, unsigned short screen_height))
 {
+	#define MAX_SPRITE_SIZE (8 * 4)
+
 	unsigned int i;
+	unsigned int sprite_index = 0;
 
 	/* The original hardware has a bug where if you use V-scroll and H-scroll at the same time,
 	   the partially off-screen leftmost column will use an invalid V-scroll value.
@@ -223,6 +226,8 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	/* This is multipled by 3 because it holds RGB values */
 	unsigned char pixels[VDP_MAX_SCANLINE_WIDTH * 3];
 
+	unsigned char sprite_metapixels[(MAX_SPRITE_SIZE - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_SIZE - 1)];
+
 	/* Fill the scanline buffer with the background colour */
 	memset(metapixels, state->background_colour, sizeof(metapixels));
 
@@ -231,6 +236,76 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 
 	/* Render Plane A */
 	RenderPlaneScanline(state, metapixels, scanline, state->vram + state->plane_a_address, state->vram + state->hscroll_address + 0, state->vsram + 0);
+
+	/* Fill the scanline buffer with the background colour */
+	memset(sprite_metapixels, 0, sizeof(sprite_metapixels));
+
+	/* Render the sprites */
+	do
+	{
+		/* Decode sprite data */
+		const unsigned short *sprite = &state->vram[state->sprite_table_address + sprite_index * 4];
+		const unsigned int y = sprite[0] & 0x3FF;
+		const unsigned int width = ((sprite[1] >> 10) & 3) + 1;
+		const unsigned int height = ((sprite[1] >> 8) & 3) + 1;
+		const unsigned int link = sprite[1] & 0x7F;
+		const unsigned int tile_metadata = sprite[2];
+		const unsigned int x = sprite[3] & 0x1FF;
+
+		/* Decode tile metadata */
+		const cc_bool tile_priority = !!(tile_metadata & 0x8000);
+		const unsigned int tile_palette_line = (tile_metadata >> 13) & 3;
+		const cc_bool tile_y_flip = !!(tile_metadata & 0x1000);
+		const cc_bool tile_x_flip = !!(tile_metadata & 0x0800);
+		const unsigned int tile_index_base = tile_metadata & 0x7FF;
+
+		unsigned int y_in_sprite = (scanline - (y - 128));
+
+		if (y_in_sprite < height * 8)
+		{
+			/* TODO - Sprite limit */
+
+			if (x + width * 8 > 128 && x < 128 + (state->h40_enabled ? 40 : 32) * 8 - 1)
+			{
+				unsigned char *sprite_metapixels_pointer = sprite_metapixels + (MAX_SPRITE_SIZE - 1) + x - 128;
+
+				y_in_sprite = tile_y_flip ? height * 8 - y_in_sprite - 1 : y_in_sprite;
+
+				for (i = 0; i < width; ++i)
+				{
+					unsigned int j;
+
+					const unsigned int x_in_sprite = tile_x_flip ? width - i - 1 : i;
+					const unsigned int tile_index = tile_index_base + y_in_sprite / 8 + x_in_sprite * height;
+					const unsigned int pixel_y_in_tile = y_in_sprite % 8;
+
+					for (j = 0; j < 8; ++j)
+					{
+						/* Get the X coordinate of the pixel in the tile */
+						const unsigned int pixel_x_in_tile = j ^ (tile_x_flip ? 7 : 0);
+
+						/* Get raw tile data that contains the desired metapixel */
+						const unsigned int tile_data = state->vram[tile_index * (8 * 8 / 4) + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+
+						/* Obtain the index into the palette line */
+						const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
+
+						/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
+						const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
+
+						*sprite_metapixels_pointer |= metapixel & -(unsigned int)(*sprite_metapixels_pointer == 0) & -(unsigned int)(palette_line_index != 0);
+						++sprite_metapixels_pointer;
+					}
+				}
+			}
+		}
+
+		sprite_index = link;
+	}
+	while (sprite_index != 0);
+
+	for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
+		metapixels[16 + i] = state->blit_lookup[metapixels[16 + i]][sprite_metapixels[MAX_SPRITE_SIZE - 1 + i]];
 
 	/* Convert the metapixels to RGB pixels */
 	for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
@@ -251,6 +326,8 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 
 	/* Send the RGB pixels to be rendered */
 	scanline_rendered_callback(scanline, pixels, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) * 8);
+
+	#undef MAX_SPRITE_SIZE
 }
 
 unsigned short VDP_ReadData(VDP_State *state)
