@@ -7,6 +7,9 @@
 
 #include "error.h"
 
+/* Some of the logic here is based on research done by Nemesis:
+   https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016 */
+
 /* This essentially pre-computes the VDP's depth-test and alpha-test,
    generating a lookup table to eliminate the need to perform these
    every time a pixel is blitted. This provides a *massive* speed boost. */
@@ -170,9 +173,10 @@ void VDP_Init(VDP_State *state)
 	state->access.index = 0;
 	state->access.increment = 0;
 
-	state->dma.source_address = 0;
-	state->dma.awaiting_destination_address = cc_false;
-	state->dma.awaiting_fill_value = cc_false;
+	state->dma.enabled = cc_false;
+	state->dma.pending = cc_false;
+	state->dma.source_address_high = 0;
+	state->dma.source_address_low = 0;
 
 	state->plane_a_address = 0;
 	state->plane_b_address = 0;
@@ -189,7 +193,6 @@ void VDP_Init(VDP_State *state)
 	state->screen_height = 224;
 
 	state->display_enabled = cc_false;
-	state->dma_enabled = cc_false;
 	state->v_int_enabled = cc_false;
 	state->h_int_enabled = cc_false;
 
@@ -277,10 +280,6 @@ unsigned short VDP_ReadControl(VDP_State *state)
 	   boot code makes use of this feature. */
 	state->access.write_pending = cc_false;
 
-	/* ...Not sure about this though. */
-	state->dma.awaiting_destination_address = cc_false;
-	state->dma.awaiting_fill_value = cc_false;
-
 	/* Set the 'V-blanking' and 'H-blanking bits', since active-scan is currently instant in this emulator */
 	return (1 << 2) | (1 << 3);
 }
@@ -296,18 +295,16 @@ void VDP_WriteData(VDP_State *state, unsigned short value)
 		   data should not be written, but the address should be incremented */
 		state->access.index += state->access.increment;
 	}
-	else if (state->dma.awaiting_fill_value)
+	else if (state->dma.pending)
 	{
 		/* Perform DMA fill */
-		unsigned int i = 0;
+		state->dma.pending = cc_false;
 
-		state->dma.awaiting_fill_value = cc_false;
-
-		if (state->dma.length == 0)
-			state->dma.length = 0x10000;
-
-		for (i = 0; i < state->dma.length; ++i)
+		do
+		{
 			*DecodeAndIncrementAccessAddress(state) = value;
+		}
+		while (--state->dma.length, state->dma.length &= 0xFFFF, state->dma.length != 0);
 	}
 	else
 	{
@@ -322,32 +319,30 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 	{
 		/* This command is setting up for a memory access (part 2) */
 		const unsigned short destination_address = (state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
-		unsigned char access_mode = ((state->access.cached_write >> 14) & 3) | ((value >> 2) & 0x3C);
-
-		if (state->dma.awaiting_destination_address)
-			access_mode &= 7;
+		const unsigned char access_mode = ((state->access.cached_write >> 14) & 3) | ((value >> 2) & 0x3C);
 
 		state->access.write_pending = cc_false;
 
 		state->access.index = destination_address;
-		state->access.read_mode = (state->access.cached_write & 0xC000) == 0;
+		state->access.read_mode = !(access_mode & 1);
 
-		switch (access_mode)
+		if (state->dma.enabled)
+			state->dma.pending = access_mode & 0x20;
+
+		switch ((access_mode >> 1) & 7)
 		{
-			case 0: /* VRAM read */
-			case 1: /* VRAM write */
+			case 0: /* VRAM */
 				state->access.selected_buffer = state->vram;
 				state->access.selected_buffer_size_mask = CC_COUNT_OF(state->vram) - 1;
 				break;
 
-			case 8: /* CRAM read */
-			case 3: /* CRAM write */
+			case 4: /* CRAM (read) */
+			case 1: /* CRAM (write) */
 				state->access.selected_buffer = state->cram;
 				state->access.selected_buffer_size_mask = CC_COUNT_OF(state->cram) - 1;
 				break;
 
-			case 4: /* VSRAM read */
-			case 5: /* VSRAM write */
+			case 2: /* VSRAM */
 				state->access.selected_buffer = state->vsram;
 				state->access.selected_buffer_size_mask = CC_COUNT_OF(state->vsram) - 1;
 				break;
@@ -357,44 +352,26 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 				break;
 		}
 
-		if (state->dma.awaiting_destination_address)
+		if (state->dma.pending && state->dma.mode != VDP_DMA_MODE_FILL)
 		{
 			/* Firing DMA */
-			state->dma.awaiting_destination_address = cc_false;
+			state->dma.pending = cc_false;
 
-			if (state->dma_enabled)
+			if (state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
 			{
-				unsigned short i;
-
-				switch (state->dma.mode)
+				do
 				{
-					case VDP_DMA_MODE_MEMORY_TO_VRAM:
-					{
-						const unsigned long source_address_high_bits = state->dma.source_address & ~0xFFFFul;
-						unsigned short source_address_low_bits = (unsigned short)state->dma.source_address & 0xFFFF;
+					*DecodeAndIncrementAccessAddress(state) = read_callback(user_data, (state->dma.source_address_high << 17) | (state->dma.source_address_low << 1));
 
-						if (state->dma.length == 0)
-							state->dma.length = 0x10000;
-
-						for (i = 0; i < state->dma.length; ++i)
-						{
-							*DecodeAndIncrementAccessAddress(state) = read_callback(user_data, (source_address_high_bits | source_address_low_bits) << 1);
-
-							/* Emulate the 128KiB DMA wrap-around bug */
-							source_address_low_bits = (source_address_low_bits + 1) & 0xFFFF;
-						}
-
-						break;
-					}
-
-					case VDP_DMA_MODE_FILL:
-						state->dma.awaiting_fill_value = cc_true;
-						break;
-
-					case VDP_DMA_MODE_COPY:
-						/* TODO */
-						break;
+					/* Emulate the 128KiB DMA wrap-around bug */
+					++state->dma.source_address_low;
+					state->dma.source_address_low &= 0xFFFF;
 				}
+				while (--state->dma.length, state->dma.length &= 0xFFFF, state->dma.length != 0);
+			}
+			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
+			{
+				/* TODO */
 			}
 		}
 	}
@@ -422,7 +399,7 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 				/* MODE SET REGISTER NO.2 */
 				state->display_enabled = !!(data & 0x40);
 				state->v_int_enabled = !!(data & 0x20);
-				state->dma_enabled = !!(data & 0x10);
+				state->dma.enabled = !!(data & 0x10);
 				/* TODO */
 				break;
 
@@ -580,32 +557,28 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 
 			case 21:
 				/* DMA SOURCE ADDRESS LOW */
-				state->dma.source_address &= ~((unsigned long)0xFF << 0);
-				state->dma.source_address |= (unsigned long)data << 0;
+				state->dma.source_address_low &= ~((unsigned short)0xFF << 0);
+				state->dma.source_address_low |= (unsigned short)data << 0;
 				break;
 
 			case 22:
 				/* DMA SOURCE ADDRESS MID. */
-				state->dma.source_address &= ~((unsigned long)0xFF << 8);
-				state->dma.source_address |= (unsigned long)data << 8;
+				state->dma.source_address_low &= ~((unsigned short)0xFF << 8);
+				state->dma.source_address_low |= (unsigned short)data << 8;
 				break;
 
 			case 23:
 				/* DMA SOURCE ADDRESS HIGH */
-				state->dma.source_address &= ~((unsigned long)0xFF << 16);
-
 				if (data & 0x80)
 				{
-					state->dma.source_address |= (unsigned long)(data & 0x3F) << 16;
+					state->dma.source_address_high = data & 0x3F;
 					state->dma.mode = data & 0x40 ? VDP_DMA_MODE_COPY : VDP_DMA_MODE_FILL;
 				}
 				else
 				{
-					state->dma.source_address |= (unsigned long)(data & 0x7F) << 16;
+					state->dma.source_address_high = data & 0x7F;
 					state->dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
 				}
-
-				state->dma.awaiting_destination_address = cc_true;
 
 				break;
 

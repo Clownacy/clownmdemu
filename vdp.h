@@ -24,16 +24,17 @@ typedef struct VDP_State
 
 	struct
 	{
+		cc_bool enabled;
+		cc_bool pending;
 		enum
 		{
 			VDP_DMA_MODE_MEMORY_TO_VRAM,
 			VDP_DMA_MODE_FILL,
 			VDP_DMA_MODE_COPY
 		} mode;
-		unsigned long source_address;
-		unsigned long length;
-		cc_bool awaiting_destination_address;
-		cc_bool awaiting_fill_value;
+		unsigned char source_address_high;
+		unsigned short source_address_low;
+		unsigned short length;
 	} dma;
 
 	unsigned short plane_a_address;
@@ -51,7 +52,6 @@ typedef struct VDP_State
 	unsigned short screen_height;
 
 	cc_bool display_enabled; /* TODO - Actually use this */
-	cc_bool dma_enabled;
 	cc_bool v_int_enabled;
 	cc_bool h_int_enabled;
 
