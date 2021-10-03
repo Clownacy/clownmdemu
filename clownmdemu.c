@@ -64,7 +64,7 @@ static unsigned short VDPReadCallback(void *user_data, unsigned long address)
 	}
 	else
 	{
-		PrintError("VDP attempted to read invalid memory at 0x%X", address);
+		PrintError("VDP attempted to read invalid memory 0x%lX", address);
 	}
 
 	return value;
@@ -89,7 +89,7 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 	{
 		if (do_high_byte && do_low_byte)
 		{
-			PrintError("68k attempted to perform word-sized read of Z80 memory");
+			PrintError("68k attempted to perform word-sized read of Z80 memory at 0x%lX at 0x%lX", address, state->m68k.program_counter);
 		}
 		else
 		{
@@ -201,7 +201,7 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 	}
 	else
 	{
-		PrintError("68k attempted to read invalid memory at 0x%X", address);
+		PrintError("68k attempted to read invalid memory 0x%lX at 0x%lX", address, state->m68k.program_counter);
 	}
 
 	return value;
@@ -224,13 +224,13 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 			state->rom.buffer[address + 1] = low_byte;
 		*/
 
-		PrintError("68k attempted to write to ROM at 0x%X", address);
+		PrintError("68k attempted to write to ROM 0x%lX at 0x%lX", address, state->m68k.program_counter);
 	}
 	else if (address >= 0xA00000 && address <= 0xA01FFF)
 	{
 		if (do_high_byte && do_low_byte)
 		{
-			PrintError("68k attempted to perform word-sized write of Z80 memory");
+			PrintError("68k attempted to perform word-sized write of Z80 memory at 0x%lX", state->m68k.program_counter);
 		}
 		else
 		{
@@ -317,7 +317,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 	else
 	{
-		PrintError("68k attempted to write invalid memory at 0x%X", address);
+		PrintError("68k attempted to write invalid memory 0x%lX at 0x%lX", address, state->m68k.program_counter);
 	}
 }
 
