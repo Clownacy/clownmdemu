@@ -58,6 +58,7 @@ typedef struct VDP_State
 	cc_bool interlace_mode_2_enabled; /* TODO - And this */
 
 	unsigned char background_colour;
+	unsigned char h_int_interval;
 
 	enum
 	{

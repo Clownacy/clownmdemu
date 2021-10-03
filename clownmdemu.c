@@ -32,6 +32,7 @@ typedef struct ClownMDEmu_State
 	unsigned char m68k_ram[0x10000];
 	unsigned char z80_ram[0x2000];
 	VDP_State vdp;
+	unsigned char h_int_counter;
 	struct
 	{
 		unsigned char control;
@@ -341,9 +342,13 @@ void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(uns
 	/* TODO - user callbacks for reading input and showing video */
 
 	ClownMDEmu_State *state = (ClownMDEmu_State*)state_void;
-	size_t i, j;
+	unsigned int scanline, i;
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	CallbackUserData callback_user_data;
+
+	const unsigned int television_vertical_resolution = state->pal ? 312 : 262; /* PAL and NTSC, respectively */
+	const unsigned int console_vertical_resolution = (state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
+	const unsigned int m68k_cycles_per_scanline = (state->pal ? MASTER_CLOCK_PAL : MASTER_CLOCK_NTSC) / (state->pal ? 50 : 60) / television_vertical_resolution / 7;
 
 	callback_user_data.state = state;
 	callback_user_data.read_input_callback = read_input_callback;
@@ -354,9 +359,13 @@ void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(uns
 
 	/*ReadInput(state);*/
 
-	for (i = 0; i < (state->vdp.v30_enabled ? 30 : 28) * 8; ++i)
+	/* Reload H-Int counter at the top of the screen, just like real hardware does */
+	state->h_int_counter = state->vdp.h_int_interval;
+
+	for (scanline = 0; scanline < television_vertical_resolution; ++scanline)
 	{
-		for (j = 0; j < (state->pal ? MASTER_CLOCK_PAL : MASTER_CLOCK_NTSC) / (state->pal ? 50 : 60) / ((state->vdp.v30_enabled ? 30 : 28) * 8) / 7 / 2 / 10; ++j) /* The division by 10 is temporary until instruction cycle counts are added */
+		/* Run the 68k and Z80 for a scanline's worth of cycles */
+		for (i = 0; i < m68k_cycles_per_scanline / 2 / 10; ++i) /* The division by 10 is temporary until instruction cycle counts are added */
 		{
 			/* TODO - Not completely accurate: the 68k is MASTER_CLOCK/7, but the Z80 is MASTER_CLOCK/15.
 			   I'll need to find a common multiple to make this accurate. */
@@ -365,16 +374,30 @@ void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(uns
 			/*DoZ80Cycle(state);*/
 		}
 
-		VDP_RenderScanline(&state->vdp, i, scanline_rendered_callback);
+		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
+		if (scanline < console_vertical_resolution)
+		{
+			VDP_RenderScanline(&state->vdp, scanline, scanline_rendered_callback);
 
-		/* Do H-Int */
-		if (state->vdp.h_int_enabled)
-			M68k_Interrupt(&state->m68k, &m68k_read_write_callbacks, 4);
+			/* Fire a H-Int if we've reached the requested line */
+			if (state->h_int_counter-- == 0)
+			{
+				state->h_int_counter = state->vdp.h_int_interval;
+
+				/* Do H-Int */
+				if (state->vdp.h_int_enabled)
+					M68k_Interrupt(&state->m68k, &m68k_read_write_callbacks, 4);
+			}
+		}
+
+		/* Upon reaching the end of the console-output scanlines, fire a V-Int */
+		if (scanline == console_vertical_resolution)
+		{
+			/* Do V-Int */
+			if (state->vdp.v_int_enabled)
+				M68k_Interrupt(&state->m68k, &m68k_read_write_callbacks, 6);
+		}
 	}
-
-	/* Do V-Int */
-	if (state->vdp.v_int_enabled)
-		M68k_Interrupt(&state->m68k, &m68k_read_write_callbacks, 6);
 
 	/*UpdateFM(state);*/
 	/*UpdatePSG(state);*/

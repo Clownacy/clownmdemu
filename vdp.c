@@ -208,8 +208,13 @@ void VDP_Init(VDP_State *state)
 	state->shadow_highlight_enabled = cc_false;
 	state->interlace_mode_2_enabled = cc_false;
 
+	state->background_colour = 0;
+	state->h_int_interval = cc_false;
+
 	state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
+
+	state->sprite_cache.needs_updating = cc_true;
 
 	InitBlitLookupTable(state);
 }
@@ -603,7 +608,7 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 
 			case 10:
 				/* H INTERRUPT REGISTER */
-				/* TODO */
+				state->h_int_interval = data;
 				break;
 
 			case 11:
