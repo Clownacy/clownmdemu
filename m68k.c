@@ -922,7 +922,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					else
 						instruction = INSTRUCTION_MULU;
 				}
-				else if ((opcode & 0x0170) == 0x0100)
+				else if ((opcode & 0x0130) == 0x0100)
 				{
 					if (opcode_bits_6_and_7 == 0)
 						instruction = INSTRUCTION_ABCD;
