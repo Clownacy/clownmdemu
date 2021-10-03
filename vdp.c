@@ -270,7 +270,10 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 		/* Caching and preprocessing some of the sprite table allows the renderer to avoid
 		   scanning the entire sprite table every time it renders a scanline. The VDP actually
 		   partially caches its sprite data too, though I don't know if it's for the same purpose. */
+		const unsigned int max_sprites = state->h40_enabled ? 80 : 64;
+
 		unsigned int sprite_index;
+		unsigned int sprites_remaining = max_sprites;
 
 		state->sprite_cache.needs_updating = cc_false;
 
@@ -289,14 +292,6 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 			const unsigned int height = ((sprite[1] >> 8) & 3) + 1;
 			const unsigned int link = sprite[1] & 0x7F;
 
-			if (link >= (state->h40_enabled ? 80 : 64))
-			{
-				/* Invalid link - bail before it can cause a crash.
-				   According to Nemesis, this is actually what real hardware does too:
-				   http://gendev.spritesmind.net/forum/viewtopic.php?p=8364#p8364 */
-				break;
-			}
-
 			/* This loop only processes rows that are on-screen, and haven't been drawn yet */
 			for (i = CC_MAX(128u + scanline, y); i < CC_MIN(128 + CC_COUNT_OF(state->sprite_cache.rows), y + height * 8); ++i)
 			{
@@ -314,9 +309,17 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 				}
 			}
 
+			if (link >= max_sprites)
+			{
+				/* Invalid link - bail before it can cause a crash.
+				   According to Nemesis, this is actually what real hardware does too:
+				   http://gendev.spritesmind.net/forum/viewtopic.php?p=8364#p8364 */
+				break;
+			}
+
 			sprite_index = link;
 		}
-		while (sprite_index != 0);
+		while (sprite_index != 0 && --sprites_remaining != 0);
 	}
 
 	/* Render sprites */
