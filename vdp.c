@@ -26,22 +26,17 @@ static void InitBlitLookupTable(VDP_State *state)
 	{
 		for (new = 0; new < VDP_INDEXED_PIXEL_VARIATION; ++new)
 		{
-			unsigned char output;
+			unsigned int output;
 
-			if ((new & palette_index_mask) == 0)
-				output = old;	/* New pixel failed the alpha-test */
-			else if (!(old & priority_mask) || (old & palette_index_mask) == 0)
-				output = new;	/* Old pixel had lower priority or it was transparent */
-			else if (!(new & priority_mask))
-				output = old;	/* New pixel had lower priority */
+			if ((old & palette_index_mask) == 0 || ((new & palette_index_mask) != 0 && (!(old & priority_mask) || new & priority_mask)))
+				output = new;
 			else
-				output = new;	/* New pixel had higher priority */
+				output = old;
 
-			/* Don't allow transparent pixels to have priority bit
-			   (think of a low-priority plane A pixel being drawn
-			   over a high-priority transparent plane B pixel) */
+			/* If the output pixel is transparent, wipe its palette line value
+			   so that it points to colour 0 (which is the background colour) */
 			if ((output & palette_index_mask) == 0)
-				output &= ~priority_mask;
+				output = 0;
 
 			state->blit_lookup[old][new] = output;
 		}
@@ -211,7 +206,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 
 	unsigned int i;
 	unsigned int sprite_index;
-	unsigned char original_colour_0;
+	unsigned short original_colour_0;
 
 	unsigned int sprite_limit = state->h40_enabled ? 20 : 16;
 	unsigned int pixel_limit = state->h40_enabled ? 320 : 256;
