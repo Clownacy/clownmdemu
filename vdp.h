@@ -6,6 +6,7 @@
 #include "clowncommon.h"
 
 #define VDP_MAX_SCANLINE_WIDTH 320
+#define VDP_MAX_SCANLINES 240
 #define VDP_INDEXED_PIXEL_VARIATION (1 << (1 + 2 + 4))
 
 typedef struct VDP_State
@@ -78,6 +79,23 @@ typedef struct VDP_State
 	   of VSRAM, instead of the 40 words that earlier models have. This is convenient for me because 64 is a power
 	   of 2, while 40 is not, which allows me to use bitmasks instead of slow modulos. */
 	unsigned short vsram[64];
+
+	struct
+	{
+		cc_bool needs_updating;
+		struct VDP_SpriteCacheRow
+		{
+			unsigned char total;
+
+			struct VDP_SpriteCacheEntry
+			{
+				unsigned char table_index;
+				unsigned char y_in_sprite;
+				unsigned char width;
+				unsigned char height;
+			} sprites[20];
+		} rows[VDP_MAX_SCANLINES];
+	} sprite_cache;
 
 	unsigned char blit_lookup[VDP_INDEXED_PIXEL_VARIATION][VDP_INDEXED_PIXEL_VARIATION];
 } VDP_State;

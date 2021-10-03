@@ -52,6 +52,20 @@ static unsigned short* DecodeAndIncrementAccessAddress(VDP_State *state)
 	return address;
 }
 
+static void WriteAndIncrement(VDP_State *state, unsigned short value)
+{
+	unsigned short *address = DecodeAndIncrementAccessAddress(state);
+
+	state->sprite_cache.needs_updating |= (address >= &state->vram[state->sprite_table_address] && address < &state->vram[state->sprite_table_address + (state->h40_enabled ? 80 : 64) * 4]);
+
+	*address = value;
+}
+
+static unsigned short ReadAndIncrement(VDP_State *state)
+{
+	return *DecodeAndIncrementAccessAddress(state);
+}
+
 static void RenderPlaneScanline(VDP_State *state, unsigned char *metapixels, unsigned short scanline, unsigned short *plane_buffer, unsigned short *hscroll_buffer, unsigned short *vscroll_buffer)
 {
 	/* The extra two tiles on the left of the scanline */
@@ -205,7 +219,6 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	#define MAX_SPRITE_SIZE (8 * 4)
 
 	unsigned int i;
-	unsigned int sprite_index;
 	unsigned short original_colour_0;
 
 	unsigned int sprite_limit = state->h40_enabled ? 20 : 16;
@@ -245,17 +258,62 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	   knows which pixels haven't been drawn yet. */
 	memset(metapixels, 0, sizeof(metapixels));
 
-	/* Render the sprites */
-	sprite_index = 0;
-
-	do
+	/* Update the sprite cache if needed */
+	if (state->sprite_cache.needs_updating)
 	{
+		/* Caching and preprocessing some of the sprite table allows the renderer to avoid
+		   scanning the entire sprite table every time it renders a scanline. The VDP actually
+		   partially caches its sprite data too, though I don't know if it's for the same purpose. */
+		unsigned int sprite_index;
+
+		state->sprite_cache.needs_updating = cc_false;
+
+		/* Make it so we write to the start of the rows */
+		for (i = 0; i < CC_COUNT_OF(state->sprite_cache.rows); ++i)
+			state->sprite_cache.rows[i].total = 0;
+
+		sprite_index = 0;
+
+		do
+		{
+			/* Decode sprite data */
+			const unsigned short *sprite = &state->vram[state->sprite_table_address + sprite_index * 4];
+			const unsigned int y = sprite[0] & 0x3FF;
+			const unsigned int width = ((sprite[1] >> 10) & 3) + 1;
+			const unsigned int height = ((sprite[1] >> 8) & 3) + 1;
+			const unsigned int link = sprite[1] & 0x7F;
+
+			/* This loop only processes rows that are on-screen, and haven't been drawn yet */
+			for (i = CC_MAX(128u + scanline, y); i < CC_MIN(128 + CC_COUNT_OF(state->sprite_cache.rows), y + height * 8); ++i)
+			{
+				struct VDP_SpriteCacheRow *row = &state->sprite_cache.rows[i - 128];
+
+				/* Don't write past the end of the row buffer */
+				if (row->total != CC_COUNT_OF(row->sprites))
+				{
+					struct VDP_SpriteCacheEntry *sprite_cache_entry = &row->sprites[row->total++];
+
+					sprite_cache_entry->table_index = sprite_index;
+					sprite_cache_entry->width = width;
+					sprite_cache_entry->height = height;
+					sprite_cache_entry->y_in_sprite = i - y;
+				}
+			}
+
+			sprite_index = link;
+		}
+		while (sprite_index != 0);
+	}
+
+	/* Render sprites */
+	for (i = 0; i < state->sprite_cache.rows[scanline].total; ++i)
+	{
+		struct VDP_SpriteCacheEntry *sprite_cache_entry = &state->sprite_cache.rows[scanline].sprites[i];
+
 		/* Decode sprite data */
-		const unsigned short *sprite = &state->vram[state->sprite_table_address + sprite_index * 4];
-		const unsigned int y = sprite[0] & 0x3FF;
-		const unsigned int width = ((sprite[1] >> 10) & 3) + 1;
-		const unsigned int height = ((sprite[1] >> 8) & 3) + 1;
-		const unsigned int link = sprite[1] & 0x7F;
+		const unsigned short *sprite = &state->vram[state->sprite_table_address + sprite_cache_entry->table_index * 4];
+		const unsigned int width = sprite_cache_entry->width;
+		const unsigned int height = sprite_cache_entry->height;
 		const unsigned int tile_metadata = sprite[2];
 		const unsigned int x = sprite[3] & 0x1FF;
 
@@ -266,66 +324,62 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 		const cc_bool tile_x_flip = !!(tile_metadata & 0x0800);
 		const unsigned int tile_index_base = tile_metadata & 0x7FF;
 
-		unsigned int y_in_sprite = (scanline - (y - 128));
+		unsigned int y_in_sprite = sprite_cache_entry->y_in_sprite;
 
-		if (y_in_sprite < height * 8)
+		/* This is a masking sprite: prevent all
+		   remaining sprites from being drawn */
+		if (x == 0)
+			break;
+
+		if (x + width * 8 > 128 && x < 128 + (state->h40_enabled ? 40 : 32) * 8 - 1)
 		{
-			/* This is a masking sprite: prevent all
-			   remaining sprites from being drawn */
-			if (x == 0)
-				break;
+			unsigned int j;
 
-			if (x + width * 8 > 128 && x < 128 + (state->h40_enabled ? 40 : 32) * 8 - 1)
+			unsigned char *metapixels_pointer = metapixels + (MAX_SPRITE_SIZE - 1) + x - 128;
+
+			y_in_sprite = tile_y_flip ? height * 8 - y_in_sprite - 1 : y_in_sprite;
+
+			for (j = 0; j < width; ++j)
 			{
-				unsigned char *metapixels_pointer = metapixels + (MAX_SPRITE_SIZE - 1) + x - 128;
+				unsigned int k;
 
-				y_in_sprite = tile_y_flip ? height * 8 - y_in_sprite - 1 : y_in_sprite;
+				const unsigned int x_in_sprite = tile_x_flip ? width - j - 1 : j;
+				const unsigned int tile_index = tile_index_base + y_in_sprite / 8 + x_in_sprite * height;
+				const unsigned int pixel_y_in_tile = y_in_sprite % 8;
 
-				for (i = 0; i < width; ++i)
+				for (k = 0; k < 8; ++k)
 				{
-					unsigned int j;
+					/* Get the X coordinate of the pixel in the tile */
+					const unsigned int pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
 
-					const unsigned int x_in_sprite = tile_x_flip ? width - i - 1 : i;
-					const unsigned int tile_index = tile_index_base + y_in_sprite / 8 + x_in_sprite * height;
-					const unsigned int pixel_y_in_tile = y_in_sprite % 8;
+					/* Get raw tile data that contains the desired metapixel */
+					const unsigned int tile_data = state->vram[tile_index * (8 * 8 / 4) + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
 
-					for (j = 0; j < 8; ++j)
-					{
-						/* Get the X coordinate of the pixel in the tile */
-						const unsigned int pixel_x_in_tile = j ^ (tile_x_flip ? 7 : 0);
+					/* Obtain the index into the palette line */
+					const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
 
-						/* Get raw tile data that contains the desired metapixel */
-						const unsigned int tile_data = state->vram[tile_index * (8 * 8 / 4) + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+					/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
+					const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
 
-						/* Obtain the index into the palette line */
-						const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
+					*metapixels_pointer |= metapixel & -(unsigned int)(*metapixels_pointer == 0) & -(unsigned int)(palette_line_index != 0);
+					++metapixels_pointer;
 
-						/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
-						const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
-
-						*metapixels_pointer |= metapixel & -(unsigned int)(*metapixels_pointer == 0) & -(unsigned int)(palette_line_index != 0);
-						++metapixels_pointer;
-
-						if (--pixel_limit == 0)
-							goto DoneWithSprites;
-					}
+					if (--pixel_limit == 0)
+						goto DoneWithSprites;
 				}
 			}
-			else
-			{
-				if (pixel_limit <= width * 8)
-					break;
-
-				pixel_limit -= width * 8;
-			}
-
-			if (--sprite_limit == 0)
+		}
+		else
+		{
+			if (pixel_limit <= width * 8)
 				break;
+
+			pixel_limit -= width * 8;
 		}
 
-		sprite_index = link;
+		if (--sprite_limit == 0)
+			break;
 	}
-	while (sprite_index != 0);
 DoneWithSprites:
 
 	/* Render Plane A */
@@ -376,7 +430,7 @@ unsigned short VDP_ReadData(VDP_State *state)
 	}
 	else
 	{
-		value = *DecodeAndIncrementAccessAddress(state);
+		value = ReadAndIncrement(state);
 	}
 
 	return value;
@@ -413,14 +467,14 @@ void VDP_WriteData(VDP_State *state, unsigned short value)
 
 		do
 		{
-			*DecodeAndIncrementAccessAddress(state) = value;
+			WriteAndIncrement(state, value);
 		}
 		while (--state->dma.length, state->dma.length &= 0xFFFF, state->dma.length != 0);
 	}
 	else
 	{
 		/* Write the value to memory */
-		*DecodeAndIncrementAccessAddress(state) = value;
+		WriteAndIncrement(state, value);
 	}
 }
 
@@ -472,7 +526,7 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 			{
 				do
 				{
-					*DecodeAndIncrementAccessAddress(state) = read_callback(user_data, (state->dma.source_address_high << 17) | (state->dma.source_address_low << 1));
+					WriteAndIncrement(state, read_callback(user_data, (state->dma.source_address_high << 17) | (state->dma.source_address_low << 1)));
 
 					/* Emulate the 128KiB DMA wrap-around bug */
 					++state->dma.source_address_low;
@@ -533,6 +587,13 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 			case 5:
 				/* SPRITE ATTRIBUTE TABLE BASE ADDRESS */
 				state->sprite_table_address = (data & 0x7F) << (9 - 1);
+
+				/* Real VDPs partially cache the sprite table, and forget to update it
+				   when the sprite table base address is changed. Replicating this
+				   behaviour may be needed in order to properly emulate certain effects
+				   that involve manipulating the sprite table during rendering. */
+				/*state->sprite_cache.needs_updating = cc_true;*/ /* Oops */
+
 				break;
 
 			case 7:
