@@ -59,6 +59,7 @@ typedef struct VDP_State
 
 	unsigned char background_colour;
 	unsigned char h_int_interval;
+	cc_bool currently_in_vblank;
 
 	enum
 	{

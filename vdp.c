@@ -209,7 +209,8 @@ void VDP_Init(VDP_State *state)
 	state->interlace_mode_2_enabled = cc_false;
 
 	state->background_colour = 0;
-	state->h_int_interval = cc_false;
+	state->h_int_interval = 0;
+	state->currently_in_vblank = 0;
 
 	state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
@@ -450,8 +451,8 @@ unsigned short VDP_ReadControl(VDP_State *state)
 	   boot code makes use of this feature. */
 	state->access.write_pending = cc_false;
 
-	/* Set the 'V-blanking' and 'H-blanking bits', since active-scan is currently instant in this emulator */
-	return (1 << 2) | (1 << 3);
+	/* Set the 'V-blanking' and 'H-blanking' bits */
+	return (state->currently_in_vblank << 3) | (1 << 2);
 }
 
 void VDP_WriteData(VDP_State *state, unsigned short value)

@@ -362,6 +362,8 @@ void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(uns
 	/* Reload H-Int counter at the top of the screen, just like real hardware does */
 	state->h_int_counter = state->vdp.h_int_interval;
 
+	state->vdp.currently_in_vblank = cc_false;
+
 	for (scanline = 0; scanline < television_vertical_resolution; ++scanline)
 	{
 		/* Run the 68k and Z80 for a scanline's worth of cycles */
@@ -390,12 +392,15 @@ void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(uns
 			}
 		}
 
-		/* Upon reaching the end of the console-output scanlines, fire a V-Int */
+		/* Check if we have reached the end of the console-output scanlines */
 		if (scanline == console_vertical_resolution)
 		{
 			/* Do V-Int */
 			if (state->vdp.v_int_enabled)
 				M68k_Interrupt(&state->m68k, &m68k_read_write_callbacks, 6);
+
+			/* Flag that we have entered the V-blank region */
+			state->vdp.currently_in_vblank = cc_true;
 		}
 	}
 
