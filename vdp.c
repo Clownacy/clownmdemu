@@ -289,13 +289,21 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 			const unsigned int height = ((sprite[1] >> 8) & 3) + 1;
 			const unsigned int link = sprite[1] & 0x7F;
 
+			if (link >= (state->h40_enabled ? 80 : 64))
+			{
+				/* Invalid link - bail before it can cause a crash.
+				   According to Nemesis, this is actually what real hardware does too:
+				   http://gendev.spritesmind.net/forum/viewtopic.php?p=8364#p8364 */
+				break;
+			}
+
 			/* This loop only processes rows that are on-screen, and haven't been drawn yet */
 			for (i = CC_MAX(128u + scanline, y); i < CC_MIN(128 + CC_COUNT_OF(state->sprite_cache.rows), y + height * 8); ++i)
 			{
 				struct VDP_SpriteCacheRow *row = &state->sprite_cache.rows[i - 128];
 
-				/* Don't write past the end of the row buffer */
-				if (row->total != CC_COUNT_OF(row->sprites))
+				/* Don't write more sprites than are allowed to be drawn on this line */
+				if (row->total != (state->h40_enabled ? 20 : 16))
 				{
 					struct VDP_SpriteCacheEntry *sprite_cache_entry = &row->sprites[row->total++];
 
