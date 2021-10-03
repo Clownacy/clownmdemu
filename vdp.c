@@ -240,7 +240,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	unsigned char pixels[VDP_MAX_SCANLINE_WIDTH * 3];
 
 	/* Fill the scanline buffer with the background colour */
-	/*memset(plane_metapixels, state->background_colour, sizeof(metapixels));*/
+	/*memset(plane_metapixels, state->background_colour, sizeof(plane_metapixels));*/
 
 	/* Clear the scanline buffer, so that the sprite blitter
 	   knows which pixels haven't been drawn yet. */
@@ -311,9 +311,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 						*metapixels_pointer |= metapixel & -(unsigned int)(*metapixels_pointer == 0) & -(unsigned int)(palette_line_index != 0);
 						++metapixels_pointer;
 
-						--pixel_limit;
-
-						if (pixel_limit == 0)
+						if (--pixel_limit == 0)
 							goto DoneWithSprites;
 					}
 				}
