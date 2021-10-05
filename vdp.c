@@ -189,114 +189,6 @@ static unsigned short ReadAndIncrement(VDP_State *state)
 	return value;
 }
 
-static void RenderPlaneScanline(VDP_State *state, unsigned char *metapixels, unsigned short scanline, unsigned short *plane_buffer, unsigned short *hscroll_buffer, unsigned short *vscroll_buffer)
-{
-	/* The extra two tiles on the left of the scanline */
-	const unsigned int EXTRA_TILES = 2;
-
-	unsigned int i;
-	unsigned char *metapixels_pointer;
-	unsigned int hscroll;
-	unsigned int hscroll_scroll_offset;
-	unsigned int plane_x_offset;
-
-	/* Get the horizontal scroll value */
-	switch (state->hscroll_mode)
-	{
-		default:
-		case VDP_HSCROLL_MODE_FULL:
-			hscroll = hscroll_buffer[0];
-			break;
-
-		case VDP_HSCROLL_MODE_1CELL:
-			hscroll = hscroll_buffer[(scanline / 8) * 2];
-			break;
-
-		case VDP_HSCROLL_MODE_1LINE:
-			hscroll = hscroll_buffer[scanline * 2];
-			break;
-	}
-
-	/* Get the value used to offset the writes to the metapixel buffer */
-	hscroll_scroll_offset = hscroll % 16;
-
-	/* Get the value used to offset the reads from the plane map */
-	plane_x_offset = -EXTRA_TILES + -((hscroll - hscroll_scroll_offset) / 8);
-
-	/* Obtain the pointer used to write metapixels to the buffer */
-	metapixels_pointer = metapixels + hscroll_scroll_offset;
-
-	/* Render tiles */
-	for (i = 0; i < (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 + EXTRA_TILES; ++i)
-	{
-		unsigned int j;
-
-		unsigned int vscroll;
-
-		unsigned int pixel_y_in_plane;
-		unsigned int tile_x;
-		unsigned int tile_y;
-		unsigned int pixel_y_in_tile;
-
-		unsigned int tile_metadata;
-		cc_bool tile_priority;
-		unsigned int tile_palette_line;
-		cc_bool tile_y_flip;
-		cc_bool tile_x_flip;
-		unsigned int tile_index;
-
-		/* Get the vertical scroll value */
-		switch (state->vscroll_mode)
-		{
-			default:
-			case VDP_VSCROLL_MODE_FULL:
-				vscroll = vscroll_buffer[0];
-				break;
-
-			case VDP_VSCROLL_MODE_2CELL:
-				vscroll = vscroll_buffer[(((-EXTRA_TILES + i) / 2) * 2) % CC_COUNT_OF(state->vsram)];
-				break;
-		}
-
-		/* Get the Y coordinate of the pixel in the plane */
-		pixel_y_in_plane = vscroll + scanline;
-
-		/* Get the coordinates of the tile in the plane */
-		tile_x = (plane_x_offset + i) & state->plane_width_bitmask;
-		tile_y = (pixel_y_in_plane / 8) & state->plane_height_bitmask;
-
-		/* Obtain and decode tile metadata */
-		tile_metadata = plane_buffer[tile_y * state->plane_width + tile_x];
-		tile_priority = !!(tile_metadata & 0x8000);
-		tile_palette_line = (tile_metadata >> 13) & 3;
-		tile_y_flip = !!(tile_metadata & 0x1000);
-		tile_x_flip = !!(tile_metadata & 0x0800);
-		tile_index = tile_metadata & 0x7FF;
-
-		/* Get the Y coordinate of the pixel in the tile */
-		pixel_y_in_tile = (pixel_y_in_plane & 7) ^ (tile_y_flip ? 7 : 0);
-
-		/* TODO - Unroll this loop? */
-		for (j = 0; j < 8; ++j)
-		{
-			/* Get the X coordinate of the pixel in the tile */
-			const unsigned int pixel_x_in_tile = j ^ (tile_x_flip ? 7 : 0);
-
-			/* Get raw tile data that contains the desired metapixel */
-			const unsigned int tile_data = state->vram[tile_index * (8 * 8 / 4) + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
-
-			/* Obtain the index into the palette line */
-			const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
-
-			/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
-			const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
-
-			*metapixels_pointer = state->blit_lookup[*metapixels_pointer][metapixel];
-			++metapixels_pointer;
-		}
-	}
-}
-
 void VDP_Init(VDP_State *state)
 {
 	state->access.write_pending = cc_false;
@@ -353,6 +245,10 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	{
 		#define MAX_SPRITE_SIZE (8 * 4)
 
+		/* ***** *
+		 * Setup *
+		 * ***** */
+
 		unsigned int sprite_limit = state->h40_enabled ? 20 : 16;
 		unsigned int pixel_limit = state->h40_enabled ? 320 : 256;
 
@@ -376,11 +272,120 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 		/* Fill the scanline buffer with the background colour */
 		memset(plane_metapixels, state->background_colour, sizeof(plane_metapixels));
 
-		/* Render Plane B */
-		RenderPlaneScanline(state, plane_metapixels, scanline, state->vram + state->plane_b_address, state->vram + state->hscroll_address + 1, state->vsram + 1);
+		/* *********** */
+		/* Draw planes */
+		/* *********** */
+		for (i = 2 ; i-- > 0; )
+		{
+			/* The extra two tiles on the left of the scanline */
+			const unsigned int EXTRA_TILES = 2;
 
-		/* Render Plane A */
-		RenderPlaneScanline(state, plane_metapixels, scanline, state->vram + state->plane_a_address, state->vram + state->hscroll_address + 0, state->vsram + 0);
+			unsigned int j;
+			unsigned char *metapixels_pointer;
+			unsigned int hscroll;
+			unsigned int hscroll_scroll_offset;
+			unsigned int plane_x_offset;
+
+			/* Get the horizontal scroll value */
+			switch (state->hscroll_mode)
+			{
+				default:
+				case VDP_HSCROLL_MODE_FULL:
+					hscroll = state->vram[state->hscroll_address + i];
+					break;
+
+				case VDP_HSCROLL_MODE_1CELL:
+					hscroll = state->vram[state->hscroll_address + (scanline / 8) * 2 + i];
+					break;
+
+				case VDP_HSCROLL_MODE_1LINE:
+					hscroll = state->vram[state->hscroll_address + scanline * 2 + i];
+					break;
+			}
+
+			/* Get the value used to offset the writes to the metapixel buffer */
+			hscroll_scroll_offset = hscroll % 16;
+
+			/* Get the value used to offset the reads from the plane map */
+			plane_x_offset = -EXTRA_TILES + -((hscroll - hscroll_scroll_offset) / 8);
+
+			/* Obtain the pointer used to write metapixels to the buffer */
+			metapixels_pointer = plane_metapixels + hscroll_scroll_offset;
+
+			/* Render tiles */
+			for (j = 0; j < (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 + EXTRA_TILES; ++j)
+			{
+				unsigned int k;
+
+				unsigned int vscroll;
+
+				unsigned int pixel_y_in_plane;
+				unsigned int tile_x;
+				unsigned int tile_y;
+				unsigned int pixel_y_in_tile;
+
+				unsigned int tile_metadata;
+				cc_bool tile_priority;
+				unsigned int tile_palette_line;
+				cc_bool tile_y_flip;
+				cc_bool tile_x_flip;
+				unsigned int tile_index;
+
+				/* Get the vertical scroll value */
+				switch (state->vscroll_mode)
+				{
+					default:
+					case VDP_VSCROLL_MODE_FULL:
+						vscroll = state->vsram[i];
+						break;
+
+					case VDP_VSCROLL_MODE_2CELL:
+						vscroll = state->vsram[(((-EXTRA_TILES + j) / 2) * 2 + i) % CC_COUNT_OF(state->vsram)];
+						break;
+				}
+
+				/* Get the Y coordinate of the pixel in the plane */
+				pixel_y_in_plane = vscroll + scanline;
+
+				/* Get the coordinates of the tile in the plane */
+				tile_x = (plane_x_offset + j) & state->plane_width_bitmask;
+				tile_y = (pixel_y_in_plane / 8) & state->plane_height_bitmask;
+
+				/* Obtain and decode tile metadata */
+				tile_metadata = state->vram[(i ? state->plane_b_address : state->plane_a_address) + tile_y * state->plane_width + tile_x];
+				tile_priority = !!(tile_metadata & 0x8000);
+				tile_palette_line = (tile_metadata >> 13) & 3;
+				tile_y_flip = !!(tile_metadata & 0x1000);
+				tile_x_flip = !!(tile_metadata & 0x0800);
+				tile_index = tile_metadata & 0x7FF;
+
+				/* Get the Y coordinate of the pixel in the tile */
+				pixel_y_in_tile = (pixel_y_in_plane & 7) ^ (tile_y_flip ? 7 : 0);
+
+				/* TODO - Unroll this loop? */
+				for (k = 0; k < 8; ++k)
+				{
+					/* Get the X coordinate of the pixel in the tile */
+					const unsigned int pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
+
+					/* Get raw tile data that contains the desired metapixel */
+					const unsigned int tile_data = state->vram[tile_index * (8 * 8 / 4) + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+
+					/* Obtain the index into the palette line */
+					const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
+
+					/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
+					const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
+
+					*metapixels_pointer = state->blit_lookup[*metapixels_pointer][metapixel];
+					++metapixels_pointer;
+				}
+			}
+		}
+
+		/* ************ *
+		 * Draw sprites *
+		 * ************ */
 
 		/* Update the sprite row cache if needed */
 		if (state->sprite_row_cache.needs_updating)
@@ -521,6 +526,10 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 				break;
 		}
 	DoneWithSprites:
+
+		/* ******************************************** *
+		 * Colourise output and send it to be displayed *
+		 * ******************************************** */
 
 		/* Convert the metapixels to RGB pixels */
 		if (state->shadow_highlight_enabled)
