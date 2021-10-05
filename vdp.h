@@ -15,9 +15,14 @@ typedef struct VDP_State
 		cc_bool write_pending;
 		unsigned short cached_write;
 
+		enum
+		{
+			VDP_ACCESS_VRAM,
+			VDP_ACCESS_CRAM,
+			VDP_ACCESS_VSRAM
+		} selected_buffer;
+
 		cc_bool read_mode;
-		unsigned short *selected_buffer; /* TODO - Pointers in the state are BAD: remove it! */
-		unsigned short selected_buffer_size_mask;
 		unsigned short index;
 		unsigned short increment;
 	} access;
@@ -48,12 +53,12 @@ typedef struct VDP_State
 	unsigned short plane_width_bitmask;
 	unsigned short plane_height_bitmask;
 
-	cc_bool display_enabled; /* TODO - Actually use this */
+	cc_bool display_enabled;
 	cc_bool v_int_enabled;
 	cc_bool h_int_enabled;
 	cc_bool h40_enabled;
 	cc_bool v30_enabled;
-	cc_bool shadow_highlight_enabled; /* TODO - This too */
+	cc_bool shadow_highlight_enabled;
 	cc_bool interlace_mode_2_enabled; /* TODO - And this */
 
 	unsigned char background_colour;
@@ -80,6 +85,8 @@ typedef struct VDP_State
 	   of VSRAM, instead of the 40 words that earlier models have. This is convenient for me because 64 is a power
 	   of 2, while 40 is not, which allows me to use bitmasks instead of slow modulos. */
 	unsigned short vsram[64];
+
+	unsigned char cram_native[4 * 16][3];
 
 	struct
 	{

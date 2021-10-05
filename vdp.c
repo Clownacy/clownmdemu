@@ -7,6 +7,13 @@
 
 #include "error.h"
 
+enum
+{
+	SHADOW_HIGHLIGHT_SHADOW = 0,
+	SHADOW_HIGHLIGHT_NORMAL = 1,
+	SHADOW_HIGHLIGHT_HIGHLIGHT = 2
+};
+
 /* Some of the logic here is based on research done by Nemesis:
    https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016 */
 
@@ -36,15 +43,18 @@ static void InitBlitLookupTable(VDP_State *state)
 			const unsigned int new_palette_line_index = new & palette_line_index_mask;
 			const unsigned int new_colour_index = new & colour_index_mask;
 			const cc_bool new_priority = new & priority_mask;
+			const cc_bool new_not_shadowed = new_priority;
 
 			const cc_bool draw_new_pixel = new_palette_line_index != 0 && (old_palette_line_index == 0 || !old_priority || new_priority);
 
-			unsigned int shadow_highlight_status; /* 0 = shadow, 1 = normal, 2 = highlight */
 			unsigned char output;
 
 			/* First, generate the table for regular blitting */
 			output = draw_new_pixel ? new : old;
-			state->blit_lookup[old][new] = output | (old_not_shadowed || new_priority ? not_shadowed_mask : 0);
+
+			output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
+
+			state->blit_lookup[old][new] = output;
 
 			/* Now, generate the table for shadow/highlight blitting */
 			if (draw_new_pixel)
@@ -53,62 +63,103 @@ static void InitBlitLookupTable(VDP_State *state)
 				if (new_colour_index == 0x3E)
 				{
 					/* Transparent highlight pixel */
-					shadow_highlight_status = old_not_shadowed + 1;
-					output = old_colour_index;
+					output = old_colour_index | ((old_not_shadowed + 1) << 6);
 				}
 				else if (new_colour_index == 0x3F)
 				{
 					/* Transparent shadow pixel */
-					shadow_highlight_status = 0;
-					output = old_colour_index;
+					output = old_colour_index | (SHADOW_HIGHLIGHT_SHADOW << 6);
 				}
 				else if (new_palette_line_index == 0xE)
 				{
 					/* Always-normal pixel */
-					shadow_highlight_status = 1;
-					output = new_colour_index;
+					output = new_colour_index | (SHADOW_HIGHLIGHT_NORMAL << 6);
 				}
 				else
 				{
 					/* Regular sprite pixel */
-					shadow_highlight_status = new_priority || old_not_shadowed;
-					output = new_colour_index;
+					output = new_colour_index | ((new_not_shadowed || old_not_shadowed) << 6);
 				}
 			}
 			else
 			{
 				/* Plane goes on top of sprite */
-				shadow_highlight_status = old_not_shadowed;
-				output = old_colour_index;
+				output = old_colour_index | (old_not_shadowed << 6);
 			}
 
-			state->blit_lookup_shadow_highlight[old][new] = output | (shadow_highlight_status << 6);
+			state->blit_lookup_shadow_highlight[old][new] = output;
 		}
 	}
 }
 
-static unsigned short* DecodeAndIncrementAccessAddress(VDP_State *state)
-{
-	unsigned short *address = &state->access.selected_buffer[(state->access.index / 2) & state->access.selected_buffer_size_mask];
-
-	state->access.index += state->access.increment;
-
-	return address;
-}
-
 static void WriteAndIncrement(VDP_State *state, unsigned short value)
 {
-	unsigned short *address = DecodeAndIncrementAccessAddress(state);
+	unsigned int index = state->access.index / 2;
 
-	/* TODO - Only the parts of the sprite cache that are modified get updated */
-	state->sprite_cache.needs_updating |= (address >= &state->vram[state->sprite_table_address] && address < &state->vram[state->sprite_table_address + (state->h40_enabled ? 80 : 64) * 4]);
+	switch (state->access.selected_buffer)
+	{
+		case VDP_ACCESS_VRAM:
+			state->vram[index & (CC_COUNT_OF(state->vram) - 1)] = value;
 
-	*address = value;
+			/* TODO - Only the parts of the sprite cache that are modified get updated */
+			state->sprite_cache.needs_updating |= (index >= state->sprite_table_address && index < state->sprite_table_address + (state->h40_enabled ? 80u : 64u) * 4u);
+
+			break;
+
+		case VDP_ACCESS_CRAM:
+		{
+			const unsigned int red = (value >> 1) & 7;
+			const unsigned int green = (value >> 5) & 7;
+			const unsigned int blue = (value >> 9) & 7;
+
+			index &= (CC_COUNT_OF(state->cram) - 1);
+
+			state->cram[index] = value;
+
+			/* Convert colour to RGB24 now so we don't have to do it while blitting */
+			state->cram_native[index][0] = (red << 5) | (red << 2) | (red >> 1);
+			state->cram_native[index][1] = (green << 5) | (green << 2) | (green >> 1);
+			state->cram_native[index][2] = (blue << 5) | (blue << 2) | (blue >> 1);
+
+			break;
+		}
+
+		case VDP_ACCESS_VSRAM:
+			state->vsram[index & (CC_COUNT_OF(state->vsram) - 1)] = value;
+			break;
+	}
+
+	state->access.index += state->access.increment;
 }
 
 static unsigned short ReadAndIncrement(VDP_State *state)
 {
-	return *DecodeAndIncrementAccessAddress(state);
+	unsigned short value;
+
+	const unsigned int index = state->access.index / 2;
+
+	switch (state->access.selected_buffer)
+	{
+		case VDP_ACCESS_VRAM:
+			value = state->vram[index & (CC_COUNT_OF(state->vram) - 1)];
+			break;
+
+		case VDP_ACCESS_CRAM:
+			value = state->cram[index & (CC_COUNT_OF(state->cram) - 1)];
+			break;
+
+		case VDP_ACCESS_VSRAM:
+			value = state->vsram[index & (CC_COUNT_OF(state->vsram) - 1)];
+			break;
+
+		default:
+			value = 0;
+			break;
+	}
+
+	state->access.index += state->access.increment;
+
+	return value;
 }
 
 static void RenderPlaneScanline(VDP_State *state, unsigned char *metapixels, unsigned short scanline, unsigned short *plane_buffer, unsigned short *hscroll_buffer, unsigned short *vscroll_buffer)
@@ -224,8 +275,7 @@ void VDP_Init(VDP_State *state)
 	state->access.write_pending = cc_false;
 
 	state->access.read_mode = cc_false;
-	state->access.selected_buffer = state->vram;
-	state->access.selected_buffer_size_mask = CC_COUNT_OF(state->vram) - 1;
+	state->access.selected_buffer = VDP_ACCESS_VRAM;
 	state->access.index = 0;
 	state->access.increment = 0;
 
@@ -452,34 +502,27 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 			{
 				const unsigned char pixel = state->blit_lookup_shadow_highlight[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_SIZE - 1) + i]];
 
-				/* Obtain the Mega Drive-format colour from Colour RAM */
-				const unsigned int colour = state->cram[pixel & 0x3F];
+				const unsigned char *colour = state->cram_native[pixel & 0x3F];
 
-				/* Decompose the colour into its individual RGB colour channels */
-				const unsigned int red = (colour >> 1) & 7;
-				const unsigned int green = (colour >> 5) & 7;
-				const unsigned int blue = (colour >> 9) & 7;
-
-				/* Rearrange the colour into RGB24 */
-				pixels[i * 3 + 0] = (red << 5) | (red << 2) | (red >> 1);
-				pixels[i * 3 + 1] = (green << 5) | (green << 2) | (green >> 1);
-				pixels[i * 3 + 2] = (blue << 5) | (blue << 2) | (blue >> 1);
+				pixels[i * 3 + 0] = colour[0];
+				pixels[i * 3 + 1] = colour[1];
+				pixels[i * 3 + 2] = colour[2];
 
 				switch ((pixel >> 6) & 3)
 				{
-					case 0: /* Shadow */
+					case SHADOW_HIGHLIGHT_SHADOW:
 						/* Divide by two and leave in lower half of range */
 						pixels[i * 3 + 0] >>= 1;
 						pixels[i * 3 + 1] >>= 1;
 						pixels[i * 3 + 2] >>= 1;
 						break;
 
-					case 1: /* Normal */
+					case SHADOW_HIGHLIGHT_NORMAL:
 						/* Do nothing */
 						break;
 
-					case 2: /* Highlight */
-						/* Divide by two and shift to upper half of range */
+					case SHADOW_HIGHLIGHT_HIGHLIGHT:
+						/* Divide by two and move to upper half of range */
 						pixels[i * 3 + 0] >>= 1;
 						pixels[i * 3 + 1] >>= 1;
 						pixels[i * 3 + 2] >>= 1;
@@ -496,18 +539,11 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 			{
 				const unsigned char pixel = state->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_SIZE - 1) + i]];
 
-				/* Obtain the Mega Drive-format colour from Colour RAM */
-				const unsigned int colour = state->cram[pixel & 0x3F];
+				const unsigned char *colour = state->cram_native[pixel & 0x3F];
 
-				/* Decompose the colour into its individual RGB colour channels */
-				const unsigned int red = (colour >> 1) & 7;
-				const unsigned int green = (colour >> 5) & 7;
-				const unsigned int blue = (colour >> 9) & 7;
-
-				/* Rearrange the colour into RGB24 */
-				pixels[i * 3 + 0] = (red << 5) | (red << 2) | (red >> 1);
-				pixels[i * 3 + 1] = (green << 5) | (green << 2) | (green >> 1);
-				pixels[i * 3 + 2] = (blue << 5) | (blue << 2) | (blue >> 1);
+				pixels[i * 3 + 0] = colour[0];
+				pixels[i * 3 + 1] = colour[1];
+				pixels[i * 3 + 2] = colour[2];
 			}
 		}
 
@@ -515,24 +551,13 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	}
 	else
 	{
-		/* Obtain the Mega Drive-format colour from Colour RAM */
-		const unsigned int colour = state->cram[state->background_colour];
-
-		/* Decompose the colour into its individual RGB colour channels */
-		const unsigned int red = (colour >> 1) & 7;
-		const unsigned int green = (colour >> 5) & 7;
-		const unsigned int blue = (colour >> 9) & 7;
-
-		const unsigned int red_8 = (red << 5) | (red << 2) | (red >> 1);
-		const unsigned int green_8 = (green << 5) | (green << 2) | (green >> 1);
-		const unsigned int blue_8 = (blue << 5) | (blue << 2) | (blue >> 1);
+		const unsigned char *colour = state->cram_native[state->background_colour];
 
 		for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
 		{
-			/* Rearrange the colour into RGB24 */
-			pixels[i * 3 + 0] = red_8;
-			pixels[i * 3 + 1] = green_8;
-			pixels[i * 3 + 2] = blue_8;
+			pixels[i * 3 + 0] = colour[0];
+			pixels[i * 3 + 1] = colour[1];
+			pixels[i * 3 + 2] = colour[2];
 		}
 	}
 
@@ -620,19 +645,16 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 		switch ((access_mode >> 1) & 7)
 		{
 			case 0: /* VRAM */
-				state->access.selected_buffer = state->vram;
-				state->access.selected_buffer_size_mask = CC_COUNT_OF(state->vram) - 1;
+				state->access.selected_buffer = VDP_ACCESS_VRAM;
 				break;
 
 			case 4: /* CRAM (read) */
 			case 1: /* CRAM (write) */
-				state->access.selected_buffer = state->cram;
-				state->access.selected_buffer_size_mask = CC_COUNT_OF(state->cram) - 1;
+				state->access.selected_buffer = VDP_ACCESS_CRAM;
 				break;
 
 			case 2: /* VSRAM */
-				state->access.selected_buffer = state->vsram;
-				state->access.selected_buffer_size_mask = CC_COUNT_OF(state->vsram) - 1;
+				state->access.selected_buffer = VDP_ACCESS_VSRAM;
 				break;
 
 			default: /* Invalid */
