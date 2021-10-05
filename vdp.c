@@ -120,27 +120,32 @@ static void WriteAndIncrement(VDP_State *state, unsigned short value)
 			const unsigned int red = (value >> 1) & 7;
 			const unsigned int green = (value >> 5) & 7;
 			const unsigned int blue = (value >> 9) & 7;
+
 			const unsigned int red_8bit = (red << 5) | (red << 2) | (red >> 1);
 			const unsigned int green_8bit = (green << 5) | (green << 2) | (green >> 1);
 			const unsigned int blue_8bit = (blue << 5) | (blue << 2) | (blue >> 1);
 
 			index &= (CC_COUNT_OF(state->cram) - 1);
 
-			/* Divide by two and leave in lower half of range */
+			/* Create shadow colour */
+			/* (divide by two and leave in lower half of colour range) */
 			state->cram_native[(SHADOW_HIGHLIGHT_SHADOW << 6) + index][0] = red_8bit / 2;
 			state->cram_native[(SHADOW_HIGHLIGHT_SHADOW << 6) + index][1] = green_8bit / 2;
 			state->cram_native[(SHADOW_HIGHLIGHT_SHADOW << 6) + index][2] = blue_8bit / 2;
 
-			/* Leave as-is */
+			/* Create normal colour */
+			/* (leave as-is) */
 			state->cram_native[(SHADOW_HIGHLIGHT_NORMAL << 6) + index][0] = red_8bit;
 			state->cram_native[(SHADOW_HIGHLIGHT_NORMAL << 6) + index][1] = green_8bit;
 			state->cram_native[(SHADOW_HIGHLIGHT_NORMAL << 6) + index][2] = blue_8bit;
 
-			/* Divide by two and move to upper half of range */
+			/* Creqte highlight colour */
+			/* (divide by two and move to upper half of colour range) */
 			state->cram_native[(SHADOW_HIGHLIGHT_HIGHLIGHT << 6) + index][0] = red_8bit / 2 + 0x80;
 			state->cram_native[(SHADOW_HIGHLIGHT_HIGHLIGHT << 6) + index][1] = green_8bit / 2 + 0x80;
 			state->cram_native[(SHADOW_HIGHLIGHT_HIGHLIGHT << 6) + index][2] = blue_8bit / 2 + 0x80;
 
+			/* Finally store regular Mega Drive-format colour */
 			state->cram[index] = value;
 
 			break;
