@@ -102,7 +102,7 @@ static void WriteAndIncrement(VDP_State *state, unsigned short value)
 			state->vram[index & (CC_COUNT_OF(state->vram) - 1)] = value;
 
 			/* TODO - Only the parts of the sprite cache that are modified get updated */
-			state->sprite_cache.needs_updating |= (index >= state->sprite_table_address && index < state->sprite_table_address + (state->h40_enabled ? 80u : 64u) * 4u);
+			state->sprite_row_cache.needs_updating |= (index >= state->sprite_table_address && index < state->sprite_table_address + (state->h40_enabled ? 80u : 64u) * 4u);
 
 			break;
 
@@ -310,7 +310,7 @@ void VDP_Init(VDP_State *state)
 	state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
 
-	state->sprite_cache.needs_updating = cc_true;
+	state->sprite_row_cache.needs_updating = cc_true;
 
 	InitBlitLookupTable(state);
 }
@@ -355,8 +355,8 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 		/* Render Plane A */
 		RenderPlaneScanline(state, plane_metapixels, scanline, state->vram + state->plane_a_address, state->vram + state->hscroll_address + 0, state->vsram + 0);
 
-		/* Update the sprite cache if needed */
-		if (state->sprite_cache.needs_updating)
+		/* Update the sprite row cache if needed */
+		if (state->sprite_row_cache.needs_updating)
 		{
 			/* Caching and preprocessing some of the sprite table allows the renderer to avoid
 			   scanning the entire sprite table every time it renders a scanline. The VDP actually
@@ -366,11 +366,11 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 			unsigned int sprite_index;
 			unsigned int sprites_remaining = max_sprites;
 
-			state->sprite_cache.needs_updating = cc_false;
+			state->sprite_row_cache.needs_updating = cc_false;
 
 			/* Make it so we write to the start of the rows */
-			for (i = 0; i < CC_COUNT_OF(state->sprite_cache.rows); ++i)
-				state->sprite_cache.rows[i].total = 0;
+			for (i = 0; i < CC_COUNT_OF(state->sprite_row_cache.rows); ++i)
+				state->sprite_row_cache.rows[i].total = 0;
 
 			sprite_index = 0;
 
@@ -384,19 +384,19 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 				const unsigned int link = sprite[1] & 0x7F;
 
 				/* This loop only processes rows that are on-screen, and haven't been drawn yet */
-				for (i = CC_MAX(128u + scanline, y); i < CC_MIN(128 + CC_COUNT_OF(state->sprite_cache.rows), y + height * 8); ++i)
+				for (i = CC_MAX(128u + scanline, y); i < CC_MIN(128 + CC_COUNT_OF(state->sprite_row_cache.rows), y + height * 8); ++i)
 				{
-					struct VDP_SpriteCacheRow *row = &state->sprite_cache.rows[i - 128];
+					struct VDP_SpriteRowCacheRow *row = &state->sprite_row_cache.rows[i - 128];
 
 					/* Don't write more sprites than are allowed to be drawn on this line */
 					if (row->total != (state->h40_enabled ? 20 : 16))
 					{
-						struct VDP_SpriteCacheEntry *sprite_cache_entry = &row->sprites[row->total++];
+						struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &row->sprites[row->total++];
 
-						sprite_cache_entry->table_index = sprite_index;
-						sprite_cache_entry->width = width;
-						sprite_cache_entry->height = height;
-						sprite_cache_entry->y_in_sprite = i - y;
+						sprite_row_cache_entry->table_index = sprite_index;
+						sprite_row_cache_entry->width = width;
+						sprite_row_cache_entry->height = height;
+						sprite_row_cache_entry->y_in_sprite = i - y;
 					}
 				}
 
@@ -418,14 +418,14 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 		memset(sprite_metapixels, 0, sizeof(sprite_metapixels));
 
 		/* Render sprites */
-		for (i = 0; i < state->sprite_cache.rows[scanline].total; ++i)
+		for (i = 0; i < state->sprite_row_cache.rows[scanline].total; ++i)
 		{
-			struct VDP_SpriteCacheEntry *sprite_cache_entry = &state->sprite_cache.rows[scanline].sprites[i];
+			struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &state->sprite_row_cache.rows[scanline].sprites[i];
 
 			/* Decode sprite data */
-			const unsigned short *sprite = &state->vram[state->sprite_table_address + sprite_cache_entry->table_index * 4];
-			const unsigned int width = sprite_cache_entry->width;
-			const unsigned int height = sprite_cache_entry->height;
+			const unsigned short *sprite = &state->vram[state->sprite_table_address + sprite_row_cache_entry->table_index * 4];
+			const unsigned int width = sprite_row_cache_entry->width;
+			const unsigned int height = sprite_row_cache_entry->height;
 			const unsigned int tile_metadata = sprite[2];
 			const unsigned int x = sprite[3] & 0x1FF;
 
@@ -436,7 +436,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 			const cc_bool tile_x_flip = !!(tile_metadata & 0x0800);
 			const unsigned int tile_index_base = tile_metadata & 0x7FF;
 
-			unsigned int y_in_sprite = sprite_cache_entry->y_in_sprite;
+			unsigned int y_in_sprite = sprite_row_cache_entry->y_in_sprite;
 
 			/* TODO - sprites only mask if another sprite rendered before them on the
 			   current scanline, or if the previous scanline reached its pixel limit */
