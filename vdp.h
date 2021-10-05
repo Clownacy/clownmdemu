@@ -87,6 +87,8 @@ typedef struct VDP_State
 
 	unsigned char cram_native[4 * 16][3];
 
+	unsigned short sprite_table_cache[80][2];
+
 	struct
 	{
 		cc_bool needs_updating;

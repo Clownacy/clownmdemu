@@ -99,12 +99,20 @@ static void WriteAndIncrement(VDP_State *state, unsigned short value)
 	switch (state->access.selected_buffer)
 	{
 		case VDP_ACCESS_VRAM:
+		{
+			/* Update sprite cache if we're writing to the sprite table */
+			const unsigned int sprite_table_index = index - state->sprite_table_address;
+
+			if (sprite_table_index < (state->h40_enabled ? 80 : 64) * 4 && !(sprite_table_index & 2))
+			{
+				state->sprite_table_cache[sprite_table_index / 4][sprite_table_index & 1] = value;
+				state->sprite_row_cache.needs_updating = cc_true;
+			}
+
 			state->vram[index & (CC_COUNT_OF(state->vram) - 1)] = value;
 
-			/* TODO - Only the parts of the sprite cache that are modified get updated */
-			state->sprite_row_cache.needs_updating |= (index >= state->sprite_table_address && index < state->sprite_table_address + (state->h40_enabled ? 80u : 64u) * 4u);
-
 			break;
+		}
 
 		case VDP_ACCESS_CRAM:
 		{
@@ -377,11 +385,11 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 			do
 			{
 				/* Decode sprite data */
-				const unsigned short *sprite = &state->vram[state->sprite_table_address + sprite_index * 4];
-				const unsigned int y = sprite[0] & 0x3FF;
-				const unsigned int width = ((sprite[1] >> 10) & 3) + 1;
-				const unsigned int height = ((sprite[1] >> 8) & 3) + 1;
-				const unsigned int link = sprite[1] & 0x7F;
+				const unsigned short *cached_sprite = state->sprite_table_cache[sprite_index];
+				const unsigned int y = cached_sprite[0] & 0x3FF;
+				const unsigned int width = ((cached_sprite[1] >> 10) & 3) + 1;
+				const unsigned int height = ((cached_sprite[1] >> 8) & 3) + 1;
+				const unsigned int link = cached_sprite[1] & 0x7F;
 
 				/* This loop only processes rows that are on-screen, and haven't been drawn yet */
 				for (i = CC_MAX(128u + scanline, y); i < CC_MIN(128 + CC_COUNT_OF(state->sprite_row_cache.rows), y + height * 8); ++i)
