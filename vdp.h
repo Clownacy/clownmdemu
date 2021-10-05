@@ -6,7 +6,7 @@
 #include "clowncommon.h"
 
 #define VDP_MAX_SCANLINE_WIDTH 320
-#define VDP_MAX_SCANLINES 240
+#define VDP_MAX_SCANLINES (240 * 2) /* V30 in interlace mode 2 */
 
 typedef struct VDP_State
 {

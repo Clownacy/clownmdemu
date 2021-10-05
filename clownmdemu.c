@@ -379,7 +379,15 @@ void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(uns
 		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
 		if (scanline < console_vertical_resolution)
 		{
-			VDP_RenderScanline(&state->vdp, scanline, scanline_rendered_callback);
+			if (state->vdp.interlace_mode_2_enabled)
+			{
+				VDP_RenderScanline(&state->vdp, scanline * 2, scanline_rendered_callback);
+				VDP_RenderScanline(&state->vdp, scanline * 2 + 1, scanline_rendered_callback);
+			}
+			else
+			{
+				VDP_RenderScanline(&state->vdp, scanline, scanline_rendered_callback);
+			}
 
 			/* Fire a H-Int if we've reached the requested line */
 			if (state->h_int_counter-- == 0)

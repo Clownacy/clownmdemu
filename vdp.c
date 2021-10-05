@@ -1,5 +1,6 @@
 #include "vdp.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -241,9 +242,15 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	/* This is multipled by 3 because it holds RGB values */
 	unsigned char pixels[VDP_MAX_SCANLINE_WIDTH * 3];
 
+	const unsigned int tile_height_power = state->interlace_mode_2_enabled ? 4 : 3;
+	const unsigned int tile_height_mask = (1 << tile_height_power) - 1;
+	const unsigned int tile_size = (8 << tile_height_power) / 4;
+
+	assert(scanline < VDP_MAX_SCANLINES);
+
 	if (state->display_enabled)
 	{
-		#define MAX_SPRITE_SIZE (8 * 4)
+		#define MAX_SPRITE_WIDTH (8 * 4)
 
 		/* ***** *
 		 * Setup *
@@ -267,7 +274,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 
 		/* The padding bytes of the left and right are for allowing sprites to overdraw at the
 		   edges of the screen. */
-		unsigned char sprite_metapixels[(MAX_SPRITE_SIZE - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_SIZE - 1)];
+		unsigned char sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_WIDTH - 1)];
 
 		/* Fill the scanline buffer with the background colour */
 		memset(plane_metapixels, state->background_colour, sizeof(plane_metapixels));
@@ -295,11 +302,11 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 					break;
 
 				case VDP_HSCROLL_MODE_1CELL:
-					hscroll = state->vram[state->hscroll_address + (scanline / 8) * 2 + i];
+					hscroll = state->vram[state->hscroll_address + (scanline >> tile_height_power) * 2 + i];
 					break;
 
 				case VDP_HSCROLL_MODE_1LINE:
-					hscroll = state->vram[state->hscroll_address + scanline * 2 + i];
+					hscroll = state->vram[state->hscroll_address + (scanline >> state->interlace_mode_2_enabled) * 2 + i];
 					break;
 			}
 
@@ -349,7 +356,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 
 				/* Get the coordinates of the tile in the plane */
 				tile_x = (plane_x_offset + j) & state->plane_width_bitmask;
-				tile_y = (pixel_y_in_plane / 8) & state->plane_height_bitmask;
+				tile_y = (pixel_y_in_plane >> tile_height_power) & state->plane_height_bitmask;
 
 				/* Obtain and decode tile metadata */
 				tile_metadata = state->vram[(i ? state->plane_b_address : state->plane_a_address) + tile_y * state->plane_width + tile_x];
@@ -360,7 +367,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 				tile_index = tile_metadata & 0x7FF;
 
 				/* Get the Y coordinate of the pixel in the tile */
-				pixel_y_in_tile = (pixel_y_in_plane & 7) ^ (tile_y_flip ? 7 : 0);
+				pixel_y_in_tile = (pixel_y_in_plane & tile_height_mask) ^ (tile_y_flip ? tile_height_mask : 0);
 
 				/* TODO - Unroll this loop? */
 				for (k = 0; k < 8; ++k)
@@ -369,7 +376,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 					const unsigned int pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
 
 					/* Get raw tile data that contains the desired metapixel */
-					const unsigned int tile_data = state->vram[tile_index * (8 * 8 / 4) + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+					const unsigned int tile_data = state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
 
 					/* Obtain the index into the palette line */
 					const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
@@ -415,10 +422,12 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 				const unsigned int height = ((cached_sprite[1] >> 8) & 3) + 1;
 				const unsigned int link = cached_sprite[1] & 0x7F;
 
+				const unsigned int blank_lines = 128 << state->interlace_mode_2_enabled;
+
 				/* This loop only processes rows that are on-screen, and haven't been drawn yet */
-				for (i = CC_MAX(128u + scanline, y); i < CC_MIN(128 + CC_COUNT_OF(state->sprite_row_cache.rows), y + height * 8); ++i)
+				for (i = CC_MAX(blank_lines + scanline, y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_height_power), y + (height << tile_height_power)); ++i)
 				{
-					struct VDP_SpriteRowCacheRow *row = &state->sprite_row_cache.rows[i - 128];
+					struct VDP_SpriteRowCacheRow *row = &state->sprite_row_cache.rows[i - blank_lines];
 
 					/* Don't write more sprites than are allowed to be drawn on this line */
 					if (row->total != (state->h40_enabled ? 20 : 16))
@@ -480,17 +489,17 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 			{
 				unsigned int j;
 
-				unsigned char *metapixels_pointer = sprite_metapixels + (MAX_SPRITE_SIZE - 1) + x - 128;
+				unsigned char *metapixels_pointer = sprite_metapixels + (MAX_SPRITE_WIDTH - 1) + x - 128;
 
-				y_in_sprite = tile_y_flip ? height * 8 - y_in_sprite - 1 : y_in_sprite;
+				y_in_sprite = tile_y_flip ? (height << tile_height_power) - y_in_sprite - 1 : y_in_sprite;
 
 				for (j = 0; j < width; ++j)
 				{
 					unsigned int k;
 
 					const unsigned int x_in_sprite = tile_x_flip ? width - j - 1 : j;
-					const unsigned int tile_index = tile_index_base + y_in_sprite / 8 + x_in_sprite * height;
-					const unsigned int pixel_y_in_tile = y_in_sprite % 8;
+					const unsigned int tile_index = tile_index_base + (y_in_sprite >> tile_height_power) + x_in_sprite * height;
+					const unsigned int pixel_y_in_tile = y_in_sprite & tile_height_mask;
 
 					for (k = 0; k < 8; ++k)
 					{
@@ -498,7 +507,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 						const unsigned int pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
 
 						/* Get raw tile data that contains the desired metapixel */
-						const unsigned int tile_data = state->vram[tile_index * (8 * 8 / 4) + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+						const unsigned int tile_data = state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
 
 						/* Obtain the index into the palette line */
 						const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
@@ -536,7 +545,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 		{
 			for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
 			{
-				const unsigned char pixel = state->blit_lookup_shadow_highlight[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_SIZE - 1) + i]];
+				const unsigned char pixel = state->blit_lookup_shadow_highlight[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]];
 
 				const unsigned char *colour = state->cram_native[pixel];
 
@@ -549,7 +558,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 		{
 			for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
 			{
-				const unsigned char pixel = state->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_SIZE - 1) + i]];
+				const unsigned char pixel = state->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]];
 
 				const unsigned char *colour = state->cram_native[pixel & 0x3F];
 
@@ -559,7 +568,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 			}
 		}
 
-		#undef MAX_SPRITE_SIZE
+		#undef MAX_SPRITE_WIDTH
 	}
 	else
 	{
@@ -574,7 +583,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	}
 
 	/* Send the RGB pixels to be rendered */
-	scanline_rendered_callback(scanline, pixels, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) * 8);
+	scanline_rendered_callback(scanline, pixels, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) << tile_height_power);
 }
 
 unsigned short VDP_ReadData(VDP_State *state)
