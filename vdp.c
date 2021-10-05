@@ -26,17 +26,12 @@ static void InitBlitLookupTable(VDP_State *state)
 	{
 		for (new = 0; new < VDP_INDEXED_PIXEL_VARIATION; ++new)
 		{
-			unsigned int output;
+			unsigned char output;
 
-			if ((old & palette_index_mask) == 0 || ((new & palette_index_mask) != 0 && (!(old & priority_mask) || new & priority_mask)))
+			if ((new & palette_index_mask) != 0 && ((old & palette_index_mask) == 0 || !(old & priority_mask) || new & priority_mask))
 				output = new;
 			else
 				output = old;
-
-			/* If the output pixel is transparent, wipe its palette line value
-			   so that it points to colour 0 (which is the background colour) */
-			if ((output & palette_index_mask) == 0)
-				output = 0;
 
 			state->blit_lookup[old][new] = output;
 		}
@@ -56,6 +51,7 @@ static void WriteAndIncrement(VDP_State *state, unsigned short value)
 {
 	unsigned short *address = DecodeAndIncrementAccessAddress(state);
 
+	/* TODO - Only the parts of the sprite cache that are modified get updated */
 	state->sprite_cache.needs_updating |= (address >= &state->vram[state->sprite_table_address] && address < &state->vram[state->sprite_table_address + (state->h40_enabled ? 80 : 64) * 4]);
 
 	*address = value;
@@ -168,7 +164,7 @@ static void RenderPlaneScanline(VDP_State *state, unsigned char *metapixels, uns
 			/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
 			const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
 
-			*metapixels_pointer = state->blit_lookup[metapixel][*metapixels_pointer];
+			*metapixels_pointer = state->blit_lookup[*metapixels_pointer][metapixel];
 			++metapixels_pointer;
 		}
 	}
@@ -225,7 +221,6 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	#define MAX_SPRITE_SIZE (8 * 4)
 
 	unsigned int i;
-	unsigned short original_colour_0;
 
 	unsigned int sprite_limit = state->h40_enabled ? 20 : 16;
 	unsigned int pixel_limit = state->h40_enabled ? 320 : 256;
@@ -241,28 +236,23 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	   it's fully on-screen or not. This is why VDP_MAX_SCANLINE_WIDTH is rounded up to 8.
 	   In both cases, these extra bytes exist to catch the 'overflow' values that are written
 	   outside the visible portion of the buffer. */
-	/*unsigned char plane_metapixels[16 + (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 * 8 + (16 - 1)];*/
+	unsigned char plane_metapixels[16 + (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 * 8 + (16 - 1)];
 
 	/* The padding bytes of the left and right are for allowing sprites to overdraw at the
 	   edges of the screen. */
-	/*unsigned char sprite_metapixels[(MAX_SPRITE_SIZE - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_SIZE - 1)];*/
-
-	/* Both of the above buffers have been combined into this one */
-	unsigned char metapixels[(MAX_SPRITE_SIZE - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_SIZE - 1)];
+	unsigned char sprite_metapixels[(MAX_SPRITE_SIZE - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_SIZE - 1)];
 
 	/* This is multipled by 3 because it holds RGB values */
 	unsigned char pixels[VDP_MAX_SCANLINE_WIDTH * 3];
 
 	/* Fill the scanline buffer with the background colour */
-	/*memset(plane_metapixels, state->background_colour, sizeof(plane_metapixels));*/
+	memset(plane_metapixels, state->background_colour, sizeof(plane_metapixels));
 
-	/* Clear the scanline buffer, so that the sprite blitter
-	   knows which pixels haven't been drawn yet. */
-	/*memset(sprite_metapixels, 0, sizeof(sprite_metapixels));*/
+	/* Render Plane B */
+	RenderPlaneScanline(state, plane_metapixels, scanline, state->vram + state->plane_b_address, state->vram + state->hscroll_address + 1, state->vsram + 1);
 
-	/* Clear the scanline buffer, so that the sprite blitter
-	   knows which pixels haven't been drawn yet. */
-	memset(metapixels, 0, sizeof(metapixels));
+	/* Render Plane A */
+	RenderPlaneScanline(state, plane_metapixels, scanline, state->vram + state->plane_a_address, state->vram + state->hscroll_address + 0, state->vsram + 0);
 
 	/* Update the sprite cache if needed */
 	if (state->sprite_cache.needs_updating)
@@ -322,6 +312,10 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 		while (sprite_index != 0 && --sprites_remaining != 0);
 	}
 
+	/* Clear the scanline buffer, so that the sprite blitter
+	   knows which pixels haven't been drawn yet. */
+	memset(sprite_metapixels, 0, sizeof(sprite_metapixels));
+
 	/* Render sprites */
 	for (i = 0; i < state->sprite_cache.rows[scanline].total; ++i)
 	{
@@ -343,8 +337,9 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 
 		unsigned int y_in_sprite = sprite_cache_entry->y_in_sprite;
 
-		/* This is a masking sprite: prevent all
-		   remaining sprites from being drawn */
+		/* TODO - sprites only mask if another sprite rendered before them on the
+		   current scanline, or if the previous scanline reached its pixel limit */
+		/* This is a masking sprite: prevent all remaining sprites from being drawn */
 		if (x == 0)
 			break;
 
@@ -352,7 +347,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 		{
 			unsigned int j;
 
-			unsigned char *metapixels_pointer = metapixels + (MAX_SPRITE_SIZE - 1) + x - 128;
+			unsigned char *metapixels_pointer = sprite_metapixels + (MAX_SPRITE_SIZE - 1) + x - 128;
 
 			y_in_sprite = tile_y_flip ? height * 8 - y_in_sprite - 1 : y_in_sprite;
 
@@ -399,21 +394,13 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	}
 DoneWithSprites:
 
-	/* Render Plane A */
-	RenderPlaneScanline(state, /* Previously just plane_metapixels */ metapixels + (MAX_SPRITE_SIZE - 1) - 16, scanline, state->vram + state->plane_a_address, state->vram + state->hscroll_address + 0, state->vsram + 0);
-
-	/* Render Plane B */
-	RenderPlaneScanline(state, /* Previously just plane_metapixels */ metapixels + (MAX_SPRITE_SIZE - 1) - 16, scanline, state->vram + state->plane_b_address, state->vram + state->hscroll_address + 1, state->vsram + 1);
-
-	/* A little trick to apply the background colour, even though the background colour pixels are all set to colour 0 */
-	original_colour_0 = state->cram[0];
-	state->cram[0] = state->cram[state->background_colour];
-
 	/* Convert the metapixels to RGB pixels */
 	for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
 	{
+		const unsigned char pixel = state->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_SIZE - 1) + i]];
+
 		/* Obtain the Mega Drive-format colour from Colour RAM */
-		const unsigned int colour = state->cram[metapixels[(MAX_SPRITE_SIZE - 1) + i] & 0x3F];
+		const unsigned int colour = state->cram[pixel & 0x3F];
 
 		/* Decompose the colour into its individual RGB colour channels */
 		const unsigned int red = (colour >> 1) & 7;
@@ -425,8 +412,6 @@ DoneWithSprites:
 		pixels[i * 3 + 1] = (green << 5) | (green << 2) | (green >> 1);
 		pixels[i * 3 + 2] = (blue << 5) | (blue << 2) | (blue >> 1);
 	}
-
-	state->cram[0] = original_colour_0;
 
 	/* Send the RGB pixels to be rendered */
 	scanline_rendered_callback(scanline, pixels, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) * 8);
