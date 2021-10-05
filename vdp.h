@@ -85,7 +85,7 @@ typedef struct VDP_State
 	   of VSRAM, instead of the 40 words that earlier models have. */
 	unsigned short vsram[64];
 
-	unsigned char cram_native[4 * 16][3];
+	unsigned char cram_native[3 * 4 * 16][3];
 
 	unsigned short sprite_table_cache[80][2];
 

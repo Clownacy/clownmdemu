@@ -116,18 +116,32 @@ static void WriteAndIncrement(VDP_State *state, unsigned short value)
 
 		case VDP_ACCESS_CRAM:
 		{
+			/* Convert colour to RGB24 now so we don't have to do it while blitting */
 			const unsigned int red = (value >> 1) & 7;
 			const unsigned int green = (value >> 5) & 7;
 			const unsigned int blue = (value >> 9) & 7;
+			const unsigned int red_8bit = (red << 5) | (red << 2) | (red >> 1);
+			const unsigned int green_8bit = (green << 5) | (green << 2) | (green >> 1);
+			const unsigned int blue_8bit = (blue << 5) | (blue << 2) | (blue >> 1);
 
 			index &= (CC_COUNT_OF(state->cram) - 1);
 
-			state->cram[index] = value;
+			/* Divide by two and leave in lower half of range */
+			state->cram_native[(SHADOW_HIGHLIGHT_SHADOW << 6) + index][0] = red_8bit / 2;
+			state->cram_native[(SHADOW_HIGHLIGHT_SHADOW << 6) + index][1] = green_8bit / 2;
+			state->cram_native[(SHADOW_HIGHLIGHT_SHADOW << 6) + index][2] = blue_8bit / 2;
 
-			/* Convert colour to RGB24 now so we don't have to do it while blitting */
-			state->cram_native[index][0] = (red << 5) | (red << 2) | (red >> 1);
-			state->cram_native[index][1] = (green << 5) | (green << 2) | (green >> 1);
-			state->cram_native[index][2] = (blue << 5) | (blue << 2) | (blue >> 1);
+			/* Leave as-is */
+			state->cram_native[(SHADOW_HIGHLIGHT_NORMAL << 6) + index][0] = red_8bit;
+			state->cram_native[(SHADOW_HIGHLIGHT_NORMAL << 6) + index][1] = green_8bit;
+			state->cram_native[(SHADOW_HIGHLIGHT_NORMAL << 6) + index][2] = blue_8bit;
+
+			/* Divide by two and move to upper half of range */
+			state->cram_native[(SHADOW_HIGHLIGHT_HIGHLIGHT << 6) + index][0] = red_8bit / 2 + 0x80;
+			state->cram_native[(SHADOW_HIGHLIGHT_HIGHLIGHT << 6) + index][1] = green_8bit / 2 + 0x80;
+			state->cram_native[(SHADOW_HIGHLIGHT_HIGHLIGHT << 6) + index][2] = blue_8bit / 2 + 0x80;
+
+			state->cram[index] = value;
 
 			break;
 		}
@@ -510,35 +524,11 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 			{
 				const unsigned char pixel = state->blit_lookup_shadow_highlight[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_SIZE - 1) + i]];
 
-				const unsigned char *colour = state->cram_native[pixel & 0x3F];
+				const unsigned char *colour = state->cram_native[pixel];
 
 				pixels[i * 3 + 0] = colour[0];
 				pixels[i * 3 + 1] = colour[1];
 				pixels[i * 3 + 2] = colour[2];
-
-				switch ((pixel >> 6) & 3)
-				{
-					case SHADOW_HIGHLIGHT_SHADOW:
-						/* Divide by two and leave in lower half of range */
-						pixels[i * 3 + 0] >>= 1;
-						pixels[i * 3 + 1] >>= 1;
-						pixels[i * 3 + 2] >>= 1;
-						break;
-
-					case SHADOW_HIGHLIGHT_NORMAL:
-						/* Do nothing */
-						break;
-
-					case SHADOW_HIGHLIGHT_HIGHLIGHT:
-						/* Divide by two and move to upper half of range */
-						pixels[i * 3 + 0] >>= 1;
-						pixels[i * 3 + 1] >>= 1;
-						pixels[i * 3 + 2] >>= 1;
-						pixels[i * 3 + 0] += 0x80;
-						pixels[i * 3 + 1] += 0x80;
-						pixels[i * 3 + 2] += 0x80;
-						break;
-				}
 			}
 		}
 		else
@@ -547,7 +537,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 			{
 				const unsigned char pixel = state->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_SIZE - 1) + i]];
 
-				const unsigned char *colour = state->cram_native[pixel & 0x3F];
+				const unsigned char *colour = state->cram_native[(SHADOW_HIGHLIGHT_NORMAL << 6) | (pixel & 0x3F)];
 
 				pixels[i * 3 + 0] = colour[0];
 				pixels[i * 3 + 1] = colour[1];
@@ -559,7 +549,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	}
 	else
 	{
-		const unsigned char *colour = state->cram_native[state->background_colour];
+		const unsigned char *colour = state->cram_native[(SHADOW_HIGHLIGHT_NORMAL << 6) | state->background_colour];
 
 		for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
 		{
