@@ -43,7 +43,7 @@ typedef struct ClownMDEmu_State
 typedef struct CallbackUserData
 {
 	ClownMDEmu_State *state;
-	unsigned char (*read_input_callback)(unsigned char button_id);
+	unsigned char (*read_input_callback)(unsigned char player_id, unsigned char button_id);
 } CallbackUserData;
 
 /* VDP memory access callback */
@@ -122,31 +122,33 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 				break;
 
 			case 0xA10002:
+			case 0xA10004:
 				if (do_low_byte)
 				{
-					value |= state->joypads[0].data;
+					const unsigned int joypad_index = (address - 0xA10002) / 2;
+
+					value |= state->joypads[joypad_index].data;
 
 					if (value & 0x40)
 					{
-						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_C) << 5;
-						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_B) << 4;
-						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_RIGHT) << 3;
-						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_LEFT) << 2;
-						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_DOWN) << 1;
-						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_UP) << 0;
+						value |= !callback_user_data->read_input_callback(joypad_index, CLOWNMDEMU_BUTTON_C) << 5;
+						value |= !callback_user_data->read_input_callback(joypad_index, CLOWNMDEMU_BUTTON_B) << 4;
+						value |= !callback_user_data->read_input_callback(joypad_index, CLOWNMDEMU_BUTTON_RIGHT) << 3;
+						value |= !callback_user_data->read_input_callback(joypad_index, CLOWNMDEMU_BUTTON_LEFT) << 2;
+						value |= !callback_user_data->read_input_callback(joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
+						value |= !callback_user_data->read_input_callback(joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
 					}
 					else
 					{
-						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_START) << 5;
-						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_A) << 4;
-						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_DOWN) << 1;
-						value |= !callback_user_data->read_input_callback(CLOWNMDEMU_BUTTON_UP) << 0;
+						value |= !callback_user_data->read_input_callback(joypad_index, CLOWNMDEMU_BUTTON_START) << 5;
+						value |= !callback_user_data->read_input_callback(joypad_index, CLOWNMDEMU_BUTTON_A) << 4;
+						value |= !callback_user_data->read_input_callback(joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
+						value |= !callback_user_data->read_input_callback(joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
 					}
 				}
 
 				break;
 
-			case 0xA10004:
 			case 0xA10006:
 				value = 0xFF;
 				break;
@@ -337,7 +339,7 @@ void ClownMDEmu_Deinit(void *state_void)
 	(void)state;
 }
 
-void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(unsigned short scanline, void *pixels, unsigned short screen_width, unsigned short screen_height), unsigned char (*read_input_callback)(unsigned char button_id))
+void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(unsigned short scanline, void *pixels, unsigned short screen_width, unsigned short screen_height), unsigned char (*read_input_callback)(unsigned char player_id, unsigned char button_id))
 {
 	/* TODO - user callbacks for reading input and showing video */
 
