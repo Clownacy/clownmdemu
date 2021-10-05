@@ -7,7 +7,6 @@
 
 #define VDP_MAX_SCANLINE_WIDTH 320
 #define VDP_MAX_SCANLINES 240
-#define VDP_INDEXED_PIXEL_VARIATION (1 << (1 + 2 + 4))
 
 typedef struct VDP_State
 {
@@ -99,7 +98,8 @@ typedef struct VDP_State
 		} rows[VDP_MAX_SCANLINES];
 	} sprite_cache;
 
-	unsigned char blit_lookup[VDP_INDEXED_PIXEL_VARIATION][VDP_INDEXED_PIXEL_VARIATION];
+	unsigned char blit_lookup[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
+	unsigned char blit_lookup_shadow_highlight[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
 } VDP_State;
 
 void VDP_Init(VDP_State *state);

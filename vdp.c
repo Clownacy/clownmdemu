@@ -17,23 +17,72 @@
    doesn't have to take up space in the state struct? */
 static void InitBlitLookupTable(VDP_State *state)
 {
-	const unsigned int palette_index_mask = 0xF;
+	const unsigned int palette_line_index_mask = 0xF;
+	const unsigned int colour_index_mask = 0x3F;
 	const unsigned int priority_mask = 0x40;
+	const unsigned int not_shadowed_mask = 0x80;
 
 	unsigned int old, new;
 
-	for (old = 0; old < VDP_INDEXED_PIXEL_VARIATION; ++old)
+	for (old = 0; old < CC_COUNT_OF(state->blit_lookup); ++old)
 	{
-		for (new = 0; new < VDP_INDEXED_PIXEL_VARIATION; ++new)
+		for (new = 0; new < CC_COUNT_OF(state->blit_lookup[0]); ++new)
 		{
+			const unsigned int old_palette_line_index = old & palette_line_index_mask;
+			const unsigned int old_colour_index = old & colour_index_mask;
+			const cc_bool old_priority = old & priority_mask;
+			const cc_bool old_not_shadowed = !!(old & not_shadowed_mask);
+
+			const unsigned int new_palette_line_index = new & palette_line_index_mask;
+			const unsigned int new_colour_index = new & colour_index_mask;
+			const cc_bool new_priority = new & priority_mask;
+
+			const cc_bool draw_new_pixel = new_palette_line_index != 0 && (old_palette_line_index == 0 || !old_priority || new_priority);
+
+			unsigned int shadow_highlight_status; /* 0 = shadow, 1 = normal, 2 = highlight */
 			unsigned char output;
 
-			if ((new & palette_index_mask) != 0 && ((old & palette_index_mask) == 0 || !(old & priority_mask) || new & priority_mask))
-				output = new;
-			else
-				output = old;
+			/* First, generate the table for regular blitting */
+			output = draw_new_pixel ? new : old;
+			state->blit_lookup[old][new] = output | (old_priority || new_priority ? not_shadowed_mask : 0);
 
-			state->blit_lookup[old][new] = output;
+			/* Now, generate the table for shadow/highlight blitting */
+			if (draw_new_pixel)
+			{
+				/* Sprite goes on top of plane */
+				if (new_colour_index == 0x3E)
+				{
+					/* Transparent highlight pixel */
+					shadow_highlight_status = old_not_shadowed + 1;
+					output = old_colour_index;
+				}
+				else if (new_colour_index == 0x3F)
+				{
+					/* Transparent shadow pixel */
+					shadow_highlight_status = 0;
+					output = old_colour_index;
+				}
+				else if (new_palette_line_index == 0xE)
+				{
+					/* Always-normal pixel */
+					shadow_highlight_status = 1;
+					output = new_colour_index;
+				}
+				else
+				{
+					/* Regular sprite pixel */
+					shadow_highlight_status = new_priority || old_not_shadowed;
+					output = new_colour_index;
+				}
+			}
+			else
+			{
+				/* Plane goes on top of sprite */
+				shadow_highlight_status = old_not_shadowed;
+				output = old_colour_index;
+			}
+
+			state->blit_lookup_shadow_highlight[old][new] = output | (shadow_highlight_status << 6);
 		}
 	}
 }
@@ -395,22 +444,69 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 DoneWithSprites:
 
 	/* Convert the metapixels to RGB pixels */
-	for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
+	if (state->shadow_highlight_enabled)
 	{
-		const unsigned char pixel = state->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_SIZE - 1) + i]];
+		for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
+		{
+			const unsigned char pixel = state->blit_lookup_shadow_highlight[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_SIZE - 1) + i]];
 
-		/* Obtain the Mega Drive-format colour from Colour RAM */
-		const unsigned int colour = state->cram[pixel & 0x3F];
+			/* Obtain the Mega Drive-format colour from Colour RAM */
+			const unsigned int colour = state->cram[pixel & 0x3F];
 
-		/* Decompose the colour into its individual RGB colour channels */
-		const unsigned int red = (colour >> 1) & 7;
-		const unsigned int green = (colour >> 5) & 7;
-		const unsigned int blue = (colour >> 9) & 7;
+			/* Decompose the colour into its individual RGB colour channels */
+			const unsigned int red = (colour >> 1) & 7;
+			const unsigned int green = (colour >> 5) & 7;
+			const unsigned int blue = (colour >> 9) & 7;
 
-		/* Rearrange the colour into RGB24 */
-		pixels[i * 3 + 0] = (red << 5) | (red << 2) | (red >> 1);
-		pixels[i * 3 + 1] = (green << 5) | (green << 2) | (green >> 1);
-		pixels[i * 3 + 2] = (blue << 5) | (blue << 2) | (blue >> 1);
+			/* Rearrange the colour into RGB24 */
+			pixels[i * 3 + 0] = (red << 5) | (red << 2) | (red >> 1);
+			pixels[i * 3 + 1] = (green << 5) | (green << 2) | (green >> 1);
+			pixels[i * 3 + 2] = (blue << 5) | (blue << 2) | (blue >> 1);
+
+			switch ((pixel >> 6) & 3)
+			{
+				case 0: /* Shadow */
+					/* Divide by two and leave in lower half of range */
+					pixels[i * 3 + 0] >>= 1;
+					pixels[i * 3 + 1] >>= 1;
+					pixels[i * 3 + 2] >>= 1;
+					break;
+
+				case 1: /* Normal */
+					/* Do nothing */
+					break;
+
+				case 2: /* Highlight */
+					/* Divide by two and shift to upper half of range */
+					pixels[i * 3 + 0] >>= 1;
+					pixels[i * 3 + 1] >>= 1;
+					pixels[i * 3 + 2] >>= 1;
+					pixels[i * 3 + 0] += 0x80;
+					pixels[i * 3 + 1] += 0x80;
+					pixels[i * 3 + 2] += 0x80;
+					break;
+			}
+		}
+	}
+	else
+	{
+		for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
+		{
+			const unsigned char pixel = state->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_SIZE - 1) + i]];
+
+			/* Obtain the Mega Drive-format colour from Colour RAM */
+			const unsigned int colour = state->cram[pixel & 0x3F];
+
+			/* Decompose the colour into its individual RGB colour channels */
+			const unsigned int red = (colour >> 1) & 7;
+			const unsigned int green = (colour >> 5) & 7;
+			const unsigned int blue = (colour >> 9) & 7;
+
+			/* Rearrange the colour into RGB24 */
+			pixels[i * 3 + 0] = (red << 5) | (red << 2) | (red >> 1);
+			pixels[i * 3 + 1] = (green << 5) | (green << 2) | (green >> 1);
+			pixels[i * 3 + 2] = (blue << 5) | (blue << 2) | (blue >> 1);
+		}
 	}
 
 	/* Send the RGB pixels to be rendered */
