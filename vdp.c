@@ -44,7 +44,7 @@ static void InitBlitLookupTable(VDP_State *state)
 
 			/* First, generate the table for regular blitting */
 			output = draw_new_pixel ? new : old;
-			state->blit_lookup[old][new] = output | (old_priority || new_priority ? not_shadowed_mask : 0);
+			state->blit_lookup[old][new] = output | (old_not_shadowed || new_priority ? not_shadowed_mask : 0);
 
 			/* Now, generate the table for shadow/highlight blitting */
 			if (draw_new_pixel)
