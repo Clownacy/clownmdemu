@@ -1324,7 +1324,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_MOVE:
-			case INSTRUCTION_MOVEP:
 				/* Secondary address mode */ 
 				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode_secondary_address_mode, opcode_secondary_register);				
 				break;
@@ -1417,6 +1416,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_JSR:
 			case INSTRUCTION_JMP:
 			case INSTRUCTION_MOVEM:
+			case INSTRUCTION_MOVEP:
 			case INSTRUCTION_CHK:
 			case INSTRUCTION_DBCC:
 			case INSTRUCTION_BRA:
@@ -1631,7 +1631,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_MOVEP:
 			{
-				unsigned long memory_address = DecodeMemoryAddressMode(state, callbacks, 0, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_INDEX, opcode_primary_register);
+				unsigned long memory_address = DecodeMemoryAddressMode(state, callbacks, 0, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT, opcode_primary_register);
 
 				switch (opcode_bits_6_and_7)
 				{
@@ -1653,16 +1653,16 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 					case 2:
 						/* Register to memory (word) */
-						WriteByte(callbacks, memory_address + 2 * 0, state->data_registers[opcode_secondary_register] >> 8 * 1);
-						WriteByte(callbacks, memory_address + 2 * 1, state->data_registers[opcode_secondary_register] >> 8 * 0);
+						WriteByte(callbacks, memory_address + 2 * 0, (state->data_registers[opcode_secondary_register] >> 8 * 1) & 0xFF);
+						WriteByte(callbacks, memory_address + 2 * 1, (state->data_registers[opcode_secondary_register] >> 8 * 0) & 0xFF);
 						break;
 
 					case 3:
 						/* Register to memory (longword) */
-						WriteByte(callbacks, memory_address + 2 * 0, state->data_registers[opcode_secondary_register] >> 8 * 3);
-						WriteByte(callbacks, memory_address + 2 * 1, state->data_registers[opcode_secondary_register] >> 8 * 2);
-						WriteByte(callbacks, memory_address + 2 * 2, state->data_registers[opcode_secondary_register] >> 8 * 1);
-						WriteByte(callbacks, memory_address + 2 * 3, state->data_registers[opcode_secondary_register] >> 8 * 0);
+						WriteByte(callbacks, memory_address + 2 * 0, (state->data_registers[opcode_secondary_register] >> 8 * 3) & 0xFF);
+						WriteByte(callbacks, memory_address + 2 * 1, (state->data_registers[opcode_secondary_register] >> 8 * 2) & 0xFF);
+						WriteByte(callbacks, memory_address + 2 * 2, (state->data_registers[opcode_secondary_register] >> 8 * 1) & 0xFF);
+						WriteByte(callbacks, memory_address + 2 * 3, (state->data_registers[opcode_secondary_register] >> 8 * 0) & 0xFF);
 						break;
 				}
 
