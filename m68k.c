@@ -1793,7 +1793,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_RTR:
-				state->status_register = (state->status_register & 0xFF00) | ReadByte(callbacks, state->address_registers[7]);
+				state->status_register &= 0xFF00;
+				state->status_register |= ReadByte(callbacks, state->address_registers[7] + 1);
 				state->address_registers[7] += 2;
 				state->program_counter = ReadLongWord(callbacks, state->address_registers[7]);
 				state->address_registers[7] += 4;				
