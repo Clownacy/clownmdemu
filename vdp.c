@@ -647,6 +647,7 @@ void VDP_WriteData(VDP_State *state, unsigned short value)
 	}
 }
 
+/* TODO - Retention of partial commands */
 void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*read_callback)(void *user_data, unsigned long address), void *user_data)
 {
 	if (state->access.write_pending)
@@ -661,7 +662,7 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 		state->access.read_mode = !(access_mode & 1);
 
 		if (state->dma.enabled)
-			state->dma.pending = access_mode & 0x20;
+			state->dma.pending = !!(access_mode & 0x20);
 
 		switch ((access_mode >> 1) & 7)
 		{
