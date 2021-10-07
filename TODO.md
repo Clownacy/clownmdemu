@@ -47,5 +47,4 @@
 - Save states
 - Input rebinding
 - Controller support
-- Fast-forwarding
 - Reset hotkey
