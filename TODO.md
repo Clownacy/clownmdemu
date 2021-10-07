@@ -44,6 +44,5 @@
 - Remaining quirks and undefined behaviour of the original Mega Drive hardware
 
 ## Frontend
-- Save states
 - Input rebinding
 - Controller support
