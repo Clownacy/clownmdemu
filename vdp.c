@@ -653,8 +653,8 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 	if (state->access.write_pending)
 	{
 		/* This command is setting up for a memory access (part 2) */
-		const unsigned short destination_address = (state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
-		const unsigned char access_mode = ((state->access.cached_write >> 14) & 3) | ((value >> 2) & 0x3C);
+		const unsigned int destination_address = (state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
+		const unsigned int access_mode = ((state->access.cached_write >> 14) & 3) | ((value >> 2) & 0x3C);
 
 		state->access.write_pending = cc_false;
 
@@ -693,7 +693,7 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 			{
 				do
 				{
-					WriteAndIncrement(state, read_callback(user_data, (state->dma.source_address_high << 17) | (state->dma.source_address_low << 1)));
+					WriteAndIncrement(state, read_callback(user_data, ((unsigned long)state->dma.source_address_high << 17) | ((unsigned long)state->dma.source_address_low << 1)));
 
 					/* Emulate the 128KiB DMA wrap-around bug */
 					++state->dma.source_address_low;
@@ -715,8 +715,8 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 	}
 	else
 	{
-		const unsigned char reg = (value >> 8) & 0x3F;
-		const unsigned char data = value & 0xFF;
+		const unsigned int reg = (value >> 8) & 0x3F;
+		const unsigned int data = value & 0xFF;
 
 		/* This command is setting a register */
 		switch (reg)
@@ -888,26 +888,26 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 
 			case 19:
 				/* DMA LENGTH COUNTER LOW */
-				state->dma.length &= ~((unsigned short)0xFF << 0);
-				state->dma.length |= (unsigned short)data << 0;
+				state->dma.length &= ~(0xFFu << 0);
+				state->dma.length |= data << 0;
 				break;
 
 			case 20:
 				/* DMA LENGTH COUNTER HIGH */
-				state->dma.length &= ~((unsigned short)0xFF << 8);
-				state->dma.length |= (unsigned short)data << 8;
+				state->dma.length &= ~(0xFFu << 8);
+				state->dma.length |= data << 8;
 				break;
 
 			case 21:
 				/* DMA SOURCE ADDRESS LOW */
-				state->dma.source_address_low &= ~((unsigned short)0xFF << 0);
-				state->dma.source_address_low |= (unsigned short)data << 0;
+				state->dma.source_address_low &= ~(0xFFu << 0);
+				state->dma.source_address_low |= data << 0;
 				break;
 
 			case 22:
 				/* DMA SOURCE ADDRESS MID. */
-				state->dma.source_address_low &= ~((unsigned short)0xFF << 8);
-				state->dma.source_address_low |= (unsigned short)data << 8;
+				state->dma.source_address_low &= ~(0xFFu << 8);
+				state->dma.source_address_low |= data << 8;
 				break;
 
 			case 23:
