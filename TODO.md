@@ -47,4 +47,3 @@
 - Save states
 - Input rebinding
 - Controller support
-- Reset hotkey
