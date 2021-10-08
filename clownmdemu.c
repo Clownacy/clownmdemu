@@ -326,7 +326,13 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 
 void ClownMDEmu_Init(void *state_void)
 {
+	unsigned int i;
+
 	ClownMDEmu_State *state = (ClownMDEmu_State*)state_void;
+
+	/* The standard Sega SDK bootcode uses this to detect soft-resets */
+	for (i = 0; i < CC_COUNT_OF(state->joypads); ++i)
+		state->joypads[i].control = 0;
 
 	VDP_Init(&state->vdp);
 }
