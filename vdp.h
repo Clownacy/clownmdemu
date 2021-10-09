@@ -111,11 +111,11 @@ typedef struct VDP_State
 } VDP_State;
 
 void VDP_Init(VDP_State *state);
-void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanline_rendered_callback)(unsigned short scanline, void *pixels, unsigned short screen_width, unsigned short screen_height));
+void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline_rendered_callback)(unsigned int scanline, void *pixels, unsigned int screen_width, unsigned int screen_height));
 
-unsigned short VDP_ReadData(VDP_State *state);
-unsigned short VDP_ReadControl(VDP_State *state);
-void VDP_WriteData(VDP_State *state, unsigned short value);
-void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*read_callback)(void *user_data, unsigned long address), void *user_data);
+unsigned int VDP_ReadData(VDP_State *state);
+unsigned int VDP_ReadControl(VDP_State *state);
+void VDP_WriteData(VDP_State *state, unsigned int value);
+void VDP_WriteControl(VDP_State *state, unsigned int value, unsigned int (*read_callback)(void *user_data, unsigned long address), void *user_data);
 
 #endif /* VDP_H */

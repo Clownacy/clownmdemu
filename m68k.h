@@ -15,13 +15,13 @@ typedef struct M68k_State
 
 typedef struct M68k_ReadWriteCallbacks
 {
-	unsigned short (*read_callback)(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte);
-	void (*write_callback)(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned short value);
+	unsigned int (*read_callback)(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte);
+	void (*write_callback)(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned int value);
 	void *user_data;
 } M68k_ReadWriteCallbacks;
 
 void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks);
-void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned char level);
+void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned int level);
 void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks);
 
 #endif /* M68K_H */

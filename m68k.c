@@ -147,7 +147,7 @@ static unsigned long ReadByte(const M68k_ReadWriteCallbacks *callbacks, unsigned
 {
 	const cc_bool odd = !!(address & 1);
 
-	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, !odd, odd) >> (odd ? 0 : 8);
+	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, (cc_bool)!odd, odd) >> (odd ? 0 : 8);
 }
 
 static unsigned long ReadWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
@@ -182,7 +182,7 @@ static void WriteByte(const M68k_ReadWriteCallbacks *callbacks, unsigned long ad
 {
 	const cc_bool odd = !!(address & 1);
 
-	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, !odd, odd, value << (odd ? 0 : 8));
+	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, (cc_bool)!odd, odd, value << (odd ? 0 : 8));
 }
 
 static void WriteWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
@@ -198,7 +198,7 @@ static void WriteLongWord(const M68k_ReadWriteCallbacks *callbacks, unsigned lon
 
 /* Misc. utility */
 
-static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned char operation_size_in_bytes, AddressMode address_mode, unsigned char reg)
+static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned int operation_size_in_bytes, AddressMode address_mode, unsigned int reg)
 {
 	/* The stack pointer moves two bytes instead of one byte, for alignment purposes */
 	const unsigned int increment_decrement_size = (reg == 7 && operation_size_in_bytes == 1) ? 2 : operation_size_in_bytes;
@@ -314,7 +314,7 @@ typedef struct DecodedAddressMode
 	} data;
 } DecodedAddressMode;
 
-static void DecodeAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, DecodedAddressMode *decoded_address_mode, unsigned char operation_size_in_bytes, AddressMode address_mode, unsigned char reg)
+static void DecodeAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, DecodedAddressMode *decoded_address_mode, unsigned int operation_size_in_bytes, AddressMode address_mode, unsigned int reg)
 {
 	switch (address_mode)
 	{
@@ -407,7 +407,7 @@ static void SetValueUsingDecodedAddressMode(const M68k_ReadWriteCallbacks *callb
 	}
 }
 
-static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned short opcode)
+static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned int opcode)
 {
 	const cc_bool carry = !!(state->status_register & CONDITION_CODE_CARRY);
 	const cc_bool overflow = !!(state->status_register & CONDITION_CODE_OVERFLOW);
@@ -499,7 +499,7 @@ void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 	state->status_register |= 0x0700;
 }
 
-void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned char level)
+void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned int level)
 {
 	assert(level >= 1 && level <= 7);
 
@@ -514,7 +514,7 @@ void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks,
 		/* Set supervisor bit */
 		state->status_register |= 0x2000;
 		/* Set interrupt mask set to current level */
-		state->status_register |= (unsigned short)level << 8;
+		state->status_register |= level << 8;
 
 		state->program_counter = ReadLongWord(callbacks, 0x60 + level * 4);
 	}

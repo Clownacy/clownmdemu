@@ -93,7 +93,7 @@ static void InitBlitLookupTable(VDP_State *state)
 	}
 }
 
-static void WriteAndIncrement(VDP_State *state, unsigned short value)
+static void WriteAndIncrement(VDP_State *state, unsigned int value)
 {
 	unsigned int index = state->access.index / 2;
 
@@ -160,9 +160,9 @@ static void WriteAndIncrement(VDP_State *state, unsigned short value)
 	state->access.index += state->access.increment;
 }
 
-static unsigned short ReadAndIncrement(VDP_State *state)
+static unsigned int ReadAndIncrement(VDP_State *state)
 {
-	unsigned short value;
+	unsigned int value;
 
 	const unsigned int index = state->access.index / 2;
 
@@ -235,7 +235,7 @@ void VDP_Init(VDP_State *state)
 	InitBlitLookupTable(state);
 }
 
-void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanline_rendered_callback)(unsigned short scanline, void *pixels, unsigned short screen_width, unsigned short screen_height))
+void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline_rendered_callback)(unsigned int scanline, void *pixels, unsigned int screen_width, unsigned int screen_height))
 {
 	unsigned int i;
 
@@ -586,9 +586,9 @@ void VDP_RenderScanline(VDP_State *state, unsigned short scanline, void (*scanli
 	scanline_rendered_callback(scanline, pixels, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) << tile_height_power);
 }
 
-unsigned short VDP_ReadData(VDP_State *state)
+unsigned int VDP_ReadData(VDP_State *state)
 {
-	unsigned short value = 0;
+	unsigned int value = 0;
 
 	if (!state->access.read_mode)
 	{
@@ -605,7 +605,7 @@ unsigned short VDP_ReadData(VDP_State *state)
 	return value;
 }
 
-unsigned short VDP_ReadControl(VDP_State *state)
+unsigned int VDP_ReadControl(VDP_State *state)
 {
 	/* TODO */
 
@@ -618,7 +618,7 @@ unsigned short VDP_ReadControl(VDP_State *state)
 	return (state->currently_in_vblank << 3) | (1 << 2);
 }
 
-void VDP_WriteData(VDP_State *state, unsigned short value)
+void VDP_WriteData(VDP_State *state, unsigned int value)
 {
 	if (state->access.read_mode)
 	{
@@ -648,7 +648,7 @@ void VDP_WriteData(VDP_State *state, unsigned short value)
 }
 
 /* TODO - Retention of partial commands */
-void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*read_callback)(void *user_data, unsigned long address), void *user_data)
+void VDP_WriteControl(VDP_State *state, unsigned int value, unsigned int (*read_callback)(void *user_data, unsigned long address), void *user_data)
 {
 	if (state->access.write_pending)
 	{
@@ -822,8 +822,8 @@ void VDP_WriteControl(VDP_State *state, unsigned short value, unsigned short (*r
 			case 16:
 			{
 				/* SCROLL SIZE */
-				const unsigned char width_index  = (data >> 0) & 3;
-				const unsigned char height_index = (data >> 4) & 3;
+				const unsigned int width_index  = (data >> 0) & 3;
+				const unsigned int height_index = (data >> 4) & 3;
 
 				if ((width_index == 3 && height_index != 0) || (height_index == 3 && width_index != 0))
 				{

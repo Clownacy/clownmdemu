@@ -43,15 +43,15 @@ typedef struct ClownMDEmu_State
 typedef struct CallbackUserData
 {
 	ClownMDEmu_State *state;
-	unsigned char (*read_input_callback)(unsigned char player_id, unsigned char button_id);
+	unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id);
 } CallbackUserData;
 
 /* VDP memory access callback */
 
-static unsigned short VDPReadCallback(void *user_data, unsigned long address)
+static unsigned int VDPReadCallback(void *user_data, unsigned long address)
 {
 	ClownMDEmu_State *state = (ClownMDEmu_State*)user_data;
-	unsigned short value = 0;
+	unsigned int value = 0;
 
 	if (/*address >= 0 &&*/ address < state->rom.size)
 	{
@@ -73,11 +73,11 @@ static unsigned short VDPReadCallback(void *user_data, unsigned long address)
 
 /* 68k memory access callbacks */
 
-static unsigned short M68kReadCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte)
+static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte)
 {
 	CallbackUserData *callback_user_data = (CallbackUserData*)user_data;
 	ClownMDEmu_State *state = callback_user_data->state;
-	unsigned short value = 0;
+	unsigned int value = 0;
 
 	if (/*address >= 0 &&*/ address < state->rom.size)
 	{
@@ -210,13 +210,13 @@ static unsigned short M68kReadCallback(void *user_data, unsigned long address, c
 	return value;
 }
 
-static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned short value)
+static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned int value)
 {
 	CallbackUserData *callback_user_data = (CallbackUserData*)user_data;
 	ClownMDEmu_State *state = callback_user_data->state;
 
-	const unsigned char high_byte = (unsigned char)(value >> 8) & 0xFF;
-	const unsigned char low_byte = (unsigned char)(value >> 0) & 0xFF;
+	const unsigned char high_byte = (unsigned char)((value >> 8) & 0xFF);
+	const unsigned char low_byte = (unsigned char)((value >> 0) & 0xFF);
 
 	if (/*address >= 0 &&*/ address < state->rom.size)
 	{
@@ -345,7 +345,7 @@ void ClownMDEmu_Deinit(void *state_void)
 	(void)state;
 }
 
-void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(unsigned short scanline, void *pixels, unsigned short screen_width, unsigned short screen_height), unsigned char (*read_input_callback)(unsigned char player_id, unsigned char button_id))
+void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(unsigned int scanline, void *pixels, unsigned int screen_width, unsigned int screen_height), unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id))
 {
 	/* TODO - user callbacks for reading input and showing video */
 
