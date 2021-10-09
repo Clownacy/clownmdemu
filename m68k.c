@@ -323,7 +323,7 @@ static void DecodeAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *
 			/* Register */
 			decoded_address_mode->type = DECODED_ADDRESS_MODE_TYPE_REGISTER;
 			decoded_address_mode->data.reg.address = &(address_mode == ADDRESS_MODE_ADDRESS_REGISTER ? state->address_registers : state->data_registers)[reg];
-			decoded_address_mode->data.reg.operation_size_bitmask = ~(~0ul << (operation_size_in_bytes * 8));
+			decoded_address_mode->data.reg.operation_size_bitmask = (0xFFFFFFFF >> (32 - operation_size_in_bytes * 8));
 			break;
 
 		default:
@@ -2518,7 +2518,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TST:
 					/* Standard behaviour: set if result is zero; clear otherwise */
 					state->status_register &= ~CONDITION_CODE_ZERO;
-					state->status_register |= CONDITION_CODE_ZERO * ((result_value & ~(~0ul << (operation_size * 8))) == 0);
+					state->status_register |= CONDITION_CODE_ZERO * ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0);
 					break;
 
 				case INSTRUCTION_DIVS:
