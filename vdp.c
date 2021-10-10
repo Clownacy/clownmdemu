@@ -95,7 +95,7 @@ static void InitBlitLookupTable(VDP_State *state)
 
 static void WriteAndIncrement(VDP_State *state, unsigned int value)
 {
-	unsigned int index = state->access.index / 2;
+	const unsigned int index = state->access.index / 2;
 
 	switch (state->access.selected_buffer)
 	{
@@ -117,37 +117,29 @@ static void WriteAndIncrement(VDP_State *state, unsigned int value)
 
 		case VDP_ACCESS_CRAM:
 		{
-			/* Convert colour to RGB24 now so we don't have to do it while blitting */
-			const unsigned int red = (value >> 1) & 7;
-			const unsigned int green = (value >> 5) & 7;
-			const unsigned int blue = (value >> 9) & 7;
+			/* Remove garbage bits */
+			const unsigned int colour = value & 0xEEE;
 
-			const unsigned int red_8bit = (red << 5) | (red << 2) | (red >> 1);
-			const unsigned int green_8bit = (green << 5) | (green << 2) | (green >> 1);
-			const unsigned int blue_8bit = (blue << 5) | (blue << 2) | (blue >> 1);
+			/* Fit index to within CRAM */
+			const unsigned int index_wrapped = index & (CC_COUNT_OF(state->cram) - 1);
 
-			index &= (CC_COUNT_OF(state->cram) - 1);
+			/* Store regular Mega Drive-format colour (with garbage bits intact) */
+			state->cram[index_wrapped] = value;
+
+			/* Now let's precompute the shadow/normal/highlight colours in
+			   RGB444 so we don't have to calculate them during blitting */
 
 			/* Create normal colour */
-			/* (leave as-is) */
-			state->cram_native[SHADOW_HIGHLIGHT_NORMAL | index][0] = red_8bit;
-			state->cram_native[SHADOW_HIGHLIGHT_NORMAL | index][1] = green_8bit;
-			state->cram_native[SHADOW_HIGHLIGHT_NORMAL | index][2] = blue_8bit;
+			/* (repeat the upper bit in the lower bit so that the full 4-bit colour range is covered) */
+			state->cram_native[SHADOW_HIGHLIGHT_NORMAL + index_wrapped] = colour | ((colour & 0x888) >> 3);
 
 			/* Create shadow colour */
 			/* (divide by two and leave in lower half of colour range) */
-			state->cram_native[SHADOW_HIGHLIGHT_SHADOW | index][0] = red_8bit / 2;
-			state->cram_native[SHADOW_HIGHLIGHT_SHADOW | index][1] = green_8bit / 2;
-			state->cram_native[SHADOW_HIGHLIGHT_SHADOW | index][2] = blue_8bit / 2;
+			state->cram_native[SHADOW_HIGHLIGHT_SHADOW + index_wrapped] = colour >> 1;
 
 			/* Create highlight colour */
 			/* (divide by two and move to upper half of colour range) */
-			state->cram_native[SHADOW_HIGHLIGHT_HIGHLIGHT | index][0] = red_8bit / 2 + 0x80;
-			state->cram_native[SHADOW_HIGHLIGHT_HIGHLIGHT | index][1] = green_8bit / 2 + 0x80;
-			state->cram_native[SHADOW_HIGHLIGHT_HIGHLIGHT | index][2] = blue_8bit / 2 + 0x80;
-
-			/* Finally store regular Mega Drive-format colour */
-			state->cram[index] = value;
+			state->cram_native[SHADOW_HIGHLIGHT_HIGHLIGHT + index_wrapped] = 0x888 + (colour >> 1);
 
 			break;
 		}
@@ -235,12 +227,12 @@ void VDP_Init(VDP_State *state)
 	InitBlitLookupTable(state);
 }
 
-void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline_rendered_callback)(unsigned int scanline, void *pixels, unsigned int screen_width, unsigned int screen_height))
+void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline_rendered_callback)(unsigned int scanline, const unsigned short *pixels, unsigned int screen_width, unsigned int screen_height))
 {
 	unsigned int i;
 
 	/* This is multipled by 3 because it holds RGB values */
-	unsigned char pixels[VDP_MAX_SCANLINE_WIDTH * 3];
+	unsigned short pixels[VDP_MAX_SCANLINE_WIDTH];
 
 	const unsigned int tile_height_power = state->interlace_mode_2_enabled ? 4 : 3;
 	const unsigned int tile_height_mask = (1 << tile_height_power) - 1;
@@ -547,11 +539,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 			{
 				const unsigned char pixel = state->blit_lookup_shadow_highlight[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]];
 
-				const unsigned char *colour = state->cram_native[pixel];
-
-				pixels[i * 3 + 0] = colour[0];
-				pixels[i * 3 + 1] = colour[1];
-				pixels[i * 3 + 2] = colour[2];
+				pixels[i] = state->cram_native[pixel];
 			}
 		}
 		else
@@ -560,11 +548,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 			{
 				const unsigned char pixel = state->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]];
 
-				const unsigned char *colour = state->cram_native[pixel & 0x3F];
-
-				pixels[i * 3 + 0] = colour[0];
-				pixels[i * 3 + 1] = colour[1];
-				pixels[i * 3 + 2] = colour[2];
+				pixels[i] = state->cram_native[pixel & 0x3F];
 			}
 		}
 
@@ -572,14 +556,10 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 	}
 	else
 	{
-		const unsigned char *colour = state->cram_native[state->background_colour];
+		const unsigned short colour = state->cram_native[state->background_colour];
 
 		for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
-		{
-			pixels[i * 3 + 0] = colour[0];
-			pixels[i * 3 + 1] = colour[1];
-			pixels[i * 3 + 2] = colour[2];
-		}
+			pixels[i] = colour;
 	}
 
 	/* Send the RGB pixels to be rendered */

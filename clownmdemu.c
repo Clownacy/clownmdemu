@@ -345,7 +345,7 @@ void ClownMDEmu_Deinit(void *state_void)
 	(void)state;
 }
 
-void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(unsigned int scanline, void *pixels, unsigned int screen_width, unsigned int screen_height), unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id))
+void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(unsigned int scanline, const unsigned short *pixels, unsigned int screen_width, unsigned int screen_height), unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id))
 {
 	/* TODO - user callbacks for reading input and showing video */
 

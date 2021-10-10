@@ -20,7 +20,7 @@ enum
 
 void ClownMDEmu_Init(void *state);
 void ClownMDEmu_Deinit(void *state);
-void ClownMDEmu_Iterate(void *state, void (*video_callback)(unsigned int scanline, void *pixels, unsigned int screen_width, unsigned int screen_height), unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id));
+void ClownMDEmu_Iterate(void *state, void (*video_callback)(unsigned int scanline, const unsigned short *pixels, unsigned int screen_width, unsigned int screen_height), unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id));
 void ClownMDEmu_UpdateROM(void *state, const unsigned char *rom_buffer, size_t rom_size);
 void ClownMDEmu_SetROMWriteable(void *state, unsigned char rom_writeable);
 void ClownMDEmu_Reset(void *state_void);
