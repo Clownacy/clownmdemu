@@ -117,7 +117,7 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 		{
 			case 0xA10000:
 				if (do_low_byte)
-					value |= (1 << 7) | (1 << 5);	/* Bit 7 set = overseas model, bit 5 set = no Mega CD attached */
+					value |= (!state->japanese << 7) | (state->pal << 6) | (1 << 5);	/* Bit 5 set = no Mega CD attached */
 
 				break;
 
