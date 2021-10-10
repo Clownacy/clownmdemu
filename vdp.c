@@ -533,6 +533,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 		 * ******************************************** */
 
 		/* Convert the metapixels to RGB pixels */
+		/* TODO - Maybe leave colouring to the frontend, in case it has a preferred colour format? */
 		if (state->shadow_highlight_enabled)
 		{
 			for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
