@@ -614,8 +614,8 @@ unsigned int VDP_ReadControl(VDP_State *state)
 	   boot code makes use of this feature. */
 	state->access.write_pending = cc_false;
 
-	/* Set the 'V-blanking' and 'H-blanking' bits */
-	return (state->currently_in_vblank << 3) | (1 << 2);
+	/* Output the 'V-blanking' and 'H-blanking' bits */
+	return (state->currently_in_vblank << 3) | (0 << 2);
 }
 
 void VDP_WriteData(VDP_State *state, unsigned int value)
