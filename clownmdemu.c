@@ -43,6 +43,7 @@ typedef struct ClownMDEmu_State
 typedef struct CallbackUserData
 {
 	ClownMDEmu_State *state;
+	void (*colour_updated_callback)(unsigned int index, unsigned int colour);
 	unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id);
 } CallbackUserData;
 
@@ -297,11 +298,11 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 	else if (address == 0xC00000 || address == 0xC00002)
 	{
-		VDP_WriteData(&state->vdp, value);
+		VDP_WriteData(&state->vdp, value, callback_user_data->colour_updated_callback);
 	}
 	else if (address == 0xC00004 || address == 0xC00006)
 	{
-		VDP_WriteControl(&state->vdp, value, VDPReadCallback, state);
+		VDP_WriteControl(&state->vdp, value, callback_user_data->colour_updated_callback, VDPReadCallback, state);
 	}
 	else if (address == 0xC00008)
 	{
@@ -345,7 +346,7 @@ void ClownMDEmu_Deinit(void *state_void)
 	(void)state;
 }
 
-void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(unsigned int scanline, const unsigned short *pixels, unsigned int screen_width, unsigned int screen_height), unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id))
+void ClownMDEmu_Iterate(void *state_void, void (*colour_updated_callback)(unsigned int index, unsigned int colour), void (*scanline_rendered_callback)(unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id))
 {
 	/* TODO - user callbacks for reading input and showing video */
 
@@ -359,6 +360,7 @@ void ClownMDEmu_Iterate(void *state_void, void (*scanline_rendered_callback)(uns
 	const unsigned int m68k_cycles_per_scanline = (state->pal ? MASTER_CLOCK_PAL : MASTER_CLOCK_NTSC) / (state->pal ? 50 : 60) / television_vertical_resolution / 7;
 
 	callback_user_data.state = state;
+	callback_user_data.colour_updated_callback = colour_updated_callback;
 	callback_user_data.read_input_callback = read_input_callback;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
@@ -453,8 +455,10 @@ void ClownMDEmu_Reset(void *state_void)
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	CallbackUserData callback_user_data;
 
+	/* TODO - Please rethink this */
 	callback_user_data.state = state;
-	callback_user_data.read_input_callback = NULL; /* TODO - Please rethink this */
+	callback_user_data.colour_updated_callback = NULL;
+	callback_user_data.read_input_callback = NULL;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;

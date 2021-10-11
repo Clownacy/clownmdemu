@@ -93,7 +93,7 @@ static void InitBlitLookupTable(VDP_State *state)
 	}
 }
 
-static void WriteAndIncrement(VDP_State *state, unsigned int value)
+static void WriteAndIncrement(VDP_State *state, unsigned int value, void (*colour_updated_callback)(unsigned int index, unsigned int colour))
 {
 	const unsigned int index = state->access.index / 2;
 
@@ -127,19 +127,20 @@ static void WriteAndIncrement(VDP_State *state, unsigned int value)
 			state->cram[index_wrapped] = value;
 
 			/* Now let's precompute the shadow/normal/highlight colours in
-			   RGB444 so we don't have to calculate them during blitting */
+			   RGB444 (so we don't have to calculate them during blitting)
+			   and send them to the frontend for further optimisation */
 
 			/* Create normal colour */
 			/* (repeat the upper bit in the lower bit so that the full 4-bit colour range is covered) */
-			state->cram_native[SHADOW_HIGHLIGHT_NORMAL + index_wrapped] = colour | ((colour & 0x888) >> 3);
+			colour_updated_callback(SHADOW_HIGHLIGHT_NORMAL + index_wrapped, colour | ((colour & 0x888) >> 3));
 
 			/* Create shadow colour */
 			/* (divide by two and leave in lower half of colour range) */
-			state->cram_native[SHADOW_HIGHLIGHT_SHADOW + index_wrapped] = colour >> 1;
+			colour_updated_callback(SHADOW_HIGHLIGHT_SHADOW + index_wrapped, colour >> 1);
 
 			/* Create highlight colour */
 			/* (divide by two and move to upper half of colour range) */
-			state->cram_native[SHADOW_HIGHLIGHT_HIGHLIGHT + index_wrapped] = 0x888 + (colour >> 1);
+			colour_updated_callback(SHADOW_HIGHLIGHT_HIGHLIGHT + index_wrapped, 0x888 + (colour >> 1));
 
 			break;
 		}
@@ -227,12 +228,22 @@ void VDP_Init(VDP_State *state)
 	InitBlitLookupTable(state);
 }
 
-void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline_rendered_callback)(unsigned int scanline, const unsigned short *pixels, unsigned int screen_width, unsigned int screen_height))
+void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline_rendered_callback)(unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height))
 {
 	unsigned int i;
 
-	/* This is multipled by 3 because it holds RGB values */
-	unsigned short pixels[VDP_MAX_SCANLINE_WIDTH];
+	/* The original hardware has a bug where if you use V-scroll and H-scroll at the same time,
+	   the partially off-screen leftmost column will use an invalid V-scroll value.
+	   To simulate this, 16 extra pixels are rendered at the left size of the scanline.
+	   Depending on the H-scroll value, these pixels may appear on the left side of the screen.
+	   This is done by offsetting where the pixels start being written to the buffer.
+	   This is why the buffer has an extra 16 bytes at the beginning, and an extra 15 bytes at
+	   the end.
+	   Also of note is that this function renders a tile's entire width, regardless of whether
+	   it's fully on-screen or not. This is why VDP_MAX_SCANLINE_WIDTH is rounded up to 8.
+	   In both cases, these extra bytes exist to catch the 'overflow' values that are written
+	   outside the visible portion of the buffer. */
+	unsigned char plane_metapixels[16 + (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 * 8 + (16 - 1)];
 
 	const unsigned int tile_height_power = state->interlace_mode_2_enabled ? 4 : 3;
 	const unsigned int tile_height_mask = (1 << tile_height_power) - 1;
@@ -240,36 +251,24 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 
 	assert(scanline < VDP_MAX_SCANLINES);
 
+	/* Fill the scanline buffer with the background colour */
+	memset(plane_metapixels, state->background_colour, sizeof(plane_metapixels));
+
 	if (state->display_enabled)
 	{
-		#define MAX_SPRITE_WIDTH (8 * 4)
-
 		/* ***** *
 		 * Setup *
 		 * ***** */
 
+		#define MAX_SPRITE_WIDTH (8 * 4)
+
 		unsigned int sprite_limit = state->h40_enabled ? 20 : 16;
 		unsigned int pixel_limit = state->h40_enabled ? 320 : 256;
-
-		/* The original hardware has a bug where if you use V-scroll and H-scroll at the same time,
-		   the partially off-screen leftmost column will use an invalid V-scroll value.
-		   To simulate this, 16 extra pixels are rendered at the left size of the scanline.
-		   Depending on the H-scroll value, these pixels may appear on the left side of the screen.
-		   This is done by offsetting where the pixels start being written to the buffer.
-		   This is why the buffer has an extra 16 bytes at the beginning, and an extra 15 bytes at
-		   the end.
-		   Also of note is that this function renders a tile's entire width, regardless of whether
-		   it's fully on-screen or not. This is why VDP_MAX_SCANLINE_WIDTH is rounded up to 8.
-		   In both cases, these extra bytes exist to catch the 'overflow' values that are written
-		   outside the visible portion of the buffer. */
-		unsigned char plane_metapixels[16 + (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 * 8 + (16 - 1)];
 
 		/* The padding bytes of the left and right are for allowing sprites to overdraw at the
 		   edges of the screen. */
 		unsigned char sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_WIDTH - 1)];
 
-		/* Fill the scanline buffer with the background colour */
-		memset(plane_metapixels, state->background_colour, sizeof(plane_metapixels));
 
 		/* *********** */
 		/* Draw planes */
@@ -528,43 +527,26 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 		}
 	DoneWithSprites:
 
-		/* ******************************************** *
-		 * Colourise output and send it to be displayed *
-		 * ******************************************** */
+		/* ************************************ *
+		 * Blit sprite pixels onto plane pixels *
+		 * ************************************ */
 
-		/* Convert the metapixels to RGB pixels */
-		/* TODO - Maybe leave colouring to the frontend, in case it has a preferred colour format? */
 		if (state->shadow_highlight_enabled)
 		{
 			for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
-			{
-				const unsigned char pixel = state->blit_lookup_shadow_highlight[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]];
-
-				pixels[i] = state->cram_native[pixel];
-			}
+				plane_metapixels[16 + i] = state->blit_lookup_shadow_highlight[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]];
 		}
 		else
 		{
 			for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
-			{
-				const unsigned char pixel = state->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]];
-
-				pixels[i] = state->cram_native[pixel & 0x3F];
-			}
+				plane_metapixels[16 + i] = state->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]] & 0x3F;
 		}
 
 		#undef MAX_SPRITE_WIDTH
 	}
-	else
-	{
-		const unsigned short colour = state->cram_native[state->background_colour];
 
-		for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
-			pixels[i] = colour;
-	}
-
-	/* Send the RGB pixels to be rendered */
-	scanline_rendered_callback(scanline, pixels, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) << tile_height_power);
+	/* Send pixels to the frontend to be displayed */
+	scanline_rendered_callback(scanline, plane_metapixels + 16, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) << tile_height_power);
 }
 
 unsigned int VDP_ReadData(VDP_State *state)
@@ -599,7 +581,7 @@ unsigned int VDP_ReadControl(VDP_State *state)
 	return (state->currently_in_vblank << 3) | (0 << 2);
 }
 
-void VDP_WriteData(VDP_State *state, unsigned int value)
+void VDP_WriteData(VDP_State *state, unsigned int value, void (*colour_updated_callback)(unsigned int index, unsigned int colour))
 {
 	if (state->access.read_mode)
 	{
@@ -617,19 +599,19 @@ void VDP_WriteData(VDP_State *state, unsigned int value)
 
 		do
 		{
-			WriteAndIncrement(state, value);
+			WriteAndIncrement(state, value, colour_updated_callback);
 		}
 		while (--state->dma.length, state->dma.length &= 0xFFFF, state->dma.length != 0);
 	}
 	else
 	{
 		/* Write the value to memory */
-		WriteAndIncrement(state, value);
+		WriteAndIncrement(state, value, colour_updated_callback);
 	}
 }
 
 /* TODO - Retention of partial commands */
-void VDP_WriteControl(VDP_State *state, unsigned int value, unsigned int (*read_callback)(void *user_data, unsigned long address), void *user_data)
+void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_updated_callback)(unsigned int index, unsigned int colour), unsigned int (*read_callback)(void *user_data, unsigned long address), void *user_data)
 {
 	if (state->access.write_pending)
 	{
@@ -674,7 +656,7 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, unsigned int (*read_
 			{
 				do
 				{
-					WriteAndIncrement(state, read_callback(user_data, ((unsigned long)state->dma.source_address_high << 17) | ((unsigned long)state->dma.source_address_low << 1)));
+					WriteAndIncrement(state, read_callback(user_data, ((unsigned long)state->dma.source_address_high << 17) | ((unsigned long)state->dma.source_address_low << 1)), colour_updated_callback);
 
 					/* Emulate the 128KiB DMA wrap-around bug */
 					++state->dma.source_address_low;
