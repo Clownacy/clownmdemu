@@ -578,7 +578,7 @@ unsigned int VDP_ReadControl(VDP_State *state)
 	state->access.write_pending = cc_false;
 
 	/* Output the 'V-blanking' and 'H-blanking' bits */
-	return (state->currently_in_vblank << 3) | (0 << 2);
+	return (state->currently_in_vblank << 3) | (1 << 2); /* The H-blank bit is forced for now so Sonic 2's two-player mode works */
 }
 
 void VDP_WriteData(VDP_State *state, unsigned int value, void (*colour_updated_callback)(unsigned int index, unsigned int colour))
