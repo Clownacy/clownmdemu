@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(clownmdemu LANGUAGES C)
 
-add_library(clownmdemu
+add_library(clownmdemu STATIC
 	"clownmdemu.c"
 	"clownmdemu.h"
 	"clowncommon.h"
@@ -22,11 +22,4 @@ set_target_properties(clownmdemu PROPERTIES
 	CXX_STANDARD 98
 	CXX_STANDARD_REQUIRED NO
 	CXX_EXTENSIONS OFF
-
-	PUBLIC_HEADER "clownmdemu.h"
-)
-
-target_include_directories(clownmdemu PUBLIC
-	"$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
-	"$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )

@@ -15,31 +15,6 @@
 #define MASTER_CLOCK_NTSC 53693175
 #define MASTER_CLOCK_PAL  53203424
 
-#define ROM_BUFFER_SIZE (1024 * 1024 * 4) /* 4MiB */
-
-typedef struct ClownMDEmu_State
-{
-	cc_bool pal;
-	cc_bool japanese;
-	struct
-	{
-		unsigned char buffer[ROM_BUFFER_SIZE];
-		size_t size;
-		cc_bool writeable;
-	} rom;
-
-	M68k_State m68k;
-	unsigned char m68k_ram[0x10000];
-	unsigned char z80_ram[0x2000];
-	VDP_State vdp;
-	unsigned char h_int_counter;
-	struct
-	{
-		unsigned char control;
-		unsigned char data;
-	} joypads[3];
-} ClownMDEmu_State;
-
 typedef struct CallbackUserData
 {
 	ClownMDEmu_State *state;
@@ -325,11 +300,9 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 }
 
-void ClownMDEmu_Init(void *state_void)
+void ClownMDEmu_Init(ClownMDEmu_State *state)
 {
 	unsigned int i;
-
-	ClownMDEmu_State *state = (ClownMDEmu_State*)state_void;
 
 	/* The standard Sega SDK bootcode uses this to detect soft-resets */
 	for (i = 0; i < CC_COUNT_OF(state->joypads); ++i)
@@ -338,19 +311,14 @@ void ClownMDEmu_Init(void *state_void)
 	VDP_Init(&state->vdp);
 }
 
-void ClownMDEmu_Deinit(void *state_void)
+void ClownMDEmu_Deinit(ClownMDEmu_State *state)
 {
-	ClownMDEmu_State *state = (ClownMDEmu_State*)state_void;
-
 	/* No idea */
 	(void)state;
 }
 
-void ClownMDEmu_Iterate(void *state_void, void (*colour_updated_callback)(unsigned int index, unsigned int colour), void (*scanline_rendered_callback)(unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id))
+void ClownMDEmu_Iterate(ClownMDEmu_State *state, void (*colour_updated_callback)(unsigned int index, unsigned int colour), void (*scanline_rendered_callback)(unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id))
 {
-	/* TODO - user callbacks for reading input and showing video */
-
-	ClownMDEmu_State *state = (ClownMDEmu_State*)state_void;
 	unsigned int scanline, i;
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	CallbackUserData callback_user_data;
@@ -427,11 +395,9 @@ void ClownMDEmu_Iterate(void *state_void, void (*colour_updated_callback)(unsign
 }
 
 /* TODO - Replace this with a function that retrieves a pointer to the internal buffer, to avoid a needless memcpy */
-void ClownMDEmu_UpdateROM(void *state_void, const unsigned char *rom_buffer, size_t rom_size)
+void ClownMDEmu_UpdateROM(ClownMDEmu_State *state, const unsigned char *rom_buffer, size_t rom_size)
 {
-	ClownMDEmu_State *state = (ClownMDEmu_State*)state_void;
-
-	if (rom_size > ROM_BUFFER_SIZE)
+	if (rom_size > sizeof(state->rom.buffer))
 	{
 		PrintError("Provided ROM was too big for the internal buffer");
 	}
@@ -442,16 +408,13 @@ void ClownMDEmu_UpdateROM(void *state_void, const unsigned char *rom_buffer, siz
 	}
 }
 
-void ClownMDEmu_SetROMWriteable(void *state_void, unsigned char rom_writeable)
+void ClownMDEmu_SetROMWriteable(ClownMDEmu_State *state, cc_bool rom_writeable)
 {
-	ClownMDEmu_State *state = (ClownMDEmu_State*)state_void;
-
 	state->rom.writeable = !!rom_writeable; /* Convert to boolean */
 }
 
-void ClownMDEmu_Reset(void *state_void)
+void ClownMDEmu_Reset(ClownMDEmu_State *state)
 {
-	ClownMDEmu_State *state = (ClownMDEmu_State*)state_void;
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	CallbackUserData callback_user_data;
 
@@ -467,21 +430,12 @@ void ClownMDEmu_Reset(void *state_void)
 	M68k_Reset(&state->m68k, &m68k_read_write_callbacks);
 }
 
-void ClownMDEmu_SetPAL(void *state_void, unsigned char pal)
+void ClownMDEmu_SetPAL(ClownMDEmu_State *state, cc_bool pal)
 {
-	ClownMDEmu_State *state = (ClownMDEmu_State*)state_void;
-
 	state->pal = !!pal;
 }
 
-void ClownMDEmu_SetJapanese(void *state_void, unsigned char japanese)
+void ClownMDEmu_SetJapanese(ClownMDEmu_State *state, cc_bool japanese)
 {
-	ClownMDEmu_State *state = (ClownMDEmu_State*)state_void;
-
 	state->japanese = !!japanese;
-}
-
-size_t ClownMDEmu_GetStateSize(void)
-{
-	return sizeof(ClownMDEmu_State);
 }
