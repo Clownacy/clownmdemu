@@ -39,10 +39,12 @@ typedef struct PSG_State
 		   2 - 0x40
 		   3 - the same as the last tone channel */
 		unsigned int frequency_mode;
-		/* The type of sound output by the channel:
-		   false - "periodic noise"
-		   true  - "white noise" */
-		cc_bool white_noise_mode;
+		/* The type of noise output by the channel */
+		enum
+		{
+			PSG_NOISE_TYPE_PERIODIC,
+			PSG_NOISE_TYPE_WHITE
+		} type;
 		/* Rotating bitfield which is used to produce noise */
 		unsigned int shift_register;
 	} noise;

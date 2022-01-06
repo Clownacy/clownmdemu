@@ -30,7 +30,7 @@ void PSG_Init(PSG_State *state)
 	state->noise.fake_output_bit = 0;
 	state->noise.real_output_bit = 0;
 	state->noise.frequency_mode = 0;
-	state->noise.white_noise_mode = cc_false;
+	state->noise.type = PSG_NOISE_TYPE_PERIODIC;
 	state->noise.shift_register = 0;
 
 	/* Reset the latched command data */
@@ -108,7 +108,7 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 		else
 		{
 			/* Frequency command */
-			state->noise.white_noise_mode = !!(command & 4);
+			state->noise.type = (command & 4) ? PSG_NOISE_TYPE_WHITE : PSG_NOISE_TYPE_PERIODIC;
 			state->noise.frequency_mode = command & 3;
 
 			/* https://www.smspower.org/Development/SN76489
@@ -193,7 +193,7 @@ void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples)
 				state->noise.shift_register <<= 1;
 				state->noise.shift_register |= state->noise.real_output_bit;
 
-				if (state->noise.white_noise_mode)
+				if (state->noise.type == PSG_NOISE_TYPE_WHITE)
 					state->noise.shift_register ^= (state->noise.shift_register & 0x2000) >> 13;
 			}
 		}
