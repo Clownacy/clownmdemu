@@ -66,7 +66,6 @@ void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples)
 
 	for (j = 0; j < total_samples; ++j)
 	{
-		/* TODO - Periodic mode */
 		if (state->noise.countdown-- == 0)
 		{
 			switch (state->noise.frequency_mode)
@@ -95,7 +94,10 @@ void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples)
 				state->noise.real_output_bit = !!(state->noise.shift_register & 0x8000);
 
 				state->noise.shift_register <<= 1;
-				state->noise.shift_register |= state->noise.real_output_bit != !!(state->noise.shift_register & 0x2000);
+				state->noise.shift_register |= state->noise.real_output_bit;
+
+				if (!state->noise.periodic_mode)
+					state->noise.shift_register  ^= (state->noise.shift_register & 0x2000) >> 13;
 			}
 		}
 
