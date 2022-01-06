@@ -53,6 +53,74 @@ void PSG_Init(PSG_State *state)
 	state->volumes[0xF][1] = 0;
 }
 
+void PSG_DoCommand(PSG_State *state, unsigned int command)
+{
+	const cc_bool latch = !!(command & 0x80);
+
+	if (latch)
+	{
+		/* Latch command */
+		state->latched_command.channel = (command >> 5) & 3;
+		state->latched_command.is_volume_command = !!(command & 0x10);
+	}
+
+	if (state->latched_command.channel < CC_COUNT_OF(state->tones))
+	{
+		/* Tone channel */
+		PSG_ToneState *tone = &state->tones[state->latched_command.channel];
+
+		if (state->latched_command.is_volume_command)
+		{
+			/* Volume command */
+			tone->attenuation = command & 0xF;
+			/* According to http://md.railgun.works/index.php?title=PSG, this should happen,
+			   but when I test it, I get crackly audio, so I've disabled it for now. */
+			   /*tone->output_bit = 0;*/
+		}
+		else
+		{
+			/* Frequency command */
+			if (latch)
+			{
+				/* Low frequency bits */
+				tone->countdown_master &= ~0xF;
+				tone->countdown_master |= command & 0xF;
+			}
+			else
+			{
+				/* High frequency bits */
+				tone->countdown_master &= 0xF;
+				tone->countdown_master |= (command & 0x3F) << 4;
+			}
+		}
+	}
+	else
+	{
+		/* Noise channel */
+		if (state->latched_command.is_volume_command)
+		{
+			/* Volume command */
+			state->noise.attenuation = command & 0xF;
+			/* According to http://md.railgun.works/index.php?title=PSG, this should happen,
+			   but when I test it, I get crackly audio, so I've disabled it for now. */
+			   /*state->noise.fake_output_bit = 0;*/
+		}
+		else
+		{
+			/* Frequency command */
+			state->noise.periodic_mode = !!(command & 4);
+			state->noise.frequency_mode = command & 3;
+
+			/* https://www.smspower.org/Development/SN76489
+			   "When the noise register is written to, the shift register is reset,
+			   such that all bits are zero except for the highest bit. This will make
+			   the "periodic noise" output a 1/16th (or 1/15th) duty cycle, and is
+			   important as it also affects the sound of white noise." */
+			state->noise.shift_register = 1;
+		}
+	}
+}
+
 void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples)
 {
 	unsigned int i;
@@ -132,73 +200,5 @@ void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples)
 
 		/* Output a sample */
 		*sample_buffer_pointer++ += state->volumes[state->noise.attenuation][state->noise.real_output_bit];
-	}
-}
-
-void PSG_DoCommand(PSG_State *state, unsigned int command)
-{
-	const cc_bool latch = !!(command & 0x80);
-
-	if (latch)
-	{
-		/* Latch command */
-		state->latched_command.channel = (command >> 5) & 3;
-		state->latched_command.is_volume_command = !!(command & 0x10);
-	}
-
-	if (state->latched_command.channel < CC_COUNT_OF(state->tones))
-	{
-		/* Tone channel */
-		PSG_ToneState *tone = &state->tones[state->latched_command.channel];
-
-		if (state->latched_command.is_volume_command)
-		{
-			/* Volume command */
-			tone->attenuation = command & 0xF;
-			/* According to http://md.railgun.works/index.php?title=PSG, this should happen,
-			   but when I test it, I get crackly audio, so I've disabled it for now. */
-			/*tone->output_bit = 0;*/
-		}
-		else
-		{
-			/* Frequency command */
-			if (latch)
-			{
-				/* Low frequency bits */
-				tone->countdown_master &= ~0xF;
-				tone->countdown_master |= command & 0xF;
-			}
-			else
-			{
-				/* High frequency bits */
-				tone->countdown_master &= 0xF;
-				tone->countdown_master |= (command & 0x3F) << 4;
-			}
-		}
-	}
-	else
-	{
-		/* Noise channel */
-		if (state->latched_command.is_volume_command)
-		{
-			/* Volume command */
-			state->noise.attenuation = command & 0xF;
-			/* According to http://md.railgun.works/index.php?title=PSG, this should happen,
-			   but when I test it, I get crackly audio, so I've disabled it for now. */
-			/*state->noise.fake_output_bit = 0;*/
-		}
-		else
-		{
-			/* Frequency command */
-			state->noise.periodic_mode = !!(command & 4);
-			state->noise.frequency_mode = command & 3;
-
-			/* https://www.smspower.org/Development/SN76489
-			   "When the noise register is written to, the shift register is reset,
-			   such that all bits are zero except for the highest bit. This will make
-			   the "periodic noise" output a 1/16th (or 1/15th) duty cycle, and is
-			   important as it also affects the sound of white noise." */
-			state->noise.shift_register = 1;
-		}
 	}
 }

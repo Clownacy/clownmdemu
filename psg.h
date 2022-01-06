@@ -35,7 +35,7 @@ typedef struct PSG_State
 } PSG_State;
 
 void PSG_Init(PSG_State *state);
-void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples);
 void PSG_DoCommand(PSG_State *state, unsigned int command);
+void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples);
 
 #endif /* PSG_H */
