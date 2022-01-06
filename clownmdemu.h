@@ -13,6 +13,8 @@
 
 /* TODO - Documentation */
 
+/* TODO - Maybe use a frontend callback to access the cartridge data? */
+/* Though, I wonder how bankswitched games would work in that case... */
 #define CLOWNMDEMU_ROM_BUFFER_SIZE (1024 * 1024 * 4) /* 4MiB */
 
 /* The NTSC framerate is 59.94FPS(60 divided by 1.001) */

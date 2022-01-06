@@ -353,7 +353,7 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, void (*colour_updated_callback)
 			/* 68k */
 			if (state->countdowns.m68k == 0)
 			{
-				state->countdowns.m68k = 7 * 10; /* The x10 is a temporary hack to get the 68k to run roughly at the correct speed until instruction cycle durations are added */
+				state->countdowns.m68k = 7 * 10; /* TODO - The x10 is a temporary hack to get the 68k to run roughly at the correct speed until instruction cycle durations are added */
 
 				M68k_DoCycle(&state->m68k, &m68k_read_write_callbacks);
 			}
