@@ -167,7 +167,7 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 	{
 		/* TODO - H/V COUNTER */
 	}
-	else if (address == 0xC00010)
+	else if (address >= 0xC00010 && address <= 0xC00016)
 	{
 		/* TODO - PSG */
 	}
@@ -283,7 +283,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	{
 		/* TODO - H/V COUNTER */
 	}
-	else if (address == 0xC00010)
+	else if (address >= 0xC00010 && address <= 0xC00016)
 	{
 		/* TODO - PSG */
 	}
