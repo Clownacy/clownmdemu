@@ -34,7 +34,7 @@ void PSG_Init(PSG_State *state)
 	state->noise.real_output_bit = 0;
 	state->noise.frequency_mode = 0;
 	state->noise.periodic_mode = 0;
-	state->noise.shift_register = 0xFFFF;
+	state->noise.shift_register = 0;
 }
 
 void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples)
@@ -127,6 +127,12 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 		{
 			/* Frequency command */
 			state->noise.frequency_mode = command & 3;
+
+			/* "When the noise register is written to, the shift register is reset,
+			   such that all bits are zero except for the highest bit. This will make
+			   the "periodic noise" output a 1/16th (or 1/15th) duty cycle, and is
+			   important as it also affects the sound of white noise." */
+			state->noise.shift_register = 1;
 		}
 	}
 	else
