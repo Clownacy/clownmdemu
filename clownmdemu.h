@@ -17,6 +17,9 @@
 /* Though, I wonder how bankswitched games would work in that case... */
 #define CLOWNMDEMU_ROM_BUFFER_SIZE (1024 * 1024 * 4) /* 4MiB */
 
+#define CLOWNMDEMU_MASTER_CLOCK_NTSC 53693175
+#define CLOWNMDEMU_MASTER_CLOCK_PAL  53203424
+
 /* The NTSC framerate is 59.94FPS(60 divided by 1.001) */
 #define CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(x) (((x) / 60) + ((x) / (60 * 1000)))
 

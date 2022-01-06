@@ -12,9 +12,6 @@
 #include "vdp.h"
 /*#include "z80.h"*/
 
-#define MASTER_CLOCK_NTSC 53693175
-#define MASTER_CLOCK_PAL  53203424
-
 typedef struct CallbackUserData
 {
 	ClownMDEmu_State *state;
@@ -328,7 +325,7 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, void (*colour_updated_callback)
 
 	const unsigned int television_vertical_resolution = state->pal ? 312 : 262; /* PAL and NTSC, respectively */
 	const unsigned int console_vertical_resolution = (state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
-	const unsigned int cycles_per_scanline = (state->pal ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(MASTER_CLOCK_NTSC)) / television_vertical_resolution;
+	const unsigned int cycles_per_scanline = (state->pal ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / television_vertical_resolution;
 
 	callback_user_data.state = state;
 	callback_user_data.colour_updated_callback = colour_updated_callback;
