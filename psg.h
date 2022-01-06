@@ -23,7 +23,7 @@ typedef struct PSG_State
 		unsigned int fake_output_bit;
 		unsigned int real_output_bit;
 		unsigned int frequency_mode;
-		cc_bool periodic_mode;
+		cc_bool white_noise_mode;
 		unsigned int shift_register;
 	} noise;
 	struct
