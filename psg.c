@@ -146,7 +146,8 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 		{
 			/* Volume command */
 			tone->attenuation = command & 0xF;
-			/* According to http://md.railgun.works/index.php?title=PSG, this should happen, but when I test it, I get crackly audio, so I've disabled it for now */
+			/* According to http://md.railgun.works/index.php?title=PSG, this should happen,
+			   but when I test it, I get crackly audio, so I've disabled it for now */
 			/*tone->output_bit = 0;*/
 		}
 		else
