@@ -31,6 +31,9 @@ void PSG_Init(PSG_State *state)
 	state->noise.periodic_mode = cc_false;
 	state->noise.shift_register = 0;
 
+	state->latched_command.channel = 0;
+	state->latched_command.is_volume_command = cc_false;
+
 	/* Generate the volume lookup table */
 	/* TODO - Temporary */
 	for (i = 0; i < 0xF; ++i)
