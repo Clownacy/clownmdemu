@@ -140,32 +140,7 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 		state->latched_command.mode = command & 0x10;
 	}
 
-	if (state->latched_command.channel == CC_COUNT_OF(state->tones))
-	{
-		/* Noise channel */
-		if (state->latched_command.mode)
-		{
-			/* Volume command */
-			state->noise.attenuation = command & 0xF;
-			/* According to http://md.railgun.works/index.php?title=PSG, this should happen,
-			   but when I test it, I get crackly audio, so I've disabled it for now. */
-			/*state->noise.fake_output_bit = 0;*/
-		}
-		else
-		{
-			/* Frequency command */
-			state->noise.periodic_mode = !!(command & 4);
-			state->noise.frequency_mode = command & 3;
-
-			/* https://www.smspower.org/Development/SN76489
-			   "When the noise register is written to, the shift register is reset,
-			   such that all bits are zero except for the highest bit. This will make
-			   the "periodic noise" output a 1/16th (or 1/15th) duty cycle, and is
-			   important as it also affects the sound of white noise." */
-			state->noise.shift_register = 1;
-		}
-	}
-	else
+	if (state->latched_command.channel < CC_COUNT_OF(state->tones))
 	{
 		/* Tone channel */
 		PSG_ToneState *tone = &state->tones[state->latched_command.channel];
@@ -193,6 +168,31 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 				tone->countdown_master &= 0xF;
 				tone->countdown_master |= (command & 0x3F) << 4;
 			}
+		}
+	}
+	else
+	{
+		/* Noise channel */
+		if (state->latched_command.mode)
+		{
+			/* Volume command */
+			state->noise.attenuation = command & 0xF;
+			/* According to http://md.railgun.works/index.php?title=PSG, this should happen,
+			   but when I test it, I get crackly audio, so I've disabled it for now. */
+			   /*state->noise.fake_output_bit = 0;*/
+		}
+		else
+		{
+			/* Frequency command */
+			state->noise.periodic_mode = !!(command & 4);
+			state->noise.frequency_mode = command & 3;
+
+			/* https://www.smspower.org/Development/SN76489
+			   "When the noise register is written to, the shift register is reset,
+			   such that all bits are zero except for the highest bit. This will make
+			   the "periodic noise" output a 1/16th (or 1/15th) duty cycle, and is
+			   important as it also affects the sound of white noise." */
+			state->noise.shift_register = 1;
 		}
 	}
 }
