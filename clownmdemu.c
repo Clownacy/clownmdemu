@@ -8,7 +8,7 @@
 #include "error.h"
 /*#include "fm.h"*/
 #include "m68k.h"
-/*#include "psg.h"*/
+#include "psg.h"
 #include "vdp.h"
 /*#include "z80.h"*/
 
@@ -282,7 +282,9 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 	else if (address >= 0xC00010 && address <= 0xC00016)
 	{
-		/* TODO - PSG */
+		/* TODO - Run PSG_Update here when cycle-counting is added! */
+		if (do_low_byte)
+			PSG_DoCommand(&state->psg, low_byte);
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
@@ -309,6 +311,7 @@ void ClownMDEmu_Init(ClownMDEmu_State *state)
 		state->joypads[i].control = 0;
 
 	VDP_Init(&state->vdp);
+	PSG_Init(&state->psg);
 }
 
 void ClownMDEmu_Deinit(ClownMDEmu_State *state)
@@ -317,7 +320,7 @@ void ClownMDEmu_Deinit(ClownMDEmu_State *state)
 	(void)state;
 }
 
-void ClownMDEmu_Iterate(ClownMDEmu_State *state, void (*colour_updated_callback)(unsigned int index, unsigned int colour), void (*scanline_rendered_callback)(unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id))
+void ClownMDEmu_Iterate(ClownMDEmu_State *state, void (*colour_updated_callback)(unsigned int index, unsigned int colour), void (*scanline_rendered_callback)(unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id), void (*psg_audio_callback)(short *samples, size_t total_samples))
 {
 	unsigned int scanline, i;
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
@@ -405,7 +408,16 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, void (*colour_updated_callback)
 	}
 
 	/*UpdateFM(state);*/
-	/*UpdatePSG(state);*/
+
+	/* Update PSG */
+	/* TODO - PAL */
+	short buffer[CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC / 15 / 16)];
+
+	memset(buffer, 0, sizeof(buffer));
+
+	PSG_Update(&state->psg, buffer, CC_COUNT_OF(buffer));
+
+	psg_audio_callback(buffer, CC_COUNT_OF(buffer));
 }
 
 /* TODO - Replace this with a function that retrieves a pointer to the internal buffer, to avoid a needless memcpy */
