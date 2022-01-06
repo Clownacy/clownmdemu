@@ -15,26 +15,11 @@ void PSG_Init(PSG_State *state)
 {
 	unsigned int i;
 
-	/* Generate the volume lookup table */
-	/* TODO - Temporary */
-	for (i = 0; i < 0xF; ++i)
-	{
-		/* Each volume level is 2 decibels lower than the last */
-		const int volume = (0x7FFF / 4) * powf(10.0f, -2.0f * i / 20.0f);
-
-		state->volumes[i][0] = volume;  /* Positive phase */
-		state->volumes[i][1] = -volume; /* Negative phase */
-	}
-
-	/* The lowest volume is 0 */
-	state->volumes[0xF][0] = 0;
-	state->volumes[0xF][1] = 0;
-
 	for (i = 0; i < CC_COUNT_OF(state->tones); ++i)
 	{
 		state->tones[i].countdown = 0;
 		state->tones[i].countdown_master = 0;
-		state->tones[i].attenuation = 0xF; /* Silence the channels on init */
+		state->tones[i].attenuation = 0xF; /* Silence the channels on startup */
 		state->tones[i].output_bit = 0;
 	}
 
@@ -45,6 +30,21 @@ void PSG_Init(PSG_State *state)
 	state->noise.frequency_mode = 0;
 	state->noise.periodic_mode = cc_false;
 	state->noise.shift_register = 0;
+
+	/* Generate the volume lookup table */
+	/* TODO - Temporary */
+	for (i = 0; i < 0xF; ++i)
+	{
+		/* Each volume level is 2 decibels lower than the last */
+		const int volume = ((float)0x7FFF / 4.0f) * powf(10.0f, -2.0f * (float)i / 20.0f);
+
+		state->volumes[i][0] = volume; /* Positive phase */
+		state->volumes[i][1] = -volume; /* Negative phase */
+	}
+
+	/* The lowest volume is 0 */
+	state->volumes[0xF][0] = 0;
+	state->volumes[0xF][1] = 0;
 }
 
 void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples)
