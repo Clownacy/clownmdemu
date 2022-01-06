@@ -29,7 +29,7 @@ typedef struct PSG_State
 	struct
 	{
 		unsigned int channel;
-		unsigned int mode;
+		cc_bool is_volume_command;
 	} latched_command;
 	int volumes[0x10][2];
 } PSG_State;

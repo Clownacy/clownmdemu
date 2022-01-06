@@ -137,7 +137,7 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 	{
 		/* Latch command */
 		state->latched_command.channel = (command >> 5) & 3;
-		state->latched_command.mode = command & 0x10;
+		state->latched_command.is_volume_command = !!(command & 0x10);
 	}
 
 	if (state->latched_command.channel < CC_COUNT_OF(state->tones))
@@ -145,7 +145,7 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 		/* Tone channel */
 		PSG_ToneState *tone = &state->tones[state->latched_command.channel];
 
-		if (state->latched_command.mode)
+		if (state->latched_command.is_volume_command)
 		{
 			/* Volume command */
 			tone->attenuation = command & 0xF;
@@ -173,7 +173,7 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 	else
 	{
 		/* Noise channel */
-		if (state->latched_command.mode)
+		if (state->latched_command.is_volume_command)
 		{
 			/* Volume command */
 			state->noise.attenuation = command & 0xF;
