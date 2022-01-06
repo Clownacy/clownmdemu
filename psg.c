@@ -1,3 +1,10 @@
+/*
+PSG emulator
+
+This webpage has been an invaluable resource:
+https://www.smspower.org/Development/SN76489
+*/
+
 #include "psg.h"
 
 #include <math.h> /* TODO - Temporary */
@@ -150,7 +157,8 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 			state->noise.periodic_mode = !!(command & 4);
 			state->noise.frequency_mode = command & 3;
 
-			/* "When the noise register is written to, the shift register is reset,
+			/* https://www.smspower.org/Development/SN76489
+			   "When the noise register is written to, the shift register is reset,
 			   such that all bits are zero except for the highest bit. This will make
 			   the "periodic noise" output a 1/16th (or 1/15th) duty cycle, and is
 			   important as it also affects the sound of white noise." */
