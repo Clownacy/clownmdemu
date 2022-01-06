@@ -15,6 +15,12 @@
 
 #define CLOWNMDEMU_ROM_BUFFER_SIZE (1024 * 1024 * 4) /* 4MiB */
 
+/* The NTSC framerate is 59.94FPS(60 divided by 1.001) */
+#define CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(x) (((x) / 60) + ((x) / (60 * 1000)))
+
+/* The PAL framerate is 50FPS */
+#define CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(x) ((x) / 50)
+
 enum
 {
 	CLOWNMDEMU_BUTTON_UP,
@@ -32,6 +38,11 @@ typedef struct ClownMDEmu_State
 {
 	cc_bool pal;
 	cc_bool japanese;
+	struct
+	{
+		unsigned int m68k;
+		unsigned int z80;
+	} countdowns;
 	struct
 	{
 		unsigned char buffer[CLOWNMDEMU_ROM_BUFFER_SIZE];

@@ -304,6 +304,9 @@ void ClownMDEmu_Init(ClownMDEmu_State *state)
 {
 	unsigned int i;
 
+	state->countdowns.m68k = 0;
+	state->countdowns.z80 = 0;
+
 	/* The standard Sega SDK bootcode uses this to detect soft-resets */
 	for (i = 0; i < CC_COUNT_OF(state->joypads); ++i)
 		state->joypads[i].control = 0;
@@ -325,7 +328,7 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, void (*colour_updated_callback)
 
 	const unsigned int television_vertical_resolution = state->pal ? 312 : 262; /* PAL and NTSC, respectively */
 	const unsigned int console_vertical_resolution = (state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
-	const unsigned int m68k_cycles_per_scanline = (state->pal ? MASTER_CLOCK_PAL : MASTER_CLOCK_NTSC) / (state->pal ? 50 : 60) / television_vertical_resolution / 7;
+	const unsigned int cycles_per_scanline = (state->pal ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(MASTER_CLOCK_NTSC)) / television_vertical_resolution;
 
 	callback_user_data.state = state;
 	callback_user_data.colour_updated_callback = colour_updated_callback;
@@ -345,13 +348,27 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, void (*colour_updated_callback)
 	for (scanline = 0; scanline < television_vertical_resolution; ++scanline)
 	{
 		/* Run the 68k and Z80 for a scanline's worth of cycles */
-		for (i = 0; i < m68k_cycles_per_scanline / 2 / 10; ++i) /* The division by 10 is temporary until instruction cycle counts are added */
+		for (i = 0; i < cycles_per_scanline; ++i)
 		{
-			/* TODO - Not completely accurate: the 68k is MASTER_CLOCK/7, but the Z80 is MASTER_CLOCK/15.
-			   I'll need to find a common multiple to make this accurate. */
-			M68k_DoCycle(&state->m68k, &m68k_read_write_callbacks);
-			M68k_DoCycle(&state->m68k, &m68k_read_write_callbacks);
-			/*DoZ80Cycle(state);*/
+			/* 68k */
+			if (state->countdowns.m68k == 0)
+			{
+				state->countdowns.m68k = 7 * 10; /* The x10 is a temporary hack to get the 68k to run roughly at the correct speed until instruction cycle durations are added */
+
+				M68k_DoCycle(&state->m68k, &m68k_read_write_callbacks);
+			}
+
+			--state->countdowns.m68k;
+
+			/* Z80 */
+			if (state->countdowns.z80 == 0)
+			{
+				state->countdowns.z80 = 15;
+
+				/*Z80_DoCycle(&state->z80);*/
+			}
+
+			--state->countdowns.z80;
 		}
 
 		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
