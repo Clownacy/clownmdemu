@@ -52,7 +52,13 @@ typedef struct PSG_State
 	/* Data relating to the latched command */
 	struct
 	{
+		/* The channel that is currently latched:
+		   0 = Tone channel 1
+		   1 = Tone channel 2
+		   2 = Tone channel 3
+		   3 = Noise channel */
 		unsigned int channel;
+		/* Whether the latched command sets the volume attenuation or not */
 		cc_bool is_volume_command;
 	} latched_command;
 

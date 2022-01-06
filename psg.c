@@ -71,7 +71,7 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 
 		if (state->latched_command.is_volume_command)
 		{
-			/* Volume command */
+			/* Volume attenuation command */
 			tone->attenuation = command & 0xF;
 			/* According to http://md.railgun.works/index.php?title=PSG, this should happen,
 			   but when I test it, I get crackly audio, so I've disabled it for now. */
@@ -99,7 +99,7 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 		/* Noise channel */
 		if (state->latched_command.is_volume_command)
 		{
-			/* Volume command */
+			/* Volume attenuation command */
 			state->noise.attenuation = command & 0xF;
 			/* According to http://md.railgun.works/index.php?title=PSG, this should happen,
 			   but when I test it, I get crackly audio, so I've disabled it for now. */
@@ -107,7 +107,7 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 		}
 		else
 		{
-			/* Frequency command */
+			/* Frequency and noise type command */
 			state->noise.type = (command & 4) ? PSG_NOISE_TYPE_WHITE : PSG_NOISE_TYPE_PERIODIC;
 			state->noise.frequency_mode = command & 3;
 
