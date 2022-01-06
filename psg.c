@@ -15,6 +15,7 @@ void PSG_Init(PSG_State *state)
 {
 	unsigned int i;
 
+	/* Reset tone channels */
 	for (i = 0; i < CC_COUNT_OF(state->tones); ++i)
 	{
 		state->tones[i].countdown = 0;
@@ -23,6 +24,7 @@ void PSG_Init(PSG_State *state)
 		state->tones[i].output_bit = 0;
 	}
 
+	/* Reset noise channel */
 	state->noise.countdown = 0;
 	state->noise.attenuation = 0xF;
 	state->noise.fake_output_bit = 0;
@@ -31,6 +33,7 @@ void PSG_Init(PSG_State *state)
 	state->noise.periodic_mode = cc_false;
 	state->noise.shift_register = 0;
 
+	/* Reset the latched command data */
 	state->latched_command.channel = 0;
 	state->latched_command.is_volume_command = cc_false;
 
@@ -104,7 +107,7 @@ void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples)
 					break;
 
 				case 3:
-					/* Use PSG3's frequency */
+					/* Use the last tone channel's frequency */
 					state->noise.countdown = state->tones[CC_COUNT_OF(state->tones) - 1].countdown_master;
 					break;
 			}
@@ -182,7 +185,7 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 			state->noise.attenuation = command & 0xF;
 			/* According to http://md.railgun.works/index.php?title=PSG, this should happen,
 			   but when I test it, I get crackly audio, so I've disabled it for now. */
-			   /*state->noise.fake_output_bit = 0;*/
+			/*state->noise.fake_output_bit = 0;*/
 		}
 		else
 		{
