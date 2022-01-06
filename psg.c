@@ -147,6 +147,7 @@ void PSG_DoCommand(PSG_State *state, unsigned int command)
 		else
 		{
 			/* Frequency command */
+			state->noise.periodic_mode = !!(command & 4);
 			state->noise.frequency_mode = command & 3;
 
 			/* "When the noise register is written to, the shift register is reset,
