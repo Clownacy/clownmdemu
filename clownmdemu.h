@@ -72,7 +72,7 @@ typedef struct ClownMDEmu_Callbacks
 {
 	void (*colour_updated)(unsigned int index, unsigned int colour);
 	void (*scanline_rendered)(unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height);
-	unsigned char (*input_requested)(unsigned int player_id, unsigned int button_id);
+	cc_bool (*input_requested)(unsigned int player_id, unsigned int button_id);
 	void (*psg_audio_generated)(short *samples, size_t total_samples);
 } ClownMDEmu_Callbacks;
 
