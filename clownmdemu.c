@@ -1,5 +1,6 @@
 #include "clownmdemu.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -17,7 +18,24 @@ typedef struct CallbackUserData
 	ClownMDEmu_State *state;
 	void (*colour_updated_callback)(unsigned int index, unsigned int colour);
 	unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id);
+	void (*psg_audio_callback)(short *samples, size_t total_samples);
+	unsigned int current_cycle;
+	unsigned int psg_previous_cycle;
 } CallbackUserData;
+
+static GenerateAndPlayPSGSamples(ClownMDEmu_State *state, void (*psg_audio_callback)(short *samples, size_t total_samples), size_t total_samples)
+{
+	/* TODO - PAL */
+	short buffer[CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC) / 15 / 16];
+
+	assert(total_samples <= CC_COUNT_OF(buffer));
+
+	memset(buffer, 0, sizeof(buffer));
+
+	PSG_Update(&state->psg, buffer, total_samples);
+
+	psg_audio_callback(buffer, total_samples);
+}
 
 /* VDP memory access callback */
 
@@ -282,9 +300,17 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 	else if (address >= 0xC00010 && address <= 0xC00016)
 	{
-		/* TODO - Run PSG_Update here when cycle-counting is added! */
+		/* PSG */
+
 		if (do_low_byte)
+		{
+			/* Update the PSG up until this point in time */
+			GenerateAndPlayPSGSamples(callback_user_data->state, callback_user_data->psg_audio_callback, (callback_user_data->current_cycle - callback_user_data->psg_previous_cycle) / 15 / 16);
+			callback_user_data->psg_previous_cycle = callback_user_data->current_cycle;
+
+			/* Alter the PSG's state */
 			PSG_DoCommand(&state->psg, low_byte);
+		}
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
@@ -333,6 +359,9 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, void (*colour_updated_callback)
 	callback_user_data.state = state;
 	callback_user_data.colour_updated_callback = colour_updated_callback;
 	callback_user_data.read_input_callback = read_input_callback;
+	callback_user_data.psg_audio_callback = psg_audio_callback;
+	callback_user_data.current_cycle = 0;
+	callback_user_data.psg_previous_cycle = 0;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
@@ -369,6 +398,8 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, void (*colour_updated_callback)
 			}
 
 			--state->countdowns.z80;
+
+			++callback_user_data.current_cycle;
 		}
 
 		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
@@ -409,15 +440,8 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, void (*colour_updated_callback)
 
 	/*UpdateFM(state);*/
 
-	/* Update PSG */
-	/* TODO - PAL */
-	short buffer[CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC / 15 / 16)];
-
-	memset(buffer, 0, sizeof(buffer));
-
-	PSG_Update(&state->psg, buffer, CC_COUNT_OF(buffer));
-
-	psg_audio_callback(buffer, CC_COUNT_OF(buffer));
+	/* Update the PSG for the rest of this frame */
+	GenerateAndPlayPSGSamples(state, psg_audio_callback, (callback_user_data.current_cycle - callback_user_data.psg_previous_cycle) / 15 / 16);
 }
 
 /* TODO - Replace this with a function that retrieves a pointer to the internal buffer, to avoid a needless memcpy */
