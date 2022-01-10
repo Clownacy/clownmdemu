@@ -68,9 +68,17 @@ typedef struct ClownMDEmu_State
 	} joypads[3];
 } ClownMDEmu_State;
 
+typedef struct ClownMDEmu_Callbacks
+{
+	void (*colour_updated)(unsigned int index, unsigned int colour);
+	void (*scanline_rendered)(unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height);
+	unsigned char (*input_requested)(unsigned int player_id, unsigned int button_id);
+	void (*psg_audio_generated)(short *samples, size_t total_samples);
+} ClownMDEmu_Callbacks;
+
 void ClownMDEmu_Init(ClownMDEmu_State *state);
 void ClownMDEmu_Deinit(ClownMDEmu_State *state);
-void ClownMDEmu_Iterate(ClownMDEmu_State *state, void (*colour_updated_callback)(unsigned int index, unsigned int colour), void (*scanline_rendered_callback)(unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), unsigned char (*read_input_callback)(unsigned int player_id, unsigned int button_id), void (*psg_audio_callback)(short *samples, size_t total_samples));
+void ClownMDEmu_Iterate(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_UpdateROM(ClownMDEmu_State *state, const unsigned char *rom_buffer, size_t rom_size);
 void ClownMDEmu_SetROMWriteable(ClownMDEmu_State *state, cc_bool rom_writeable);
 void ClownMDEmu_Reset(ClownMDEmu_State *state);
