@@ -21,17 +21,24 @@ typedef struct M68kCallbackUserData
 	unsigned int psg_previous_cycle;
 } M68kCallbackUserData;
 
-static GenerateAndPlayPSGSamples(ClownMDEmu_State *state, void (*psg_audio_callback)(short *samples, size_t total_samples), size_t total_samples)
+static GenerateAndPlayPSGSamples(M68kCallbackUserData *m68k_callback_user_data)
 {
-	short buffer[CC_MAX(CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL), CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / 15 / 16];
+	const size_t samples_to_generate = (m68k_callback_user_data->current_cycle - m68k_callback_user_data->psg_previous_cycle) / 15 / 16;
 
-	assert(total_samples <= CC_COUNT_OF(buffer));
+	if (samples_to_generate != 0)
+	{
+		short buffer[CC_MAX(CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL), CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / 15 / 16];
 
-	memset(buffer, 0, sizeof(buffer));
+		assert(samples_to_generate <= CC_COUNT_OF(buffer));
 
-	PSG_Update(&state->psg, buffer, total_samples);
+		memset(buffer, 0, sizeof(buffer));
 
-	psg_audio_callback(buffer, total_samples);
+		PSG_Update(&m68k_callback_user_data->state->psg, buffer, samples_to_generate);
+
+		m68k_callback_user_data->frontend_callbacks->psg_audio_generated(buffer, samples_to_generate);
+
+		m68k_callback_user_data->psg_previous_cycle = m68k_callback_user_data->current_cycle;
+	}
 }
 
 /* VDP memory access callback */
@@ -225,12 +232,12 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 		/* TODO - Support writing (developer cartridges allowed this,
 		   and Sonic 2's Nick Arcade prototype has code that relies on
 		   this in order for Green Hill Zone's collision to work) */
-		/*
-		if (do_high_byte)
-			state->rom.buffer[address + 0] = high_byte;
-		if (do_low_byte)
-			state->rom.buffer[address + 1] = low_byte;
-		*/
+		   /*
+		   if (do_high_byte)
+			   state->rom.buffer[address + 0] = high_byte;
+		   if (do_low_byte)
+			   state->rom.buffer[address + 1] = low_byte;
+		   */
 
 		PrintError("68k attempted to write to ROM 0x%lX at 0x%lX", address, state->m68k.program_counter);
 	}
@@ -329,8 +336,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 		if (do_low_byte)
 		{
 			/* Update the PSG up until this point in time */
-			GenerateAndPlayPSGSamples(callback_user_data->state, callback_user_data->frontend_callbacks->psg_audio_generated, (callback_user_data->current_cycle - callback_user_data->psg_previous_cycle) / 15 / 16);
-			callback_user_data->psg_previous_cycle = callback_user_data->current_cycle;
+			GenerateAndPlayPSGSamples(callback_user_data);
 
 			/* Alter the PSG's state */
 			PSG_DoCommand(&state->psg, low_byte);
@@ -464,7 +470,7 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks
 	/*UpdateFM(state);*/
 
 	/* Update the PSG for the rest of this frame */
-	GenerateAndPlayPSGSamples(state, callbacks->psg_audio_generated, (m68k_callback_user_data.current_cycle - m68k_callback_user_data.psg_previous_cycle) / 15 / 16);
+	GenerateAndPlayPSGSamples(&m68k_callback_user_data);
 }
 
 /* TODO - Replace this with a system where the emulator queries the frontend for data from the cartridge */
