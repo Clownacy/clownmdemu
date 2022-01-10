@@ -13,13 +13,13 @@
 #include "vdp.h"
 /*#include "z80.h"*/
 
-typedef struct CallbackUserData
+typedef struct M68kCallbackUserData
 {
 	ClownMDEmu_State *state;
 	ClownMDEmu_Callbacks *frontend_callbacks;
 	unsigned int current_cycle;
 	unsigned int psg_previous_cycle;
-} CallbackUserData;
+} M68kCallbackUserData;
 
 static GenerateAndPlayPSGSamples(ClownMDEmu_State *state, void (*psg_audio_callback)(short *samples, size_t total_samples), size_t total_samples)
 {
@@ -64,7 +64,7 @@ static unsigned int VDPReadCallback(void *user_data, unsigned long address)
 
 static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte)
 {
-	CallbackUserData *callback_user_data = (CallbackUserData*)user_data;
+	M68kCallbackUserData *callback_user_data = (M68kCallbackUserData*)user_data;
 	ClownMDEmu_State *state = callback_user_data->state;
 	unsigned int value = 0;
 
@@ -214,7 +214,7 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 
 static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned int value)
 {
-	CallbackUserData *callback_user_data = (CallbackUserData*)user_data;
+	M68kCallbackUserData *callback_user_data = (M68kCallbackUserData*)user_data;
 	ClownMDEmu_State *state = callback_user_data->state;
 
 	const unsigned char high_byte = (unsigned char)((value >> 8) & 0xFF);
@@ -376,20 +376,20 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks
 {
 	unsigned int scanline, i;
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
-	CallbackUserData callback_user_data;
+	M68kCallbackUserData m68k_callback_user_data;
 
 	const unsigned int television_vertical_resolution = state->pal ? 312 : 262; /* PAL and NTSC, respectively */
 	const unsigned int console_vertical_resolution = (state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
 	const unsigned int cycles_per_scanline = (state->pal ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / television_vertical_resolution;
 
-	callback_user_data.state = state;
-	callback_user_data.frontend_callbacks = callbacks;
-	callback_user_data.current_cycle = 0;
-	callback_user_data.psg_previous_cycle = 0;
+	m68k_callback_user_data.state = state;
+	m68k_callback_user_data.frontend_callbacks = callbacks;
+	m68k_callback_user_data.current_cycle = 0;
+	m68k_callback_user_data.psg_previous_cycle = 0;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
-	m68k_read_write_callbacks.user_data = &callback_user_data;
+	m68k_read_write_callbacks.user_data = &m68k_callback_user_data;
 
 	/*ReadInput(state);*/
 
@@ -423,7 +423,7 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks
 
 			--state->countdowns.z80;
 
-			++callback_user_data.current_cycle;
+			++m68k_callback_user_data.current_cycle;
 		}
 
 		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
@@ -465,7 +465,7 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks
 	/*UpdateFM(state);*/
 
 	/* Update the PSG for the rest of this frame */
-	GenerateAndPlayPSGSamples(state, callbacks->psg_audio_generated, (callback_user_data.current_cycle - callback_user_data.psg_previous_cycle) / 15 / 16);
+	GenerateAndPlayPSGSamples(state, callbacks->psg_audio_generated, (m68k_callback_user_data.current_cycle - m68k_callback_user_data.psg_previous_cycle) / 15 / 16);
 }
 
 /* TODO - Replace this with a system where the emulator queries the frontend for data from the cartridge */
@@ -490,7 +490,7 @@ void ClownMDEmu_SetROMWriteable(ClownMDEmu_State *state, cc_bool rom_writeable)
 void ClownMDEmu_Reset(ClownMDEmu_State *state)
 {
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
-	CallbackUserData callback_user_data;
+	M68kCallbackUserData callback_user_data;
 
 	/* TODO - Please rethink this */
 	callback_user_data.state = state;
