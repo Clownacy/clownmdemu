@@ -72,6 +72,7 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 
 	if (/*address >= 0 &&*/ address < state->rom.size)
 	{
+		/* Cartridge */
 		if (do_high_byte)
 			value |= state->rom.buffer[address + 0] << 8;
 		if (do_low_byte)
@@ -79,6 +80,7 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 	}
 	else if (address >= 0xA00000 && address <= 0xA01FFF)
 	{
+		/* Z80 RAM */
 		if (do_high_byte && do_low_byte)
 		{
 			PrintError("68k attempted to perform word-sized read of Z80 memory at 0x%lX at 0x%lX", address, state->m68k.program_counter);
@@ -95,15 +97,18 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 	}
 	else if (address == 0xA04000)
 	{
-		/* TODO - YM2612 A0 + D0 */
+		/* YM2612 A0 + D0 */
+		/* TODO */
 	}
 	else if (address == 0xA04002)
 	{
-		/* TODO - YM2612 A1 + D1 */
+		/* YM2612 A1 + D1 */
+		/* TODO */
 	}
 	else if (address >= 0xA10000 && address <= 0xA1001F)
 	{
-		/* TODO - I/O AREA */
+		/* I/O AREA */
+		/* TODO */
 		switch (address)
 		{
 			case 0xA10000:
@@ -159,36 +164,43 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 	}
 	else if (address == 0xA11000)
 	{
-		/* TODO - MEMORY MODE */
+		/* MEMORY MODE */
+		/* TODO */
 	}
 	else if (address == 0xA11100)
 	{
-		/* TODO - Z80 BUSREQ */
+		/* Z80 BUSREQ */
+		/* TODO */
 	}
 	else if (address == 0xA11200)
 	{
-		/* TODO - Z80 RESET */
+		/* Z80 RESET */
+		/* TODO */
 	}
 	else if (address == 0xC00000 || address == 0xC00002)
 	{
+		/* VDP data port */
 		/* TODO - Reading from the data port causes real Mega Drives to crash (if the VDP isn't in read mode) */
 		value = VDP_ReadData(&state->vdp);
 	}
 	else if (address == 0xC00004 || address == 0xC00006)
 	{
+		/* VDP control port */
 		value = VDP_ReadControl(&state->vdp);
 	}
 	else if (address == 0xC00008)
 	{
-		/* TODO - H/V COUNTER */
+		/* H/V COUNTER */
+		/* TODO */
 	}
 	else if (address >= 0xC00010 && address <= 0xC00016)
 	{
-		/* TODO - PSG */
-		/* What's supposed to happen here, if you read from the PSG? */
+		/* PSG */
+		/* TODO - What's supposed to happen here, if you read from the PSG? */
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
+		/* 68k RAM */
 		if (do_high_byte)
 			value |= state->m68k_ram[(address + 0) & 0xFFFF] << 8;
 		if (do_low_byte)
@@ -212,6 +224,10 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 
 	if (/*address >= 0 &&*/ address < state->rom.size)
 	{
+		/* Cartridge */
+		/* TODO - Support writing (developer cartridges allowed this,
+		   and Sonic 2's Nick Arcade prototype has code that relies on
+		   this in order for Green Hill Zone's collision to work) */
 		/*
 		if (do_high_byte)
 			state->rom.buffer[address + 0] = high_byte;
@@ -223,6 +239,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 	else if (address >= 0xA00000 && address <= 0xA01FFF)
 	{
+		/* Z80 RAM */
 		if (do_high_byte && do_low_byte)
 		{
 			PrintError("68k attempted to perform word-sized write of Z80 memory at 0x%lX", state->m68k.program_counter);
@@ -239,15 +256,18 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 	else if (address == 0xA04000)
 	{
-		/* TODO - YM2612 A0 + D0 */
+		/* YM2612 A0 + D0 */
+		/* TODO */
 	}
 	else if (address == 0xA04002)
 	{
-		/* TODO - YM2612 A1 + D1 */
+		/* YM2612 A1 + D1 */
+		/* TODO */
 	}
 	else if (address >= 0xA10000 && address <= 0xA1001F)
 	{
-		/* TODO - I/O AREA */
+		/* I/O AREA */
+		/* TODO */
 		switch (address)
 		{
 			case 0xA10002:
@@ -277,27 +297,33 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 	else if (address == 0xA11000)
 	{
-		/* TODO - MEMORY MODE */
+		/* MEMORY MODE */
+		/* TODO */
 	}
 	else if (address == 0xA11100)
 	{
-		/* TODO - Z80 BUSREQ */
+		/* Z80 BUSREQ */
+		/* TODO */
 	}
 	else if (address == 0xA11200)
 	{
-		/* TODO - Z80 RESET */
+		/* Z80 RESET */
+		/* TODO */
 	}
 	else if (address == 0xC00000 || address == 0xC00002)
 	{
+		/* VDP data port */
 		VDP_WriteData(&state->vdp, value, callback_user_data->colour_updated_callback);
 	}
 	else if (address == 0xC00004 || address == 0xC00006)
 	{
+		/* VDP control port */
 		VDP_WriteControl(&state->vdp, value, callback_user_data->colour_updated_callback, VDPReadCallback, state);
 	}
 	else if (address == 0xC00008)
 	{
-		/* TODO - H/V COUNTER */
+		/* H/V COUNTER */
+		/* TODO */
 	}
 	else if (address >= 0xC00010 && address <= 0xC00016)
 	{
@@ -315,6 +341,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
+		/* 68k RAM */
 		if (do_high_byte)
 			state->m68k_ram[(address + 0) & 0xFFFF] = high_byte;
 		if (do_low_byte)
