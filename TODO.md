@@ -1,5 +1,4 @@
 # Implemented
-
 - 68k
   - Most instructions
   - Condition codes
@@ -13,14 +12,17 @@
   - Sprite/pixel limit
   - Sprite masking
   - Sprite table caching
+- PSG
+  - 3 tone channels
+  - Noise channel
+    - White noise mode
+	- Periodic noise mode
 - Joypads
   - 3-button Mega Drive controller
   - Two joypads
 
 
 # Unimplemented
-
-## Emulator
 - 68k
   - Instruction cycle durations
   - User mode
@@ -35,14 +37,9 @@
   - Mode 4
 - Z80
 - FM
-- PSG
 - SRAM
 - Cartridge mappers
 - Joypads
   - Having more than two joypads connected at once
   - Types of joypad besides the standard 3-button Mega Drive controller
 - Remaining quirks and undefined behaviour of the original Mega Drive hardware
-
-## Frontend
-- Input rebinding
-- Controller support
