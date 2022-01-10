@@ -23,8 +23,7 @@ typedef struct M68kCallbackUserData
 
 static GenerateAndPlayPSGSamples(ClownMDEmu_State *state, void (*psg_audio_callback)(short *samples, size_t total_samples), size_t total_samples)
 {
-	/* TODO - PAL */
-	short buffer[CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC) / 15 / 16];
+	short buffer[CC_MAX(CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL), CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / 15 / 16];
 
 	assert(total_samples <= CC_COUNT_OF(buffer));
 
