@@ -185,6 +185,7 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 	else if (address >= 0xC00010 && address <= 0xC00016)
 	{
 		/* TODO - PSG */
+		/* What's supposed to happen here, if you read from the PSG? */
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
@@ -444,7 +445,7 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, void (*colour_updated_callback)
 	GenerateAndPlayPSGSamples(state, psg_audio_callback, (callback_user_data.current_cycle - callback_user_data.psg_previous_cycle) / 15 / 16);
 }
 
-/* TODO - Replace this with a function that retrieves a pointer to the internal buffer, to avoid a needless memcpy */
+/* TODO - Replace this with a system where the emulator queries the frontend for data from the cartridge */
 void ClownMDEmu_UpdateROM(ClownMDEmu_State *state, const unsigned char *rom_buffer, size_t rom_size)
 {
 	if (rom_size > sizeof(state->rom.buffer))
