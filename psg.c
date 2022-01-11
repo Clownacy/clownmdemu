@@ -42,7 +42,7 @@ void PSG_Init(PSG_State *state)
 	for (i = 0; i < 0xF; ++i)
 	{
 		/* Each volume level is 2 decibels lower than the last */
-		const int volume = ((float)0x7FFF / 4.0f) * powf(10.0f, -2.0f * (float)i / 20.0f);
+		const short volume = (short)(((float)0x7FFF / 4.0f) * powf(10.0f, -2.0f * (float)i / 20.0f));
 
 		state->volumes[i][0] = volume; /* Positive phase */
 		state->volumes[i][1] = -volume; /* Negative phase */

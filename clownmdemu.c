@@ -28,7 +28,7 @@ typedef struct M68kCallbackUserData
 	unsigned int psg_previous_cycle;
 } M68kCallbackUserData;
 
-static GenerateAndPlayPSGSamples(M68kCallbackUserData *m68k_callback_user_data)
+static void GenerateAndPlayPSGSamples(M68kCallbackUserData *m68k_callback_user_data)
 {
 	const size_t samples_to_generate = (m68k_callback_user_data->current_cycle - m68k_callback_user_data->psg_previous_cycle) / 15 / 16;
 

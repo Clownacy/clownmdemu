@@ -326,11 +326,16 @@ static void DecodeAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *
 			decoded_address_mode->data.reg.operation_size_bitmask = (0xFFFFFFFF >> (32 - operation_size_in_bytes * 8));
 			break;
 
-		default:
+		case ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT:
+		case ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT:
+		case ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT:
+		case ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT:
+		case ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_INDEX:
+		case ADDRESS_MODE_SPECIAL:
 			/* Memory access */
 			decoded_address_mode->type = DECODED_ADDRESS_MODE_TYPE_MEMORY;
 			decoded_address_mode->data.memory.address = DecodeMemoryAddressMode(state, callbacks, operation_size_in_bytes, address_mode, reg);
-			decoded_address_mode->data.memory.operation_size_in_bytes = operation_size_in_bytes;
+			decoded_address_mode->data.memory.operation_size_in_bytes = (unsigned char)operation_size_in_bytes;
 			break;
 	}
 }
@@ -503,7 +508,7 @@ void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks,
 {
 	assert(level >= 1 && level <= 7);
 
-	if (level == 7 || level > ((state->status_register >> 8) & 7))
+	if (level == 7 || level > (((unsigned int)state->status_register >> 8) & 7))
 	{
 		state->address_registers[7] -= 4;
 		WriteLongWord(callbacks, state->address_registers[7], state->program_counter);
@@ -1711,7 +1716,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_NEG:
-				result_value = -destination_value;
+				result_value = 0 - destination_value;
 				break;
 
 			case INSTRUCTION_NOT:
@@ -1776,7 +1781,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_RTE:
-				state->status_register = ReadWord(callbacks, state->address_registers[7]);
+				state->status_register = (unsigned short)ReadWord(callbacks, state->address_registers[7]);
 				state->address_registers[7] += 2;
 				state->program_counter = ReadLongWord(callbacks, state->address_registers[7]);
 				state->address_registers[7] += 4;
@@ -1959,8 +1964,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				const cc_bool destination_is_negative = instruction == INSTRUCTION_DIVS && state->data_registers[opcode_secondary_register] & 0x80000000;
 				const cc_bool result_is_negative = source_is_negative != destination_is_negative;
 
-				const unsigned int absolute_source_value = source_is_negative ? -SIGN_EXTEND(source_value, 0xFFFF) : source_value;
-				const unsigned long absolute_destination_value = destination_is_negative ? -SIGN_EXTEND(state->data_registers[opcode_secondary_register], 0xFFFFFFFF) : state->data_registers[opcode_secondary_register] & 0xFFFFFFFF;
+				const unsigned int absolute_source_value = source_is_negative ? 0 - SIGN_EXTEND(source_value, 0xFFFF) : source_value;
+				const unsigned long absolute_destination_value = destination_is_negative ? 0 - SIGN_EXTEND(state->data_registers[opcode_secondary_register], 0xFFFFFFFF) : state->data_registers[opcode_secondary_register] & 0xFFFFFFFF;
 
 				if (source_value == 0)
 				{
@@ -1970,19 +1975,19 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				else
 				{
 					const unsigned long absolute_quotient = absolute_destination_value / absolute_source_value;
-					const unsigned long quotient = result_is_negative ? -absolute_quotient : absolute_quotient;
+					const unsigned long quotient = result_is_negative ? 0 - absolute_quotient : absolute_quotient;
 
 					state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW);
 
 					/* Overflow detection */
-					if (absolute_quotient > (instruction == INSTRUCTION_DIVU ? 0xFFFF : result_is_negative ? 0x8000 : 0x7FFF))
+					if (absolute_quotient > (instruction == INSTRUCTION_DIVU ? 0xFFFFul : (result_is_negative ? 0x8000ul : 0x7FFFul)))
 					{
 						state->status_register |= CONDITION_CODE_OVERFLOW;
 					}
 					else
 					{
 						const unsigned int absolute_remainder = absolute_destination_value % absolute_source_value;
-						const unsigned int remainder = destination_is_negative ? -absolute_remainder : absolute_remainder;
+						const unsigned int remainder = destination_is_negative ? 0 - absolute_remainder : absolute_remainder;
 
 						state->data_registers[opcode_secondary_register] = (unsigned long)(quotient & 0xFFFF) | ((unsigned long)(remainder & 0xFFFF) << 16);
 					}
@@ -2011,11 +2016,11 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				const cc_bool multiplicand_is_negative = instruction == INSTRUCTION_MULS && state->data_registers[opcode_secondary_register] & 0x8000;
 				const cc_bool result_is_negative = multiplier_is_negative != multiplicand_is_negative;
 
-				const unsigned int multiplier = multiplier_is_negative ? -SIGN_EXTEND(source_value, 0xFFFF) : source_value;
-				const unsigned int multiplicand = multiplicand_is_negative ? -SIGN_EXTEND(state->data_registers[opcode_secondary_register], 0xFFFF) : state->data_registers[opcode_secondary_register] & 0xFFFF;
+				const unsigned int multiplier = multiplier_is_negative ? 0 - SIGN_EXTEND(source_value, 0xFFFF) : source_value;
+				const unsigned int multiplicand = multiplicand_is_negative ? 0 - SIGN_EXTEND(state->data_registers[opcode_secondary_register], 0xFFFF) : state->data_registers[opcode_secondary_register] & 0xFFFF;
 
 				const unsigned long absolute_result = (unsigned long)multiplicand * multiplier;
-				const unsigned long result = result_is_negative ? -absolute_result : absolute_result;
+				const unsigned long result = result_is_negative ? 0 - absolute_result : absolute_result;
 
 				state->data_registers[opcode_secondary_register] = result;
 
@@ -2821,7 +2826,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MOVE_TO_SR:
 			case INSTRUCTION_ORI_TO_SR:
 				/* Write to status register */
-				state->status_register = result_value;
+				state->status_register = (unsigned short)result_value;
 				break;
 
 			case INSTRUCTION_ABCD:

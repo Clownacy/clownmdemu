@@ -63,7 +63,7 @@ typedef struct PSG_State
 	} latched_command;
 
 	/* The volume lookup table */
-	int volumes[0x10][2];
+	short volumes[0x10][2];
 } PSG_State;
 
 /* Initialises the PSG_State struct with sane default values. */
