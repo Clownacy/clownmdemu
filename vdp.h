@@ -109,11 +109,11 @@ typedef struct VDP_State
 } VDP_State;
 
 void VDP_Init(VDP_State *state);
-void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline_rendered_callback)(unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height));
+void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline_rendered_callback)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), void *scanline_rendered_callback_user_data);
 
 unsigned int VDP_ReadData(VDP_State *state);
 unsigned int VDP_ReadControl(VDP_State *state);
-void VDP_WriteData(VDP_State *state, unsigned int value, void (*colour_updated_callback)(unsigned int index, unsigned int colour));
-void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_updated_callback)(unsigned int index, unsigned int colour), unsigned int (*read_callback)(void *user_data, unsigned long address), void *user_data);
+void VDP_WriteData(VDP_State *state, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data);
+void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data, unsigned int (*read_callback)(void *user_data, unsigned long address), void *read_callback_user_data);
 
 #endif /* VDP_H */

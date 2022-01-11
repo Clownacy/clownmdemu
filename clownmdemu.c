@@ -42,7 +42,7 @@ static void GenerateAndPlayPSGSamples(M68kCallbackUserData *m68k_callback_user_d
 
 		PSG_Update(&m68k_callback_user_data->state_and_callbacks.state->psg, buffer, samples_to_generate);
 
-		m68k_callback_user_data->state_and_callbacks.frontend_callbacks->psg_audio_generated(buffer, samples_to_generate);
+		m68k_callback_user_data->state_and_callbacks.frontend_callbacks->psg_audio_generated(m68k_callback_user_data->state_and_callbacks.frontend_callbacks->user_data, buffer, samples_to_generate);
 
 		m68k_callback_user_data->psg_previous_cycle = m68k_callback_user_data->current_cycle;
 	}
@@ -53,17 +53,19 @@ static void GenerateAndPlayPSGSamples(M68kCallbackUserData *m68k_callback_user_d
 static unsigned int VDPReadCallback(void *user_data, unsigned long address)
 {
 	StateAndCallbacks *state_and_callbacks = (StateAndCallbacks*)user_data;
+	ClownMDEmu_State *state = state_and_callbacks->state;
+	ClownMDEmu_Callbacks *frontend_callbacks = state_and_callbacks->frontend_callbacks;
 	unsigned int value = 0;
 
 	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
 	{
-		value |= state_and_callbacks->frontend_callbacks->cartridge_read(address + 0) << 8;
-		value |= state_and_callbacks->frontend_callbacks->cartridge_read(address + 1) << 0;
+		value |= frontend_callbacks->cartridge_read(frontend_callbacks->user_data, address + 0) << 8;
+		value |= frontend_callbacks->cartridge_read(frontend_callbacks->user_data, address + 1) << 0;
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
-		value |= state_and_callbacks->state->m68k_ram[(address + 0) & 0xFFFF] << 8;
-		value |= state_and_callbacks->state->m68k_ram[(address + 1) & 0xFFFF] << 0;
+		value |= state->m68k_ram[(address + 0) & 0xFFFF] << 8;
+		value |= state->m68k_ram[(address + 1) & 0xFFFF] << 0;
 	}
 	else
 	{
@@ -79,15 +81,16 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 {
 	M68kCallbackUserData *callback_user_data = (M68kCallbackUserData*)user_data;
 	ClownMDEmu_State *state = callback_user_data->state_and_callbacks.state;
+	ClownMDEmu_Callbacks *frontend_callbacks = callback_user_data->state_and_callbacks.frontend_callbacks;
 	unsigned int value = 0;
 
 	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
 	{
 		/* Cartridge */
 		if (do_high_byte)
-			value |= callback_user_data->state_and_callbacks.frontend_callbacks->cartridge_read(address + 0) << 8;
+			value |= frontend_callbacks->cartridge_read(frontend_callbacks->user_data, address + 0) << 8;
 		if (do_low_byte)
-			value |= callback_user_data->state_and_callbacks.frontend_callbacks->cartridge_read(address + 1) << 0;
+			value |= frontend_callbacks->cartridge_read(frontend_callbacks->user_data, address + 1) << 0;
 	}
 	else if (address >= 0xA00000 && address <= 0xA01FFF)
 	{
@@ -138,19 +141,19 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 
 					if (value & 0x40)
 					{
-						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_C) << 5;
-						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_B) << 4;
-						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_RIGHT) << 3;
-						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_LEFT) << 2;
-						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
-						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
+						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_C) << 5;
+						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_B) << 4;
+						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_RIGHT) << 3;
+						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_LEFT) << 2;
+						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
+						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
 					}
 					else
 					{
-						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_START) << 5;
-						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_A) << 4;
-						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
-						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
+						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_START) << 5;
+						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_A) << 4;
+						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
+						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
 					}
 				}
 
@@ -229,6 +232,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 {
 	M68kCallbackUserData *callback_user_data = (M68kCallbackUserData*)user_data;
 	ClownMDEmu_State *state = callback_user_data->state_and_callbacks.state;
+	ClownMDEmu_Callbacks *frontend_callbacks = callback_user_data->state_and_callbacks.frontend_callbacks;
 
 	const unsigned char high_byte = (unsigned char)((value >> 8) & 0xFF);
 	const unsigned char low_byte = (unsigned char)((value >> 0) & 0xFF);
@@ -237,9 +241,9 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	{
 		/* Cartridge */
 		if (do_high_byte)
-			callback_user_data->state_and_callbacks.frontend_callbacks->cartridge_written(address + 0, high_byte);
+			frontend_callbacks->cartridge_written(frontend_callbacks->user_data, address + 0, high_byte);
 		if (do_low_byte)
-			callback_user_data->state_and_callbacks.frontend_callbacks->cartridge_written(address + 1, low_byte);
+			frontend_callbacks->cartridge_written(frontend_callbacks->user_data, address + 1, low_byte);
 
 		/* TODO - This is temporary, just to catch possible bugs in the 68k emulator */
 		PrintError("68k attempted to write to ROM 0x%lX at 0x%lX", address, state->m68k.program_counter);
@@ -320,12 +324,12 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	else if (address == 0xC00000 || address == 0xC00002)
 	{
 		/* VDP data port */
-		VDP_WriteData(&state->vdp, value, callback_user_data->state_and_callbacks.frontend_callbacks->colour_updated);
+		VDP_WriteData(&state->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data);
 	}
 	else if (address == 0xC00004 || address == 0xC00006)
 	{
 		/* VDP control port */
-		VDP_WriteControl(&state->vdp, value, callback_user_data->state_and_callbacks.frontend_callbacks->colour_updated, VDPReadCallback, &callback_user_data->state_and_callbacks);
+		VDP_WriteControl(&state->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, &callback_user_data->state_and_callbacks);
 	}
 	else if (address == 0xC00008)
 	{
@@ -439,12 +443,12 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks
 		{
 			if (state->vdp.interlace_mode_2_enabled)
 			{
-				VDP_RenderScanline(&state->vdp, scanline * 2, callbacks->scanline_rendered);
-				VDP_RenderScanline(&state->vdp, scanline * 2 + 1, callbacks->scanline_rendered);
+				VDP_RenderScanline(&state->vdp, scanline * 2, callbacks->scanline_rendered, callbacks->user_data);
+				VDP_RenderScanline(&state->vdp, scanline * 2 + 1, callbacks->scanline_rendered, callbacks->user_data);
 			}
 			else
 			{
-				VDP_RenderScanline(&state->vdp, scanline, callbacks->scanline_rendered);
+				VDP_RenderScanline(&state->vdp, scanline, callbacks->scanline_rendered, callbacks->user_data);
 			}
 
 			/* Fire a H-Int if we've reached the requested line */

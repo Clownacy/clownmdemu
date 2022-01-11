@@ -59,12 +59,14 @@ typedef struct ClownMDEmu_State
 
 typedef struct ClownMDEmu_Callbacks
 {
-	unsigned int (*cartridge_read)(unsigned long address);
-	void (*cartridge_written)(unsigned long address, unsigned int value);
-	void (*colour_updated)(unsigned int index, unsigned int colour);
-	void (*scanline_rendered)(unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height);
-	cc_bool (*input_requested)(unsigned int player_id, unsigned int button_id);
-	void (*psg_audio_generated)(short *samples, size_t total_samples);
+	void *user_data;
+
+	unsigned int (*cartridge_read)(void *user_data, unsigned long address);
+	void (*cartridge_written)(void *user_data, unsigned long address, unsigned int value);
+	void (*colour_updated)(void *user_data, unsigned int index, unsigned int colour);
+	void (*scanline_rendered)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height);
+	cc_bool (*input_requested)(void *user_data, unsigned int player_id, unsigned int button_id);
+	void (*psg_audio_generated)(void *user_data, short *samples, size_t total_samples);
 } ClownMDEmu_Callbacks;
 
 void ClownMDEmu_Init(ClownMDEmu_State *state);
