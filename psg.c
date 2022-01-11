@@ -7,9 +7,37 @@ https://www.smspower.org/Development/SN76489
 
 #include "psg.h"
 
-#include <math.h> /* TODO - Temporary */
+/*#define GENERATE_VOLUME_TABLE*/
+
+#ifdef GENERATE_VOLUME_TABLE
+#include <math.h>
+#endif
 
 #include "clowncommon.h"
+
+/* The volume lookup table */
+#ifdef GENERATE_VOLUME_TABLE
+static short volumes[0x10][2];
+#else
+static const short volumes[0x10][2] = {
+	{0x1FFF, -0x1FFF},
+	{0x196A, -0x196A},
+	{0x1430, -0x1430},
+	{0x1009, -0x1009},
+	{0x0CBD, -0x0CBD},
+	{0x0A1E, -0x0A1E},
+	{0x0809, -0x0809},
+	{0x0662, -0x0662},
+	{0x0512, -0x0512},
+	{0x0407, -0x0407},
+	{0x0333, -0x0333},
+	{0x028A, -0x028A},
+	{0x0204, -0x0204},
+	{0x019A, -0x019A},
+	{0x0146, -0x0146},
+	{0x0000, -0x0000}
+};
+#endif
 
 void PSG_Init(PSG_State *state)
 {
@@ -37,20 +65,21 @@ void PSG_Init(PSG_State *state)
 	state->latched_command.channel = 0;
 	state->latched_command.is_volume_command = cc_false;
 
+#ifdef GENERATE_VOLUME_TABLE
 	/* Generate the volume lookup table */
-	/* TODO - Temporary */
 	for (i = 0; i < 0xF; ++i)
 	{
 		/* Each volume level is 2 decibels lower than the last */
 		const short volume = (short)(((float)0x7FFF / 4.0f) * powf(10.0f, -2.0f * (float)i / 20.0f));
 
-		state->volumes[i][0] = volume; /* Positive phase */
-		state->volumes[i][1] = -volume; /* Negative phase */
+		volumes[i][0] = volume; /* Positive phase */
+		volumes[i][1] = -volume; /* Negative phase */
 	}
 
 	/* The lowest volume is 0 */
-	state->volumes[0xF][0] = 0;
-	state->volumes[0xF][1] = 0;
+	volumes[0xF][0] = 0;
+	volumes[0xF][1] = 0;
+#endif
 }
 
 void PSG_DoCommand(PSG_State *state, unsigned int command)
@@ -147,7 +176,7 @@ void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples)
 			}
 
 			/* Output a sample */
-			*sample_buffer_pointer++ += state->volumes[tone->attenuation][tone->output_bit];
+			*sample_buffer_pointer++ += volumes[tone->attenuation][tone->output_bit];
 		}
 	}
 
@@ -199,6 +228,6 @@ void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples)
 		}
 
 		/* Output a sample */
-		*sample_buffer_pointer++ += state->volumes[state->noise.attenuation][state->noise.real_output_bit];
+		*sample_buffer_pointer++ += volumes[state->noise.attenuation][state->noise.real_output_bit];
 	}
 }

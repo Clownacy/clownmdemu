@@ -61,9 +61,6 @@ typedef struct PSG_State
 		/* Whether the latched command sets the volume attenuation or not */
 		cc_bool is_volume_command;
 	} latched_command;
-
-	/* The volume lookup table */
-	short volumes[0x10][2];
 } PSG_State;
 
 /* Initialises the PSG_State struct with sane default values. */
