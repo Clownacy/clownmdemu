@@ -34,15 +34,7 @@ static void GenerateAndPlayPSGSamples(M68kCallbackUserData *m68k_callback_user_d
 
 	if (samples_to_generate != 0)
 	{
-		short buffer[CC_MAX(CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL), CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / 15 / 16];
-
-		assert(samples_to_generate <= CC_COUNT_OF(buffer));
-
-		memset(buffer, 0, sizeof(buffer));
-
-		PSG_Update(&m68k_callback_user_data->state_and_callbacks.state->psg, buffer, samples_to_generate);
-
-		m68k_callback_user_data->state_and_callbacks.frontend_callbacks->psg_audio_generated(m68k_callback_user_data->state_and_callbacks.frontend_callbacks->user_data, buffer, samples_to_generate);
+		m68k_callback_user_data->state_and_callbacks.frontend_callbacks->psg_audio_to_be_generated(m68k_callback_user_data->state_and_callbacks.frontend_callbacks->user_data, samples_to_generate);
 
 		m68k_callback_user_data->psg_previous_cycle = m68k_callback_user_data->current_cycle;
 	}
@@ -493,6 +485,11 @@ void ClownMDEmu_Reset(ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callb
 	m68k_read_write_callbacks.user_data = &callback_user_data;
 
 	M68k_Reset(&state->m68k, &m68k_read_write_callbacks);
+}
+
+void ClownMDEmu_GeneratePSGAudio(ClownMDEmu_State *state, short *sample_buffer, size_t total_samples)
+{
+	PSG_Update(&state->psg, sample_buffer, total_samples);
 }
 
 void ClownMDEmu_SetPAL(ClownMDEmu_State *state, cc_bool pal)

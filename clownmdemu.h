@@ -66,13 +66,14 @@ typedef struct ClownMDEmu_Callbacks
 	void (*colour_updated)(void *user_data, unsigned int index, unsigned int colour);
 	void (*scanline_rendered)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height);
 	cc_bool (*input_requested)(void *user_data, unsigned int player_id, unsigned int button_id);
-	void (*psg_audio_generated)(void *user_data, short *samples, size_t total_samples);
+	void (*psg_audio_to_be_generated)(void *user_data, size_t total_samples);
 } ClownMDEmu_Callbacks;
 
 void ClownMDEmu_Init(ClownMDEmu_State *state);
 void ClownMDEmu_Deinit(ClownMDEmu_State *state);
 void ClownMDEmu_Iterate(ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Reset(ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_GeneratePSGAudio(ClownMDEmu_State *state, short *sample_buffer, size_t total_samples);
 void ClownMDEmu_SetPAL(ClownMDEmu_State *state, cc_bool pal);
 void ClownMDEmu_SetJapanese(ClownMDEmu_State *state, cc_bool japanese);
 
