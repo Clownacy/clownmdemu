@@ -71,8 +71,8 @@ typedef struct ClownMDEmu_Callbacks
 
 void ClownMDEmu_Init(ClownMDEmu_State *state);
 void ClownMDEmu_Deinit(ClownMDEmu_State *state);
-void ClownMDEmu_Iterate(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks);
-void ClownMDEmu_Reset(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_Iterate(ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_Reset(ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_SetPAL(ClownMDEmu_State *state, cc_bool pal);
 void ClownMDEmu_SetJapanese(ClownMDEmu_State *state, cc_bool japanese);
 

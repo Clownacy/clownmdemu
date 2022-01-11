@@ -18,7 +18,7 @@
 typedef struct StateAndCallbacks
 {
 	ClownMDEmu_State *state;
-	ClownMDEmu_Callbacks *frontend_callbacks;
+	const ClownMDEmu_Callbacks *frontend_callbacks;
 } StateAndCallbacks;
 
 typedef struct M68kCallbackUserData
@@ -54,7 +54,7 @@ static unsigned int VDPReadCallback(void *user_data, unsigned long address)
 {
 	StateAndCallbacks *state_and_callbacks = (StateAndCallbacks*)user_data;
 	ClownMDEmu_State *state = state_and_callbacks->state;
-	ClownMDEmu_Callbacks *frontend_callbacks = state_and_callbacks->frontend_callbacks;
+	const ClownMDEmu_Callbacks *frontend_callbacks = state_and_callbacks->frontend_callbacks;
 	unsigned int value = 0;
 
 	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
@@ -81,7 +81,7 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 {
 	M68kCallbackUserData *callback_user_data = (M68kCallbackUserData*)user_data;
 	ClownMDEmu_State *state = callback_user_data->state_and_callbacks.state;
-	ClownMDEmu_Callbacks *frontend_callbacks = callback_user_data->state_and_callbacks.frontend_callbacks;
+	const ClownMDEmu_Callbacks *frontend_callbacks = callback_user_data->state_and_callbacks.frontend_callbacks;
 	unsigned int value = 0;
 
 	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
@@ -232,7 +232,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 {
 	M68kCallbackUserData *callback_user_data = (M68kCallbackUserData*)user_data;
 	ClownMDEmu_State *state = callback_user_data->state_and_callbacks.state;
-	ClownMDEmu_Callbacks *frontend_callbacks = callback_user_data->state_and_callbacks.frontend_callbacks;
+	const ClownMDEmu_Callbacks *frontend_callbacks = callback_user_data->state_and_callbacks.frontend_callbacks;
 
 	const unsigned char high_byte = (unsigned char)((value >> 8) & 0xFF);
 	const unsigned char low_byte = (unsigned char)((value >> 0) & 0xFF);
@@ -384,7 +384,7 @@ void ClownMDEmu_Deinit(ClownMDEmu_State *state)
 	(void)state;
 }
 
-void ClownMDEmu_Iterate(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks)
+void ClownMDEmu_Iterate(ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks)
 {
 	unsigned int scanline, i;
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
@@ -480,7 +480,7 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks
 	GenerateAndPlayPSGSamples(&m68k_callback_user_data);
 }
 
-void ClownMDEmu_Reset(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks)
+void ClownMDEmu_Reset(ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks)
 {
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	M68kCallbackUserData callback_user_data;
