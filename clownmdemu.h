@@ -13,9 +13,6 @@
 
 /* TODO - Documentation */
 
-/* TODO - Maybe use a frontend callback to access the cartridge data? */
-#define CLOWNMDEMU_ROM_BUFFER_SIZE (1024 * 1024 * 4) /* 4MiB */
-
 #define CLOWNMDEMU_MASTER_CLOCK_NTSC 53693175
 #define CLOWNMDEMU_MASTER_CLOCK_PAL  53203424
 
@@ -47,13 +44,6 @@ typedef struct ClownMDEmu_State
 		unsigned int m68k;
 		unsigned int z80;
 	} countdowns;
-	struct
-	{
-		unsigned char buffer[CLOWNMDEMU_ROM_BUFFER_SIZE];
-		size_t size;
-		cc_bool writeable;
-	} rom;
-
 	M68k_State m68k;
 	unsigned char m68k_ram[0x10000];
 	unsigned char z80_ram[0x2000];
@@ -69,6 +59,8 @@ typedef struct ClownMDEmu_State
 
 typedef struct ClownMDEmu_Callbacks
 {
+	unsigned int (*cartridge_read)(unsigned long address);
+	void (*cartridge_written)(unsigned long address, unsigned int value);
 	void (*colour_updated)(unsigned int index, unsigned int colour);
 	void (*scanline_rendered)(unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height);
 	cc_bool (*input_requested)(unsigned int player_id, unsigned int button_id);
@@ -78,9 +70,7 @@ typedef struct ClownMDEmu_Callbacks
 void ClownMDEmu_Init(ClownMDEmu_State *state);
 void ClownMDEmu_Deinit(ClownMDEmu_State *state);
 void ClownMDEmu_Iterate(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks);
-void ClownMDEmu_UpdateROM(ClownMDEmu_State *state, const unsigned char *rom_buffer, size_t rom_size);
-void ClownMDEmu_SetROMWriteable(ClownMDEmu_State *state, cc_bool rom_writeable);
-void ClownMDEmu_Reset(ClownMDEmu_State *state);
+void ClownMDEmu_Reset(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_SetPAL(ClownMDEmu_State *state, cc_bool pal);
 void ClownMDEmu_SetJapanese(ClownMDEmu_State *state, cc_bool japanese);
 

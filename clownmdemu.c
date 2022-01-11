@@ -13,10 +13,17 @@
 #include "vdp.h"
 /*#include "z80.h"*/
 
-typedef struct M68kCallbackUserData
+#define MAX_ROM_SIZE (1024 * 1024 * 4) /* 4MiB */
+
+typedef struct StateAndCallbacks
 {
 	ClownMDEmu_State *state;
 	ClownMDEmu_Callbacks *frontend_callbacks;
+} StateAndCallbacks;
+
+typedef struct M68kCallbackUserData
+{
+	StateAndCallbacks state_and_callbacks;
 	unsigned int current_cycle;
 	unsigned int psg_previous_cycle;
 } M68kCallbackUserData;
@@ -33,9 +40,9 @@ static GenerateAndPlayPSGSamples(M68kCallbackUserData *m68k_callback_user_data)
 
 		memset(buffer, 0, sizeof(buffer));
 
-		PSG_Update(&m68k_callback_user_data->state->psg, buffer, samples_to_generate);
+		PSG_Update(&m68k_callback_user_data->state_and_callbacks.state->psg, buffer, samples_to_generate);
 
-		m68k_callback_user_data->frontend_callbacks->psg_audio_generated(buffer, samples_to_generate);
+		m68k_callback_user_data->state_and_callbacks.frontend_callbacks->psg_audio_generated(buffer, samples_to_generate);
 
 		m68k_callback_user_data->psg_previous_cycle = m68k_callback_user_data->current_cycle;
 	}
@@ -45,18 +52,18 @@ static GenerateAndPlayPSGSamples(M68kCallbackUserData *m68k_callback_user_data)
 
 static unsigned int VDPReadCallback(void *user_data, unsigned long address)
 {
-	ClownMDEmu_State *state = (ClownMDEmu_State*)user_data;
+	StateAndCallbacks *state_and_callbacks = (StateAndCallbacks*)user_data;
 	unsigned int value = 0;
 
-	if (/*address >= 0 &&*/ address < state->rom.size)
+	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
 	{
-		value |= state->rom.buffer[address + 0] << 8;
-		value |= state->rom.buffer[address + 1] << 0;
+		value |= state_and_callbacks->frontend_callbacks->cartridge_read(address + 0) << 8;
+		value |= state_and_callbacks->frontend_callbacks->cartridge_read(address + 1) << 0;
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
-		value |= state->m68k_ram[(address + 0) & 0xFFFF] << 8;
-		value |= state->m68k_ram[(address + 1) & 0xFFFF] << 0;
+		value |= state_and_callbacks->state->m68k_ram[(address + 0) & 0xFFFF] << 8;
+		value |= state_and_callbacks->state->m68k_ram[(address + 1) & 0xFFFF] << 0;
 	}
 	else
 	{
@@ -71,16 +78,16 @@ static unsigned int VDPReadCallback(void *user_data, unsigned long address)
 static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte)
 {
 	M68kCallbackUserData *callback_user_data = (M68kCallbackUserData*)user_data;
-	ClownMDEmu_State *state = callback_user_data->state;
+	ClownMDEmu_State *state = callback_user_data->state_and_callbacks.state;
 	unsigned int value = 0;
 
-	if (/*address >= 0 &&*/ address < state->rom.size)
+	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
 	{
 		/* Cartridge */
 		if (do_high_byte)
-			value |= state->rom.buffer[address + 0] << 8;
+			value |= callback_user_data->state_and_callbacks.frontend_callbacks->cartridge_read(address + 0) << 8;
 		if (do_low_byte)
-			value |= state->rom.buffer[address + 1] << 0;
+			value |= callback_user_data->state_and_callbacks.frontend_callbacks->cartridge_read(address + 1) << 0;
 	}
 	else if (address >= 0xA00000 && address <= 0xA01FFF)
 	{
@@ -131,19 +138,19 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 
 					if (value & 0x40)
 					{
-						value |= !callback_user_data->frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_C) << 5;
-						value |= !callback_user_data->frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_B) << 4;
-						value |= !callback_user_data->frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_RIGHT) << 3;
-						value |= !callback_user_data->frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_LEFT) << 2;
-						value |= !callback_user_data->frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
-						value |= !callback_user_data->frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
+						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_C) << 5;
+						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_B) << 4;
+						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_RIGHT) << 3;
+						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_LEFT) << 2;
+						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
+						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
 					}
 					else
 					{
-						value |= !callback_user_data->frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_START) << 5;
-						value |= !callback_user_data->frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_A) << 4;
-						value |= !callback_user_data->frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
-						value |= !callback_user_data->frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
+						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_START) << 5;
+						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_A) << 4;
+						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
+						value |= !callback_user_data->state_and_callbacks.frontend_callbacks->input_requested(joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
 					}
 				}
 
@@ -221,24 +228,20 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned int value)
 {
 	M68kCallbackUserData *callback_user_data = (M68kCallbackUserData*)user_data;
-	ClownMDEmu_State *state = callback_user_data->state;
+	ClownMDEmu_State *state = callback_user_data->state_and_callbacks.state;
 
 	const unsigned char high_byte = (unsigned char)((value >> 8) & 0xFF);
 	const unsigned char low_byte = (unsigned char)((value >> 0) & 0xFF);
 
-	if (/*address >= 0 &&*/ address < state->rom.size)
+	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
 	{
 		/* Cartridge */
-		/* TODO - Support writing (developer cartridges allowed this,
-		   and Sonic 2's Nick Arcade prototype has code that relies on
-		   this in order for Green Hill Zone's collision to work) */
-		   /*
-		   if (do_high_byte)
-			   state->rom.buffer[address + 0] = high_byte;
-		   if (do_low_byte)
-			   state->rom.buffer[address + 1] = low_byte;
-		   */
+		if (do_high_byte)
+			callback_user_data->state_and_callbacks.frontend_callbacks->cartridge_written(address + 0, high_byte);
+		if (do_low_byte)
+			callback_user_data->state_and_callbacks.frontend_callbacks->cartridge_written(address + 1, low_byte);
 
+		/* TODO - This is temporary, just to catch possible bugs in the 68k emulator */
 		PrintError("68k attempted to write to ROM 0x%lX at 0x%lX", address, state->m68k.program_counter);
 	}
 	else if (address >= 0xA00000 && address <= 0xA01FFF)
@@ -317,12 +320,12 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	else if (address == 0xC00000 || address == 0xC00002)
 	{
 		/* VDP data port */
-		VDP_WriteData(&state->vdp, value, callback_user_data->frontend_callbacks->colour_updated);
+		VDP_WriteData(&state->vdp, value, callback_user_data->state_and_callbacks.frontend_callbacks->colour_updated);
 	}
 	else if (address == 0xC00004 || address == 0xC00006)
 	{
 		/* VDP control port */
-		VDP_WriteControl(&state->vdp, value, callback_user_data->frontend_callbacks->colour_updated, VDPReadCallback, state);
+		VDP_WriteControl(&state->vdp, value, callback_user_data->state_and_callbacks.frontend_callbacks->colour_updated, VDPReadCallback, &callback_user_data->state_and_callbacks);
 	}
 	else if (address == 0xC00008)
 	{
@@ -387,8 +390,8 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks
 	const unsigned int console_vertical_resolution = (state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
 	const unsigned int cycles_per_scanline = (state->pal ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / television_vertical_resolution;
 
-	m68k_callback_user_data.state = state;
-	m68k_callback_user_data.frontend_callbacks = callbacks;
+	m68k_callback_user_data.state_and_callbacks.state = state;
+	m68k_callback_user_data.state_and_callbacks.frontend_callbacks = callbacks;
 	m68k_callback_user_data.current_cycle = 0;
 	m68k_callback_user_data.psg_previous_cycle = 0;
 
@@ -473,33 +476,13 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks
 	GenerateAndPlayPSGSamples(&m68k_callback_user_data);
 }
 
-/* TODO - Replace this with a system where the emulator queries the frontend for data from the cartridge */
-void ClownMDEmu_UpdateROM(ClownMDEmu_State *state, const unsigned char *rom_buffer, size_t rom_size)
-{
-	if (rom_size > sizeof(state->rom.buffer))
-	{
-		PrintError("Provided ROM was too big for the internal buffer");
-	}
-	else
-	{
-		memcpy(state->rom.buffer, rom_buffer, rom_size);
-		state->rom.size = rom_size;
-	}
-}
-
-void ClownMDEmu_SetROMWriteable(ClownMDEmu_State *state, cc_bool rom_writeable)
-{
-	state->rom.writeable = !!rom_writeable; /* Convert to boolean */
-}
-
-void ClownMDEmu_Reset(ClownMDEmu_State *state)
+void ClownMDEmu_Reset(ClownMDEmu_State *state, ClownMDEmu_Callbacks *callbacks)
 {
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	M68kCallbackUserData callback_user_data;
 
-	/* TODO - Please rethink this */
-	callback_user_data.state = state;
-	callback_user_data.frontend_callbacks = NULL;
+	callback_user_data.state_and_callbacks.state = state;
+	callback_user_data.state_and_callbacks.frontend_callbacks = callbacks;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
