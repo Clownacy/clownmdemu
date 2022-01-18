@@ -17,9 +17,11 @@
 #define CLOWNMDEMU_MASTER_CLOCK_PAL  53203424
 
 /* The NTSC framerate is 59.94FPS (60 divided by 1.001) */
+#define CLOWNMDEMU_MULTIPLY_BY_NTSC_FRAMERATE(x) ((x) * (60 * 1000) / 1001)
 #define CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(x) (((x) / 60) + ((x) / (60 * 1000)))
 
 /* The PAL framerate is 50FPS */
+#define CLOWNMDEMU_MULTIPLY_BY_PAL_FRAMERATE(x) ((x) * 50)
 #define CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(x) ((x) / 50)
 
 enum
