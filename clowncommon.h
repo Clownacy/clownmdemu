@@ -13,6 +13,6 @@ enum
 #define CC_MIN(a, b) ((a) < (b) ? (a) : (b))
 #define CC_MAX(a, b) ((a) > (b) ? (a) : (b))
 #define CC_CLAMP(x, min, max) (CC_MIN((max), CC_MAX((min), (x))))
-#define CC_COUNT_OF(array) (sizeof(array) / sizeof(*array))
+#define CC_COUNT_OF(array) (sizeof(array) / sizeof(*(array)))
 
 #endif /* CLOWNCOMMON_H */
