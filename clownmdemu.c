@@ -501,3 +501,8 @@ void ClownMDEmu_SetJapanese(ClownMDEmu_State *state, cc_bool japanese)
 {
 	state->japanese = !!japanese;
 }
+
+void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg))
+{
+	SetErrorCallback(error_callback);
+}

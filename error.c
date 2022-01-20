@@ -1,15 +1,22 @@
 #include "error.h"
 
 #include <stdarg.h>
-#include <stdio.h>
+#include <stddef.h>
 
-/* TODO - Make this a callback to the user */
+static void (*error_callback)(const char *format, va_list arg);
+
+void SetErrorCallback(void (*error_callback_)(const char *format, va_list arg))
+{
+	error_callback = error_callback_;
+}
+
 void PrintError(const char *fmt, ...)
 {
-	va_list args;
-	va_start(args, fmt);
-	fputs("Error: ", stderr);
-	vfprintf(stderr, fmt, args);
-	fputc('\n', stderr);
-	va_end(args);
+	if (error_callback != NULL)
+	{
+		va_list args;
+		va_start(args, fmt);
+		error_callback(fmt, args);
+		va_end(args);
+	}
 }

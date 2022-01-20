@@ -1,6 +1,7 @@
 #ifndef CLOWNMDEMU_H
 #define CLOWNMDEMU_H
 
+#include <stdarg.h>
 #include <stddef.h>
 
 #include "clowncommon.h"
@@ -78,5 +79,6 @@ void ClownMDEmu_Reset(ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callb
 void ClownMDEmu_GeneratePSGAudio(ClownMDEmu_State *state, short *sample_buffer, size_t total_samples);
 void ClownMDEmu_SetPAL(ClownMDEmu_State *state, cc_bool pal);
 void ClownMDEmu_SetJapanese(ClownMDEmu_State *state, cc_bool japanese);
+void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg));
 
 #endif /* CLOWNMDEMU_H */
