@@ -145,7 +145,7 @@ typedef enum Instruction
 
 static unsigned long ReadByte(const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
 {
-	const cc_bool odd = !!(address & 1);
+	const cc_bool odd = (address & 1) != 0;
 
 	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, (cc_bool)!odd, odd) >> (odd ? 0 : 8);
 }
@@ -180,7 +180,7 @@ static unsigned long ReadLongWord(const M68k_ReadWriteCallbacks *callbacks, unsi
 
 static void WriteByte(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
 {
-	const cc_bool odd = !!(address & 1);
+	const cc_bool odd = (address & 1) != 0;
 
 	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, (cc_bool)!odd, odd, value << (odd ? 0 : 8));
 }
@@ -276,9 +276,9 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 		{
 			/* Add index register and index literal */
 			const unsigned int extension_word = ReadWord(callbacks, state->program_counter);
-			const cc_bool is_address_register = !!(extension_word & 0x8000);
+			const cc_bool is_address_register = (extension_word & 0x8000) != 0;
 			const unsigned int displacement_reg = (extension_word >> 12) & 7;
-			const cc_bool is_longword = !!(extension_word & 0x0800);
+			const cc_bool is_longword = (extension_word & 0x0800) != 0;
 			const unsigned long displacement_literal_value = SIGN_EXTEND(extension_word, 0xFF);
 			/* TODO - Is an address register ever used here on the 68k? */
 			const unsigned long displacement_reg_value = SIGN_EXTEND((is_address_register ? state->address_registers : state->data_registers)[displacement_reg], is_longword ? 0xFFFFFFFF : 0xFFFF);
@@ -414,10 +414,10 @@ static void SetValueUsingDecodedAddressMode(const M68k_ReadWriteCallbacks *callb
 
 static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned int opcode)
 {
-	const cc_bool carry = !!(state->status_register & CONDITION_CODE_CARRY);
-	const cc_bool overflow = !!(state->status_register & CONDITION_CODE_OVERFLOW);
-	const cc_bool zero = !!(state->status_register & CONDITION_CODE_ZERO);
-	const cc_bool negative = !!(state->status_register & CONDITION_CODE_NEGATIVE);
+	const cc_bool carry = (state->status_register & CONDITION_CODE_CARRY) != 0;
+	const cc_bool overflow = (state->status_register & CONDITION_CODE_OVERFLOW) != 0;
+	const cc_bool zero = (state->status_register & CONDITION_CODE_ZERO) != 0;
+	const cc_bool negative = (state->status_register & CONDITION_CODE_NEGATIVE) != 0;
 
 	switch ((opcode >> 8) & 0xF)
 	{
@@ -538,7 +538,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 		const unsigned int opcode = ReadWord(callbacks, state->program_counter);
 
 		const unsigned int opcode_bits_6_and_7 = (opcode >> 6) & 3;
-		const cc_bool opcode_bit_8 = !!(opcode & 0x100);
+		const cc_bool opcode_bit_8 = (opcode & 0x100) != 0;
 
 		const unsigned int opcode_primary_register = (opcode >> 0) & 7;
 		const AddressMode opcode_primary_address_mode = (opcode >> 3) & 7;
@@ -716,7 +716,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 							break;
 					}
 				}
-				else if (!(opcode & 0x0800))
+				else if ((opcode & 0x0800) == 0)
 				{
 					if (opcode_bits_6_and_7 == 3)
 					{
@@ -1603,7 +1603,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				/* Set the zero flag to the specified bit */
 				state->status_register &= ~CONDITION_CODE_ZERO;
-				state->status_register |= CONDITION_CODE_ZERO * !(destination_value & (1ul << source_value));
+				state->status_register |= CONDITION_CODE_ZERO * ((destination_value & (1ul << source_value)) == 0);
 
 				switch (instruction)
 				{
@@ -1749,8 +1749,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_TAS:
 				/* TODO - This instruction doesn't work properly on memory on the Mega Drive */
 				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO);
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(destination_value & 0x80);
-				state->status_register |= CONDITION_CODE_ZERO * !!(destination_value == 0);
+				state->status_register |= CONDITION_CODE_NEGATIVE * ((destination_value & 0x80) != 0);
+				state->status_register |= CONDITION_CODE_ZERO * (destination_value == 0);
 
 				result_value = destination_value | 0x80;
 				break;
@@ -1992,7 +1992,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						state->data_registers[opcode_secondary_register] = (unsigned long)(quotient & 0xFFFF) | ((unsigned long)(remainder & 0xFFFF) << 16);
 					}
 
-					state->status_register |= CONDITION_CODE_NEGATIVE * !!(quotient & 0x8000);
+					state->status_register |= CONDITION_CODE_NEGATIVE * ((quotient & 0x8000) != 0);
 					state->status_register |= CONDITION_CODE_ZERO * (quotient == 0);
 				}
 
@@ -2025,7 +2025,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				state->data_registers[opcode_secondary_register] = result;
 
 				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO);
-				state->status_register |= CONDITION_CODE_NEGATIVE * !!(result & 0x80000000);
+				state->status_register |= CONDITION_CODE_NEGATIVE * ((result & 0x80000000) != 0);
 				state->status_register |= CONDITION_CODE_ZERO * (result == 0);
 
 				break;
@@ -2115,7 +2115,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					for (i = 0; i < count; ++i)
 					{
 						state->status_register &= ~CONDITION_CODE_CARRY;
-						state->status_register |= CONDITION_CODE_CARRY * !!(result_value & sign_bit_bitmask);
+						state->status_register |= CONDITION_CODE_CARRY * ((result_value & sign_bit_bitmask) != 0);
 
 						switch (instruction)
 						{
@@ -2133,12 +2133,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 							case INSTRUCTION_ROXD_MEMORY:
 							case INSTRUCTION_ROXD_REGISTER:
 								result_value <<= 1;
-								result_value |= 1 * !!(state->status_register & CONDITION_CODE_EXTEND);
+								result_value |= 1 * ((state->status_register & CONDITION_CODE_EXTEND) != 0);
 								break;
 
 							case INSTRUCTION_ROD_MEMORY:
 							case INSTRUCTION_ROD_REGISTER:
-								result_value = (result_value << 1) | (1 * !!(result_value & sign_bit_bitmask));
+								result_value = (result_value << 1) | (1 * ((result_value & sign_bit_bitmask) != 0));
 								break;
 
 							default:
@@ -2149,7 +2149,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						if (instruction != INSTRUCTION_ROD_MEMORY && instruction != INSTRUCTION_ROD_REGISTER)
 						{
 							state->status_register &= ~CONDITION_CODE_EXTEND;
-							state->status_register |= CONDITION_CODE_EXTEND * !!(state->status_register & CONDITION_CODE_CARRY);
+							state->status_register |= CONDITION_CODE_EXTEND * ((state->status_register & CONDITION_CODE_CARRY) != 0);
 						}
 					}
 				}
@@ -2159,7 +2159,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					for (i = 0; i < count; ++i)
 					{
 						state->status_register &= ~CONDITION_CODE_CARRY;
-						state->status_register |= CONDITION_CODE_CARRY * !!(result_value & 1);
+						state->status_register |= CONDITION_CODE_CARRY * ((result_value & 1) != 0);
 
 						switch (instruction)
 						{
@@ -2177,12 +2177,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 							case INSTRUCTION_ROXD_MEMORY:
 							case INSTRUCTION_ROXD_REGISTER:
 								result_value >>= 1;
-								result_value |= sign_bit_bitmask * !!(state->status_register & CONDITION_CODE_EXTEND);
+								result_value |= sign_bit_bitmask * ((state->status_register & CONDITION_CODE_EXTEND) != 0);
 								break;
 
 							case INSTRUCTION_ROD_MEMORY:
 							case INSTRUCTION_ROD_REGISTER:
-								result_value = (result_value >> 1) | (sign_bit_bitmask * !!(result_value & 1));
+								result_value = (result_value >> 1) | (sign_bit_bitmask * ((result_value & 1) != 0));
 								break;
 
 							default:
@@ -2193,7 +2193,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						if (instruction != INSTRUCTION_ROD_MEMORY && instruction != INSTRUCTION_ROD_REGISTER)
 						{
 							state->status_register &= ~CONDITION_CODE_EXTEND;
-							state->status_register |= CONDITION_CODE_EXTEND * !!(state->status_register & CONDITION_CODE_CARRY);
+							state->status_register |= CONDITION_CODE_EXTEND * ((state->status_register & CONDITION_CODE_CARRY) != 0);
 						}
 					}
 				}
@@ -2211,9 +2211,9 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 		/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 		{
 			const unsigned long msb_mask = 1ul << (operation_size * 8 - 1);
-			const cc_bool sm = !!(source_value & msb_mask);
-			const cc_bool dm = !!(destination_value & msb_mask);
-			const cc_bool rm = !!(result_value & msb_mask);
+			const cc_bool sm = (source_value & msb_mask) != 0;
+			const cc_bool dm = (destination_value & msb_mask) != 0;
+			const cc_bool rm = (result_value & msb_mask) != 0;
 
 			/* Update CARRY condition code */
 			switch (instruction)
@@ -2640,7 +2640,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TST:
 					/* Standard behaviour: set if result value is negative; clear otherwise */
 					state->status_register &= ~CONDITION_CODE_NEGATIVE;
-					state->status_register |= CONDITION_CODE_NEGATIVE * !!(result_value & msb_mask);
+					state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
 					break;
 
 				case INSTRUCTION_ABCD:
@@ -2735,7 +2735,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_SUBX:
 					/* Standard behaviour: set to CARRY */
 					state->status_register &= ~CONDITION_CODE_EXTEND;
-					state->status_register |= CONDITION_CODE_EXTEND * !!(state->status_register & CONDITION_CODE_CARRY);
+					state->status_register |= CONDITION_CODE_EXTEND * ((state->status_register & CONDITION_CODE_CARRY) != 0);
 					break;
 
 				case INSTRUCTION_AND:

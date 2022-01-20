@@ -38,12 +38,12 @@ static void InitBlitLookupTable(VDP_State *state)
 		{
 			const unsigned int old_palette_line_index = old & palette_line_index_mask;
 			const unsigned int old_colour_index = old & colour_index_mask;
-			const cc_bool old_priority = !!(old & priority_mask);
-			const cc_bool old_not_shadowed = !!(old & not_shadowed_mask);
+			const cc_bool old_priority = (old & priority_mask) != 0;
+			const cc_bool old_not_shadowed = (old & not_shadowed_mask) != 0;
 
 			const unsigned int new_palette_line_index = new & palette_line_index_mask;
 			const unsigned int new_colour_index = new & colour_index_mask;
-			const cc_bool new_priority = !!(new & priority_mask);
+			const cc_bool new_priority = (new & priority_mask) != 0;
 			const cc_bool new_not_shadowed = new_priority;
 
 			const cc_bool draw_new_pixel = new_palette_line_index != 0 && (old_palette_line_index == 0 || !old_priority || new_priority);
@@ -104,7 +104,7 @@ static void WriteAndIncrement(VDP_State *state, unsigned int value, void (*colou
 			/* Update sprite cache if we're writing to the sprite table */
 			const unsigned int sprite_table_index = index - state->sprite_table_address;
 
-			if (sprite_table_index < (state->h40_enabled ? 80u : 64u) * 4u && !(sprite_table_index & 2))
+			if (sprite_table_index < (state->h40_enabled ? 80u : 64u) * 4u && (sprite_table_index & 2) == 0)
 			{
 				state->sprite_table_cache[sprite_table_index / 4][sprite_table_index & 1] = (unsigned short)value;
 				state->sprite_row_cache.needs_updating = cc_true;
@@ -351,10 +351,10 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 
 				/* Obtain and decode tile metadata */
 				tile_metadata = state->vram[(i ? state->plane_b_address : state->plane_a_address) + tile_y * state->plane_width + tile_x];
-				tile_priority = !!(tile_metadata & 0x8000);
+				tile_priority = (tile_metadata & 0x8000) != 0;
 				tile_palette_line = (tile_metadata >> 13) & 3;
-				tile_y_flip = !!(tile_metadata & 0x1000);
-				tile_x_flip = !!(tile_metadata & 0x0800);
+				tile_y_flip = (tile_metadata & 0x1000) != 0;
+				tile_x_flip = (tile_metadata & 0x0800) != 0;
 				tile_index = tile_metadata & 0x7FF;
 
 				/* Get the Y coordinate of the pixel in the tile */
@@ -462,10 +462,10 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 			const unsigned int x = sprite[3] & 0x1FF;
 
 			/* Decode tile metadata */
-			const cc_bool tile_priority = !!(tile_metadata & 0x8000);
+			const cc_bool tile_priority = (tile_metadata & 0x8000) != 0;
 			const unsigned int tile_palette_line = (tile_metadata >> 13) & 3;
-			const cc_bool tile_y_flip = !!(tile_metadata & 0x1000);
-			const cc_bool tile_x_flip = !!(tile_metadata & 0x0800);
+			const cc_bool tile_y_flip = (tile_metadata & 0x1000) != 0;
+			const cc_bool tile_x_flip = (tile_metadata & 0x0800) != 0;
 			const unsigned int tile_index_base = tile_metadata & 0x7FF;
 
 			unsigned int y_in_sprite = sprite_row_cache_entry->y_in_sprite;
@@ -622,10 +622,10 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 		state->access.write_pending = cc_false;
 
 		state->access.index = (unsigned short)destination_address;
-		state->access.read_mode = !(access_mode & 1);
+		state->access.read_mode = (access_mode & 1) == 0;
 
 		if (state->dma.enabled)
-			state->dma.pending = !!(access_mode & 0x20);
+			state->dma.pending = (access_mode & 0x20) != 0;
 
 		switch ((access_mode >> 1) & 7)
 		{
@@ -686,16 +686,16 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 		{
 			case 0:
 				/* MODE SET REGISTER NO.1 */
-				state->h_int_enabled = !!(data & (1 << 4));
+				state->h_int_enabled = (data & (1 << 4)) != 0;
 				/* TODO */
 				break;
 
 			case 1:
 				/* MODE SET REGISTER NO.2 */
-				state->display_enabled = !!(data & (1 << 6));
-				state->v_int_enabled = !!(data & (1 << 5));
-				state->dma.enabled = !!(data & (1 << 4));
-				state->v30_enabled = !!(data & (1 << 3));
+				state->display_enabled = (data & (1 << 6)) != 0;
+				state->v_int_enabled = (data & (1 << 5)) != 0;
+				state->dma.enabled = (data & (1 << 4)) != 0;
+				state->v30_enabled = (data & (1 << 3)) != 0;
 				/* TODO */
 				break;
 
@@ -767,9 +767,9 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 			case 12:
 				/* MODE SET REGISTER NO.4 */
 				/* TODO */
-				state->h40_enabled = !!(data & ((1 << 7) | (1 << 0)));
-				state->shadow_highlight_enabled = !!(data & (1 << 3));
-				state->interlace_mode_2_enabled = !!(data & (1 << 2));
+				state->h40_enabled = (data & ((1 << 7) | (1 << 0))) != 0;
+				state->shadow_highlight_enabled = (data & (1 << 3)) != 0;
+				state->interlace_mode_2_enabled = (data & (1 << 2)) != 0;
 				break;
 
 			case 13:

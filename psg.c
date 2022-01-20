@@ -84,13 +84,13 @@ void PSG_Init(PSG_State *state)
 
 void PSG_DoCommand(PSG_State *state, unsigned int command)
 {
-	const cc_bool latch = !!(command & 0x80);
+	const cc_bool latch = (command & 0x80) != 0;
 
 	if (latch)
 	{
 		/* Latch command */
 		state->latched_command.channel = (command >> 5) & 3;
-		state->latched_command.is_volume_command = !!(command & 0x10);
+		state->latched_command.is_volume_command = (command & 0x10) != 0;
 	}
 
 	if (state->latched_command.channel < CC_COUNT_OF(state->tones))
