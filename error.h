@@ -4,6 +4,6 @@
 #include <stdarg.h>
 
 void SetErrorCallback(void (*error_callback)(const char *format, va_list arg));
-void PrintError(const char *fmt, ...);
+void PrintError(const char *format, ...);
 
 #endif /* ERROR_H */

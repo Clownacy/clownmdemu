@@ -10,13 +10,13 @@ void SetErrorCallback(void (*error_callback_)(const char *format, va_list arg))
 	error_callback = error_callback_;
 }
 
-void PrintError(const char *fmt, ...)
+void PrintError(const char *format, ...)
 {
 	if (error_callback != NULL)
 	{
 		va_list args;
-		va_start(args, fmt);
-		error_callback(fmt, args);
+		va_start(args, format);
+		error_callback(format, args);
 		va_end(args);
 	}
 }
