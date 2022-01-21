@@ -3,6 +3,10 @@
 
 #include "clowncommon.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct M68k_State
 {
 	unsigned long data_registers[8];
@@ -23,5 +27,9 @@ typedef struct M68k_ReadWriteCallbacks
 void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks);
 void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned int level);
 void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* M68K_H */

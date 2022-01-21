@@ -12,6 +12,10 @@
 #include "vdp.h"
 /*#include "z80.h"*/
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* TODO - Documentation */
 
 #define CLOWNMDEMU_MASTER_CLOCK_NTSC 53693175
@@ -80,5 +84,9 @@ void ClownMDEmu_GeneratePSGAudio(ClownMDEmu_State *state, short *sample_buffer, 
 void ClownMDEmu_SetPAL(ClownMDEmu_State *state, cc_bool pal);
 void ClownMDEmu_SetJapanese(ClownMDEmu_State *state, cc_bool japanese);
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg));
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* CLOWNMDEMU_H */

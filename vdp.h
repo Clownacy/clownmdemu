@@ -5,6 +5,10 @@
 
 #include "clowncommon.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define VDP_MAX_SCANLINE_WIDTH 320
 #define VDP_MAX_SCANLINES (240 * 2) /* V30 in interlace mode 2 */
 
@@ -115,5 +119,9 @@ unsigned int VDP_ReadData(VDP_State *state);
 unsigned int VDP_ReadControl(VDP_State *state);
 void VDP_WriteData(VDP_State *state, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data);
 void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data, unsigned int (*read_callback)(void *user_data, unsigned long address), void *read_callback_user_data);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* VDP_H */

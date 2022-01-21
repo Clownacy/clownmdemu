@@ -5,6 +5,10 @@
 
 #include "clowncommon.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct PSG_ToneState
 {
 	/* Countdown until the phase changes */
@@ -74,5 +78,9 @@ void PSG_DoCommand(PSG_State *state, unsigned int command);
 /* Updates the PSG's internal state and outputs samples. */
 /* The samples are mono and in signed 16-bit PCM format. */
 void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PSG_H */
