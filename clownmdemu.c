@@ -119,7 +119,7 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 		{
 			case 0xA10000:
 				if (do_low_byte)
-					value |= (!state->japanese << 7) | (state->pal << 6) | (1 << 5);	/* Bit 5 set = no Mega CD attached */
+					value |= ((state->region == CLOWNMDEMU_REGION_OVERSEAS) << 7) | ((state->tv_standard == CLOWNMDEMU_TV_STANDARD_PAL) << 6) | (1 << 5);	/* Bit 5 set = no Mega CD attached */
 
 				break;
 
@@ -355,9 +355,12 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 }
 
-void ClownMDEmu_Init(ClownMDEmu_State *state)
+void ClownMDEmu_Init(ClownMDEmu_State *state, ClownMDEmu_Region region, ClownMDEmu_TVStandard tv_standard)
 {
 	unsigned int i;
+
+	state->region = region;
+	state->tv_standard = tv_standard;
 
 	state->countdowns.m68k = 0;
 	state->countdowns.z80 = 0;
@@ -382,9 +385,9 @@ void ClownMDEmu_Iterate(ClownMDEmu_State *state, const ClownMDEmu_Callbacks *cal
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	M68kCallbackUserData m68k_callback_user_data;
 
-	const unsigned int television_vertical_resolution = state->pal ? 312 : 262; /* PAL and NTSC, respectively */
+	const unsigned int television_vertical_resolution = state->tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
 	const unsigned int console_vertical_resolution = (state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
-	const unsigned int cycles_per_scanline = (state->pal ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / television_vertical_resolution;
+	const unsigned int cycles_per_scanline = (state->tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / television_vertical_resolution;
 
 	m68k_callback_user_data.state_and_callbacks.state = state;
 	m68k_callback_user_data.state_and_callbacks.frontend_callbacks = callbacks;
@@ -492,14 +495,14 @@ void ClownMDEmu_GeneratePSGAudio(ClownMDEmu_State *state, short *sample_buffer, 
 	PSG_Update(&state->psg, sample_buffer, total_samples);
 }
 
-void ClownMDEmu_SetPAL(ClownMDEmu_State *state, cc_bool pal)
+void ClownMDEmu_SetRegion(ClownMDEmu_State *state, ClownMDEmu_Region region)
 {
-	state->pal = !!pal;
+	state->region = region;
 }
 
-void ClownMDEmu_SetJapanese(ClownMDEmu_State *state, cc_bool japanese)
+void ClownMDEmu_SetTVStandard(ClownMDEmu_State *state, ClownMDEmu_TVStandard tv_standard)
 {
-	state->japanese = !!japanese;
+	state->tv_standard = tv_standard;
 }
 
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg))

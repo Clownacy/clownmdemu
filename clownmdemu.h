@@ -42,10 +42,22 @@ enum
 	CLOWNMDEMU_BUTTON_MAX
 };
 
+typedef enum ClownMDEmu_Region
+{
+	CLOWNMDEMU_REGION_DOMESTIC, /* Japanese */
+	CLOWNMDEMU_REGION_OVERSEAS  /* Elsewhere */
+} ClownMDEmu_Region;
+
+typedef enum ClownMDEmu_TVStandard
+{
+	CLOWNMDEMU_TV_STANDARD_NTSC, /* 60Hz */
+	CLOWNMDEMU_TV_STANDARD_PAL   /* 50Hz */
+} ClownMDEmu_TVStandard;
+
 typedef struct ClownMDEmu_State
 {
-	cc_bool pal;
-	cc_bool japanese;
+	ClownMDEmu_Region region;
+	ClownMDEmu_TVStandard tv_standard;
 	struct
 	{
 		unsigned int m68k;
@@ -76,13 +88,13 @@ typedef struct ClownMDEmu_Callbacks
 	void (*psg_audio_to_be_generated)(void *user_data, size_t total_samples);
 } ClownMDEmu_Callbacks;
 
-void ClownMDEmu_Init(ClownMDEmu_State *state);
+void ClownMDEmu_Init(ClownMDEmu_State *state, ClownMDEmu_Region region, ClownMDEmu_TVStandard tv_standard);
 void ClownMDEmu_Deinit(ClownMDEmu_State *state);
 void ClownMDEmu_Iterate(ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Reset(ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_GeneratePSGAudio(ClownMDEmu_State *state, short *sample_buffer, size_t total_samples);
-void ClownMDEmu_SetPAL(ClownMDEmu_State *state, cc_bool pal);
-void ClownMDEmu_SetJapanese(ClownMDEmu_State *state, cc_bool japanese);
+void ClownMDEmu_SetRegion(ClownMDEmu_State *state, ClownMDEmu_Region region);
+void ClownMDEmu_SetTVStandard(ClownMDEmu_State *state, ClownMDEmu_TVStandard tv_standard);
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg));
 
 #ifdef __cplusplus
