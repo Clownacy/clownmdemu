@@ -29,7 +29,7 @@ extern "C" {
 #define CLOWNMDEMU_MULTIPLY_BY_PAL_FRAMERATE(x) ((x) * 50)
 #define CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(x) ((x) / 50)
 
-enum
+typedef enum ClownMDEmu_Button
 {
 	CLOWNMDEMU_BUTTON_UP,
 	CLOWNMDEMU_BUTTON_DOWN,
@@ -40,7 +40,7 @@ enum
 	CLOWNMDEMU_BUTTON_C,
 	CLOWNMDEMU_BUTTON_START,
 	CLOWNMDEMU_BUTTON_MAX
-};
+} ClownMDEmu_Button;
 
 typedef enum ClownMDEmu_Region
 {
