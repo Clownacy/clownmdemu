@@ -84,7 +84,7 @@ typedef struct ClownMDEmu_Callbacks
 	void (*cartridge_written)(void *user_data, unsigned long address, unsigned int value);
 	void (*colour_updated)(void *user_data, unsigned int index, unsigned int colour);
 	void (*scanline_rendered)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height);
-	cc_bool (*input_requested)(void *user_data, unsigned int player_id, unsigned int button_id);
+	cc_bool (*input_requested)(void *user_data, unsigned int player_id, ClownMDEmu_Button button_id);
 	void (*psg_audio_to_be_generated)(void *user_data, size_t total_samples);
 } ClownMDEmu_Callbacks;
 
