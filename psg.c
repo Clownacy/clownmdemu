@@ -192,15 +192,15 @@ void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples)
 			switch (state->noise.frequency_mode)
 			{
 				case 0:
-					state->noise.countdown = 0x10;
+					state->noise.countdown = 0x10 - 1;
 					break;
 
 				case 1:
-					state->noise.countdown = 0x20;
+					state->noise.countdown = 0x20 - 1;
 					break;
 
 				case 2:
-					state->noise.countdown = 0x40;
+					state->noise.countdown = 0x40 - 1;
 					break;
 
 				case 3:
