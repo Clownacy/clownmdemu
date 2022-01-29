@@ -2920,7 +2920,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 	#ifdef DEBUG_STUFF
 		{
-			const char* const instruction_strings[] = {
+			static const char* const instruction_strings[] = {
 				"INSTRUCTION_ABCD",
 				"INSTRUCTION_ADD",
 				"INSTRUCTION_ADDA",
