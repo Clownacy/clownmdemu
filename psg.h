@@ -9,6 +9,12 @@
 extern "C" {
 #endif
 
+typedef enum PSG_NoiseType
+{
+	PSG_NOISE_TYPE_PERIODIC,
+	PSG_NOISE_TYPE_WHITE
+} PSG_NoiseType;
+
 typedef struct PSG_ToneState
 {
 	/* Countdown until the phase changes */
@@ -21,50 +27,50 @@ typedef struct PSG_ToneState
 	unsigned int output_bit;
 } PSG_ToneState;
 
+typedef struct PSG_NoiseState
+{
+	/* Countdown until the fake output bit alternates */
+	unsigned int countdown;
+	/* The volume attenuation level of the channel */
+	unsigned int attenuation;
+	/* The shift register is rotated when this bit goes from low to high */
+	unsigned int fake_output_bit;
+	/* The current phase of the channel - 0 for high phase, and 1 for low phase */
+	unsigned int real_output_bit;
+	/* Determines what the countdown is reset to when it expires:
+	   0 - 0x10
+	   1 - 0x20
+	   2 - 0x40
+	   3 - the same as the last tone channel */
+	unsigned int frequency_mode;
+	/* The type of noise output by the channel */
+	PSG_NoiseType type;
+	/* Rotating bitfield which is used to produce noise */
+	unsigned int shift_register;
+} PSG_NoiseState;
+
+typedef struct PSG_LatchedCommand
+{
+	/* The channel that is currently latched:
+	   0 = Tone channel 1
+	   1 = Tone channel 2
+	   2 = Tone channel 3
+	   3 = Noise channel */
+	unsigned int channel;
+	/* Whether the latched command sets the volume attenuation or not */
+	cc_bool is_volume_command;
+} PSG_LatchedCommand;
+
 typedef struct PSG_State
 {
 	/* The tone channels */
 	PSG_ToneState tones[3];
 
 	/* The noise channel*/
-	struct
-	{
-		/* Countdown until the fake output bit alternates */
-		unsigned int countdown;
-		/* The volume attenuation level of the channel */
-		unsigned int attenuation;
-		/* The shift register is rotated when this bit goes from low to high */
-		unsigned int fake_output_bit;
-		/* The current phase of the channel - 0 for high phase, and 1 for low phase */
-		unsigned int real_output_bit;
-		/* Determines what the countdown is reset to when it expires:
-		   0 - 0x10
-		   1 - 0x20
-		   2 - 0x40
-		   3 - the same as the last tone channel */
-		unsigned int frequency_mode;
-		/* The type of noise output by the channel */
-		enum
-		{
-			PSG_NOISE_TYPE_PERIODIC,
-			PSG_NOISE_TYPE_WHITE
-		} type;
-		/* Rotating bitfield which is used to produce noise */
-		unsigned int shift_register;
-	} noise;
+	PSG_NoiseState noise;
 
 	/* Data relating to the latched command */
-	struct
-	{
-		/* The channel that is currently latched:
-		   0 = Tone channel 1
-		   1 = Tone channel 2
-		   2 = Tone channel 3
-		   3 = Noise channel */
-		unsigned int channel;
-		/* Whether the latched command sets the volume attenuation or not */
-		cc_bool is_volume_command;
-	} latched_command;
+	PSG_LatchedCommand latched_command;
 } PSG_State;
 
 /* Initialises the PSG_State struct with sane default values. */
