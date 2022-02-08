@@ -187,11 +187,21 @@ static void WriteByte(const M68k_ReadWriteCallbacks *callbacks, unsigned long ad
 
 static void WriteWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
 {
+	if ((address & 1) != 0)
+	{
+		/* TODO - Address error */
+	}
+
 	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, cc_true, cc_true, value);
 }
 
 static void WriteLongWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
 {
+	if ((address & 1) != 0)
+	{
+		/* TODO - Address error */
+	}
+
 	callbacks->write_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true, (value >> 16) & 0xFFFF);
 	callbacks->write_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true, (value >>  0) & 0xFFFF);
 }
