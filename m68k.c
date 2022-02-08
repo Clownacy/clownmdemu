@@ -152,7 +152,7 @@ static unsigned long ReadByte(const M68k_ReadWriteCallbacks *callbacks, unsigned
 
 static unsigned long ReadWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
 {
-	if (address & 1)
+	if ((address & 1) != 0)
 	{
 		/* TODO - Address error */
 	}
@@ -164,7 +164,7 @@ static unsigned long ReadLongWord(const M68k_ReadWriteCallbacks *callbacks, unsi
 {
 	unsigned long value;
 
-	if (address & 1)
+	if ((address & 1) != 0)
 	{
 		/* TODO - Address error */
 	}
