@@ -30,13 +30,15 @@ typedef struct M68kCallbackUserData
 
 static void GenerateAndPlayPSGSamples(M68kCallbackUserData *m68k_callback_user_data)
 {
-	const size_t samples_to_generate = (m68k_callback_user_data->current_cycle - m68k_callback_user_data->psg_previous_cycle) / 15 / 16;
+	const unsigned int psg_current_cycle = m68k_callback_user_data->current_cycle / 15 / 16;
+
+	const size_t samples_to_generate = psg_current_cycle - m68k_callback_user_data->psg_previous_cycle;
 
 	if (samples_to_generate != 0)
 	{
 		m68k_callback_user_data->state_and_callbacks.frontend_callbacks->psg_audio_to_be_generated(m68k_callback_user_data->state_and_callbacks.frontend_callbacks->user_data, samples_to_generate);
 
-		m68k_callback_user_data->psg_previous_cycle = m68k_callback_user_data->current_cycle;
+		m68k_callback_user_data->psg_previous_cycle = psg_current_cycle;
 	}
 }
 
