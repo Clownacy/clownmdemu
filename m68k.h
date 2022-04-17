@@ -15,6 +15,7 @@ typedef struct M68k_State
 	unsigned long program_counter;
 	unsigned short status_register;
 	unsigned short instruction_register;
+	cc_bool halted;
 
 	unsigned char cycles_left_in_instruction;
 } M68k_State;

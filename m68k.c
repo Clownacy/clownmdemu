@@ -217,21 +217,28 @@ static void Group1Or2Exception(M68k_State *state, const M68k_ReadWriteCallbacks 
 	state->status_register |= 0x2000;
 
 	state->program_counter = ReadLongWord(state, callbacks, vector_offset * 4);
-
 }
 
 static void Group0Exception(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, size_t vector_offset, unsigned long access_address, cc_bool is_a_read)
 {
-	Group1Or2Exception(state, callbacks, vector_offset);
+	/* If a data or address error occurs during group 0 exception processing, then the CPU halts. */
+	if ((state->address_registers[7] & 1) != 0)
+	{
+		state->halted = cc_true;
+	}
+	else
+	{
+		Group1Or2Exception(state, callbacks, vector_offset);
 
-	/* Push extra information to the stack. */
-	state->address_registers[7] -= 2;
-	WriteWord(state, callbacks, state->address_registers[7], state->instruction_register);
-	state->address_registers[7] -= 4;
-	WriteLongWord(state, callbacks, state->address_registers[7], access_address);
-	state->address_registers[7] -= 2;
-	/* TODO - Function code and 'Instruction/Not' bit. */
-	WriteWord(state, callbacks, state->address_registers[7], is_a_read << 4);
+		/* Push extra information to the stack. */
+		state->address_registers[7] -= 2;
+		WriteWord(state, callbacks, state->address_registers[7], state->instruction_register);
+		state->address_registers[7] -= 4;
+		WriteLongWord(state, callbacks, state->address_registers[7], access_address);
+		state->address_registers[7] -= 2;
+		/* TODO - Function code and 'Instruction/Not' bit. */
+		WriteWord(state, callbacks, state->address_registers[7], is_a_read << 4);
+	}
 }
 
 /* Misc. utility */
@@ -532,6 +539,8 @@ static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned int opcode)
 
 void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 {
+	state->halted = cc_false;
+
 	state->address_registers[7] = ReadLongWord(state, callbacks, 0);
 	state->program_counter = ReadLongWord(state, callbacks, 4);
 
@@ -557,9 +566,13 @@ void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks,
 
 void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 {
-	/* Wait for current instruction to finish */
-	if (state->cycles_left_in_instruction != 0)
+	if (state->halted)
 	{
+		/* Nope, we're not doing anything. */
+	}
+	else if (state->cycles_left_in_instruction != 0)
+	{
+		/* Wait for current instruction to finish */
 		--state->cycles_left_in_instruction;
 	}
 	else
@@ -801,14 +814,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					else if ((opcode & 0x0B80) == 0x0880)
 						instruction = INSTRUCTION_MOVEM;
 				}
-				/* It's pointless to check for these since unrecognised
-				   opcodes are assumed to be 'INSTRUCTION_ILLEGAL' anyway. */
-				/*
 				else if (opcode == 0x4AFA || opcode == 0x4AFB || opcode == 0x4AFC)
 				{
 					instruction = INSTRUCTION_ILLEGAL;
 				}
-				*/
 				else if ((opcode & 0x0FC0) == 0x0AC0)
 				{
 					instruction = INSTRUCTION_TAS;
