@@ -138,7 +138,7 @@ typedef enum Instruction
 	INSTRUCTION_TST,
 	INSTRUCTION_UNLK,
 
-	INSTRUCTION_UNKNOWN
+	INSTRUCTION_UNIMPLEMENTED
 } Instruction;
 
 /* Memory reads */
@@ -565,7 +565,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 		unsigned int operation_size = 1; /* Set to 1 by default to prevent an invalid shift later on */
 		DecodedAddressMode source_decoded_address_mode, destination_decoded_address_mode;
 		unsigned long source_value = 0, destination_value = 0, result_value = 0;
-		Instruction instruction = INSTRUCTION_UNKNOWN;
+		Instruction instruction = INSTRUCTION_ILLEGAL;
 
 		state->program_counter += 2;
 
@@ -787,10 +787,14 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					else if ((opcode & 0x0B80) == 0x0880)
 						instruction = INSTRUCTION_MOVEM;
 				}
-				else if (opcode == 0x4AFC)
+				/* It's pointless to check for these since unrecognised
+				   opcodes are assumed to be 'INSTRUCTION_ILLEGAL' anyway. */
+				/*
+				else if (opcode == 0x4AFA || opcode == 0x4AFB || opcode == 0x4AFC)
 				{
 					instruction = INSTRUCTION_ILLEGAL;
 				}
+				*/
 				else if ((opcode & 0x0FC0) == 0x0AC0)
 				{
 					instruction = INSTRUCTION_TAS;
@@ -925,6 +929,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case 0xA:
+				instruction = INSTRUCTION_UNIMPLEMENTED;
 				Group1Or2Exception(state, callbacks, 10);
 				break;
 
@@ -1019,6 +1024,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case 0xF:
+				instruction = INSTRUCTION_UNIMPLEMENTED;
 				Group1Or2Exception(state, callbacks, 11);
 				break;
 		}
@@ -1166,7 +1172,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_BSR:
 			case INSTRUCTION_BCC:
 			case INSTRUCTION_EXG:
-			case INSTRUCTION_UNKNOWN:
+			case INSTRUCTION_UNIMPLEMENTED:
 				/* Doesn't have any sizes */
 				break;
 		}
@@ -1322,7 +1328,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_LSD_REGISTER:
 			case INSTRUCTION_ROXD_REGISTER:
 			case INSTRUCTION_ROD_REGISTER:
-			case INSTRUCTION_UNKNOWN:
+			case INSTRUCTION_UNIMPLEMENTED:
 				/* Doesn't have a source value */
 				break;
 		}
@@ -1456,7 +1462,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MULS:
 			case INSTRUCTION_EXG:
 			case INSTRUCTION_TST:
-			case INSTRUCTION_UNKNOWN:
+			case INSTRUCTION_UNIMPLEMENTED:
 				/* Doesn't have a destination address mode to decode */
 				break;
 		}
@@ -1560,7 +1566,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_TRAPV:
 			case INSTRUCTION_TST:
 			case INSTRUCTION_UNLK:
-			case INSTRUCTION_UNKNOWN:
+			case INSTRUCTION_UNIMPLEMENTED:
 				/* Doesn't read its destination (if it even has one) */
 				break;
 		}
@@ -1765,8 +1771,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_ILLEGAL:
-				/* TODO */
-				UNIMPLEMENTED_INSTRUCTION("ILLEGAL");
+				/* Illegal instruction. */
+				Group1Or2Exception(state, callbacks, 4);
 				break;
 
 			case INSTRUCTION_TAS:
@@ -2239,7 +2245,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			}
 
 			case INSTRUCTION_NOP:
-			case INSTRUCTION_UNKNOWN:
+			case INSTRUCTION_UNIMPLEMENTED:
 				/* Doesn't do anything */
 				break;
 		}
@@ -2379,7 +2385,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TRAP:
 				case INSTRUCTION_TRAPV:
 				case INSTRUCTION_UNLK:
-				case INSTRUCTION_UNKNOWN:
+				case INSTRUCTION_UNIMPLEMENTED:
 					/* These instructions don't affect condition codes (unless they write to them directly) */
 					break;
 			}
@@ -2505,7 +2511,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TRAP:
 				case INSTRUCTION_TRAPV:
 				case INSTRUCTION_UNLK:
-				case INSTRUCTION_UNKNOWN:
+				case INSTRUCTION_UNIMPLEMENTED:
 					/* These instructions don't affect condition codes (unless they write to them directly) */
 					break;
 			}
@@ -2619,7 +2625,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TRAP:
 				case INSTRUCTION_TRAPV:
 				case INSTRUCTION_UNLK:
-				case INSTRUCTION_UNKNOWN:
+				case INSTRUCTION_UNIMPLEMENTED:
 					/* These instructions don't affect condition codes (unless they write to them directly) */
 					break;
 			}
@@ -2730,7 +2736,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TRAP:
 				case INSTRUCTION_TRAPV:
 				case INSTRUCTION_UNLK:
-				case INSTRUCTION_UNKNOWN:
+				case INSTRUCTION_UNIMPLEMENTED:
 					/* These instructions don't affect condition codes (unless they write to them directly) */
 					break;
 			}
@@ -2841,7 +2847,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TRAP:
 				case INSTRUCTION_TRAPV:
 				case INSTRUCTION_UNLK:
-				case INSTRUCTION_UNKNOWN:
+				case INSTRUCTION_UNIMPLEMENTED:
 					/* These instructions don't affect condition codes (unless they write to them directly) */
 					break;
 			}
@@ -2950,7 +2956,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_TRAPV:
 			case INSTRUCTION_TST:
 			case INSTRUCTION_UNLK:
-			case INSTRUCTION_UNKNOWN:
+			case INSTRUCTION_UNIMPLEMENTED:
 				/* Doesn't write anything */
 				break;
 		}
@@ -3047,7 +3053,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				"INSTRUCTION_TST",
 				"INSTRUCTION_UNLK",
 
-				"INSTRUCTION_UNKNOWN"
+				"INSTRUCTION_UNIMPLEMENTED"
 			};
 
 			fprintf(stderr, "0x%.8lX - %s\n", state->program_counter, instruction_strings[instruction]);
