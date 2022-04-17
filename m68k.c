@@ -141,6 +141,11 @@ typedef enum Instruction
 	INSTRUCTION_UNIMPLEMENTED
 } Instruction;
 
+/* Exception forward-declarations. */
+
+static void Group1Or2Exception(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, size_t vector_offset);
+static void Group0Exception(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, size_t vector_offset, unsigned long access_address, cc_bool is_a_read);
+
 /* Memory reads */
 
 static unsigned long ReadByte(const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
@@ -150,24 +155,20 @@ static unsigned long ReadByte(const M68k_ReadWriteCallbacks *callbacks, unsigned
 	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, (cc_bool)!odd, odd) >> (odd ? 0 : 8);
 }
 
-static unsigned long ReadWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
+static unsigned long ReadWord(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
 {
 	if ((address & 1) != 0)
-	{
-		/* TODO - Address error */
-	}
+		Group0Exception(state, callbacks, 3, address, cc_true);
 
 	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, cc_true, cc_true);
 }
 
-static unsigned long ReadLongWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
+static unsigned long ReadLongWord(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
 {
 	unsigned long value;
 
 	if ((address & 1) != 0)
-	{
-		/* TODO - Address error */
-	}
+		Group0Exception(state, callbacks, 3, address, cc_true);
 
 	value = 0;
 	value |= (unsigned long)callbacks->read_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true) << 16;
@@ -185,25 +186,52 @@ static void WriteByte(const M68k_ReadWriteCallbacks *callbacks, unsigned long ad
 	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, (cc_bool)!odd, odd, value << (odd ? 0 : 8));
 }
 
-static void WriteWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
+static void WriteWord(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
 {
 	if ((address & 1) != 0)
-	{
-		/* TODO - Address error */
-	}
+		Group0Exception(state, callbacks, 3, address, cc_false);
 
 	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, cc_true, cc_true, value);
 }
 
-static void WriteLongWord(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
+static void WriteLongWord(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
 {
 	if ((address & 1) != 0)
-	{
-		/* TODO - Address error */
-	}
+		Group0Exception(state, callbacks, 3, address, cc_false);
 
 	callbacks->write_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true, (value >> 16) & 0xFFFF);
 	callbacks->write_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true, (value >>  0) & 0xFFFF);
+}
+
+/* Exceptions */
+
+static void Group1Or2Exception(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, size_t vector_offset)
+{
+	state->address_registers[7] -= 4;
+	WriteLongWord(state, callbacks, state->address_registers[7], state->program_counter);
+	state->address_registers[7] -= 2;
+	WriteWord(state, callbacks, state->address_registers[7], state->status_register);
+
+	state->status_register &= 0x00FF;
+	/* Set supervisor bit */
+	state->status_register |= 0x2000;
+
+	state->program_counter = ReadLongWord(state, callbacks, vector_offset * 4);
+
+}
+
+static void Group0Exception(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, size_t vector_offset, unsigned long access_address, cc_bool is_a_read)
+{
+	Group1Or2Exception(state, callbacks, vector_offset);
+
+	/* Push extra information to the stack. */
+	state->address_registers[7] -= 2;
+	WriteWord(state, callbacks, state->address_registers[7], state->instruction_register);
+	state->address_registers[7] -= 4;
+	WriteLongWord(state, callbacks, state->address_registers[7], access_address);
+	state->address_registers[7] -= 2;
+	/* TODO - Function code and 'Instruction/Not' bit. */
+	WriteWord(state, callbacks, state->address_registers[7], is_a_read << 4);
 }
 
 /* Misc. utility */
@@ -218,7 +246,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 	if (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_SHORT)
 	{
 		/* Absolute short */
-		const unsigned int short_address = ReadWord(callbacks, state->program_counter);
+		const unsigned int short_address = ReadWord(state, callbacks, state->program_counter);
 
 		address = SIGN_EXTEND(short_address, 0xFFFF);
 		state->program_counter += 2;
@@ -226,7 +254,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 	else if (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_LONG)
 	{
 		/* Absolute long */
-		address = ReadLongWord(callbacks, state->program_counter);
+		address = ReadLongWord(state, callbacks, state->program_counter);
 		state->program_counter += 4;
 	}
 	else if (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
@@ -277,7 +305,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 		if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT || (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_DISPLACEMENT))
 		{
 			/* Add displacement */
-			const unsigned int displacement = ReadWord(callbacks, state->program_counter);
+			const unsigned int displacement = ReadWord(state, callbacks, state->program_counter);
 
 			address += SIGN_EXTEND(displacement, 0xFFFF);
 			state->program_counter += 2;
@@ -285,7 +313,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 		else if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_INDEX || (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_INDEX))
 		{
 			/* Add index register and index literal */
-			const unsigned int extension_word = ReadWord(callbacks, state->program_counter);
+			const unsigned int extension_word = ReadWord(state, callbacks, state->program_counter);
 			const cc_bool is_address_register = (extension_word & 0x8000) != 0;
 			const unsigned int displacement_reg = (extension_word >> 12) & 7;
 			const cc_bool is_longword = (extension_word & 0x0800) != 0;
@@ -350,7 +378,7 @@ static void DecodeAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *
 	}
 }
 
-static unsigned long GetValueUsingDecodedAddressMode(const M68k_ReadWriteCallbacks *callbacks, DecodedAddressMode *decoded_address_mode)
+static unsigned long GetValueUsingDecodedAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, DecodedAddressMode *decoded_address_mode)
 {
 	unsigned long value = 0;
 
@@ -371,11 +399,11 @@ static unsigned long GetValueUsingDecodedAddressMode(const M68k_ReadWriteCallbac
 					break;
 
 				case 2:
-					value = ReadWord(callbacks, address);
+					value = ReadWord(state, callbacks, address);
 					break;
 
 				case 4:
-					value = ReadLongWord(callbacks, address);
+					value = ReadLongWord(state, callbacks, address);
 					break;
 			}
 
@@ -386,7 +414,7 @@ static unsigned long GetValueUsingDecodedAddressMode(const M68k_ReadWriteCallbac
 	return value;
 }
 
-static void SetValueUsingDecodedAddressMode(const M68k_ReadWriteCallbacks *callbacks, DecodedAddressMode *decoded_address_mode, unsigned long value)
+static void SetValueUsingDecodedAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, DecodedAddressMode *decoded_address_mode, unsigned long value)
 {
 	switch (decoded_address_mode->type)
 	{
@@ -409,11 +437,11 @@ static void SetValueUsingDecodedAddressMode(const M68k_ReadWriteCallbacks *callb
 					break;
 
 				case 2:
-					WriteWord(callbacks, address, value);
+					WriteWord(state, callbacks, address, value);
 					break;
 
 				case 4:
-					WriteLongWord(callbacks, address, value);
+					WriteLongWord(state, callbacks, address, value);
 					break;
 			}
 
@@ -500,27 +528,12 @@ static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned int opcode)
 	}
 }
 
-static void Group1Or2Exception(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, size_t vector_offset)
-{
-	state->address_registers[7] -= 4;
-	WriteLongWord(callbacks, state->address_registers[7], state->program_counter);
-	state->address_registers[7] -= 2;
-	WriteWord(callbacks, state->address_registers[7], state->status_register);
-
-	state->status_register &= 0x00FF;
-	/* Set supervisor bit */
-	state->status_register |= 0x2000;
-
-	state->program_counter = ReadLongWord(callbacks, vector_offset * 4);
-
-}
-
 /* API */
 
 void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 {
-	state->address_registers[7] = ReadLongWord(callbacks, 0);
-	state->program_counter = ReadLongWord(callbacks, 4);
+	state->address_registers[7] = ReadLongWord(state, callbacks, 0);
+	state->program_counter = ReadLongWord(state, callbacks, 4);
 
 	state->status_register &= 0x00FF;
 	/* Set supervisor bit */
@@ -552,7 +565,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 	else
 	{
 		/* Process new instruction */
-		const unsigned int opcode = ReadWord(callbacks, state->program_counter);
+		const unsigned int opcode = ReadWord(state, callbacks, state->program_counter);
 
 		const unsigned int opcode_bits_6_and_7 = (opcode >> 6) & 3;
 		const cc_bool opcode_bit_8 = (opcode & 0x100) != 0;
@@ -567,6 +580,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 		unsigned long source_value = 0, destination_value = 0, result_value = 0;
 		Instruction instruction = INSTRUCTION_ILLEGAL;
 
+		state->instruction_register = opcode;
 		state->program_counter += 2;
 
 		/* Figure out which instruction this is */
@@ -1198,7 +1212,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_STOP:
 				/* Immediate value (any size) */
 				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);
-				source_value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
+				source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
 				break;
 
 			case INSTRUCTION_BTST_DYNAMIC:
@@ -1208,7 +1222,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_EOR:
 				/* Secondary data register */
 				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode_secondary_register);
-				source_value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
+				source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
 				break;
 
 			case INSTRUCTION_BTST_STATIC:
@@ -1217,7 +1231,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_BSET_STATIC:
 				/* Immediate value (byte) */
 				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, 1, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);
-				source_value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
+				source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
 				break;
 
 			case INSTRUCTION_MOVE_FROM_SR:
@@ -1239,7 +1253,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				if ((opcode & 0x00FF) == 0)
 				{
 					DecodeAddressMode(state, callbacks, &source_decoded_address_mode, 2, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);
-					source_value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
+					source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
 				}
 
 				break;
@@ -1249,7 +1263,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_SUBX:
 			case INSTRUCTION_ADDX:
 				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode & 0x0008 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode_primary_register);
-				source_value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
+				source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
 				break;
 
 			case INSTRUCTION_OR:
@@ -1262,13 +1276,13 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				else
 					DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode_primary_address_mode, opcode_primary_register);
 
-				source_value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
+				source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
 
 				break;
 
 			case INSTRUCTION_CMPM:
 				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT, opcode_primary_register);
-				source_value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
+				source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
 				break;
 
 			case INSTRUCTION_ADDQ:
@@ -1292,7 +1306,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_TST:
 				/* Primary address mode */
 				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode_primary_address_mode, opcode_primary_register);
-				source_value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
+				source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
 				break;
 
 			case INSTRUCTION_TRAP:
@@ -1528,7 +1542,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ROXD_REGISTER:
 			case INSTRUCTION_ROD_REGISTER:
 				/* Read destination from decoded address mode */
-				destination_value = GetValueUsingDecodedAddressMode(callbacks, &destination_decoded_address_mode);
+				destination_value = GetValueUsingDecodedAddressMode(state, callbacks, &destination_decoded_address_mode);
 				break;
 
 			case INSTRUCTION_BCC:
@@ -1719,7 +1733,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_LINK:
 				/* Push address register to stack */
 				state->address_registers[7] -= 4;
-				WriteLongWord(callbacks, state->address_registers[7], state->address_registers[opcode_primary_register]);
+				WriteLongWord(state, callbacks, state->address_registers[7], state->address_registers[opcode_primary_register]);
 
 				/* Copy stack pointer to address register */
 				state->address_registers[opcode_primary_register] = state->address_registers[7];
@@ -1731,7 +1745,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_UNLK:
 				state->address_registers[7] = state->address_registers[opcode_primary_register];
-				state->address_registers[opcode_primary_register] = ReadLongWord(callbacks, state->address_registers[7]);
+				state->address_registers[opcode_primary_register] = ReadLongWord(state, callbacks, state->address_registers[7]);
 				state->address_registers[7] += 4;
 				break;
 
@@ -1767,7 +1781,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_PEA:
 				state->address_registers[7] -= 4;
-				WriteLongWord(callbacks, state->address_registers[7], source_value);
+				WriteLongWord(state, callbacks, state->address_registers[7], source_value);
 				break;
 
 			case INSTRUCTION_ILLEGAL:
@@ -1809,14 +1823,14 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_RTE:
-				state->status_register = (unsigned short)ReadWord(callbacks, state->address_registers[7]);
+				state->status_register = (unsigned short)ReadWord(state, callbacks, state->address_registers[7]);
 				state->address_registers[7] += 2;
-				state->program_counter = ReadLongWord(callbacks, state->address_registers[7]);
+				state->program_counter = ReadLongWord(state, callbacks, state->address_registers[7]);
 				state->address_registers[7] += 4;
 				break;
 
 			case INSTRUCTION_RTS:
-				state->program_counter = ReadLongWord(callbacks, state->address_registers[7]);
+				state->program_counter = ReadLongWord(state, callbacks, state->address_registers[7]);
 				state->address_registers[7] += 4;
 				break;
 
@@ -1828,15 +1842,15 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_RTR:
 				state->status_register &= 0xFF00;
-				state->status_register |= ReadByte(callbacks, state->address_registers[7] + 1);
+				state->status_register |= ReadByte(state, callbacks, state->address_registers[7] + 1);
 				state->address_registers[7] += 2;
-				state->program_counter = ReadLongWord(callbacks, state->address_registers[7]);
+				state->program_counter = ReadLongWord(state, callbacks, state->address_registers[7]);
 				state->address_registers[7] += 4;
 				break;
 
 			case INSTRUCTION_JSR:
 				state->address_registers[7] -= 4;
-				WriteLongWord(callbacks, state->address_registers[7], state->program_counter);
+				WriteLongWord(state, callbacks, state->address_registers[7], state->program_counter);
 				/* Fallthrough */
 			case INSTRUCTION_JMP:
 				state->program_counter = source_value;
@@ -1850,7 +1864,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				unsigned int bitfield;
 
 				int delta;
-				void (*write_function)(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value);
+				void (*write_function)(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value);
 
 				if (opcode & 0x0040)
 				{
@@ -1877,17 +1891,17 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						{
 							/* Memory to register */
 							if (opcode & 0x0040)
-								state->data_registers[i] = ReadLongWord(callbacks, memory_address);
+								state->data_registers[i] = ReadLongWord(state, callbacks, memory_address);
 							else
-								state->data_registers[i] = SIGN_EXTEND(ReadWord(callbacks, memory_address), 0xFFFF);
+								state->data_registers[i] = SIGN_EXTEND(ReadWord(state, callbacks, memory_address), 0xFFFF);
 						}
 						else
 						{
 							/* Register to memory */
 							if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
-								write_function(callbacks, memory_address + delta, state->address_registers[7 - i]);
+								write_function(state, callbacks, memory_address + delta, state->address_registers[7 - i]);
 							else
-								write_function(callbacks, memory_address, state->data_registers[i]);
+								write_function(state, callbacks, memory_address, state->data_registers[i]);
 						}
 
 						memory_address += delta;
@@ -1905,17 +1919,17 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						{
 							/* Memory to register */
 							if (opcode & 0x0040)
-								state->address_registers[i] = ReadLongWord(callbacks, memory_address);
+								state->address_registers[i] = ReadLongWord(state, callbacks, memory_address);
 							else
-								state->address_registers[i] = SIGN_EXTEND(ReadWord(callbacks, memory_address), 0xFFFF);
+								state->address_registers[i] = SIGN_EXTEND(ReadWord(state, callbacks, memory_address), 0xFFFF);
 						}
 						else
 						{
 							/* Register to memory */
 							if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
-								write_function(callbacks, memory_address + delta, state->data_registers[7 - i]);
+								write_function(state, callbacks, memory_address + delta, state->data_registers[7 - i]);
 							else
-								write_function(callbacks, memory_address, state->address_registers[i]);
+								write_function(state, callbacks, memory_address, state->address_registers[i]);
 						}
 
 						memory_address += delta;
@@ -1982,7 +1996,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				else if (instruction == INSTRUCTION_BSR)
 				{
 					state->address_registers[7] -= 4;
-					WriteLongWord(callbacks, state->address_registers[7], state->program_counter);
+					WriteLongWord(state, callbacks, state->address_registers[7], state->program_counter);
 				}
 
 				if ((opcode & 0x00FF) != 0)
@@ -2919,7 +2933,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_SWAP:
 			case INSTRUCTION_TAS:
 				/* Write to destination */
-				SetValueUsingDecodedAddressMode(callbacks, &destination_decoded_address_mode, result_value);
+				SetValueUsingDecodedAddressMode(state, callbacks, &destination_decoded_address_mode, result_value);
 				break;
 
 			case INSTRUCTION_BCC:

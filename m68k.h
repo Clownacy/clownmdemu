@@ -13,6 +13,7 @@ typedef struct M68k_State
 	unsigned long address_registers[8];
 	unsigned long program_counter;
 	unsigned short status_register;
+	unsigned short instruction_register;
 
 	unsigned char cycles_left_in_instruction;
 } M68k_State;
