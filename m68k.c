@@ -500,6 +500,21 @@ static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned int opcode)
 	}
 }
 
+static void Group1Or2Exception(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, size_t vector_offset)
+{
+	state->address_registers[7] -= 4;
+	WriteLongWord(callbacks, state->address_registers[7], state->program_counter);
+	state->address_registers[7] -= 2;
+	WriteWord(callbacks, state->address_registers[7], state->status_register);
+
+	state->status_register &= 0x00FF;
+	/* Set supervisor bit */
+	state->status_register |= 0x2000;
+
+	state->program_counter = ReadLongWord(callbacks, vector_offset * 4);
+
+}
+
 /* API */
 
 void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
@@ -520,18 +535,10 @@ void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks,
 
 	if (level == 7 || level > (((unsigned int)state->status_register >> 8) & 7))
 	{
-		state->address_registers[7] -= 4;
-		WriteLongWord(callbacks, state->address_registers[7], state->program_counter);
-		state->address_registers[7] -= 2;
-		WriteWord(callbacks, state->address_registers[7], state->status_register);
+		Group1Or2Exception(state, callbacks, 24 + level);
 
-		state->status_register &= 0x00FF;
-		/* Set supervisor bit */
-		state->status_register |= 0x2000;
 		/* Set interrupt mask set to current level */
 		state->status_register |= level << 8;
-
-		state->program_counter = ReadLongWord(callbacks, 0x60 + level * 4);
 	}
 }
 
@@ -1279,6 +1286,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				source_value = GetValueUsingDecodedAddressMode(callbacks, &source_decoded_address_mode);
 				break;
 
+			case INSTRUCTION_TRAP:
+				source_value = opcode & 0xF;
+				break;
+
 			case INSTRUCTION_MOVEP:
 			case INSTRUCTION_NEGX:
 			case INSTRUCTION_CLR:
@@ -1289,7 +1300,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_SWAP:
 			case INSTRUCTION_ILLEGAL:
 			case INSTRUCTION_TAS:
-			case INSTRUCTION_TRAP:
 			case INSTRUCTION_UNLK:
 			case INSTRUCTION_MOVE_USP:
 			case INSTRUCTION_RESET:
@@ -1766,8 +1776,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_TRAP:
-				/* TODO */
-				UNIMPLEMENTED_INSTRUCTION("TRAP");
+				Group1Or2Exception(state, callbacks, 32 + source_value);
 				break;
 
 			case INSTRUCTION_MOVE_USP:
@@ -1803,8 +1812,9 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_TRAPV:
-				/* TODO */
-				UNIMPLEMENTED_INSTRUCTION("TRAPV");
+				if (state->status_register & CONDITION_CODE_OVERFLOW)
+					Group1Or2Exception(state, callbacks, 32 + 7);
+
 				break;
 
 			case INSTRUCTION_RTR:
@@ -1912,9 +1922,24 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			}
 
 			case INSTRUCTION_CHK:
-				/* TODO */
-				UNIMPLEMENTED_INSTRUCTION("CHK");
+			{
+				const unsigned long value = state->data_registers[opcode_secondary_register];
+
+				if (value & 0x8000)
+				{
+					/* Value is smaller than 0. */
+					state->status_register |= CONDITION_CODE_NEGATIVE;
+					Group1Or2Exception(state, callbacks, 6);
+				}
+				else if (value > source_value)
+				{
+					/* Value is greater than upper bound. */
+					state->status_register &= ~CONDITION_CODE_NEGATIVE;
+					Group1Or2Exception(state, callbacks, 6);
+				}
+
 				break;
+			}
 
 			case INSTRUCTION_SCC:
 				result_value = IsOpcodeConditionTrue(state, opcode) ? 0xFF : 0;
@@ -1979,8 +2004,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				if (source_value == 0)
 				{
-					/* TODO */
-					/*TRAP();*/
+					Group1Or2Exception(state, callbacks, 5);
 				}
 				else
 				{
