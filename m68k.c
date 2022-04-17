@@ -924,6 +924,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				break;
 
+			case 0xA000:
+				Group1Or2Exception(state, callbacks, 10);
+				break;
+
 			case 0xB000:
 				if (opcode_bits_6_and_7 == 3)
 					instruction = INSTRUCTION_CMPA;
@@ -1014,9 +1018,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				break;
 
-			default:
-				/* TODO - Illegal instruction exception */
-				PrintError("Illegal instruction at 0x%lX", state->program_counter);
+			case 0xF000:
+				Group1Or2Exception(state, callbacks, 11);
 				break;
 		}
 
