@@ -570,9 +570,9 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 		state->program_counter += 2;
 
 		/* Figure out which instruction this is */
-		switch (opcode & 0xF000)
+		switch ((opcode >> 12) & 0xF)
 		{
-			case 0x0000:
+			case 0x0:
 				if (opcode_bit_8)
 				{
 					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
@@ -706,9 +706,9 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				break;
 
-			case 0x1000:
-			case 0x2000:
-			case 0x3000:
+			case 0x1:
+			case 0x2:
+			case 0x3:
 				if ((opcode & 0x01C0) == 0x0040)
 					instruction = INSTRUCTION_MOVEA;
 				else
@@ -716,7 +716,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				break;
 
-			case 0x4000:
+			case 0x4:
 				if (opcode_bit_8)
 				{
 					switch (opcode_bits_6_and_7)
@@ -859,7 +859,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				break;
 
-			case 0x5000:
+			case 0x5:
 				if (opcode_bits_6_and_7 == 3)
 				{
 					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
@@ -877,7 +877,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				break;
 
-			case 0x6000:
+			case 0x6:
 				if (opcode_secondary_register == 0)
 				{
 					if (opcode_bit_8)
@@ -892,11 +892,11 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				break;
 
-			case 0x7000:
+			case 0x7:
 				instruction = INSTRUCTION_MOVEQ;
 				break;
 
-			case 0x8000:
+			case 0x8:
 				if (opcode_bits_6_and_7 == 3)
 				{
 					if (opcode_bit_8)
@@ -914,7 +914,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				break;
 
-			case 0x9000:
+			case 0x9:
 				if (opcode_bits_6_and_7 == 3)
 					instruction = INSTRUCTION_SUBA;
 				else if ((opcode & 0x0170) == 0x0100)
@@ -924,11 +924,11 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				break;
 
-			case 0xA000:
+			case 0xA:
 				Group1Or2Exception(state, callbacks, 10);
 				break;
 
-			case 0xB000:
+			case 0xB:
 				if (opcode_bits_6_and_7 == 3)
 					instruction = INSTRUCTION_CMPA;
 				else if (!opcode_bit_8)
@@ -940,7 +940,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				break;
 
-			case 0xC000:
+			case 0xC:
 				if (opcode_bits_6_and_7 == 3)
 				{
 					if (opcode_bit_8)
@@ -962,7 +962,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				break;
 
-			case 0xD000:
+			case 0xD:
 				if (opcode_bits_6_and_7 == 3)
 					instruction = INSTRUCTION_ADDA;
 				else if ((opcode & 0x0170) == 0x0100)
@@ -972,7 +972,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				break;
 
-			case 0xE000:
+			case 0xE:
 				if (opcode_bits_6_and_7 == 3)
 				{
 					switch (opcode_secondary_register)
@@ -1018,7 +1018,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				break;
 
-			case 0xF000:
+			case 0xF:
 				Group1Or2Exception(state, callbacks, 11);
 				break;
 		}
