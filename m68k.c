@@ -1803,8 +1803,11 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_MOVE_USP:
-				/* TODO */
-				UNIMPLEMENTED_INSTRUCTION("MOVE USP");
+				if (opcode & 8)
+					state->address_registers[opcode_primary_register] = state->user_stack_pointer;
+				else
+					state->user_stack_pointer = state->address_registers[opcode_primary_register];
+
 				break;
 
 			case INSTRUCTION_RESET:

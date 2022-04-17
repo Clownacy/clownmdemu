@@ -11,6 +11,7 @@ typedef struct M68k_State
 {
 	unsigned long data_registers[8];
 	unsigned long address_registers[8];
+	unsigned long user_stack_pointer;
 	unsigned long program_counter;
 	unsigned short status_register;
 	unsigned short instruction_register;
