@@ -185,6 +185,10 @@ static unsigned int ReadAndIncrement(VDP_State *state)
 
 void VDP_Init(VDP_State *state)
 {
+	state->debug.sprites_disabled = cc_false;
+	state->debug.planes_disabled[0] = cc_false;
+	state->debug.planes_disabled[1] = cc_false;
+
 	state->access.write_pending = cc_false;
 
 	state->access.read_mode = cc_false;
@@ -276,108 +280,111 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 		/* *********** */
 		for (i = 2 ; i-- > 0; )
 		{
-			/* The extra two tiles on the left of the scanline */
-			const unsigned int EXTRA_TILES = 2;
-
-			unsigned int j;
-			unsigned char *metapixels_pointer;
-			unsigned int hscroll;
-			unsigned int hscroll_scroll_offset;
-			unsigned int plane_x_offset;
-
-			/* Get the horizontal scroll value */
-			switch (state->hscroll_mode)
+			if (!state->debug.planes_disabled[i])
 			{
-				default:
-				case VDP_HSCROLL_MODE_FULL:
-					hscroll = state->vram[state->hscroll_address + i];
-					break;
+				/* The extra two tiles on the left of the scanline */
+				const unsigned int EXTRA_TILES = 2;
 
-				case VDP_HSCROLL_MODE_1CELL:
-					hscroll = state->vram[state->hscroll_address + (scanline >> tile_height_power) * 2 + i];
-					break;
+				unsigned int j;
+				unsigned char *metapixels_pointer;
+				unsigned int hscroll;
+				unsigned int hscroll_scroll_offset;
+				unsigned int plane_x_offset;
 
-				case VDP_HSCROLL_MODE_1LINE:
-					hscroll = state->vram[state->hscroll_address + (scanline >> state->interlace_mode_2_enabled) * 2 + i];
-					break;
-			}
-
-			/* Get the value used to offset the writes to the metapixel buffer */
-			hscroll_scroll_offset = hscroll % 16;
-
-			/* Get the value used to offset the reads from the plane map */
-			plane_x_offset = 0 - EXTRA_TILES - ((hscroll - hscroll_scroll_offset) / 8);
-
-			/* Obtain the pointer used to write metapixels to the buffer */
-			metapixels_pointer = plane_metapixels + hscroll_scroll_offset;
-
-			/* Render tiles */
-			for (j = 0; j < (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 + EXTRA_TILES; ++j)
-			{
-				unsigned int k;
-
-				unsigned int vscroll;
-
-				unsigned int pixel_y_in_plane;
-				unsigned int tile_x;
-				unsigned int tile_y;
-				unsigned int pixel_y_in_tile;
-
-				unsigned int tile_metadata;
-				cc_bool tile_priority;
-				unsigned int tile_palette_line;
-				cc_bool tile_y_flip;
-				cc_bool tile_x_flip;
-				unsigned int tile_index;
-
-				/* Get the vertical scroll value */
-				switch (state->vscroll_mode)
+				/* Get the horizontal scroll value */
+				switch (state->hscroll_mode)
 				{
 					default:
-					case VDP_VSCROLL_MODE_FULL:
-						vscroll = state->vsram[i];
+					case VDP_HSCROLL_MODE_FULL:
+						hscroll = state->vram[state->hscroll_address + i];
 						break;
 
-					case VDP_VSCROLL_MODE_2CELL:
-						vscroll = state->vsram[(((0 - EXTRA_TILES + j) / 2) * 2 + i) % CC_COUNT_OF(state->vsram)];
+					case VDP_HSCROLL_MODE_1CELL:
+						hscroll = state->vram[state->hscroll_address + (scanline >> tile_height_power) * 2 + i];
+						break;
+
+					case VDP_HSCROLL_MODE_1LINE:
+						hscroll = state->vram[state->hscroll_address + (scanline >> state->interlace_mode_2_enabled) * 2 + i];
 						break;
 				}
 
-				/* Get the Y coordinate of the pixel in the plane */
-				pixel_y_in_plane = vscroll + scanline;
+				/* Get the value used to offset the writes to the metapixel buffer */
+				hscroll_scroll_offset = hscroll % 16;
 
-				/* Get the coordinates of the tile in the plane */
-				tile_x = (plane_x_offset + j) & state->plane_width_bitmask;
-				tile_y = (pixel_y_in_plane >> tile_height_power) & state->plane_height_bitmask;
+				/* Get the value used to offset the reads from the plane map */
+				plane_x_offset = 0 - EXTRA_TILES - ((hscroll - hscroll_scroll_offset) / 8);
 
-				/* Obtain and decode tile metadata */
-				tile_metadata = state->vram[(i ? state->plane_b_address : state->plane_a_address) + tile_y * state->plane_width + tile_x];
-				tile_priority = (tile_metadata & 0x8000) != 0;
-				tile_palette_line = (tile_metadata >> 13) & 3;
-				tile_y_flip = (tile_metadata & 0x1000) != 0;
-				tile_x_flip = (tile_metadata & 0x0800) != 0;
-				tile_index = tile_metadata & 0x7FF;
+				/* Obtain the pointer used to write metapixels to the buffer */
+				metapixels_pointer = plane_metapixels + hscroll_scroll_offset;
 
-				/* Get the Y coordinate of the pixel in the tile */
-				pixel_y_in_tile = (pixel_y_in_plane & tile_height_mask) ^ (tile_y_flip ? tile_height_mask : 0);
-
-				/* TODO - Unroll this loop? */
-				for (k = 0; k < 8; ++k)
+				/* Render tiles */
+				for (j = 0; j < (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 + EXTRA_TILES; ++j)
 				{
-					/* Get the X coordinate of the pixel in the tile */
-					const unsigned int pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
+					unsigned int k;
 
-					/* Get raw tile data that contains the desired metapixel */
-					const unsigned int tile_data = state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+					unsigned int vscroll;
 
-					/* Obtain the index into the palette line */
-					const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
+					unsigned int pixel_y_in_plane;
+					unsigned int tile_x;
+					unsigned int tile_y;
+					unsigned int pixel_y_in_tile;
 
-					/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
-					const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
+					unsigned int tile_metadata;
+					cc_bool tile_priority;
+					unsigned int tile_palette_line;
+					cc_bool tile_y_flip;
+					cc_bool tile_x_flip;
+					unsigned int tile_index;
 
-					*metapixels_pointer = state->blit_lookup[*metapixels_pointer][metapixel];
-					++metapixels_pointer;
+					/* Get the vertical scroll value */
+					switch (state->vscroll_mode)
+					{
+						default:
+						case VDP_VSCROLL_MODE_FULL:
+							vscroll = state->vsram[i];
+							break;
+
+						case VDP_VSCROLL_MODE_2CELL:
+							vscroll = state->vsram[(((0 - EXTRA_TILES + j) / 2) * 2 + i) % CC_COUNT_OF(state->vsram)];
+							break;
+					}
+
+					/* Get the Y coordinate of the pixel in the plane */
+					pixel_y_in_plane = vscroll + scanline;
+
+					/* Get the coordinates of the tile in the plane */
+					tile_x = (plane_x_offset + j) & state->plane_width_bitmask;
+					tile_y = (pixel_y_in_plane >> tile_height_power) & state->plane_height_bitmask;
+
+					/* Obtain and decode tile metadata */
+					tile_metadata = state->vram[(i ? state->plane_b_address : state->plane_a_address) + tile_y * state->plane_width + tile_x];
+					tile_priority = (tile_metadata & 0x8000) != 0;
+					tile_palette_line = (tile_metadata >> 13) & 3;
+					tile_y_flip = (tile_metadata & 0x1000) != 0;
+					tile_x_flip = (tile_metadata & 0x0800) != 0;
+					tile_index = tile_metadata & 0x7FF;
+
+					/* Get the Y coordinate of the pixel in the tile */
+					pixel_y_in_tile = (pixel_y_in_plane & tile_height_mask) ^ (tile_y_flip ? tile_height_mask : 0);
+
+					/* TODO - Unroll this loop? */
+					for (k = 0; k < 8; ++k)
+					{
+						/* Get the X coordinate of the pixel in the tile */
+						const unsigned int pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
+
+						/* Get raw tile data that contains the desired metapixel */
+						const unsigned int tile_data = state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+
+						/* Obtain the index into the palette line */
+						const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
+
+						/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
+						const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
+
+						*metapixels_pointer = state->blit_lookup[*metapixels_pointer][metapixel];
+						++metapixels_pointer;
+					}
 				}
 			}
 		}
@@ -390,8 +397,8 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 		if (state->sprite_row_cache.needs_updating)
 		{
 			/* Caching and preprocessing some of the sprite table allows the renderer to avoid
-			   scanning the entire sprite table every time it renders a scanline. The VDP actually
-			   partially caches its sprite data too, though I don't know if it's for the same purpose. */
+				scanning the entire sprite table every time it renders a scanline. The VDP actually
+				partially caches its sprite data too, though I don't know if it's for the same purpose. */
 			const unsigned int max_sprites = state->h40_enabled ? 80 : 64;
 
 			unsigned int sprite_index;
@@ -436,8 +443,8 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 				if (link >= max_sprites)
 				{
 					/* Invalid link - bail before it can cause a crash.
-					   According to Nemesis, this is actually what real hardware does too:
-					   http://gendev.spritesmind.net/forum/viewtopic.php?p=8364#p8364 */
+						According to Nemesis, this is actually what real hardware does too:
+						http://gendev.spritesmind.net/forum/viewtopic.php?p=8364#p8364 */
 					break;
 				}
 
@@ -447,86 +454,90 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 		}
 
 		/* Clear the scanline buffer, so that the sprite blitter
-		   knows which pixels haven't been drawn yet. */
+			knows which pixels haven't been drawn yet. */
 		memset(sprite_metapixels, 0, sizeof(sprite_metapixels));
 
-		/* Render sprites */
-		for (i = 0; i < state->sprite_row_cache.rows[scanline].total; ++i)
+		if (!state->debug.sprites_disabled)
 		{
-			struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &state->sprite_row_cache.rows[scanline].sprites[i];
-
-			/* Decode sprite data */
-			const unsigned short *sprite = &state->vram[state->sprite_table_address + sprite_row_cache_entry->table_index * 4];
-			const unsigned int width = sprite_row_cache_entry->width;
-			const unsigned int height = sprite_row_cache_entry->height;
-			const unsigned int tile_metadata = sprite[2];
-			const unsigned int x = sprite[3] & 0x1FF;
-
-			/* Decode tile metadata */
-			const cc_bool tile_priority = (tile_metadata & 0x8000) != 0;
-			const unsigned int tile_palette_line = (tile_metadata >> 13) & 3;
-			const cc_bool tile_y_flip = (tile_metadata & 0x1000) != 0;
-			const cc_bool tile_x_flip = (tile_metadata & 0x0800) != 0;
-			const unsigned int tile_index_base = tile_metadata & 0x7FF;
-
-			unsigned int y_in_sprite = sprite_row_cache_entry->y_in_sprite;
-
-			/* TODO - sprites only mask if another sprite rendered before them on the
-			   current scanline, or if the previous scanline reached its pixel limit */
-			/* This is a masking sprite: prevent all remaining sprites from being drawn */
-			if (x == 0)
-				break;
-
-			if (x + width * 8 > 128 && x < 128u + (state->h40_enabled ? 40 : 32) * 8 - 1)
+			/* Render sprites */
+			for (i = 0; i < state->sprite_row_cache.rows[scanline].total; ++i)
 			{
-				unsigned int j;
+				struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &state->sprite_row_cache.rows[scanline].sprites[i];
 
-				unsigned char *metapixels_pointer = sprite_metapixels + (MAX_SPRITE_WIDTH - 1) + x - 128;
+				/* Decode sprite data */
+				const unsigned short *sprite = &state->vram[state->sprite_table_address + sprite_row_cache_entry->table_index * 4];
+				const unsigned int width = sprite_row_cache_entry->width;
+				const unsigned int height = sprite_row_cache_entry->height;
+				const unsigned int tile_metadata = sprite[2];
+				const unsigned int x = sprite[3] & 0x1FF;
 
-				y_in_sprite = tile_y_flip ? (height << tile_height_power) - y_in_sprite - 1 : y_in_sprite;
+				/* Decode tile metadata */
+				const cc_bool tile_priority = (tile_metadata & 0x8000) != 0;
+				const unsigned int tile_palette_line = (tile_metadata >> 13) & 3;
+				const cc_bool tile_y_flip = (tile_metadata & 0x1000) != 0;
+				const cc_bool tile_x_flip = (tile_metadata & 0x0800) != 0;
+				const unsigned int tile_index_base = tile_metadata & 0x7FF;
 
-				for (j = 0; j < width; ++j)
-				{
-					unsigned int k;
+				unsigned int y_in_sprite = sprite_row_cache_entry->y_in_sprite;
 
-					const unsigned int x_in_sprite = tile_x_flip ? width - j - 1 : j;
-					const unsigned int tile_index = tile_index_base + (y_in_sprite >> tile_height_power) + x_in_sprite * height;
-					const unsigned int pixel_y_in_tile = y_in_sprite & tile_height_mask;
-
-					for (k = 0; k < 8; ++k)
-					{
-						/* Get the X coordinate of the pixel in the tile */
-						const unsigned int pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
-
-						/* Get raw tile data that contains the desired metapixel */
-						const unsigned int tile_data = state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
-
-						/* Obtain the index into the palette line */
-						const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
-
-						/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
-						const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
-
-						*metapixels_pointer |= metapixel & (0 - (unsigned int)(*metapixels_pointer == 0)) & (0 - (unsigned int)(palette_line_index != 0));
-						++metapixels_pointer;
-
-						if (--pixel_limit == 0)
-							goto DoneWithSprites;
-					}
-				}
-			}
-			else
-			{
-				if (pixel_limit <= width * 8)
+				/* TODO - sprites only mask if another sprite rendered before them on the
+				   current scanline, or if the previous scanline reached its pixel limit */
+				/* This is a masking sprite: prevent all remaining sprites from being drawn */
+				if (x == 0)
 					break;
 
-				pixel_limit -= width * 8;
+				if (x + width * 8 > 128 && x < 128u + (state->h40_enabled ? 40 : 32) * 8 - 1)
+				{
+					unsigned int j;
+
+					unsigned char *metapixels_pointer = sprite_metapixels + (MAX_SPRITE_WIDTH - 1) + x - 128;
+
+					y_in_sprite = tile_y_flip ? (height << tile_height_power) - y_in_sprite - 1 : y_in_sprite;
+
+					for (j = 0; j < width; ++j)
+					{
+						unsigned int k;
+
+						const unsigned int x_in_sprite = tile_x_flip ? width - j - 1 : j;
+						const unsigned int tile_index = tile_index_base + (y_in_sprite >> tile_height_power) + x_in_sprite * height;
+						const unsigned int pixel_y_in_tile = y_in_sprite & tile_height_mask;
+
+						for (k = 0; k < 8; ++k)
+						{
+							/* Get the X coordinate of the pixel in the tile */
+							const unsigned int pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
+
+							/* Get raw tile data that contains the desired metapixel */
+							const unsigned int tile_data = state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+
+							/* Obtain the index into the palette line */
+							const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
+
+							/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
+							const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
+
+							*metapixels_pointer |= metapixel & (0 - (unsigned int)(*metapixels_pointer == 0)) & (0 - (unsigned int)(palette_line_index != 0));
+							++metapixels_pointer;
+
+							if (--pixel_limit == 0)
+								goto DoneWithSprites;
+						}
+					}
+				}
+				else
+				{
+					if (pixel_limit <= width * 8)
+						break;
+
+					pixel_limit -= width * 8;
+				}
+
+				if (--sprite_limit == 0)
+					break;
 			}
 
-			if (--sprite_limit == 0)
-				break;
+		DoneWithSprites:;
 		}
-	DoneWithSprites:
 
 		/* ************************************ *
 		 * Blit sprite pixels onto plane pixels *

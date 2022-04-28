@@ -16,6 +16,12 @@ typedef struct VDP_State
 {
 	struct
 	{
+		cc_bool sprites_disabled;
+		cc_bool planes_disabled[2];
+	} debug;
+
+	struct
+	{
 		cc_bool write_pending;
 		unsigned short cached_write;
 
