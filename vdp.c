@@ -246,8 +246,6 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 	unsigned char plane_metapixels[16 + (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 * 8 + (16 - 1)];
 
 	const unsigned int tile_height_power = state->interlace_mode_2_enabled ? 4 : 3;
-	const unsigned int tile_height_mask = (1 << tile_height_power) - 1;
-	const unsigned int tile_size = (8 << tile_height_power) / 4;
 
 	assert(scanline < VDP_MAX_SCANLINES);
 
@@ -261,6 +259,9 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 		 * ***** */
 
 		#define MAX_SPRITE_WIDTH (8 * 4)
+
+		const unsigned int tile_height_mask = (1 << tile_height_power) - 1;
+		const unsigned int tile_size = (8 << tile_height_power) / 4;
 
 		unsigned int sprite_limit = state->h40_enabled ? 20 : 16;
 		unsigned int pixel_limit = state->h40_enabled ? 320 : 256;
