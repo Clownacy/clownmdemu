@@ -17,7 +17,7 @@
 
 typedef struct DataAndCallbacks
 {
-	ClownMDEmu_Data *data;
+	ClownMDEmu *data;
 	const ClownMDEmu_Callbacks *frontend_callbacks;
 } DataAndCallbacks;
 
@@ -74,7 +74,7 @@ static unsigned int VDPReadCallback(void *user_data, unsigned long address)
 static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte)
 {
 	M68kCallbackUserData *callback_user_data = (M68kCallbackUserData*)user_data;
-	ClownMDEmu_Data *clownmdemu = callback_user_data->data_and_callbacks.data;
+	ClownMDEmu *clownmdemu = callback_user_data->data_and_callbacks.data;
 	const ClownMDEmu_Callbacks *frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
 	unsigned int value = 0;
 
@@ -121,7 +121,7 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 		{
 			case 0xA10000:
 				if (do_low_byte)
-					value |= ((clownmdemu->config->general.region == CLOWNMDEMU_REGION_OVERSEAS) << 7) | ((clownmdemu->config->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL) << 6) | (1 << 5);	/* Bit 5 set = no Mega CD attached */
+					value |= ((clownmdemu->configuration->general.region == CLOWNMDEMU_REGION_OVERSEAS) << 7) | ((clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL) << 6) | (1 << 5);	/* Bit 5 set = no Mega CD attached */
 
 				break;
 
@@ -187,7 +187,7 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 	}
 	else if (address == 0xC00000 || address == 0xC00002 || address == 0xC00004 || address == 0xC00006)
 	{
-		const VDP_Data vdp = {&clownmdemu->config->vdp, &clownmdemu->persistent->vdp, &clownmdemu->state->vdp};
+		const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->persistent->vdp, &clownmdemu->state->vdp};
 
 		if (address == 0xC00000 || address == 0xC00002)
 		{
@@ -230,7 +230,7 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned int value)
 {
 	M68kCallbackUserData *callback_user_data = (M68kCallbackUserData*)user_data;
-	ClownMDEmu_Data *clownmdemu = callback_user_data->data_and_callbacks.data;
+	ClownMDEmu *clownmdemu = callback_user_data->data_and_callbacks.data;
 	const ClownMDEmu_Callbacks *frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
 
 	const unsigned char high_byte = (unsigned char)((value >> 8) & 0xFF);
@@ -322,7 +322,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 	else if (address == 0xC00000 || address == 0xC00002 || address == 0xC00004 || address == 0xC00006)
 	{
-		const VDP_Data vdp = {&clownmdemu->config->vdp, &clownmdemu->persistent->vdp, &clownmdemu->state->vdp};
+		const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->persistent->vdp, &clownmdemu->state->vdp};
 
 		if (address == 0xC00000 || address == 0xC00002)
 		{
@@ -387,15 +387,15 @@ void ClownMDEmu_StateInitialise(ClownMDEmu_State *state)
 	PSG_Init(&state->psg);
 }
 
-void ClownMDEmu_Iterate(ClownMDEmu_Data *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
+void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
 	unsigned int scanline, i;
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	M68kCallbackUserData m68k_callback_user_data;
 
-	const unsigned int television_vertical_resolution = clownmdemu->config->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
+	const unsigned int television_vertical_resolution = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
 	const unsigned int console_vertical_resolution = (clownmdemu->state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
-	const unsigned int cycles_per_scanline = (clownmdemu->config->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / television_vertical_resolution;
+	const unsigned int cycles_per_scanline = (clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / television_vertical_resolution;
 
 	m68k_callback_user_data.data_and_callbacks.data = clownmdemu;
 	m68k_callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
@@ -444,7 +444,7 @@ void ClownMDEmu_Iterate(ClownMDEmu_Data *clownmdemu, const ClownMDEmu_Callbacks 
 		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
 		if (scanline < console_vertical_resolution)
 		{
-			const VDP_Data vdp = {&clownmdemu->config->vdp, &clownmdemu->persistent->vdp, &clownmdemu->state->vdp};
+			const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->persistent->vdp, &clownmdemu->state->vdp};
 
 			if (clownmdemu->state->vdp.interlace_mode_2_enabled)
 			{
@@ -485,7 +485,7 @@ void ClownMDEmu_Iterate(ClownMDEmu_Data *clownmdemu, const ClownMDEmu_Callbacks 
 	GenerateAndPlayPSGSamples(&m68k_callback_user_data);
 }
 
-void ClownMDEmu_Reset(ClownMDEmu_Data *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
+void ClownMDEmu_Reset(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	M68kCallbackUserData callback_user_data;
@@ -500,7 +500,7 @@ void ClownMDEmu_Reset(ClownMDEmu_Data *clownmdemu, const ClownMDEmu_Callbacks *c
 	M68k_Reset(&clownmdemu->state->m68k, &m68k_read_write_callbacks);
 }
 
-void ClownMDEmu_GeneratePSGAudio(ClownMDEmu_Data *clownmdemu, short *sample_buffer, size_t total_samples)
+void ClownMDEmu_GeneratePSGAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples)
 {
 	PSG_Update(&clownmdemu->state->psg, sample_buffer, total_samples);
 }

@@ -224,7 +224,7 @@ void VDP_StateInitialise(VDP_State *state)
 	state->sprite_row_cache.needs_updating = cc_true;
 }
 
-void VDP_RenderScanline(const VDP_Data *vdp, unsigned int scanline, void (*scanline_rendered_callback)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), void *scanline_rendered_callback_user_data)
+void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_rendered_callback)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), void *scanline_rendered_callback_user_data)
 {
 	unsigned int i;
 
@@ -272,7 +272,7 @@ void VDP_RenderScanline(const VDP_Data *vdp, unsigned int scanline, void (*scanl
 		/* *********** */
 		for (i = 2 ; i-- > 0; )
 		{
-			if (!vdp->config->planes_disabled[i])
+			if (!vdp->configuration->planes_disabled[i])
 			{
 				/* The extra two tiles on the left of the scanline */
 				const unsigned int EXTRA_TILES = 2;
@@ -449,7 +449,7 @@ void VDP_RenderScanline(const VDP_Data *vdp, unsigned int scanline, void (*scanl
 			knows which pixels haven't been drawn yet. */
 		memset(sprite_metapixels, 0, sizeof(sprite_metapixels));
 
-		if (!vdp->config->sprites_disabled)
+		if (!vdp->configuration->sprites_disabled)
 		{
 			/* Render sprites */
 			for (i = 0; i < vdp->state->sprite_row_cache.rows[scanline].total; ++i)
@@ -553,7 +553,7 @@ void VDP_RenderScanline(const VDP_Data *vdp, unsigned int scanline, void (*scanl
 	scanline_rendered_callback(scanline_rendered_callback_user_data, scanline, plane_metapixels + 16, (vdp->state->h40_enabled ? 40 : 32) * 8, (vdp->state->v30_enabled ? 30 : 28) << tile_height_power);
 }
 
-unsigned int VDP_ReadData(const VDP_Data *vdp)
+unsigned int VDP_ReadData(const VDP *vdp)
 {
 	unsigned int value = 0;
 
@@ -572,7 +572,7 @@ unsigned int VDP_ReadData(const VDP_Data *vdp)
 	return value;
 }
 
-unsigned int VDP_ReadControl(const VDP_Data *vdp)
+unsigned int VDP_ReadControl(const VDP *vdp)
 {
 	/* TODO */
 
@@ -585,7 +585,7 @@ unsigned int VDP_ReadControl(const VDP_Data *vdp)
 	return (vdp->state->currently_in_vblank << 3) | (1 << 2); /* The H-blank bit is forced for now so Sonic 2's two-player mode works */
 }
 
-void VDP_WriteData(const VDP_Data *vdp, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data)
+void VDP_WriteData(const VDP *vdp, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data)
 {
 	if (vdp->state->access.read_mode)
 	{
@@ -615,7 +615,7 @@ void VDP_WriteData(const VDP_Data *vdp, unsigned int value, void (*colour_update
 }
 
 /* TODO - Retention of partial commands */
-void VDP_WriteControl(const VDP_Data *vdp, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data, unsigned int (*read_callback)(void *user_data, unsigned long address), void *read_callback_user_data)
+void VDP_WriteControl(const VDP *vdp, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data, unsigned int (*read_callback)(void *user_data, unsigned long address), void *read_callback_user_data)
 {
 	if (vdp->state->access.write_pending)
 	{

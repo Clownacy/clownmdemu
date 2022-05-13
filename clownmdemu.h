@@ -54,7 +54,7 @@ typedef enum ClownMDEmu_TVStandard
 	CLOWNMDEMU_TV_STANDARD_PAL   /* 50Hz */
 } ClownMDEmu_TVStandard;
 
-typedef struct ClownMDEmu_Config
+typedef struct ClownMDEmu_Configuration
 {
 	struct
 	{
@@ -62,8 +62,8 @@ typedef struct ClownMDEmu_Config
 		ClownMDEmu_TVStandard tv_standard;
 	} general;
 
-	VDP_Config vdp;
-} ClownMDEmu_Config;
+	VDP_Configuration vdp;
+} ClownMDEmu_Configuration;
 
 typedef struct ClownMDEmu_Persistent
 {
@@ -90,12 +90,12 @@ typedef struct ClownMDEmu_State
 	} joypads[3];
 } ClownMDEmu_State;
 
-typedef struct ClownMDEmu_Data
+typedef struct ClownMDEmu
 {
-	const ClownMDEmu_Config *config;
+	const ClownMDEmu_Configuration *configuration;
 	const ClownMDEmu_Persistent *persistent;
 	ClownMDEmu_State *state;
-} ClownMDEmu_Data;
+} ClownMDEmu;
 
 typedef struct ClownMDEmu_Callbacks
 {
@@ -111,9 +111,9 @@ typedef struct ClownMDEmu_Callbacks
 
 void ClownMDEmu_PersistentInitialise(ClownMDEmu_Persistent *persistent);
 void ClownMDEmu_StateInitialise(ClownMDEmu_State *state);
-void ClownMDEmu_Iterate(ClownMDEmu_Data *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
-void ClownMDEmu_Reset(ClownMDEmu_Data *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
-void ClownMDEmu_GeneratePSGAudio(ClownMDEmu_Data *clownmdemu, short *sample_buffer, size_t total_samples);
+void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_Reset(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_GeneratePSGAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples);
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg));
 
 #ifdef __cplusplus
