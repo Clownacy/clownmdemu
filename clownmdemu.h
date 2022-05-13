@@ -54,10 +54,24 @@ typedef enum ClownMDEmu_TVStandard
 	CLOWNMDEMU_TV_STANDARD_PAL   /* 50Hz */
 } ClownMDEmu_TVStandard;
 
+typedef struct ClownMDEmu_Config
+{
+	struct
+	{
+		ClownMDEmu_Region region;
+		ClownMDEmu_TVStandard tv_standard;
+	} general;
+
+	VDP_Config vdp;
+} ClownMDEmu_Config;
+
+typedef struct ClownMDEmu_Persistent
+{
+	VDP_Persistent vdp;
+} ClownMDEmu_Persistent;
+
 typedef struct ClownMDEmu_State
 {
-	ClownMDEmu_Region region;
-	ClownMDEmu_TVStandard tv_standard;
 	struct
 	{
 		unsigned int m68k;
@@ -76,6 +90,13 @@ typedef struct ClownMDEmu_State
 	} joypads[3];
 } ClownMDEmu_State;
 
+typedef struct ClownMDEmu_Data
+{
+	const ClownMDEmu_Config *config;
+	const ClownMDEmu_Persistent *persistent;
+	ClownMDEmu_State *state;
+} ClownMDEmu_Data;
+
 typedef struct ClownMDEmu_Callbacks
 {
 	void *user_data;
@@ -88,13 +109,11 @@ typedef struct ClownMDEmu_Callbacks
 	void (*psg_audio_to_be_generated)(void *user_data, size_t total_samples);
 } ClownMDEmu_Callbacks;
 
-void ClownMDEmu_Init(ClownMDEmu_State *state, ClownMDEmu_Region region, ClownMDEmu_TVStandard tv_standard);
-void ClownMDEmu_Deinit(ClownMDEmu_State *state);
-void ClownMDEmu_Iterate(ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
-void ClownMDEmu_Reset(ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
-void ClownMDEmu_GeneratePSGAudio(ClownMDEmu_State *state, short *sample_buffer, size_t total_samples);
-void ClownMDEmu_SetRegion(ClownMDEmu_State *state, ClownMDEmu_Region region);
-void ClownMDEmu_SetTVStandard(ClownMDEmu_State *state, ClownMDEmu_TVStandard tv_standard);
+void ClownMDEmu_PersistentInitialise(ClownMDEmu_Persistent *persistent);
+void ClownMDEmu_StateInitialise(ClownMDEmu_State *state);
+void ClownMDEmu_Iterate(ClownMDEmu_Data *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_Reset(ClownMDEmu_Data *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_GeneratePSGAudio(ClownMDEmu_Data *clownmdemu, short *sample_buffer, size_t total_samples);
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg));
 
 #ifdef __cplusplus

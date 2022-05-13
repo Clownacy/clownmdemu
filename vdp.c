@@ -18,81 +18,6 @@ enum
 /* Some of the logic here is based on research done by Nemesis:
    https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016 */
 
-/* This essentially pre-computes the VDP's depth-test and alpha-test,
-   generating a lookup table to eliminate the need to perform these
-   every time a pixel is blitted. This provides a *massive* speed boost. */
-/* TODO - Maybe make this into a giant pre-computed array so that it
-   doesn't have to take up space in the state struct? */
-static void InitBlitLookupTable(VDP_State *state)
-{
-	const unsigned int palette_line_index_mask = 0xF;
-	const unsigned int colour_index_mask = 0x3F;
-	const unsigned int priority_mask = 0x40;
-	const unsigned int not_shadowed_mask = 0x80;
-
-	unsigned int old, new;
-
-	for (old = 0; old < CC_COUNT_OF(state->blit_lookup); ++old)
-	{
-		for (new = 0; new < CC_COUNT_OF(state->blit_lookup[0]); ++new)
-		{
-			const unsigned int old_palette_line_index = old & palette_line_index_mask;
-			const unsigned int old_colour_index = old & colour_index_mask;
-			const cc_bool old_priority = (old & priority_mask) != 0;
-			const cc_bool old_not_shadowed = (old & not_shadowed_mask) != 0;
-
-			const unsigned int new_palette_line_index = new & palette_line_index_mask;
-			const unsigned int new_colour_index = new & colour_index_mask;
-			const cc_bool new_priority = (new & priority_mask) != 0;
-			const cc_bool new_not_shadowed = new_priority;
-
-			const cc_bool draw_new_pixel = new_palette_line_index != 0 && (old_palette_line_index == 0 || !old_priority || new_priority);
-
-			unsigned int output;
-
-			/* First, generate the table for regular blitting */
-			output = draw_new_pixel ? new : old;
-
-			output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
-
-			state->blit_lookup[old][new] = (unsigned char)output;
-
-			/* Now, generate the table for shadow/highlight blitting */
-			if (draw_new_pixel)
-			{
-				/* Sprite goes on top of plane */
-				if (new_colour_index == 0x3E)
-				{
-					/* Transparent highlight pixel */
-					output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_HIGHLIGHT : SHADOW_HIGHLIGHT_NORMAL);
-				}
-				else if (new_colour_index == 0x3F)
-				{
-					/* Transparent shadow pixel */
-					output = old_colour_index | SHADOW_HIGHLIGHT_SHADOW;
-				}
-				else if (new_palette_line_index == 0xE)
-				{
-					/* Always-normal pixel */
-					output = new_colour_index | SHADOW_HIGHLIGHT_NORMAL;
-				}
-				else
-				{
-					/* Regular sprite pixel */
-					output = new_colour_index | (new_not_shadowed || old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
-				}
-			}
-			else
-			{
-				/* Plane goes on top of sprite */
-				output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
-			}
-
-			state->blit_lookup_shadow_highlight[old][new] = (unsigned char)output;
-		}
-	}
-}
-
 static void WriteAndIncrement(VDP_State *state, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data)
 {
 	const unsigned int index = state->access.index / 2;
@@ -183,12 +108,81 @@ static unsigned int ReadAndIncrement(VDP_State *state)
 	return value;
 }
 
-void VDP_Init(VDP_State *state)
+void VDP_PersistentInitialise(VDP_Persistent *persistent)
 {
-	state->debug.sprites_disabled = cc_false;
-	state->debug.planes_disabled[0] = cc_false;
-	state->debug.planes_disabled[1] = cc_false;
+	/* This essentially pre-computes the VDP's depth-test and alpha-test,
+	   generating a lookup table to eliminate the need to perform these
+	   every time a pixel is blitted. This provides a *massive* speed boost. */
+	const unsigned int palette_line_index_mask = 0xF;
+	const unsigned int colour_index_mask = 0x3F;
+	const unsigned int priority_mask = 0x40;
+	const unsigned int not_shadowed_mask = 0x80;
 
+	unsigned int old, new;
+
+	for (old = 0; old < CC_COUNT_OF(persistent->blit_lookup); ++old)
+	{
+		for (new = 0; new < CC_COUNT_OF(persistent->blit_lookup[0]); ++new)
+		{
+			const unsigned int old_palette_line_index = old & palette_line_index_mask;
+			const unsigned int old_colour_index = old & colour_index_mask;
+			const cc_bool old_priority = (old & priority_mask) != 0;
+			const cc_bool old_not_shadowed = (old & not_shadowed_mask) != 0;
+
+			const unsigned int new_palette_line_index = new & palette_line_index_mask;
+			const unsigned int new_colour_index = new & colour_index_mask;
+			const cc_bool new_priority = (new & priority_mask) != 0;
+			const cc_bool new_not_shadowed = new_priority;
+
+			const cc_bool draw_new_pixel = new_palette_line_index != 0 && (old_palette_line_index == 0 || !old_priority || new_priority);
+
+			unsigned int output;
+
+			/* First, generate the table for regular blitting */
+			output = draw_new_pixel ? new : old;
+
+			output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
+
+			persistent->blit_lookup[old][new] = (unsigned char)output;
+
+			/* Now, generate the table for shadow/highlight blitting */
+			if (draw_new_pixel)
+			{
+				/* Sprite goes on top of plane */
+				if (new_colour_index == 0x3E)
+				{
+					/* Transparent highlight pixel */
+					output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_HIGHLIGHT : SHADOW_HIGHLIGHT_NORMAL);
+				}
+				else if (new_colour_index == 0x3F)
+				{
+					/* Transparent shadow pixel */
+					output = old_colour_index | SHADOW_HIGHLIGHT_SHADOW;
+				}
+				else if (new_palette_line_index == 0xE)
+				{
+					/* Always-normal pixel */
+					output = new_colour_index | SHADOW_HIGHLIGHT_NORMAL;
+				}
+				else
+				{
+					/* Regular sprite pixel */
+					output = new_colour_index | (new_not_shadowed || old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
+				}
+			}
+			else
+			{
+				/* Plane goes on top of sprite */
+				output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
+			}
+
+			persistent->blit_lookup_shadow_highlight[old][new] = (unsigned char)output;
+		}
+	}
+}
+
+void VDP_StateInitialise(VDP_State *state)
+{
 	state->access.write_pending = cc_false;
 
 	state->access.read_mode = cc_false;
@@ -228,11 +222,9 @@ void VDP_Init(VDP_State *state)
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
 
 	state->sprite_row_cache.needs_updating = cc_true;
-
-	InitBlitLookupTable(state);
 }
 
-void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline_rendered_callback)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), void *scanline_rendered_callback_user_data)
+void VDP_RenderScanline(const VDP_Data *vdp, unsigned int scanline, void (*scanline_rendered_callback)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), void *scanline_rendered_callback_user_data)
 {
 	unsigned int i;
 
@@ -249,14 +241,14 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 	   outside the visible portion of the buffer. */
 	unsigned char plane_metapixels[16 + (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 * 8 + (16 - 1)];
 
-	const unsigned int tile_height_power = state->interlace_mode_2_enabled ? 4 : 3;
+	const unsigned int tile_height_power = vdp->state->interlace_mode_2_enabled ? 4 : 3;
 
 	assert(scanline < VDP_MAX_SCANLINES);
 
 	/* Fill the scanline buffer with the background colour */
-	memset(plane_metapixels, state->background_colour, sizeof(plane_metapixels));
+	memset(plane_metapixels, vdp->state->background_colour, sizeof(plane_metapixels));
 
-	if (state->display_enabled)
+	if (vdp->state->display_enabled)
 	{
 		/* ***** *
 		 * Setup *
@@ -267,8 +259,8 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 		const unsigned int tile_height_mask = (1 << tile_height_power) - 1;
 		const unsigned int tile_size = (8 << tile_height_power) / 4;
 
-		unsigned int sprite_limit = state->h40_enabled ? 20 : 16;
-		unsigned int pixel_limit = state->h40_enabled ? 320 : 256;
+		unsigned int sprite_limit = vdp->state->h40_enabled ? 20 : 16;
+		unsigned int pixel_limit = vdp->state->h40_enabled ? 320 : 256;
 
 		/* The padding bytes of the left and right are for allowing sprites to overdraw at the
 		   edges of the screen. */
@@ -280,7 +272,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 		/* *********** */
 		for (i = 2 ; i-- > 0; )
 		{
-			if (!state->debug.planes_disabled[i])
+			if (!vdp->config->planes_disabled[i])
 			{
 				/* The extra two tiles on the left of the scanline */
 				const unsigned int EXTRA_TILES = 2;
@@ -292,19 +284,19 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 				unsigned int plane_x_offset;
 
 				/* Get the horizontal scroll value */
-				switch (state->hscroll_mode)
+				switch (vdp->state->hscroll_mode)
 				{
 					default:
 					case VDP_HSCROLL_MODE_FULL:
-						hscroll = state->vram[state->hscroll_address + i];
+						hscroll = vdp->state->vram[vdp->state->hscroll_address + i];
 						break;
 
 					case VDP_HSCROLL_MODE_1CELL:
-						hscroll = state->vram[state->hscroll_address + (scanline >> tile_height_power) * 2 + i];
+						hscroll = vdp->state->vram[vdp->state->hscroll_address + (scanline >> tile_height_power) * 2 + i];
 						break;
 
 					case VDP_HSCROLL_MODE_1LINE:
-						hscroll = state->vram[state->hscroll_address + (scanline >> state->interlace_mode_2_enabled) * 2 + i];
+						hscroll = vdp->state->vram[vdp->state->hscroll_address + (scanline >> vdp->state->interlace_mode_2_enabled) * 2 + i];
 						break;
 				}
 
@@ -337,15 +329,15 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 					unsigned int tile_index;
 
 					/* Get the vertical scroll value */
-					switch (state->vscroll_mode)
+					switch (vdp->state->vscroll_mode)
 					{
 						default:
 						case VDP_VSCROLL_MODE_FULL:
-							vscroll = state->vsram[i];
+							vscroll = vdp->state->vsram[i];
 							break;
 
 						case VDP_VSCROLL_MODE_2CELL:
-							vscroll = state->vsram[(((0 - EXTRA_TILES + j) / 2) * 2 + i) % CC_COUNT_OF(state->vsram)];
+							vscroll = vdp->state->vsram[(((0 - EXTRA_TILES + j) / 2) * 2 + i) % CC_COUNT_OF(vdp->state->vsram)];
 							break;
 					}
 
@@ -353,11 +345,11 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 					pixel_y_in_plane = vscroll + scanline;
 
 					/* Get the coordinates of the tile in the plane */
-					tile_x = (plane_x_offset + j) & state->plane_width_bitmask;
-					tile_y = (pixel_y_in_plane >> tile_height_power) & state->plane_height_bitmask;
+					tile_x = (plane_x_offset + j) & vdp->state->plane_width_bitmask;
+					tile_y = (pixel_y_in_plane >> tile_height_power) & vdp->state->plane_height_bitmask;
 
 					/* Obtain and decode tile metadata */
-					tile_metadata = state->vram[(i ? state->plane_b_address : state->plane_a_address) + tile_y * state->plane_width + tile_x];
+					tile_metadata = vdp->state->vram[(i ? vdp->state->plane_b_address : vdp->state->plane_a_address) + tile_y * vdp->state->plane_width + tile_x];
 					tile_priority = (tile_metadata & 0x8000) != 0;
 					tile_palette_line = (tile_metadata >> 13) & 3;
 					tile_y_flip = (tile_metadata & 0x1000) != 0;
@@ -374,7 +366,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 						const unsigned int pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
 
 						/* Get raw tile data that contains the desired metapixel */
-						const unsigned int tile_data = state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+						const unsigned int tile_data = vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
 
 						/* Obtain the index into the palette line */
 						const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
@@ -382,7 +374,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 						/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
 						const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
 
-						*metapixels_pointer = state->blit_lookup[*metapixels_pointer][metapixel];
+						*metapixels_pointer = vdp->persistent->blit_lookup[*metapixels_pointer][metapixel];
 						++metapixels_pointer;
 					}
 				}
@@ -394,42 +386,42 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 		 * ************ */
 
 		/* Update the sprite row cache if needed */
-		if (state->sprite_row_cache.needs_updating)
+		if (vdp->state->sprite_row_cache.needs_updating)
 		{
 			/* Caching and preprocessing some of the sprite table allows the renderer to avoid
 				scanning the entire sprite table every time it renders a scanline. The VDP actually
 				partially caches its sprite data too, though I don't know if it's for the same purpose. */
-			const unsigned int max_sprites = state->h40_enabled ? 80 : 64;
+			const unsigned int max_sprites = vdp->state->h40_enabled ? 80 : 64;
 
 			unsigned int sprite_index;
 			unsigned int sprites_remaining = max_sprites;
 
-			state->sprite_row_cache.needs_updating = cc_false;
+			vdp->state->sprite_row_cache.needs_updating = cc_false;
 
 			/* Make it so we write to the start of the rows */
-			for (i = 0; i < CC_COUNT_OF(state->sprite_row_cache.rows); ++i)
-				state->sprite_row_cache.rows[i].total = 0;
+			for (i = 0; i < CC_COUNT_OF(vdp->state->sprite_row_cache.rows); ++i)
+				vdp->state->sprite_row_cache.rows[i].total = 0;
 
 			sprite_index = 0;
 
 			do
 			{
 				/* Decode sprite data */
-				const unsigned short *cached_sprite = state->sprite_table_cache[sprite_index];
+				const unsigned short *cached_sprite = vdp->state->sprite_table_cache[sprite_index];
 				const unsigned int y = cached_sprite[0] & 0x3FF;
 				const unsigned int width = ((cached_sprite[1] >> 10) & 3) + 1;
 				const unsigned int height = ((cached_sprite[1] >> 8) & 3) + 1;
 				const unsigned int link = cached_sprite[1] & 0x7F;
 
-				const unsigned int blank_lines = 128 << state->interlace_mode_2_enabled;
+				const unsigned int blank_lines = 128 << vdp->state->interlace_mode_2_enabled;
 
 				/* This loop only processes rows that are on-screen, and haven't been drawn yet */
-				for (i = CC_MAX(blank_lines + scanline, y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_height_power), y + (height << tile_height_power)); ++i)
+				for (i = CC_MAX(blank_lines + scanline, y); i < CC_MIN(blank_lines + ((vdp->state->v30_enabled ? 30 : 28) << tile_height_power), y + (height << tile_height_power)); ++i)
 				{
-					struct VDP_SpriteRowCacheRow *row = &state->sprite_row_cache.rows[i - blank_lines];
+					struct VDP_SpriteRowCacheRow *row = &vdp->state->sprite_row_cache.rows[i - blank_lines];
 
 					/* Don't write more sprites than are allowed to be drawn on this line */
-					if (row->total != (state->h40_enabled ? 20 : 16))
+					if (row->total != (vdp->state->h40_enabled ? 20 : 16))
 					{
 						struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &row->sprites[row->total++];
 
@@ -457,15 +449,15 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 			knows which pixels haven't been drawn yet. */
 		memset(sprite_metapixels, 0, sizeof(sprite_metapixels));
 
-		if (!state->debug.sprites_disabled)
+		if (!vdp->config->sprites_disabled)
 		{
 			/* Render sprites */
-			for (i = 0; i < state->sprite_row_cache.rows[scanline].total; ++i)
+			for (i = 0; i < vdp->state->sprite_row_cache.rows[scanline].total; ++i)
 			{
-				struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &state->sprite_row_cache.rows[scanline].sprites[i];
+				struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &vdp->state->sprite_row_cache.rows[scanline].sprites[i];
 
 				/* Decode sprite data */
-				const unsigned short *sprite = &state->vram[state->sprite_table_address + sprite_row_cache_entry->table_index * 4];
+				const unsigned short *sprite = &vdp->state->vram[vdp->state->sprite_table_address + sprite_row_cache_entry->table_index * 4];
 				const unsigned int width = sprite_row_cache_entry->width;
 				const unsigned int height = sprite_row_cache_entry->height;
 				const unsigned int tile_metadata = sprite[2];
@@ -486,7 +478,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 				if (x == 0)
 					break;
 
-				if (x + width * 8 > 128 && x < 128u + (state->h40_enabled ? 40 : 32) * 8 - 1)
+				if (x + width * 8 > 128 && x < 128u + (vdp->state->h40_enabled ? 40 : 32) * 8 - 1)
 				{
 					unsigned int j;
 
@@ -508,7 +500,7 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 							const unsigned int pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
 
 							/* Get raw tile data that contains the desired metapixel */
-							const unsigned int tile_data = state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+							const unsigned int tile_data = vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
 
 							/* Obtain the index into the palette line */
 							const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
@@ -543,29 +535,29 @@ void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline
 		 * Blit sprite pixels onto plane pixels *
 		 * ************************************ */
 
-		if (state->shadow_highlight_enabled)
+		if (vdp->state->shadow_highlight_enabled)
 		{
 			for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
-				plane_metapixels[16 + i] = state->blit_lookup_shadow_highlight[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]];
+				plane_metapixels[16 + i] = vdp->persistent->blit_lookup_shadow_highlight[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]];
 		}
 		else
 		{
 			for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
-				plane_metapixels[16 + i] = state->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]] & 0x3F;
+				plane_metapixels[16 + i] = vdp->persistent->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]] & 0x3F;
 		}
 
 		#undef MAX_SPRITE_WIDTH
 	}
 
 	/* Send pixels to the frontend to be displayed */
-	scanline_rendered_callback(scanline_rendered_callback_user_data, scanline, plane_metapixels + 16, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) << tile_height_power);
+	scanline_rendered_callback(scanline_rendered_callback_user_data, scanline, plane_metapixels + 16, (vdp->state->h40_enabled ? 40 : 32) * 8, (vdp->state->v30_enabled ? 30 : 28) << tile_height_power);
 }
 
-unsigned int VDP_ReadData(VDP_State *state)
+unsigned int VDP_ReadData(const VDP_Data *vdp)
 {
 	unsigned int value = 0;
 
-	if (!state->access.read_mode)
+	if (!vdp->state->access.read_mode)
 	{
 		/* According to GENESIS SOFTWARE DEVELOPMENT MANUAL (COMPLEMENT) section 4.1,
 		   this should cause the 68k to hang */
@@ -574,84 +566,84 @@ unsigned int VDP_ReadData(VDP_State *state)
 	}
 	else
 	{
-		value = ReadAndIncrement(state);
+		value = ReadAndIncrement(vdp->state);
 	}
 
 	return value;
 }
 
-unsigned int VDP_ReadControl(VDP_State *state)
+unsigned int VDP_ReadControl(const VDP_Data *vdp)
 {
 	/* TODO */
 
 	/* Reading from the control port aborts the VDP waiting for a second command word to be written.
 	   This doesn't appear to be documented in the official SDK manuals we have, but the official
 	   boot code makes use of this feature. */
-	state->access.write_pending = cc_false;
+	vdp->state->access.write_pending = cc_false;
 
 	/* Output the 'V-blanking' and 'H-blanking' bits */
-	return (state->currently_in_vblank << 3) | (1 << 2); /* The H-blank bit is forced for now so Sonic 2's two-player mode works */
+	return (vdp->state->currently_in_vblank << 3) | (1 << 2); /* The H-blank bit is forced for now so Sonic 2's two-player mode works */
 }
 
-void VDP_WriteData(VDP_State *state, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data)
+void VDP_WriteData(const VDP_Data *vdp, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data)
 {
-	if (state->access.read_mode)
+	if (vdp->state->access.read_mode)
 	{
 		/* Invalid input, but defined behaviour */
 		PrintError("Data was written to the VDP data port while the VDP was in read mode");
 
 		/* According to GENESIS SOFTWARE DEVELOPMENT MANUAL (COMPLEMENT) section 4.1,
 		   data should not be written, but the address should be incremented */
-		state->access.index += state->access.increment;
+		vdp->state->access.index += vdp->state->access.increment;
 	}
-	else if (state->dma.pending)
+	else if (vdp->state->dma.pending)
 	{
 		/* Perform DMA fill */
-		state->dma.pending = cc_false;
+		vdp->state->dma.pending = cc_false;
 
 		do
 		{
-			WriteAndIncrement(state, value, colour_updated_callback, colour_updated_callback_user_data);
+			WriteAndIncrement(vdp->state, value, colour_updated_callback, colour_updated_callback_user_data);
 		}
-		while (--state->dma.length, state->dma.length &= 0xFFFF, state->dma.length != 0);
+		while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
 	}
 	else
 	{
 		/* Write the value to memory */
-		WriteAndIncrement(state, value, colour_updated_callback, colour_updated_callback_user_data);
+		WriteAndIncrement(vdp->state, value, colour_updated_callback, colour_updated_callback_user_data);
 	}
 }
 
 /* TODO - Retention of partial commands */
-void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data, unsigned int (*read_callback)(void *user_data, unsigned long address), void *read_callback_user_data)
+void VDP_WriteControl(const VDP_Data *vdp, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data, unsigned int (*read_callback)(void *user_data, unsigned long address), void *read_callback_user_data)
 {
-	if (state->access.write_pending)
+	if (vdp->state->access.write_pending)
 	{
 		/* This command is setting up for a memory access (part 2) */
-		const unsigned int destination_address = (state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
-		const unsigned int access_mode = ((state->access.cached_write >> 14) & 3) | ((value >> 2) & 0x3C);
+		const unsigned int destination_address = (vdp->state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
+		const unsigned int access_mode = ((vdp->state->access.cached_write >> 14) & 3) | ((value >> 2) & 0x3C);
 
-		state->access.write_pending = cc_false;
+		vdp->state->access.write_pending = cc_false;
 
-		state->access.index = (unsigned short)destination_address;
-		state->access.read_mode = (access_mode & 1) == 0;
+		vdp->state->access.index = (unsigned short)destination_address;
+		vdp->state->access.read_mode = (access_mode & 1) == 0;
 
-		if (state->dma.enabled)
-			state->dma.pending = (access_mode & 0x20) != 0;
+		if (vdp->state->dma.enabled)
+			vdp->state->dma.pending = (access_mode & 0x20) != 0;
 
 		switch ((access_mode >> 1) & 7)
 		{
 			case 0: /* VRAM */
-				state->access.selected_buffer = VDP_ACCESS_VRAM;
+				vdp->state->access.selected_buffer = VDP_ACCESS_VRAM;
 				break;
 
 			case 4: /* CRAM (read) */
 			case 1: /* CRAM (write) */
-				state->access.selected_buffer = VDP_ACCESS_CRAM;
+				vdp->state->access.selected_buffer = VDP_ACCESS_CRAM;
 				break;
 
 			case 2: /* VSRAM */
-				state->access.selected_buffer = VDP_ACCESS_VSRAM;
+				vdp->state->access.selected_buffer = VDP_ACCESS_VSRAM;
 				break;
 
 			default: /* Invalid */
@@ -659,22 +651,22 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 				break;
 		}
 
-		if (state->dma.pending && state->dma.mode != VDP_DMA_MODE_FILL)
+		if (vdp->state->dma.pending && vdp->state->dma.mode != VDP_DMA_MODE_FILL)
 		{
 			/* Firing DMA */
-			state->dma.pending = cc_false;
+			vdp->state->dma.pending = cc_false;
 
-			if (state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
+			if (vdp->state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
 			{
 				do
 				{
-					WriteAndIncrement(state, read_callback(read_callback_user_data, ((unsigned long)state->dma.source_address_high << 17) | ((unsigned long)state->dma.source_address_low << 1)), colour_updated_callback, colour_updated_callback_user_data);
+					WriteAndIncrement(vdp->state, read_callback(read_callback_user_data, ((unsigned long)vdp->state->dma.source_address_high << 17) | ((unsigned long)vdp->state->dma.source_address_low << 1)), colour_updated_callback, colour_updated_callback_user_data);
 
 					/* Emulate the 128KiB DMA wrap-around bug */
-					++state->dma.source_address_low;
-					state->dma.source_address_low &= 0xFFFF;
+					++vdp->state->dma.source_address_low;
+					vdp->state->dma.source_address_low &= 0xFFFF;
 				}
-				while (--state->dma.length, state->dma.length &= 0xFFFF, state->dma.length != 0);
+				while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
 			}
 			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
 			{
@@ -685,8 +677,8 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 	else if ((value & 0xC000) != 0x8000)
 	{
 		/* This command is setting up for a memory access (part 1) */
-		state->access.write_pending = cc_true;
-		state->access.cached_write = (unsigned short)value;
+		vdp->state->access.write_pending = cc_true;
+		vdp->state->access.cached_write = (unsigned short)value;
 	}
 	else
 	{
@@ -698,37 +690,37 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 		{
 			case 0:
 				/* MODE SET REGISTER NO.1 */
-				state->h_int_enabled = (data & (1 << 4)) != 0;
+				vdp->state->h_int_enabled = (data & (1 << 4)) != 0;
 				/* TODO */
 				break;
 
 			case 1:
 				/* MODE SET REGISTER NO.2 */
-				state->display_enabled = (data & (1 << 6)) != 0;
-				state->v_int_enabled = (data & (1 << 5)) != 0;
-				state->dma.enabled = (data & (1 << 4)) != 0;
-				state->v30_enabled = (data & (1 << 3)) != 0;
+				vdp->state->display_enabled = (data & (1 << 6)) != 0;
+				vdp->state->v_int_enabled = (data & (1 << 5)) != 0;
+				vdp->state->dma.enabled = (data & (1 << 4)) != 0;
+				vdp->state->v30_enabled = (data & (1 << 3)) != 0;
 				/* TODO */
 				break;
 
 			case 2:
 				/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL A */
-				state->plane_a_address = (data & 0x38) << (10 - 1);
+				vdp->state->plane_a_address = (data & 0x38) << (10 - 1);
 				break;
 
 			case 3:
 				/* PATTERN NAME TABLE BASE ADDRESS FOR WINDOW */
-				state->window_address = (data & 0x3E) << (10 - 1);
+				vdp->state->window_address = (data & 0x3E) << (10 - 1);
 				break;
 
 			case 4:
 				/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL B */
-				state->plane_b_address = (data & 7) << (13 - 1);
+				vdp->state->plane_b_address = (data & 7) << (13 - 1);
 				break;
 
 			case 5:
 				/* SPRITE ATTRIBUTE TABLE BASE ADDRESS */
-				state->sprite_table_address = (data & 0x7F) << (9 - 1);
+				vdp->state->sprite_table_address = (data & 0x7F) << (9 - 1);
 
 				/* Real VDPs partially cache the sprite table, and forget to update it
 				   when the sprite table base address is changed. Replicating this
@@ -740,12 +732,12 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 
 			case 7:
 				/* BACKGROUND COLOR */
-				state->background_colour = data & 0x3F;
+				vdp->state->background_colour = data & 0x3F;
 				break;
 
 			case 10:
 				/* H INTERRUPT REGISTER */
-				state->h_int_interval = (unsigned char)data;
+				vdp->state->h_int_interval = (unsigned char)data;
 				break;
 
 			case 11:
@@ -753,12 +745,12 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 
 				/* TODO - External interrupt */
 
-				state->vscroll_mode = data & 4 ? VDP_VSCROLL_MODE_2CELL : VDP_VSCROLL_MODE_FULL;
+				vdp->state->vscroll_mode = data & 4 ? VDP_VSCROLL_MODE_2CELL : VDP_VSCROLL_MODE_FULL;
 
 				switch (data & 3)
 				{
 					case 0:
-						state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
+						vdp->state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
 						break;
 
 					case 1:
@@ -766,11 +758,11 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 						break;
 
 					case 2:
-						state->hscroll_mode = VDP_HSCROLL_MODE_1CELL;
+						vdp->state->hscroll_mode = VDP_HSCROLL_MODE_1CELL;
 						break;
 
 					case 3:
-						state->hscroll_mode = VDP_HSCROLL_MODE_1LINE;
+						vdp->state->hscroll_mode = VDP_HSCROLL_MODE_1LINE;
 						break;
 				}
 
@@ -779,19 +771,19 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 			case 12:
 				/* MODE SET REGISTER NO.4 */
 				/* TODO */
-				state->h40_enabled = (data & ((1 << 7) | (1 << 0))) != 0;
-				state->shadow_highlight_enabled = (data & (1 << 3)) != 0;
-				state->interlace_mode_2_enabled = (data & (1 << 2)) != 0;
+				vdp->state->h40_enabled = (data & ((1 << 7) | (1 << 0))) != 0;
+				vdp->state->shadow_highlight_enabled = (data & (1 << 3)) != 0;
+				vdp->state->interlace_mode_2_enabled = (data & (1 << 2)) != 0;
 				break;
 
 			case 13:
 				/* H SCROLL DATA TABLE BASE ADDRESS */
-				state->hscroll_address = (data & 0x3F) << (10 - 1);
+				vdp->state->hscroll_address = (data & 0x3F) << (10 - 1);
 				break;
 
 			case 15:
 				/* AUTO INCREMENT DATA */
-				state->access.increment = (unsigned short)data;
+				vdp->state->access.increment = (unsigned short)data;
 				break;
 
 			case 16:
@@ -809,11 +801,11 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 					switch (width_index)
 					{
 						case 0:
-							state->plane_width = 32;
+							vdp->state->plane_width = 32;
 							break;
 
 						case 1:
-							state->plane_width = 64;
+							vdp->state->plane_width = 64;
 							break;
 
 						case 2:
@@ -821,18 +813,18 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 							break;
 
 						case 3:
-							state->plane_width = 128;
+							vdp->state->plane_width = 128;
 							break;
 					}
 
 					switch (height_index)
 					{
 						case 0:
-							state->plane_height = 32;
+							vdp->state->plane_height = 32;
 							break;
 
 						case 1:
-							state->plane_height = 64;
+							vdp->state->plane_height = 64;
 							break;
 
 						case 2:
@@ -840,12 +832,12 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 							break;
 
 						case 3:
-							state->plane_height = 128;
+							vdp->state->plane_height = 128;
 							break;
 					}
 
-					state->plane_width_bitmask = state->plane_width - 1;
-					state->plane_height_bitmask = state->plane_height - 1;
+					vdp->state->plane_width_bitmask = vdp->state->plane_width - 1;
+					vdp->state->plane_height_bitmask = vdp->state->plane_height - 1;
 				}
 
 				break;
@@ -863,39 +855,39 @@ void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_update
 
 			case 19:
 				/* DMA LENGTH COUNTER LOW */
-				state->dma.length &= ~(0xFFu << 0);
-				state->dma.length |= data << 0;
+				vdp->state->dma.length &= ~(0xFFu << 0);
+				vdp->state->dma.length |= data << 0;
 				break;
 
 			case 20:
 				/* DMA LENGTH COUNTER HIGH */
-				state->dma.length &= ~(0xFFu << 8);
-				state->dma.length |= data << 8;
+				vdp->state->dma.length &= ~(0xFFu << 8);
+				vdp->state->dma.length |= data << 8;
 				break;
 
 			case 21:
 				/* DMA SOURCE ADDRESS LOW */
-				state->dma.source_address_low &= ~(0xFFu << 0);
-				state->dma.source_address_low |= data << 0;
+				vdp->state->dma.source_address_low &= ~(0xFFu << 0);
+				vdp->state->dma.source_address_low |= data << 0;
 				break;
 
 			case 22:
 				/* DMA SOURCE ADDRESS MID. */
-				state->dma.source_address_low &= ~(0xFFu << 8);
-				state->dma.source_address_low |= data << 8;
+				vdp->state->dma.source_address_low &= ~(0xFFu << 8);
+				vdp->state->dma.source_address_low |= data << 8;
 				break;
 
 			case 23:
 				/* DMA SOURCE ADDRESS HIGH */
 				if (data & 0x80)
 				{
-					state->dma.source_address_high = data & 0x3F;
-					state->dma.mode = data & 0x40 ? VDP_DMA_MODE_COPY : VDP_DMA_MODE_FILL;
+					vdp->state->dma.source_address_high = data & 0x3F;
+					vdp->state->dma.mode = data & 0x40 ? VDP_DMA_MODE_COPY : VDP_DMA_MODE_FILL;
 				}
 				else
 				{
-					state->dma.source_address_high = data & 0x7F;
-					state->dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
+					vdp->state->dma.source_address_high = data & 0x7F;
+					vdp->state->dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
 				}
 
 				break;

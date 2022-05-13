@@ -12,14 +12,20 @@ extern "C" {
 #define VDP_MAX_SCANLINE_WIDTH 320
 #define VDP_MAX_SCANLINES (240 * 2) /* V30 in interlace mode 2 */
 
+typedef struct VDP_Config
+{
+	cc_bool sprites_disabled;
+	cc_bool planes_disabled[2];
+} VDP_Config;
+
+typedef struct VDP_Persistent
+{
+	unsigned char blit_lookup[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
+	unsigned char blit_lookup_shadow_highlight[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
+} VDP_Persistent;
+
 typedef struct VDP_State
 {
-	struct
-	{
-		cc_bool sprites_disabled;
-		cc_bool planes_disabled[2];
-	} debug;
-
 	struct
 	{
 		cc_bool write_pending;
@@ -113,18 +119,23 @@ typedef struct VDP_State
 			} sprites[20];
 		} rows[VDP_MAX_SCANLINES];
 	} sprite_row_cache;
-
-	unsigned char blit_lookup[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
-	unsigned char blit_lookup_shadow_highlight[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
 } VDP_State;
 
-void VDP_Init(VDP_State *state);
-void VDP_RenderScanline(VDP_State *state, unsigned int scanline, void (*scanline_rendered_callback)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), void *scanline_rendered_callback_user_data);
+typedef struct VDP_Data
+{
+	const VDP_Config *config;
+	const VDP_Persistent *persistent;
+	VDP_State *state;
+} VDP_Data;
 
-unsigned int VDP_ReadData(VDP_State *state);
-unsigned int VDP_ReadControl(VDP_State *state);
-void VDP_WriteData(VDP_State *state, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data);
-void VDP_WriteControl(VDP_State *state, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data, unsigned int (*read_callback)(void *user_data, unsigned long address), void *read_callback_user_data);
+void VDP_PersistentInitialise(VDP_Persistent *persistent);
+void VDP_StateInitialise(VDP_State *state);
+void VDP_RenderScanline(const VDP_Data *vdp, unsigned int scanline, void (*scanline_rendered_callback)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), void *scanline_rendered_callback_user_data);
+
+unsigned int VDP_ReadData(const VDP_Data *vdp);
+unsigned int VDP_ReadControl(const VDP_Data *vdp);
+void VDP_WriteData(const VDP_Data *vdp, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data);
+void VDP_WriteControl(const VDP_Data *vdp, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data, unsigned int (*read_callback)(void *user_data, unsigned long address), void *read_callback_user_data);
 
 #ifdef __cplusplus
 }
