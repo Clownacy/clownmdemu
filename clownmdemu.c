@@ -446,7 +446,7 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 		{
 			const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->persistent->vdp, &clownmdemu->state->vdp};
 
-			if (clownmdemu->state->vdp.interlace_mode_2_enabled)
+			if (clownmdemu->state->vdp.double_resolution_enabled)
 			{
 				VDP_RenderScanline(&vdp, scanline * 2, callbacks->scanline_rendered, callbacks->user_data);
 				VDP_RenderScanline(&vdp, scanline * 2 + 1, callbacks->scanline_rendered, callbacks->user_data);

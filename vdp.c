@@ -212,7 +212,7 @@ void VDP_StateInitialise(VDP_State *state)
 	state->h40_enabled = cc_false;
 	state->v30_enabled = cc_false;
 	state->shadow_highlight_enabled = cc_false;
-	state->interlace_mode_2_enabled = cc_false;
+	state->double_resolution_enabled = cc_false;
 
 	state->background_colour = 0;
 	state->h_int_interval = 0;
@@ -241,7 +241,7 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 	   outside the visible portion of the buffer. */
 	unsigned char plane_metapixels[16 + (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 * 8 + (16 - 1)];
 
-	const unsigned int tile_height_power = vdp->state->interlace_mode_2_enabled ? 4 : 3;
+	const unsigned int tile_height_power = vdp->state->double_resolution_enabled ? 4 : 3;
 
 	assert(scanline < VDP_MAX_SCANLINES);
 
@@ -296,7 +296,7 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 						break;
 
 					case VDP_HSCROLL_MODE_1LINE:
-						hscroll = vdp->state->vram[vdp->state->hscroll_address + (scanline >> vdp->state->interlace_mode_2_enabled) * 2 + i];
+						hscroll = vdp->state->vram[vdp->state->hscroll_address + (scanline >> vdp->state->double_resolution_enabled) * 2 + i];
 						break;
 				}
 
@@ -413,7 +413,7 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 				const unsigned int height = ((cached_sprite[1] >> 8) & 3) + 1;
 				const unsigned int link = cached_sprite[1] & 0x7F;
 
-				const unsigned int blank_lines = 128 << vdp->state->interlace_mode_2_enabled;
+				const unsigned int blank_lines = 128 << vdp->state->double_resolution_enabled;
 
 				/* This loop only processes rows that are on-screen, and haven't been drawn yet */
 				for (i = CC_MAX(blank_lines + scanline, y); i < CC_MIN(blank_lines + ((vdp->state->v30_enabled ? 30 : 28) << tile_height_power), y + (height << tile_height_power)); ++i)
@@ -773,7 +773,41 @@ void VDP_WriteControl(const VDP *vdp, unsigned int value, void (*colour_updated_
 				/* TODO */
 				vdp->state->h40_enabled = (data & ((1 << 7) | (1 << 0))) != 0;
 				vdp->state->shadow_highlight_enabled = (data & (1 << 3)) != 0;
-				vdp->state->interlace_mode_2_enabled = (data & (1 << 2)) != 0;
+
+				/* Process the interlacing bits.
+				   To fully understand this, one has to understand how PAL and NTSC televisions display:
+				   NTSC televisions display 480 lines, however, they are divided into two 'fields' of
+				   240 lines. On one frame the cathode ray draws the even-numbered lines, then on the
+				   next frame it draw the odd-numbered lines. */
+				switch ((data >> 1) & 3)
+				{
+					case 0:
+						/* Regular '240p' mode: the 'Genesis Software Manual' seems to suggest that this
+						   mode only outputs the even-numbered lines, leaving the odd-numbered ones black. */
+						vdp->state->double_resolution_enabled = cc_false;
+						break;
+
+					case 1:
+						/* This mode renders the odd-numbered lines as well, but they are merely
+						   duplicates of the even lines. The 'Genesis Software Manual' warns that this
+						   can create severe vertical blurring. */
+						vdp->state->double_resolution_enabled = cc_false;
+						break;
+
+					case 2:
+						/* The 'Genesis Software Manual' warns that this is prohibited. Some unlicensed
+						   EA games use this. Apparently it creates an image that is slightly broken in
+						   some way. */
+						vdp->state->double_resolution_enabled = cc_false;
+						break;
+
+					case 3:
+						/* Double resolution mode: in this mode, the odd and even lines display different
+						   graphics, effectively turning the tiles from 8x8 to 8x16. */
+						vdp->state->double_resolution_enabled = cc_true;
+						break;
+				}
+
 				break;
 
 			case 13:

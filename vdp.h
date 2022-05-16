@@ -75,7 +75,7 @@ typedef struct VDP_State
 	cc_bool h40_enabled;
 	cc_bool v30_enabled;
 	cc_bool shadow_highlight_enabled;
-	cc_bool interlace_mode_2_enabled; /* TODO - And this */
+	cc_bool double_resolution_enabled;
 
 	unsigned char background_colour;
 	unsigned char h_int_interval;
