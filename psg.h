@@ -61,10 +61,10 @@ typedef struct PSG_LatchedCommand
 	cc_bool is_volume_command;
 } PSG_LatchedCommand;
 
-typedef struct PSG_Persistent
+typedef struct PSG_Constant
 {
 	short volumes[0x10][2];
-} PSG_Persistent;
+} PSG_Constant;
 
 typedef struct PSG_State
 {
@@ -80,15 +80,15 @@ typedef struct PSG_State
 
 typedef struct PSG
 {
-	const PSG_Persistent *persistent;
+	const PSG_Constant *constant;
 	PSG_State *state;
 } PSG;
 
-void PSG_PersistentInitialise(PSG_Persistent *persistent);
+void PSG_Constant_Initialise(PSG_Constant *constant);
 
 /* Initialises the PSG_State struct with sane default values. */
 /* All channels will be muted. */
-void PSG_StateInitialise(PSG_State *state);
+void PSG_State_Initialise(PSG_State *state);
 
 /* Processes a command. */
 /* See https://www.smspower.org/Development/SN76489 for an explanation of the various commands. */

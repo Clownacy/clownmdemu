@@ -11,7 +11,7 @@ https://www.smspower.org/Development/SN76489
 
 #include "clowncommon.h"
 
-void PSG_PersistentInitialise(PSG_Persistent *persistent)
+void PSG_Constant_Initialise(PSG_Constant *constant)
 {
 	unsigned int i;
 
@@ -22,16 +22,16 @@ void PSG_PersistentInitialise(PSG_Persistent *persistent)
 		/* The division by 4 is because there are 4 channels, so we want to prevent audio clipping. */
 		const short volume = (short)(((double)0x7FFF / 4.0) * pow(10.0, -2.0 * (double)i / 20.0));
 
-		persistent->volumes[i][0] = volume; /* Positive phase */
-		persistent->volumes[i][1] = -volume; /* Negative phase */
+		constant->volumes[i][0] = volume; /* Positive phase */
+		constant->volumes[i][1] = -volume; /* Negative phase */
 	}
 
 	/* The lowest volume is always 0 */
-	persistent->volumes[0xF][0] = 0;
-	persistent->volumes[0xF][1] = 0;
+	constant->volumes[0xF][0] = 0;
+	constant->volumes[0xF][1] = 0;
 }
 
-void PSG_StateInitialise(PSG_State *state)
+void PSG_State_Initialise(PSG_State *state)
 {
 	unsigned int i;
 
@@ -152,7 +152,7 @@ void PSG_Update(const PSG *psg, short *sample_buffer, size_t total_samples)
 			}
 
 			/* Output a sample */
-			*sample_buffer_pointer++ += psg->persistent->volumes[tone->attenuation][tone->output_bit];
+			*sample_buffer_pointer++ += psg->constant->volumes[tone->attenuation][tone->output_bit];
 		}
 	}
 
@@ -204,6 +204,6 @@ void PSG_Update(const PSG *psg, short *sample_buffer, size_t total_samples)
 		}
 
 		/* Output a sample */
-		*sample_buffer_pointer++ += psg->persistent->volumes[psg->state->noise.attenuation][psg->state->noise.real_output_bit];
+		*sample_buffer_pointer++ += psg->constant->volumes[psg->state->noise.attenuation][psg->state->noise.real_output_bit];
 	}
 }

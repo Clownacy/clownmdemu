@@ -108,7 +108,7 @@ static unsigned int ReadAndIncrement(VDP_State *state)
 	return value;
 }
 
-void VDP_PersistentInitialise(VDP_Persistent *persistent)
+void VDP_Constant_Initialise(VDP_Constant *constant)
 {
 	/* This essentially pre-computes the VDP's depth-test and alpha-test,
 	   generating a lookup table to eliminate the need to perform these
@@ -120,9 +120,9 @@ void VDP_PersistentInitialise(VDP_Persistent *persistent)
 
 	unsigned int old, new;
 
-	for (old = 0; old < CC_COUNT_OF(persistent->blit_lookup); ++old)
+	for (old = 0; old < CC_COUNT_OF(constant->blit_lookup); ++old)
 	{
-		for (new = 0; new < CC_COUNT_OF(persistent->blit_lookup[0]); ++new)
+		for (new = 0; new < CC_COUNT_OF(constant->blit_lookup[0]); ++new)
 		{
 			const unsigned int old_palette_line_index = old & palette_line_index_mask;
 			const unsigned int old_colour_index = old & colour_index_mask;
@@ -143,7 +143,7 @@ void VDP_PersistentInitialise(VDP_Persistent *persistent)
 
 			output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
 
-			persistent->blit_lookup[old][new] = (unsigned char)output;
+			constant->blit_lookup[old][new] = (unsigned char)output;
 
 			/* Now, generate the table for shadow/highlight blitting */
 			if (draw_new_pixel)
@@ -176,12 +176,12 @@ void VDP_PersistentInitialise(VDP_Persistent *persistent)
 				output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
 			}
 
-			persistent->blit_lookup_shadow_highlight[old][new] = (unsigned char)output;
+			constant->blit_lookup_shadow_highlight[old][new] = (unsigned char)output;
 		}
 	}
 }
 
-void VDP_StateInitialise(VDP_State *state)
+void VDP_State_Initialise(VDP_State *state)
 {
 	state->access.write_pending = cc_false;
 
@@ -374,7 +374,7 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 						/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
 						const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
 
-						*metapixels_pointer = vdp->persistent->blit_lookup[*metapixels_pointer][metapixel];
+						*metapixels_pointer = vdp->constant->blit_lookup[*metapixels_pointer][metapixel];
 						++metapixels_pointer;
 					}
 				}
@@ -538,12 +538,12 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 		if (vdp->state->shadow_highlight_enabled)
 		{
 			for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
-				plane_metapixels[16 + i] = vdp->persistent->blit_lookup_shadow_highlight[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]];
+				plane_metapixels[16 + i] = vdp->constant->blit_lookup_shadow_highlight[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]];
 		}
 		else
 		{
 			for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
-				plane_metapixels[16 + i] = vdp->persistent->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]] & 0x3F;
+				plane_metapixels[16 + i] = vdp->constant->blit_lookup[plane_metapixels[16 + i]][sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + i]] & 0x3F;
 		}
 
 		#undef MAX_SPRITE_WIDTH

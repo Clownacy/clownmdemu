@@ -13,10 +13,10 @@ typedef struct FM_Channel
 } FM_Channel;
 
 
-typedef struct FM_Persistent
+typedef struct FM_Constant
 {
 	short sine_waves[0x80][LENGTH_OF_SINE_WAVE_LOOKUP_TABLE];
-} FM_Persistent;
+} FM_Constant;
 
 typedef struct FM_State
 {
@@ -28,12 +28,12 @@ typedef struct FM_State
 
 typedef struct FM
 {
-	const FM_Persistent *persistent;
+	const FM_Constant *constant;
 	FM_State *state;
 } FM;
 
-void FM_PersistentInitialise(FM_Persistent *persistent);
-void FM_StateInitialise(FM_State *state);
+void FM_Constant_Initialise(FM_Constant *constant);
+void FM_State_Initialise(FM_State *state);
 
 void FM_DoAddress(const FM *fm, unsigned int port, unsigned int address);
 void FM_DoData(const FM *fm, unsigned int data);

@@ -18,11 +18,11 @@ typedef struct VDP_Configuration
 	cc_bool planes_disabled[2];
 } VDP_Configuration;
 
-typedef struct VDP_Persistent
+typedef struct VDP_Constant
 {
 	unsigned char blit_lookup[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
 	unsigned char blit_lookup_shadow_highlight[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
-} VDP_Persistent;
+} VDP_Constant;
 
 typedef struct VDP_State
 {
@@ -124,12 +124,12 @@ typedef struct VDP_State
 typedef struct VDP
 {
 	const VDP_Configuration *configuration;
-	const VDP_Persistent *persistent;
+	const VDP_Constant *constant;
 	VDP_State *state;
 } VDP;
 
-void VDP_PersistentInitialise(VDP_Persistent *persistent);
-void VDP_StateInitialise(VDP_State *state);
+void VDP_Constant_Initialise(VDP_Constant *constant);
+void VDP_State_Initialise(VDP_State *state);
 void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_rendered_callback)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), void *scanline_rendered_callback_user_data);
 
 unsigned int VDP_ReadData(const VDP *vdp);

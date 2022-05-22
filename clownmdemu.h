@@ -82,12 +82,12 @@ typedef struct ClownMDEmu_Configuration
 	VDP_Configuration vdp;
 } ClownMDEmu_Configuration;
 
-typedef struct ClownMDEmu_Persistent
+typedef struct ClownMDEmu_Constant
 {
-	VDP_Persistent vdp;
-	FM_Persistent fm;
-	PSG_Persistent psg;
-} ClownMDEmu_Persistent;
+	VDP_Constant vdp;
+	FM_Constant fm;
+	PSG_Constant psg;
+} ClownMDEmu_Constant;
 
 typedef struct ClownMDEmu_State
 {
@@ -113,7 +113,7 @@ typedef struct ClownMDEmu_State
 typedef struct ClownMDEmu
 {
 	const ClownMDEmu_Configuration *configuration;
-	const ClownMDEmu_Persistent *persistent;
+	const ClownMDEmu_Constant *constant;
 	ClownMDEmu_State *state;
 } ClownMDEmu;
 
@@ -130,8 +130,8 @@ typedef struct ClownMDEmu_Callbacks
 	void (*psg_audio_to_be_generated)(void *user_data, size_t total_samples, void (*generate_psg_audio)(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples));
 } ClownMDEmu_Callbacks;
 
-void ClownMDEmu_PersistentInitialise(ClownMDEmu_Persistent *persistent);
-void ClownMDEmu_StateInitialise(ClownMDEmu_State *state);
+void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant);
+void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
 void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Reset(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg));

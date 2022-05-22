@@ -31,7 +31,7 @@ typedef struct M68kCallbackUserData
 
 static void GenerateFMAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames)
 {
-	const FM fm = {&clownmdemu->persistent->fm, &clownmdemu->state->fm};
+	const FM fm = {&clownmdemu->constant->fm, &clownmdemu->state->fm};
 
 	FM_Update(&fm, sample_buffer, total_frames);
 }
@@ -52,7 +52,7 @@ static void GenerateAndPlayFMSamples(M68kCallbackUserData *m68k_callback_user_da
 
 static void GeneratePSGAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples)
 {
-	const PSG psg = {&clownmdemu->persistent->psg, &clownmdemu->state->psg};
+	const PSG psg = {&clownmdemu->constant->psg, &clownmdemu->state->psg};
 
 	PSG_Update(&psg, sample_buffer, total_samples);
 }
@@ -216,7 +216,7 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 	}
 	else if (address == 0xC00000 || address == 0xC00002 || address == 0xC00004 || address == 0xC00006)
 	{
-		const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->persistent->vdp, &clownmdemu->state->vdp};
+		const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->constant->vdp, &clownmdemu->state->vdp};
 
 		if (address == 0xC00000 || address == 0xC00002)
 		{
@@ -296,7 +296,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	else if (address == 0xA04000 || address == 0xA04002)
 	{
 		/* YM2612 */
-		const FM fm = {&clownmdemu->persistent->fm, &clownmdemu->state->fm};
+		const FM fm = {&clownmdemu->constant->fm, &clownmdemu->state->fm};
 
 		/* Update the FM up until this point in time. */
 		GenerateAndPlayFMSamples(callback_user_data);
@@ -363,7 +363,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 	else if (address == 0xC00000 || address == 0xC00002 || address == 0xC00004 || address == 0xC00006)
 	{
-		const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->persistent->vdp, &clownmdemu->state->vdp};
+		const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->constant->vdp, &clownmdemu->state->vdp};
 
 		if (address == 0xC00000 || address == 0xC00002)
 		{
@@ -387,7 +387,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 
 		if (do_low_byte)
 		{
-			const PSG psg = {&clownmdemu->persistent->psg, &clownmdemu->state->psg};
+			const PSG psg = {&clownmdemu->constant->psg, &clownmdemu->state->psg};
 
 			/* Update the PSG up until this point in time */
 			GenerateAndPlayPSGSamples(callback_user_data);
@@ -410,14 +410,14 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 }
 
-void ClownMDEmu_PersistentInitialise(ClownMDEmu_Persistent *persistent)
+void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant)
 {
-	VDP_PersistentInitialise(&persistent->vdp);
-	FM_PersistentInitialise(&persistent->fm);
-	PSG_PersistentInitialise(&persistent->psg);
+	VDP_Constant_Initialise(&constant->vdp);
+	FM_Constant_Initialise(&constant->fm);
+	PSG_Constant_Initialise(&constant->psg);
 }
 
-void ClownMDEmu_StateInitialise(ClownMDEmu_State *state)
+void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 {
 	unsigned int i;
 
@@ -428,9 +428,9 @@ void ClownMDEmu_StateInitialise(ClownMDEmu_State *state)
 	for (i = 0; i < CC_COUNT_OF(state->joypads); ++i)
 		state->joypads[i].control = 0;
 
-	VDP_StateInitialise(&state->vdp);
-	FM_StateInitialise(&state->fm);
-	PSG_StateInitialise(&state->psg);
+	VDP_State_Initialise(&state->vdp);
+	FM_State_Initialise(&state->fm);
+	PSG_State_Initialise(&state->psg);
 }
 
 void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
@@ -491,7 +491,7 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
 		if (scanline < console_vertical_resolution)
 		{
-			const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->persistent->vdp, &clownmdemu->state->vdp};
+			const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->constant->vdp, &clownmdemu->state->vdp};
 
 			if (clownmdemu->state->vdp.double_resolution_enabled)
 			{

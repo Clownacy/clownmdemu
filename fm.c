@@ -6,7 +6,7 @@
 
 #include "error.h"
 
-void FM_PersistentInitialise(FM_Persistent *persistent)
+void FM_Constant_Initialise(FM_Constant *constant)
 {
 	unsigned long i;
 	unsigned int j;
@@ -21,17 +21,17 @@ void FM_PersistentInitialise(FM_Persistent *persistent)
 		   It is then divided by the number of channels to prevent audio clipping. */
 		const double sample_max = (double)0x7FFF / 6.0;
 
-		persistent->sine_waves[0][i] = (short)(sample_max * sin(sine_index));
+		constant->sine_waves[0][i] = (short)(sample_max * sin(sine_index));
 	}
 
 	/* Compute the attenuated wave lookup tables (used for volume control). */
 	/* Notably, the attenuation increases by 3/4 of a decibel every time. */
-	for (j = 1; j < CC_COUNT_OF(persistent->sine_waves); ++j)
+	for (j = 1; j < CC_COUNT_OF(constant->sine_waves); ++j)
 		for (i = 0; i < LENGTH_OF_SINE_WAVE_LOOKUP_TABLE; ++i)
-			persistent->sine_waves[j][i] = persistent->sine_waves[0][i] * pow(10.0, -0.75 * (double)j / 20.0);
+			constant->sine_waves[j][i] = constant->sine_waves[0][i] * pow(10.0, -0.75 * (double)j / 20.0);
 }
 
-void FM_StateInitialise(FM_State *state)
+void FM_State_Initialise(FM_State *state)
 {
 	FM_Channel *channel;
 
@@ -140,7 +140,7 @@ void FM_Update(const FM *fm, short *sample_buffer, size_t total_frames)
 			const unsigned long sine_wave_index = channel->sine_wave_position / (0x100000 / LENGTH_OF_SINE_WAVE_LOOKUP_TABLE);
 
 			/* Obtain sample. */
-			const short sample = fm->persistent->sine_waves[channel->attenuation][sine_wave_index % LENGTH_OF_SINE_WAVE_LOOKUP_TABLE];
+			const short sample = fm->constant->sine_waves[channel->attenuation][sine_wave_index % LENGTH_OF_SINE_WAVE_LOOKUP_TABLE];
 
 			/* Output it. */
 			*sample_buffer_pointer++ += sample;
