@@ -61,6 +61,11 @@ typedef struct PSG_LatchedCommand
 	cc_bool is_volume_command;
 } PSG_LatchedCommand;
 
+typedef struct PSG_Persistent
+{
+	short volumes[0x10][2];
+} PSG_Persistent;
+
 typedef struct PSG_State
 {
 	/* The tone channels */
@@ -73,17 +78,25 @@ typedef struct PSG_State
 	PSG_LatchedCommand latched_command;
 } PSG_State;
 
+typedef struct PSG
+{
+	const PSG_Persistent *persistent;
+	PSG_State *state;
+} PSG;
+
+void PSG_PersistentInitialise(PSG_Persistent *persistent);
+
 /* Initialises the PSG_State struct with sane default values. */
 /* All channels will be muted. */
-void PSG_Init(PSG_State *state);
+void PSG_StateInitialise(PSG_State *state);
 
 /* Processes a command. */
 /* See https://www.smspower.org/Development/SN76489 for an explanation of the various commands. */
-void PSG_DoCommand(PSG_State *state, unsigned int command);
+void PSG_DoCommand(const PSG *psg, unsigned int command);
 
 /* Updates the PSG's internal state and outputs samples. */
 /* The samples are mono and in signed 16-bit PCM format. */
-void PSG_Update(PSG_State *state, short *sample_buffer, size_t total_samples);
+void PSG_Update(const PSG *psg, short *sample_buffer, size_t total_samples);
 
 #ifdef __cplusplus
 }

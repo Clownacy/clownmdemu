@@ -86,6 +86,7 @@ typedef struct ClownMDEmu_Persistent
 {
 	VDP_Persistent vdp;
 	FM_Persistent fm;
+	PSG_Persistent psg;
 } ClownMDEmu_Persistent;
 
 typedef struct ClownMDEmu_State

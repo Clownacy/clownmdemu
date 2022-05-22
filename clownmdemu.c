@@ -52,7 +52,9 @@ static void GenerateAndPlayFMSamples(M68kCallbackUserData *m68k_callback_user_da
 
 static void GeneratePSGAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples)
 {
-	PSG_Update(&clownmdemu->state->psg, sample_buffer, total_samples);
+	const PSG psg = {&clownmdemu->persistent->psg, &clownmdemu->state->psg};
+
+	PSG_Update(&psg, sample_buffer, total_samples);
 }
 
 static void GenerateAndPlayPSGSamples(M68kCallbackUserData *m68k_callback_user_data)
@@ -385,11 +387,13 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 
 		if (do_low_byte)
 		{
+			const PSG psg = {&clownmdemu->persistent->psg, &clownmdemu->state->psg};
+
 			/* Update the PSG up until this point in time */
 			GenerateAndPlayPSGSamples(callback_user_data);
 
 			/* Alter the PSG's state */
-			PSG_DoCommand(&clownmdemu->state->psg, low_byte);
+			PSG_DoCommand(&psg, low_byte);
 		}
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
@@ -410,6 +414,7 @@ void ClownMDEmu_PersistentInitialise(ClownMDEmu_Persistent *persistent)
 {
 	VDP_PersistentInitialise(&persistent->vdp);
 	FM_PersistentInitialise(&persistent->fm);
+	PSG_PersistentInitialise(&persistent->psg);
 }
 
 void ClownMDEmu_StateInitialise(ClownMDEmu_State *state)
@@ -425,7 +430,7 @@ void ClownMDEmu_StateInitialise(ClownMDEmu_State *state)
 
 	VDP_StateInitialise(&state->vdp);
 	FM_StateInitialise(&state->fm);
-	PSG_Init(&state->psg);
+	PSG_StateInitialise(&state->psg);
 }
 
 void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
