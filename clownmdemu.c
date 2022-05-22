@@ -38,7 +38,7 @@ static void GenerateFMAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_t
 
 static void GenerateAndPlayFMSamples(M68kCallbackUserData *m68k_callback_user_data)
 {
-	const unsigned int fm_current_cycle = m68k_callback_user_data->current_cycle / (6 * 6 * 4);
+	const unsigned int fm_current_cycle = m68k_callback_user_data->current_cycle / CLOWNMDEMU_FM_SAMELE_RATE_DIVIDER;
 
 	const size_t samples_to_generate = fm_current_cycle - m68k_callback_user_data->fm_previous_cycle;
 
@@ -57,7 +57,7 @@ static void GeneratePSGAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_
 
 static void GenerateAndPlayPSGSamples(M68kCallbackUserData *m68k_callback_user_data)
 {
-	const unsigned int psg_current_cycle = m68k_callback_user_data->current_cycle / (15 * 16);
+	const unsigned int psg_current_cycle = m68k_callback_user_data->current_cycle / (CLOWNMDEMU_Z80_CLOCK_DIVIDER * CLOWNMDEMU_PSG_SAMPLE_RATE_DIVIDER);
 
 	const size_t samples_to_generate = psg_current_cycle - m68k_callback_user_data->psg_previous_cycle;
 
@@ -463,7 +463,7 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 			/* 68k */
 			if (clownmdemu->state->countdowns.m68k == 0)
 			{
-				clownmdemu->state->countdowns.m68k = 7 * 10; /* TODO - The x10 is a temporary hack to get the 68k to run roughly at the correct speed until instruction cycle durations are added */
+				clownmdemu->state->countdowns.m68k = CLOWNMDEMU_M68K_CLOCK_DIVIDER * 10; /* TODO - The x10 is a temporary hack to get the 68k to run roughly at the correct speed until instruction cycle durations are added */
 
 				M68k_DoCycle(&clownmdemu->state->m68k, &m68k_read_write_callbacks);
 			}
@@ -473,7 +473,7 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 			/* Z80 */
 			if (clownmdemu->state->countdowns.z80 == 0)
 			{
-				clownmdemu->state->countdowns.z80 = 15;
+				clownmdemu->state->countdowns.z80 = CLOWNMDEMU_Z80_CLOCK_DIVIDER;
 
 				/*Z80_DoCycle(&clownmdemu->state->z80);*/
 			}
