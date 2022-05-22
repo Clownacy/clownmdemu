@@ -6,7 +6,7 @@
 
 #include "clowncommon.h"
 
-/*#include "fm.h"*/
+#include "fm.h"
 #include "m68k.h"
 #include "psg.h"
 #include "vdp.h"
@@ -68,6 +68,7 @@ typedef struct ClownMDEmu_Configuration
 typedef struct ClownMDEmu_Persistent
 {
 	VDP_Persistent vdp;
+	FM_Persistent fm;
 } ClownMDEmu_Persistent;
 
 typedef struct ClownMDEmu_State
@@ -82,6 +83,7 @@ typedef struct ClownMDEmu_State
 	unsigned char z80_ram[0x2000];
 	VDP_State vdp;
 	unsigned char h_int_counter;
+	FM_State fm;
 	PSG_State psg;
 	struct
 	{
@@ -106,14 +108,14 @@ typedef struct ClownMDEmu_Callbacks
 	void (*colour_updated)(void *user_data, unsigned int index, unsigned int colour);
 	void (*scanline_rendered)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height);
 	cc_bool (*input_requested)(void *user_data, unsigned int player_id, ClownMDEmu_Button button_id);
-	void (*psg_audio_to_be_generated)(void *user_data, size_t total_samples);
+	void (*fm_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_fm_audio)(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames));
+	void (*psg_audio_to_be_generated)(void *user_data, size_t total_samples, void (*generate_psg_audio)(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples));
 } ClownMDEmu_Callbacks;
 
 void ClownMDEmu_PersistentInitialise(ClownMDEmu_Persistent *persistent);
 void ClownMDEmu_StateInitialise(ClownMDEmu_State *state);
 void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Reset(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
-void ClownMDEmu_GeneratePSGAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples);
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg));
 
 #ifdef __cplusplus

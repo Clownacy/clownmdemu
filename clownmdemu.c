@@ -7,7 +7,7 @@
 #include "clowncommon.h"
 
 #include "error.h"
-/*#include "fm.h"*/
+#include "fm.h"
 #include "m68k.h"
 #include "psg.h"
 #include "vdp.h"
@@ -25,18 +25,45 @@ typedef struct M68kCallbackUserData
 {
 	DataAndCallbacks data_and_callbacks;
 	unsigned int current_cycle;
+	unsigned int fm_previous_cycle;
 	unsigned int psg_previous_cycle;
 } M68kCallbackUserData;
 
+static void GenerateFMAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames)
+{
+	const FM fm = {&clownmdemu->persistent->fm, &clownmdemu->state->fm};
+
+	FM_Update(&fm, sample_buffer, total_frames);
+}
+
+static void GenerateAndPlayFMSamples(M68kCallbackUserData *m68k_callback_user_data)
+{
+	const unsigned int fm_current_cycle = m68k_callback_user_data->current_cycle / (6 * 6 * 4);
+
+	const size_t samples_to_generate = fm_current_cycle - m68k_callback_user_data->fm_previous_cycle;
+
+	if (samples_to_generate != 0)
+	{
+		m68k_callback_user_data->data_and_callbacks.frontend_callbacks->fm_audio_to_be_generated(m68k_callback_user_data->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate, GenerateFMAudio);
+
+		m68k_callback_user_data->fm_previous_cycle = fm_current_cycle;
+	}
+}
+
+static void GeneratePSGAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples)
+{
+	PSG_Update(&clownmdemu->state->psg, sample_buffer, total_samples);
+}
+
 static void GenerateAndPlayPSGSamples(M68kCallbackUserData *m68k_callback_user_data)
 {
-	const unsigned int psg_current_cycle = m68k_callback_user_data->current_cycle / 15 / 16;
+	const unsigned int psg_current_cycle = m68k_callback_user_data->current_cycle / (15 * 16);
 
 	const size_t samples_to_generate = psg_current_cycle - m68k_callback_user_data->psg_previous_cycle;
 
 	if (samples_to_generate != 0)
 	{
-		m68k_callback_user_data->data_and_callbacks.frontend_callbacks->psg_audio_to_be_generated(m68k_callback_user_data->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate);
+		m68k_callback_user_data->data_and_callbacks.frontend_callbacks->psg_audio_to_be_generated(m68k_callback_user_data->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate, GeneratePSGAudio);
 
 		m68k_callback_user_data->psg_previous_cycle = psg_current_cycle;
 	}
@@ -264,15 +291,27 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 				clownmdemu->state->z80_ram[address + 1] = low_byte;
 		}
 	}
-	else if (address == 0xA04000)
+	else if (address == 0xA04000 || address == 0xA04002)
 	{
-		/* YM2612 A0 + D0 */
-		/* TODO */
-	}
-	else if (address == 0xA04002)
-	{
-		/* YM2612 A1 + D1 */
-		/* TODO */
+		/* YM2612 */
+		const FM fm = {&clownmdemu->persistent->fm, &clownmdemu->state->fm};
+
+		/* Update the FM up until this point in time. */
+		GenerateAndPlayFMSamples(callback_user_data);
+
+		/* Alter the FM's state. */
+		/* TODO - Check if you can actually write both bytes like this. */
+		if (do_high_byte)
+		{
+			const unsigned int port = (address - 0xA04000) / 2;
+
+			FM_DoAddress(&fm, port, high_byte);
+		}
+
+		if (do_low_byte)
+		{
+			FM_DoData(&fm, low_byte);
+		}
 	}
 	else if (address >= 0xA10000 && address <= 0xA1001F)
 	{
@@ -370,6 +409,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 void ClownMDEmu_PersistentInitialise(ClownMDEmu_Persistent *persistent)
 {
 	VDP_PersistentInitialise(&persistent->vdp);
+	FM_PersistentInitialise(&persistent->fm);
 }
 
 void ClownMDEmu_StateInitialise(ClownMDEmu_State *state)
@@ -384,6 +424,7 @@ void ClownMDEmu_StateInitialise(ClownMDEmu_State *state)
 		state->joypads[i].control = 0;
 
 	VDP_StateInitialise(&state->vdp);
+	FM_StateInitialise(&state->fm);
 	PSG_Init(&state->psg);
 }
 
@@ -400,6 +441,7 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 	m68k_callback_user_data.data_and_callbacks.data = clownmdemu;
 	m68k_callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
 	m68k_callback_user_data.current_cycle = 0;
+	m68k_callback_user_data.fm_previous_cycle = 0;
 	m68k_callback_user_data.psg_previous_cycle = 0;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
@@ -479,7 +521,8 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 		}
 	}
 
-	/*UpdateFM(state);*/
+	/* Update the FM for the rest of this frame */
+	GenerateAndPlayFMSamples(&m68k_callback_user_data);
 
 	/* Update the PSG for the rest of this frame */
 	GenerateAndPlayPSGSamples(&m68k_callback_user_data);
@@ -498,11 +541,6 @@ void ClownMDEmu_Reset(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callba
 	m68k_read_write_callbacks.user_data = &callback_user_data;
 
 	M68k_Reset(&clownmdemu->state->m68k, &m68k_read_write_callbacks);
-}
-
-void ClownMDEmu_GeneratePSGAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples)
-{
-	PSG_Update(&clownmdemu->state->psg, sample_buffer, total_samples);
 }
 
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg))

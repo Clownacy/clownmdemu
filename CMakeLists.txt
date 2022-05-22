@@ -8,6 +8,8 @@ add_library(clownmdemu STATIC
 	"clowncommon.h"
 	"error.c"
 	"error.h"
+	"fm.c"
+	"fm.h"
 	"m68k.c"
 	"m68k.h"
 	"psg.c"

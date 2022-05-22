@@ -15,6 +15,7 @@ https://www.smspower.org/Development/SN76489
 
 #include "clowncommon.h"
 
+/* TODO: Move this to a 'persistent' struct. */
 /* The volume lookup table */
 #ifdef GENERATE_VOLUME_TABLE
 static short volumes[0x10][2];
@@ -69,8 +70,9 @@ void PSG_Init(PSG_State *state)
 	/* Generate the volume lookup table */
 	for (i = 0; i < 0xF; ++i)
 	{
-		/* Each volume level is 2 decibels lower than the last */
-		const short volume = (short)(((float)0x7FFF / 4.0f) * powf(10.0f, -2.0f * (float)i / 20.0f));
+		/* Each volume level is 2 decibels lower than the last. */
+		/* The division by 4 is because there are 4 channels, so we want to prevent audio clipping. */
+		const short volume = (short)(((double)0x7FFF / 4.0) * pow(10.0, -2.0 * (double)i / 20.0));
 
 		volumes[i][0] = volume; /* Positive phase */
 		volumes[i][1] = -volume; /* Negative phase */
