@@ -1854,7 +1854,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_RTR:
 				state->status_register &= 0xFF00;
-				state->status_register |= ReadByte(state, callbacks, state->address_registers[7] + 1);
+				state->status_register |= ReadByte(callbacks, state->address_registers[7] + 1);
 				state->address_registers[7] += 2;
 				state->program_counter = ReadLongWord(state, callbacks, state->address_registers[7]);
 				state->address_registers[7] += 4;
