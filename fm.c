@@ -50,7 +50,7 @@ void FM_State_Initialise(FM_State *state)
 
 void FM_DoAddress(const FM *fm, unsigned int port, unsigned int address)
 {
-	fm->state->port = port;
+	fm->state->port = port * 3;
 	fm->state->address = address;
 }
 
@@ -63,7 +63,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 			switch (fm->state->address)
 			{
 				default:
-					PrintError("Unrecognised FM address latched (0x%2X)");
+					PrintError("Unrecognised FM address latched (0x%02X)", fm->state->address);
 					break;
 
 				case 0x22:
@@ -71,88 +71,174 @@ void FM_DoData(const FM *fm, unsigned int data)
 				case 0x25:
 				case 0x26:
 				case 0x27:
+					break;
+
+				case 0x28:
+				{
+					/* Key on/off. */
+					/* There's a gap between channels 3 and 4. */
+					/* TODO - Check what happens if you try to access the 'gap' channel on real hardware. */
+					static const unsigned int table[] = {0, 1, 2, 0, 3, 4, 5, 0};
+					FM_Channel* const channel = &fm->state->channels[table[data & 7]];
+
+					channel->key_on = (data & 0xF0) != 0;
+
+					break;
+				}
+
 				case 0x2A:
+					/* DAC sample. */
+					/* Convert from unsigned 8-bit PCM to signed 16-bit PCM. */
+					fm->state->dac_sample = (data - 0x80) * 0x100;
+					break;
+
 				case 0x2B:
+					/* DAC enable/disable. */
+					fm->state->dac_enabled = (data & 0x80) != 0;
 					break;
 			}
 		}
 	}
 	else
 	{
-		FM_Channel* const channel = &fm->state->channels[fm->state->port * 3 + fm->state->address % 4];
+		const unsigned int channel_index = fm->state->address % 4;
+		FM_Channel* const channel = &fm->state->channels[fm->state->port + channel_index];
 
-		switch (fm->state->address / 4)
+		/* There is no fourth channel per slot. */
+		/* TODO: See how real hardware handles this. */
+		if (channel_index != 3)
 		{
-			default:
-				PrintError("Unrecognised FM address latched (0x%2X)");
-				break;
-
-			case 0x30 / 4:
-			case 0x34 / 4:
-			case 0x38 / 4:
-			case 0x3C / 4:
-			case 0x50 / 4:
-			case 0x60 / 4:
-			case 0x70 / 4:
-			case 0x80 / 4:
-			case 0x90 / 4:
-			case 0x94 / 4:
-			case 0x98 / 4:
-			case 0x9C / 4:
-			case 0xA8 / 4:
-			case 0xAC / 4:
-			case 0xB0 / 4:
-			case 0xB4 / 4:
-				break;
-
-			case 0x40 / 4:
-				/* Volume attenuation. */
-				channel->attenuation = data & 0x7F;
-				break;
-
-			case 0xA0 / 4:
+			if (fm->state->address < 0xA0)
 			{
-				/* Frequency low bits. */
-				const unsigned int frequency_high_bits = fm->state->cached_data & 7;
-				const unsigned int frequency_shift = (fm->state->cached_data >> 3) & 7;
+				/* Per-operator. */
+				FM_Operator* const operator = &channel->operators[fm->state->address / 4];
 
-				channel->sine_wave_step = (data | (frequency_high_bits << 8)) << frequency_shift;
+				switch (fm->state->address / 0x10)
+				{
+					default:
+						PrintError("Unrecognised FM address latched (0x%02X)", fm->state->address);
+						break;
 
-				break;
+					case 0x30 / 0x10:
+					case 0x50 / 0x10:
+					case 0x60 / 0x10:
+					case 0x70 / 0x10:
+					case 0x80 / 0x10:
+					case 0x90 / 0x10:
+						break;
+
+					case 0x40 / 0x10:
+						/* Volume attenuation. */
+						operator->attenuation = data & 0x7F;
+
+						/* TODO: Temporary. */
+						channel->attenuation = data & 0x7F;
+
+						break;
+				}
 			}
+			else
+			{
+				/* Per-channel. */
+				switch (fm->state->address / 4)
+				{
+					default:
+						PrintError("Unrecognised FM address latched (0x%02X)", fm->state->address);
+						break;
 
-			case 0xA4 / 4:
-				/* Frequency high bits. */
-				/* Apparently these high bits must be written before the low bits, so this optimisation is safe. */
-				fm->state->cached_data = data;
-				break;
+					case 0xA8 / 4:
+					case 0xAC / 4:
+					case 0xB0 / 4:
+						break;
+
+					case 0xA0 / 4:
+					{
+						/* Frequency low bits. */
+						const unsigned int frequency_high_bits = fm->state->cached_data & 7;
+						const unsigned int frequency_shift = (fm->state->cached_data >> 3) & 7;
+
+						channel->sine_wave_step = (data | (frequency_high_bits << 8)) << frequency_shift;
+
+						break;
+					}
+
+					case 0xA4 / 4:
+						/* Frequency high bits. */
+						/* Apparently these high bits must be written before the low bits, so this optimisation is safe. */
+						fm->state->cached_data = data;
+						break;
+
+					case 0xB4 / 4:
+						/* Panning, AMS, FMS. */
+						channel->pan_left = (data & 0x80) != 0;
+						channel->pan_right = (data & 0x40) != 0;
+						break;
+				}
+			}
 		}
 	}
 }
 
 void FM_Update(const FM *fm, short *sample_buffer, size_t total_frames)
 {
+	const short* const sample_buffer_end = &sample_buffer[total_frames * 2];
+
 	FM_Channel *channel;
 
 	for (channel = &fm->state->channels[0]; channel < &fm->state->channels[CC_COUNT_OF(fm->state->channels)]; ++channel)
 	{
-		short *sample_buffer_pointer = sample_buffer;
-
-		while (sample_buffer_pointer != &sample_buffer[total_frames * 2])
+		if (channel->key_on)
 		{
-			/* The frequency measures the span of the sine wave as 0x100000, but the lookup table is only 0x1000 values long,
-			   so calculate the scale between them, and use it to convert the position to an index into the table. */
-			const unsigned long sine_wave_index = channel->sine_wave_position / (0x100000 / LENGTH_OF_SINE_WAVE_LOOKUP_TABLE);
+			short *sample_buffer_pointer = sample_buffer;
 
-			/* Obtain sample. */
-			const short sample = fm->constant->sine_waves[channel->attenuation][sine_wave_index % LENGTH_OF_SINE_WAVE_LOOKUP_TABLE];
+			if (channel == &fm->state->channels[5] && fm->state->dac_enabled)
+			{
+				/* DAC sample. */
+				const int sample = fm->state->dac_sample;
 
-			/* Output it. */
-			*sample_buffer_pointer++ += sample;
-			*sample_buffer_pointer++ += sample;
+				while (sample_buffer_pointer != sample_buffer_end)
+				{
+					/* Output sample. */
+					if (channel->pan_left)
+						*sample_buffer_pointer += sample;
 
-			/* Advance by one step. */
-			channel->sine_wave_position += channel->sine_wave_step;
+					++sample_buffer_pointer;
+
+					if (channel->pan_right)
+						*sample_buffer_pointer += sample;
+
+					++sample_buffer_pointer;
+				}
+			}
+			else
+			{
+				const short *sine_wave = fm->constant->sine_waves[channel->attenuation];
+
+				/* FM sample. */
+				while (sample_buffer_pointer != sample_buffer_end)
+				{
+					/* The frequency measures the span of the sine wave as 0x100000, but the lookup table is only 0x1000 values long,
+					   so calculate the scale between them, and use it to convert the position to an index into the table. */
+					const unsigned long sine_wave_index = channel->sine_wave_position / (0x100000 / LENGTH_OF_SINE_WAVE_LOOKUP_TABLE);
+
+					/* Obtain sample. */
+					const short sample = sine_wave[sine_wave_index % LENGTH_OF_SINE_WAVE_LOOKUP_TABLE];
+
+					/* Output sample. */
+					if (channel->pan_left)
+						*sample_buffer_pointer += sample;
+
+					++sample_buffer_pointer;
+
+					if (channel->pan_right)
+						*sample_buffer_pointer += sample;
+
+					++sample_buffer_pointer;
+
+					/* Advance by one step. */
+					channel->sine_wave_position += channel->sine_wave_step;
+				}
+			}
 		}
 	}
 }

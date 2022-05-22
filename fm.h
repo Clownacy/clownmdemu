@@ -3,15 +3,25 @@
 
 #include <stddef.h>
 
+#include "clowncommon.h"
+
 #define LENGTH_OF_SINE_WAVE_LOOKUP_TABLE 0x1000
+
+typedef struct FM_Operator
+{
+	unsigned int attenuation;
+} FM_Operator;
 
 typedef struct FM_Channel
 {
+	FM_Operator operators[4];
 	unsigned long sine_wave_position;
 	unsigned long sine_wave_step;
-	unsigned int attenuation;
+	unsigned int attenuation; /* TODO: Temporary. */
+	cc_bool key_on;
+	cc_bool pan_left;
+	cc_bool pan_right;
 } FM_Channel;
-
 
 typedef struct FM_Constant
 {
@@ -24,6 +34,8 @@ typedef struct FM_State
 	unsigned int port;
 	unsigned int address;
 	unsigned int cached_data;
+	int dac_sample;
+	cc_bool dac_enabled;
 } FM_State;
 
 typedef struct FM
