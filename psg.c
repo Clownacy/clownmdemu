@@ -15,18 +15,18 @@ void PSG_Constant_Initialise(PSG_Constant *constant)
 {
 	unsigned int i;
 
-	/* Generate the volume lookup table */
+	/* Generate the volume lookup table. */
 	for (i = 0; i < 0xF; ++i)
 	{
 		/* Each volume level is 2 decibels lower than the last. */
 		/* The division by 4 is because there are 4 channels, so we want to prevent audio clipping. */
 		const short volume = (short)(((double)0x7FFF / 4.0) * pow(10.0, -2.0 * (double)i / 20.0));
 
-		constant->volumes[i][0] = volume; /* Positive phase */
-		constant->volumes[i][1] = -volume; /* Negative phase */
+		constant->volumes[i][0] = volume; /* Positive phase. */
+		constant->volumes[i][1] = -volume; /* Negative phase. */
 	}
 
-	/* The lowest volume is always 0 */
+	/* The lowest volume is always 0. */
 	constant->volumes[0xF][0] = 0;
 	constant->volumes[0xF][1] = 0;
 }
@@ -35,16 +35,16 @@ void PSG_State_Initialise(PSG_State *state)
 {
 	unsigned int i;
 
-	/* Reset tone channels */
+	/* Reset tone channels. */
 	for (i = 0; i < CC_COUNT_OF(state->tones); ++i)
 	{
 		state->tones[i].countdown = 0;
 		state->tones[i].countdown_master = 0;
-		state->tones[i].attenuation = 0xF; /* Silence the channels on startup */
+		state->tones[i].attenuation = 0xF; /* Silence the channels on startup. */
 		state->tones[i].output_bit = 0;
 	}
 
-	/* Reset noise channel */
+	/* Reset noise channel. */
 	state->noise.countdown = 0;
 	state->noise.attenuation = 0xF;
 	state->noise.fake_output_bit = 0;
@@ -53,7 +53,7 @@ void PSG_State_Initialise(PSG_State *state)
 	state->noise.type = PSG_NOISE_TYPE_PERIODIC;
 	state->noise.shift_register = 0;
 
-	/* Reset the latched command data */
+	/* Reset the latched command data. */
 	state->latched_command.channel = 0;
 	state->latched_command.is_volume_command = cc_false;
 }
@@ -64,36 +64,36 @@ void PSG_DoCommand(const PSG *psg, unsigned int command)
 
 	if (latch)
 	{
-		/* Latch command */
+		/* Latch command. */
 		psg->state->latched_command.channel = (command >> 5) & 3;
 		psg->state->latched_command.is_volume_command = (command & 0x10) != 0;
 	}
 
 	if (psg->state->latched_command.channel < CC_COUNT_OF(psg->state->tones))
 	{
-		/* Tone channel */
+		/* Tone channel. */
 		PSG_ToneState *tone = &psg->state->tones[psg->state->latched_command.channel];
 
 		if (psg->state->latched_command.is_volume_command)
 		{
-			/* Volume attenuation command */
+			/* Volume attenuation command. */
 			tone->attenuation = command & 0xF;
 			/* According to http://md.railgun.works/index.php?title=PSG, this should happen,
 			   but when I test it, I get crackly audio, so I've disabled it for now. */
-			   /*tone->output_bit = 0;*/
+			/*tone->output_bit = 0;*/
 		}
 		else
 		{
-			/* Frequency command */
+			/* Frequency command. */
 			if (latch)
 			{
-				/* Low frequency bits */
+				/* Low frequency bits. */
 				tone->countdown_master &= ~0xF;
 				tone->countdown_master |= command & 0xF;
 			}
 			else
 			{
-				/* High frequency bits */
+				/* High frequency bits. */
 				tone->countdown_master &= 0xF;
 				tone->countdown_master |= (command & 0x3F) << 4;
 			}
@@ -101,18 +101,18 @@ void PSG_DoCommand(const PSG *psg, unsigned int command)
 	}
 	else
 	{
-		/* Noise channel */
+		/* Noise channel. */
 		if (psg->state->latched_command.is_volume_command)
 		{
-			/* Volume attenuation command */
+			/* Volume attenuation command. */
 			psg->state->noise.attenuation = command & 0xF;
 			/* According to http://md.railgun.works/index.php?title=PSG, this should happen,
 			   but when I test it, I get crackly audio, so I've disabled it for now. */
-			   /*state->noise.fake_output_bit = 0;*/
+			/*state->noise.fake_output_bit = 0;*/
 		}
 		else
 		{
-			/* Frequency and noise type command */
+			/* Frequency and noise type command. */
 			psg->state->noise.type = (command & 4) ? PSG_NOISE_TYPE_WHITE : PSG_NOISE_TYPE_PERIODIC;
 			psg->state->noise.frequency_mode = command & 3;
 
@@ -132,7 +132,7 @@ void PSG_Update(const PSG *psg, short *sample_buffer, size_t total_samples)
 	size_t j;
 	short *sample_buffer_pointer;
 
-	/* Do the tone channels */
+	/* Do the tone channels. */
 	for (i = 0; i < CC_COUNT_OF(psg->state->tones); ++i)
 	{
 		PSG_ToneState *tone = &psg->state->tones[i];
@@ -141,30 +141,30 @@ void PSG_Update(const PSG *psg, short *sample_buffer, size_t total_samples)
 
 		for (j = 0; j < total_samples; ++j)
 		{
-			/* This countdown is responsible for the channel's frequency */
+			/* This countdown is responsible for the channel's frequency. */
 			if (tone->countdown-- == 0)
 			{
-				/* Reset the countdown */
+				/* Reset the countdown. */
 				tone->countdown = tone->countdown_master;
 
-				/* Switch from positive phase to negative phase and vice versa */
+				/* Switch from positive phase to negative phase and vice versa. */
 				tone->output_bit = !tone->output_bit;
 			}
 
-			/* Output a sample */
+			/* Output a sample. */
 			*sample_buffer_pointer++ += psg->constant->volumes[tone->attenuation][tone->output_bit];
 		}
 	}
 
-	/* Do the noise channel */
+	/* Do the noise channel. */
 	sample_buffer_pointer = sample_buffer;
 
 	for (j = 0; j < total_samples; ++j)
 	{
-		/* This countdown is responsible for the channel's frequency */
+		/* This countdown is responsible for the channel's frequency. */
 		if (psg->state->noise.countdown-- == 0)
 		{
-			/* Reset the countdown */
+			/* Reset the countdown. */
 			switch (psg->state->noise.frequency_mode)
 			{
 				case 0:
@@ -180,7 +180,7 @@ void PSG_Update(const PSG *psg, short *sample_buffer, size_t total_samples)
 					break;
 
 				case 3:
-					/* Use the last tone channel's frequency */
+					/* Use the last tone channel's frequency. */
 					psg->state->noise.countdown = psg->state->tones[CC_COUNT_OF(psg->state->tones) - 1].countdown_master;
 					break;
 			}
@@ -203,7 +203,7 @@ void PSG_Update(const PSG *psg, short *sample_buffer, size_t total_samples)
 			}
 		}
 
-		/* Output a sample */
+		/* Output a sample. */
 		*sample_buffer_pointer++ += psg->constant->volumes[psg->state->noise.attenuation][psg->state->noise.real_output_bit];
 	}
 }

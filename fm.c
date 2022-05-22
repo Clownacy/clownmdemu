@@ -27,14 +27,19 @@ void FM_Constant_Initialise(FM_Constant *constant)
 	/* Compute the attenuated wave lookup tables (used for volume control). */
 	/* Notably, the attenuation increases by 3/4 of a decibel every time. */
 	for (j = 1; j < CC_COUNT_OF(constant->sine_waves); ++j)
+	{
+		const double scale = pow(10.0, -0.75 * (double)j / 20.0);
+
 		for (i = 0; i < LENGTH_OF_SINE_WAVE_LOOKUP_TABLE; ++i)
-			constant->sine_waves[j][i] = constant->sine_waves[0][i] * pow(10.0, -0.75 * (double)j / 20.0);
+			constant->sine_waves[j][i] = (short)((double)constant->sine_waves[0][i] * scale);
+	}
 }
 
 void FM_State_Initialise(FM_State *state)
 {
 	FM_Channel *channel;
 
+	/* Make the channels silent. */
 	for (channel = &state->channels[0]; channel < &state->channels[CC_COUNT_OF(state->channels)]; ++channel)
 	{
 		channel->sine_wave_position = 0;
@@ -118,7 +123,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 
 			case 0xA4 / 4:
 				/* Frequency high bits. */
-				/* Apparently these high bits might be written before the low bits, so this optimisation is safe. */
+				/* Apparently these high bits must be written before the low bits, so this optimisation is safe. */
 				fm->state->cached_data = data;
 				break;
 		}
