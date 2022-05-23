@@ -9,15 +9,16 @@
 
 typedef struct FM_Operator
 {
+	unsigned long sine_wave_position;
+	unsigned long sine_wave_step;
 	unsigned int attenuation;
+	cc_bool is_slot;
 } FM_Operator;
 
 typedef struct FM_Channel
 {
 	FM_Operator operators[4];
-	unsigned long sine_wave_position;
-	unsigned long sine_wave_step;
-	unsigned int attenuation; /* TODO: Temporary. */
+	unsigned int cached_upper_frequency_bits;
 	cc_bool key_on;
 	cc_bool pan_left;
 	cc_bool pan_right;
@@ -33,7 +34,6 @@ typedef struct FM_State
 	FM_Channel channels[6];
 	unsigned int port;
 	unsigned int address;
-	unsigned int cached_data;
 	int dac_sample;
 	cc_bool dac_enabled;
 } FM_State;
