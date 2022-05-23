@@ -18,7 +18,7 @@ http://gendev.spritesmind.net/forum/viewtopic.php?p=5716#p5716
 http://gendev.spritesmind.net/forum/viewtopic.php?p=6224#p6224
 http://gendev.spritesmind.net/forum/viewtopic.php?p=6522#p6522
 
-Sine table resolution, DAC and FM operator mixing/volume/cliiping:
+Sine table resolution, DAC and FM operator mixing/volume/clipping:
 http://gendev.spritesmind.net/forum/viewtopic.php?p=5958#p5958
 
 Maybe I should implement multiplexing instead of mixing the 6 channel together?
@@ -132,10 +132,10 @@ void FM_Constant_Initialise(FM_Constant *constant)
 	}
 
 	/* Compute the attenuated wave lookup tables (used for volume control). */
-	/* Notably, the attenuation increases by 3/4 of a decibel every time. */
+	/* Notably, the attenuation increases by 1.5 decibels every time. */
 	for (j = 1; j < CC_COUNT_OF(constant->sine_waves); ++j)
 	{
-		const double scale = pow(10.0, -0.75 * (double)j / 20.0);
+		const double scale = pow(10.0, -1.5 * (double)j / 20.0);
 
 		for (i = 0; i < LENGTH_OF_SINE_WAVE_LOOKUP_TABLE; ++i)
 			constant->sine_waves[j][i] = (short)((double)constant->sine_waves[0][i] * scale);
@@ -153,8 +153,7 @@ void FM_State_Initialise(FM_State *state)
 
 		for (operator = &channel->operators[0]; operator < &channel->operators[CC_COUNT_OF(channel->operators)]; ++operator)
 		{
-			operator->sine_wave_position = 0;
-			operator->sine_wave_step = 0;
+			FM_Phase_Initialise(&operator->phase);
 			operator->attenuation = 0x7F;
 		}
 
@@ -237,12 +236,17 @@ void FM_DoData(const FM *fm, unsigned int data)
 						PrintError("Unrecognised FM address latched (0x%02X)", fm->state->address);
 						break;
 
-					case 0x30 / 0x10:
 					case 0x50 / 0x10:
 					case 0x60 / 0x10:
 					case 0x70 / 0x10:
 					case 0x80 / 0x10:
 					case 0x90 / 0x10:
+						break;
+
+					case 0x30 / 0x10:
+						/* Detune and multiplier. */
+						FM_Phase_SetDetuneAndMultiplier(&operator->phase, data);
+
 						break;
 
 					case 0x40 / 0x10:
@@ -267,14 +271,12 @@ void FM_DoData(const FM *fm, unsigned int data)
 					case 0xA0 / 4:
 					{
 						/* Frequency low bits. */
-						const unsigned long frequency_high_bits = channel->cached_upper_frequency_bits & 7;
-						const unsigned int frequency_shift = (channel->cached_upper_frequency_bits >> 3) & 7;
-						const unsigned long sine_wave_step = (data | (frequency_high_bits << 8)) << frequency_shift;
+						const unsigned long f_number_and_block = data | (channel->cached_upper_frequency_bits << 8);
 
 						FM_Operator *operator;
 
 						for (operator = &channel->operators[0]; operator < &channel->operators[CC_COUNT_OF(channel->operators)]; ++operator)
-							operator->sine_wave_step = sine_wave_step;
+							FM_Phase_SetFrequency(&operator->phase, f_number_and_block);
 
 						break;
 					}
@@ -377,19 +379,14 @@ void FM_Update(const FM *fm, short *sample_buffer, size_t total_frames)
 
 						while (sample_buffer_pointer != sample_buffer_end)
 						{
-							/* The frequency measures the span of the sine wave as 0x100000, but the lookup table is only 0x1000 values long,
-							   so calculate the scale between them, and use it to convert the position to an index into the table. */
-							const unsigned long sine_wave_index = operator->sine_wave_position / (0x100000 / LENGTH_OF_SINE_WAVE_LOOKUP_TABLE);
+							const unsigned int sine_wave_index = FM_Phase_Increment(&operator->phase);
 
 							/* Obtain sample. */
-							const int sample = sine_wave[sine_wave_index % LENGTH_OF_SINE_WAVE_LOOKUP_TABLE];
+							const int sample = sine_wave[sine_wave_index];
 
 							/* Output sample. */
 							*sample_buffer_pointer++ += sample & left_mask;
 							*sample_buffer_pointer++ += sample & right_mask;
-
-							/* Advance by one step. */
-							operator->sine_wave_position += operator->sine_wave_step;
 						}
 					}
 				}

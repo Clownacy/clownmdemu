@@ -5,12 +5,13 @@
 
 #include "clowncommon.h"
 
-#define LENGTH_OF_SINE_WAVE_LOOKUP_TABLE 0x1000
+#include "fm_phase.h"
+
+#define LENGTH_OF_SINE_WAVE_LOOKUP_TABLE 0x400
 
 typedef struct FM_Operator
 {
-	unsigned long sine_wave_position;
-	unsigned long sine_wave_step;
+	FM_Phase phase;
 	unsigned int attenuation;
 	cc_bool is_slot;
 } FM_Operator;
