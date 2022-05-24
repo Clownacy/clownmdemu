@@ -81,8 +81,11 @@ void FM_Operator_Constant_Initialise(FM_Operator_Constant *constant)
 
 int FM_Operator_Process(const FM_Operator_Constant *constant, unsigned int phase, int phase_modulation, unsigned int attenuation)
 {
+	/* The phase modulation is 15-bit, but we need it to be 10-bit, just like the phase. */
+	const int phase_modulation_10_bit = phase_modulation / (1 << 5);
+
 	/* Modulate the phase. */
-	const unsigned int modulated_phase = (phase + phase_modulation) & 0x3FF;
+	const unsigned int modulated_phase = (phase + phase_modulation_10_bit) & 0x3FF;
 
 	/* Reduce the phase down to a single quarter of the span of a sine wave, since the other three quarters
 	   are just mirrored anyway. This allows us to use a much smaller sine wave lookup table. */

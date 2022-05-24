@@ -14,13 +14,14 @@ typedef struct FM_Operator
 {
 	FM_Phase phase;
 	unsigned int attenuation;
-	cc_bool is_slot;
 } FM_Operator;
 
 typedef struct FM_Channel
 {
 	FM_Operator operators[4];
 	unsigned int cached_upper_frequency_bits;
+	unsigned int feedback;
+	unsigned int algorithm;
 	cc_bool key_on;
 	cc_bool pan_left;
 	cc_bool pan_right;
