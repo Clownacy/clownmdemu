@@ -5,36 +5,26 @@
 
 #include "clowncommon.h"
 
-#include "fm_operator.h"
-#include "fm_phase.h"
+#include "fm_channel.h"
 
 #define LENGTH_OF_SINE_WAVE_LOOKUP_TABLE 0x400
 
-typedef struct FM_Operator
+typedef struct FM_ChannelMetadata
 {
-	FM_Phase phase;
-	unsigned int attenuation;
-} FM_Operator;
-
-typedef struct FM_Channel
-{
-	FM_Operator operators[4];
+	FM_Channel_State state;
 	unsigned int cached_upper_frequency_bits;
-	unsigned int feedback;
-	unsigned int algorithm;
-	cc_bool key_on;
 	cc_bool pan_left;
 	cc_bool pan_right;
-} FM_Channel;
+} FM_ChannelMetadata;
 
 typedef struct FM_Constant
 {
-	FM_Operator_Constant operators;
+	FM_Channel_Constant channels;
 } FM_Constant;
 
 typedef struct FM_State
 {
-	FM_Channel channels[6];
+	FM_ChannelMetadata channels[6];
 	unsigned int port;
 	unsigned int address;
 	int dac_sample;

@@ -1,6 +1,6 @@
 #include "fm_phase.h"
 
-static void RecalculatePhaseStep(FM_Phase *phase)
+static void RecalculatePhaseStep(FM_Phase_State *phase)
 {
     /* First, obtain some values. */
 
@@ -92,7 +92,7 @@ static void RecalculatePhaseStep(FM_Phase *phase)
     phase->step >>= 1;
 }
 
-void FM_Phase_Initialise(FM_Phase *phase)
+void FM_Phase_State_Initialise(FM_Phase_State *phase)
 {
     phase->position = 0;
     phase->step = 0;
@@ -101,22 +101,22 @@ void FM_Phase_Initialise(FM_Phase *phase)
     phase->multiplier = 0;
 }
 
-void FM_Phase_SetFrequency(FM_Phase *phase, unsigned int f_number_and_block)
+void FM_Phase_SetFrequency(FM_Phase_State *phase, unsigned int f_number_and_block)
 {
 	phase->f_number_and_block = f_number_and_block;
 
 	RecalculatePhaseStep(phase);
 }
 
-void FM_Phase_SetDetuneAndMultiplier(FM_Phase *phase, unsigned int detune_and_multiplier)
+void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, unsigned int detune, unsigned int multiplier)
 {
-    phase->detune = (detune_and_multiplier >> 4) & 7;
-    phase->multiplier = (detune_and_multiplier >> 0) & 0xF;
+    phase->detune = detune;
+    phase->multiplier = multiplier;
 
 	RecalculatePhaseStep(phase);
 }
 
-unsigned int FM_Phase_Increment(FM_Phase *phase)
+unsigned int FM_Phase_Increment(FM_Phase_State *phase)
 {
     phase->position += phase->step;
 

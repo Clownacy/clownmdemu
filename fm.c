@@ -115,24 +115,15 @@ https://github.com/nukeykt/Nuked-OPN2
 
 void FM_Constant_Initialise(FM_Constant *constant)
 {
-	FM_Operator_Constant_Initialise(&constant->operators);
+	FM_Channel_Constant_Initialise(&constant->channels);
 }
 
 void FM_State_Initialise(FM_State *state)
 {
-	FM_Channel *channel;
+	FM_ChannelMetadata *channel;
 
-	/* Make the channels silent. */
 	for (channel = &state->channels[0]; channel < &state->channels[CC_COUNT_OF(state->channels)]; ++channel)
-	{
-		FM_Operator *operator;
-
-		for (operator = &channel->operators[0]; operator < &channel->operators[CC_COUNT_OF(channel->operators)]; ++operator)
-		{
-			FM_Phase_Initialise(&operator->phase);
-			operator->attenuation = 0x7F;
-		}
-	}
+		FM_Channel_State_Initialise(&channel->state);
 
 	state->dac_sample = 0;
 	state->dac_enabled = cc_false;
@@ -168,10 +159,10 @@ void FM_DoData(const FM *fm, unsigned int data)
 					/* Key on/off. */
 					/* There's a gap between channels 3 and 4. */
 					/* TODO - Check what happens if you try to access the 'gap' channels on real hardware. */
-					static const unsigned int table[] = {0, 1, 2, 0, 3, 4, 5, 0};
+					/*static const unsigned int table[] = {0, 1, 2, 0, 3, 4, 5, 0};
 					FM_Channel* const channel = &fm->state->channels[table[data & 7]];
 
-					channel->key_on = (data & 0xF0) != 0;
+					channel->key_on = (data & 0xF0) != 0;*/
 
 					break;
 				}
@@ -192,7 +183,8 @@ void FM_DoData(const FM *fm, unsigned int data)
 	else
 	{
 		const unsigned int channel_index = fm->state->address & 3;
-		FM_Channel* const channel = &fm->state->channels[fm->state->port + channel_index];
+		FM_ChannelMetadata* const channel_metadata = &fm->state->channels[fm->state->port + channel_index];
+		const FM_Channel channel = {&fm->constant->channels, &channel_metadata->state};
 
 		/* There is no fourth channel per slot. */
 		/* TODO: See how real hardware handles this. */
@@ -201,7 +193,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 			if (fm->state->address < 0xA0)
 			{
 				/* Per-operator. */
-				FM_Operator* const operator = &channel->operators[(fm->state->address >> 2) & 3];
+				const unsigned int operator_index = (fm->state->address >> 2) & 3;
 
 				switch (fm->state->address / 0x10)
 				{
@@ -218,13 +210,12 @@ void FM_DoData(const FM *fm, unsigned int data)
 
 					case 0x30 / 0x10:
 						/* Detune and multiplier. */
-						FM_Phase_SetDetuneAndMultiplier(&operator->phase, data);
-
+						FM_Channel_SetDetuneAndMultiplier(&channel, operator_index, (data >> 4) & 7, (data >> 0) & 0xF);
 						break;
 
 					case 0x40 / 0x10:
 						/* Volume attenuation. */
-						operator->attenuation = data & 0x7F;
+						FM_Channel_SetTotalLevel(&channel, operator_index, data & 0x7F);
 						break;
 				}
 			}
@@ -242,34 +233,24 @@ void FM_DoData(const FM *fm, unsigned int data)
 						break;
 
 					case 0xA0 / 4:
-					{
 						/* Frequency low bits. */
-						const unsigned long f_number_and_block = data | (channel->cached_upper_frequency_bits << 8);
-
-						FM_Operator *operator;
-
-						for (operator = &channel->operators[0]; operator < &channel->operators[CC_COUNT_OF(channel->operators)]; ++operator)
-							FM_Phase_SetFrequency(&operator->phase, f_number_and_block);
-
+						FM_Channel_SetFrequency(&channel, data | (channel_metadata->cached_upper_frequency_bits << 8));
 						break;
-					}
 
 					case 0xA4 / 4:
 						/* Frequency high bits. */
 						/* http://gendev.spritesmind.net/forum/viewtopic.php?p=5621#p5621 */
-						channel->cached_upper_frequency_bits = data;
+						channel_metadata->cached_upper_frequency_bits = data;
 						break;
 
 					case 0xB0 / 4:
-						/* Feedback and algorithm. */
-						channel->feedback = (data >> 3) & 0xF;
-						channel->algorithm = data & 7;
+						FM_Channel_SetFeedbackAndAlgorithm(&channel, (data >> 3) & 0xF, data & 7);
 						break;
 
 					case 0xB4 / 4:
 						/* Panning, AMS, FMS. */
-						channel->pan_left = (data & 0x80) != 0;
-						channel->pan_right = (data & 0x40) != 0;
+						channel_metadata->pan_left = (data & 0x80) != 0;
+						channel_metadata->pan_right = (data & 0x40) != 0;
 						break;
 				}
 			}
@@ -281,173 +262,32 @@ void FM_Update(const FM *fm, short *sample_buffer, size_t total_frames)
 {
 	const short* const sample_buffer_end = &sample_buffer[total_frames * 2];
 
-	FM_Channel *channel;
+	FM_ChannelMetadata *channel_metadata;
 
-	for (channel = &fm->state->channels[0]; channel < &fm->state->channels[CC_COUNT_OF(fm->state->channels)]; ++channel)
+	for (channel_metadata = &fm->state->channels[0]; channel_metadata < &fm->state->channels[CC_COUNT_OF(fm->state->channels)]; ++channel_metadata)
 	{
-		const unsigned int left_mask = channel->pan_left ? -1 : 0;
-		const unsigned int right_mask = channel->pan_right ? -1 : 0;
+		const FM_Channel channel = {&fm->constant->channels, &channel_metadata->state};
+
+		/* These will be used in later boolean algebra, to avoid branches. */
+		const unsigned int left_mask = channel_metadata->pan_left ? -1 : 0;
+		const unsigned int right_mask = channel_metadata->pan_right ? -1 : 0;
+		const unsigned int dac_mask = channel_metadata == &fm->state->channels[5] && fm->state->dac_enabled ? -1 : 0;
 
 		short *sample_buffer_pointer;
 
-		if (channel == &fm->state->channels[5] && fm->state->dac_enabled)
+		sample_buffer_pointer = sample_buffer;
+
+		while (sample_buffer_pointer != sample_buffer_end)
 		{
-			/* TODO: This can implemented more cleanly (and accurately) by just running the normal FM logic and then
-			   masking the DAC sample over the FM sample with some binary arithmetic. */
+			/* The FM sample is 16-bit, so divide it by 6 so that it can be mixed with the other five channels without clipping. */
+			const int fm_sample = FM_Channel_GetSample(&channel) / 6;
 
-			/* DAC sample. */
-			const int sample = fm->state->dac_sample;
-			const int left_sample = sample & left_mask;
-			const int right_sample = sample & right_mask;
+			/* Do some boolean algebra to select the FM sample or the DAC sample. */
+			const int sample = (fm_sample & ~dac_mask) | (fm->state->dac_sample & dac_mask);
 
-			sample_buffer_pointer = sample_buffer;
-
-			while (sample_buffer_pointer != sample_buffer_end)
-			{
-				/* Output sample. */
-				*sample_buffer_pointer++ += left_sample;
-				*sample_buffer_pointer++ += right_sample;
-			}
-		}
-		else
-		{
-			if (channel->key_on) /* TODO: A temporary hack. */
-			{
-				/* FM sample. */
-				/*struct
-				{
-					unsigned int operator;
-					unsigned int modulation;
-				} stages;
-				int first_operator_id;
-				int _operator_id;
-				int first_operator_id;
-				int first_operator_id;*/
-				sample_buffer_pointer = sample_buffer;
-
-				while (sample_buffer_pointer != sample_buffer_end)
-				{
-					int operator_1_sample;
-					int operator_2_sample;
-					int operator_3_sample;
-					int operator_4_sample;
-					int sample;
-
-					/* Feed the operators into each other to produce the final sample. */
-					/* Note that the operators output a 14-bit sample, meaning that, if all four are summed, then the result is a 16-bit sample,
-					   so there is no possibility of overflow. */
-					switch (channel->algorithm)
-					{
-						/* TODO: Feedback. */
-						case 0:
-							/* "Four serial connection mode". */
-							operator_1_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[0].phase), 0, channel->operators[0].attenuation);
-							operator_2_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[2].phase), operator_1_sample, channel->operators[2].attenuation);
-							operator_3_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[1].phase), operator_2_sample, channel->operators[1].attenuation);
-							operator_4_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[3].phase), operator_3_sample, channel->operators[3].attenuation);
-
-							sample = operator_4_sample;
-
-							break;
-
-						case 1:
-							/* "Three double modulation serial connection mode". */
-							operator_1_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[0].phase), 0, channel->operators[0].attenuation);
-							operator_2_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[2].phase), 0, channel->operators[2].attenuation);
-
-							operator_3_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[1].phase), operator_1_sample + operator_2_sample, channel->operators[1].attenuation);
-							operator_4_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[3].phase), operator_3_sample, channel->operators[3].attenuation);
-
-							sample = operator_4_sample;
-
-							break;
-
-						case 2:
-							/* "Double modulation mode (1)". */
-							operator_1_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[0].phase), 0, channel->operators[0].attenuation);
-
-							operator_2_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[2].phase), 0, channel->operators[2].attenuation);
-							operator_3_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[1].phase), operator_2_sample, channel->operators[1].attenuation);
-
-							operator_4_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[3].phase), operator_1_sample + operator_3_sample, channel->operators[3].attenuation);
-
-							sample = operator_4_sample;
-
-							break;
-
-						case 3:
-							/* "Double modulation mode (2)". */
-							operator_1_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[0].phase), 0, channel->operators[0].attenuation);
-							operator_2_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[2].phase), operator_1_sample, channel->operators[2].attenuation);
-
-							operator_3_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[1].phase), 0, channel->operators[1].attenuation);
-
-							operator_4_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[3].phase), operator_2_sample + operator_3_sample, channel->operators[3].attenuation);
-
-							sample = operator_4_sample;
-
-							break;
-
-						case 4:
-							/* "Two serial connection and two parallel modes". */
-							operator_1_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[0].phase), 0, channel->operators[0].attenuation);
-							operator_2_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[2].phase), operator_1_sample, channel->operators[2].attenuation);
-
-							operator_3_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[1].phase), 0, channel->operators[1].attenuation);
-							operator_4_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[3].phase), operator_3_sample, channel->operators[3].attenuation);
-
-							sample = operator_2_sample + operator_4_sample;
-
-							break;
-
-						case 5:
-							/* "Common modulation 3 parallel mode". */
-							operator_1_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[0].phase), 0, channel->operators[0].attenuation);
-
-							operator_2_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[2].phase), operator_1_sample, channel->operators[2].attenuation);
-							operator_3_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[1].phase), operator_1_sample, channel->operators[1].attenuation);
-							operator_4_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[3].phase), operator_1_sample, channel->operators[3].attenuation);
-
-							sample = operator_2_sample + operator_3_sample + operator_4_sample;
-
-							break;
-
-						case 6:
-							/* "Two serial connection + two sine mode". */
-							operator_1_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[0].phase), 0, channel->operators[0].attenuation);
-							operator_2_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[2].phase), operator_1_sample, channel->operators[2].attenuation);
-
-							operator_3_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[1].phase), 0, channel->operators[1].attenuation);
-
-							operator_4_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[3].phase), 0, channel->operators[3].attenuation);
-
-							sample = operator_2_sample + operator_3_sample + operator_4_sample;
-
-							break;
-
-						case 7:
-							/* "Four parallel sine synthesis mode". */
-							operator_1_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[0].phase), 0, channel->operators[0].attenuation);
-
-							operator_2_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[2].phase), 0, channel->operators[2].attenuation);
-
-							operator_3_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[1].phase), 0, channel->operators[1].attenuation);
-
-							operator_4_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&channel->operators[3].phase), 0, channel->operators[3].attenuation);
-
-							sample = operator_1_sample + operator_2_sample + operator_3_sample + operator_4_sample;
-
-							break;
-					}
-
-					/* The sample is 16-bit, so divide it by 6 so that it can be mixed with the other five channels without clipping. */
-					sample /= 6;
-
-					/* Output sample. */
-					*sample_buffer_pointer++ += sample & left_mask;
-					*sample_buffer_pointer++ += sample & right_mask;
-				}
-			}
+			/* Output sample. */
+			*sample_buffer_pointer++ += sample & left_mask;
+			*sample_buffer_pointer++ += sample & right_mask;
 		}
 	}
 }
