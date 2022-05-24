@@ -115,31 +115,7 @@ https://github.com/nukeykt/Nuked-OPN2
 
 void FM_Constant_Initialise(FM_Constant *constant)
 {
-	unsigned long i;
-	unsigned int j;
-
-	/* Compute the sine wave lookup table. */
-	for (i = 0; i < LENGTH_OF_SINE_WAVE_LOOKUP_TABLE; ++i)
-	{
-		/* Iterate over the entire length of the sine wave. */
-		const double sine_index = (double)i / (double)LENGTH_OF_SINE_WAVE_LOOKUP_TABLE * (CC_PI * 2.0);
-
-		/* '0x7FFF' is the highest value that can be represented by S16 audio.
-		   It is then divided by the number of operators to prevent audio clipping. */
-		const double sample_max = (double)0x7FFF / (6.0 * 4.0);
-
-		constant->sine_waves[0][i] = (short)(sample_max * sin(sine_index));
-	}
-
-	/* Compute the attenuated wave lookup tables (used for volume control). */
-	/* Notably, the attenuation increases by 1.5 decibels every time. */
-	for (j = 1; j < CC_COUNT_OF(constant->sine_waves); ++j)
-	{
-		const double scale = pow(10.0, -1.5 * (double)j / 20.0);
-
-		for (i = 0; i < LENGTH_OF_SINE_WAVE_LOOKUP_TABLE; ++i)
-			constant->sine_waves[j][i] = (short)((double)constant->sine_waves[0][i] * scale);
-	}
+	FM_Operator_Constant_Initialise(&constant->operators);
 }
 
 void FM_State_Initialise(FM_State *state)
@@ -373,16 +349,15 @@ void FM_Update(const FM *fm, short *sample_buffer, size_t total_frames)
 				{
 					if (operator->is_slot)
 					{
-						const short *sine_wave = fm->constant->sine_waves[operator->attenuation];
-
 						sample_buffer_pointer = sample_buffer;
 
 						while (sample_buffer_pointer != sample_buffer_end)
 						{
-							const unsigned int sine_wave_index = FM_Phase_Increment(&operator->phase);
-
 							/* Obtain sample. */
-							const int sample = sine_wave[sine_wave_index];
+							const int raw_sample = FM_Operator_Process(&fm->constant->operators, FM_Phase_Increment(&operator->phase), 0, operator->attenuation);
+
+							/* The sample is 14-bit, so make it 10-bit so that it can be mixed with the other five channels without clipping. */
+							const int sample = raw_sample / (1 << 4);
 
 							/* Output sample. */
 							*sample_buffer_pointer++ += sample & left_mask;

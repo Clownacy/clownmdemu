@@ -10,6 +10,8 @@ add_library(clownmdemu STATIC
 	"error.h"
 	"fm.c"
 	"fm.h"
+	"fm_operator.c"
+	"fm_operator.h"
 	"fm_phase.c"
 	"fm_phase.h"
 	"m68k.c"

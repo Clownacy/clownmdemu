@@ -5,6 +5,7 @@
 
 #include "clowncommon.h"
 
+#include "fm_operator.h"
 #include "fm_phase.h"
 
 #define LENGTH_OF_SINE_WAVE_LOOKUP_TABLE 0x400
@@ -27,7 +28,7 @@ typedef struct FM_Channel
 
 typedef struct FM_Constant
 {
-	short sine_waves[0x80][LENGTH_OF_SINE_WAVE_LOOKUP_TABLE];
+	FM_Operator_Constant operators;
 } FM_Constant;
 
 typedef struct FM_State
