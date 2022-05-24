@@ -7,8 +7,6 @@
 
 #include "fm_channel.h"
 
-#define LENGTH_OF_SINE_WAVE_LOOKUP_TABLE 0x400
-
 typedef struct FM_ChannelMetadata
 {
 	FM_Channel_State state;

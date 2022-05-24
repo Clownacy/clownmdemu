@@ -33,6 +33,13 @@ void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel *channel, unsigned int 
 	channel->state->algorithm = algorithm;
 }
 
+void FM_Channel_SetKeyOn(const FM_Channel *channel, unsigned int operator_index, cc_bool key_on)
+{
+	const FM_Operator fm_operator = {&channel->constant->operators, &channel->state->operators[operator_index]};
+
+	FM_Operator_SetKeyOn(&fm_operator, key_on);
+}
+
 void FM_Channel_SetDetuneAndMultiplier(const FM_Channel *channel, unsigned int operator_index, unsigned int detune, unsigned int multiplier)
 {
 	const FM_Operator fm_operator = {&channel->constant->operators, &channel->state->operators[operator_index]};
@@ -45,6 +52,34 @@ void FM_Channel_SetTotalLevel(const FM_Channel *channel, unsigned int operator_i
 	const FM_Operator fm_operator ={&channel->constant->operators, &channel->state->operators[operator_index]};
 
 	FM_Operator_SetTotalLevel(&fm_operator, total_level);
+}
+
+void FM_Channel_SetKeyScaleAndAttackRate(const FM_Channel *channel, unsigned int operator_index, unsigned int key_scale, unsigned int attack_rate)
+{
+	const FM_Operator fm_operator = {&channel->constant->operators, &channel->state->operators[operator_index]};
+
+	FM_Operator_SetKeyScaleAndAttackRate(&fm_operator, key_scale, attack_rate);
+}
+
+void FM_Channel_DecayRate(const FM_Channel *channel, unsigned int operator_index, unsigned int decay_rate)
+{
+	const FM_Operator fm_operator = {&channel->constant->operators, &channel->state->operators[operator_index]};
+
+	FM_Operator_DecayRate(&fm_operator, decay_rate);
+}
+
+void FM_Channel_SetSustainRate(const FM_Channel *channel, unsigned int operator_index, unsigned int sustain_rate)
+{
+	const FM_Operator fm_operator = {&channel->constant->operators, &channel->state->operators[operator_index]};
+
+	FM_Operator_SetSustainRate(&fm_operator, sustain_rate);
+}
+
+void FM_Channel_SetSustainLevelAndReleaseRate(const FM_Channel *channel, unsigned int operator_index, unsigned int sustain_level, unsigned int release_rate)
+{
+	const FM_Operator fm_operator = {&channel->constant->operators, &channel->state->operators[operator_index]};
+
+	FM_Operator_SetSustainLevelAndReleaseRate(&fm_operator, sustain_level, release_rate);
 }
 
 int FM_Channel_GetSample(const FM_Channel *channel)

@@ -12,6 +12,8 @@ add_library(clownmdemu STATIC
 	"fm.h"
 	"fm_channel.c"
 	"fm_channel.h"
+	"fm_envelope.c"
+	"fm_envelope.h"
 	"fm_operator.c"
 	"fm_operator.h"
 	"fm_phase.c"

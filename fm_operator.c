@@ -82,15 +82,18 @@ void FM_Operator_Constant_Initialise(FM_Operator_Constant *constant)
 void FM_Operator_State_Initialise(FM_Operator_State *state)
 {
 	FM_Phase_State_Initialise(&state->phase);
-
-	/* Silence channel. */
-	/* TODO: This belongs in the envelope generator. */
-	state->total_level = 0x7F;
+	FM_Envelope_State_Initialise(&state->envelope);
 }
 
 void FM_Operator_SetFrequency(const FM_Operator *fm_operator, unsigned int f_number_and_block)
 {
 	FM_Phase_SetFrequency(&fm_operator->state->phase, f_number_and_block);
+}
+
+void FM_Operator_SetKeyOn(const FM_Operator *fm_operator, cc_bool key_on)
+{
+	FM_Phase_Reset(&fm_operator->state->phase);
+	FM_Envelope_SetKeyOn(&fm_operator->state->envelope, key_on);
 }
 
 void FM_Operator_SetDetuneAndMultiplier(const FM_Operator *fm_operator, unsigned int detune, unsigned int multiplier)
@@ -100,7 +103,27 @@ void FM_Operator_SetDetuneAndMultiplier(const FM_Operator *fm_operator, unsigned
 
 void FM_Operator_SetTotalLevel(const FM_Operator *fm_operator, unsigned int total_level)
 {
-	fm_operator->state->total_level = total_level;
+	FM_Envelope_SetTotalLevel(&fm_operator->state->envelope, total_level);
+}
+
+void FM_Operator_SetKeyScaleAndAttackRate(const FM_Operator *fm_operator, unsigned int key_scale, unsigned int attack_rate)
+{
+	FM_Envelope_SetKeyScaleAndAttackRate(&fm_operator->state->envelope, key_scale, attack_rate);
+}
+
+void FM_Operator_DecayRate(const FM_Operator *fm_operator, unsigned int decay_rate)
+{
+	FM_Envelope_DecayRate(&fm_operator->state->envelope, decay_rate);
+}
+
+void FM_Operator_SetSustainRate(const FM_Operator *fm_operator, unsigned int sustain_rate)
+{
+	FM_Envelope_SetSustainRate(&fm_operator->state->envelope, sustain_rate);
+}
+
+void FM_Operator_SetSustainLevelAndReleaseRate(const FM_Operator *fm_operator, unsigned int sustain_level, unsigned int release_rate)
+{
+	FM_Envelope_SetSustainLevelAndReleaseRate(&fm_operator->state->envelope, sustain_level, release_rate);
 }
 
 int FM_Operator_Process(const FM_Operator *fm_operator, int phase_modulation)
@@ -108,30 +131,34 @@ int FM_Operator_Process(const FM_Operator *fm_operator, int phase_modulation)
 	/* Update and obtain phase. */
 	const unsigned int phase = FM_Phase_Increment(&fm_operator->state->phase);
 
+	/* Update and obtain attenuation. */
+	const unsigned int attenuation = FM_Envelope_Update(&fm_operator->state->envelope);
+
 	/* The phase modulation is 15-bit, but we need it to be 10-bit, just like the phase. */
-	const int phase_modulation_10_bit = phase_modulation / (1 << 5);
+	/* TODO: WTF according to my tests this isn't needed? */
+	/*const int phase_modulation_10_bit = phase_modulation / (1 << 5);*/
 
 	/* Modulate the phase. */
-	const unsigned int modulated_phase = (phase + phase_modulation_10_bit) & 0x3FF;
+	const unsigned int modulated_phase = (phase + phase_modulation) & 0x3FF;
 
 	/* Reduce the phase down to a single quarter of the span of a sine wave, since the other three quarters
 	   are just mirrored anyway. This allows us to use a much smaller sine wave lookup table. */
-	const cc_bool phase_is_negative = (modulated_phase & 0x200) != 0;
-	const cc_bool phase_is_mirrored = (modulated_phase & 0x100) != 0;
-	const unsigned int quarter_phase = (modulated_phase & 0xFF) ^ (phase_is_mirrored ? 0xFF : 0);
+	const cc_bool phase_is_in_negative_wave = (modulated_phase & 0x200) != 0;
+	const cc_bool phase_is_in_mirrored_half_of_wave = (modulated_phase & 0x100) != 0;
+	const unsigned int quarter_phase = (modulated_phase & 0xFF) ^ (phase_is_in_mirrored_half_of_wave ? 0xFF : 0);
 
 	/* This table triples as a sine wave lookup table, a logarithm lookup table, and an attenuation lookup table. */
 	const unsigned int phase_as_attenuation = fm_operator->constant->logarithmic_attenuation_sine_table[quarter_phase];
 
 	/* Both attenuations are logarithms (measurements of decibels), so we can attenuate them by each other by just adding
 	   them together instead of multiplying them. */
-	const unsigned int combined_attenuation = phase_as_attenuation + (fm_operator->state->total_level << 2);
+	const unsigned int combined_attenuation = phase_as_attenuation + (attenuation << 2);
 
 	/* Convert from logarithm (decibel) back to linear (sound pressure). */
-	const int attenuation_linearised = InversePow2(fm_operator->constant, combined_attenuation) & 0x1FFF;
+	const int sample_absolute = InversePow2(fm_operator->constant, combined_attenuation) & 0x1FFF;
 
 	/* Restore the sign bit that we extracted earlier. */
-	const int attenuation_linearised_with_sign = (phase_is_negative ? -attenuation_linearised : attenuation_linearised);
+	const int sample = (phase_is_in_negative_wave ? -sample_absolute : sample_absolute);
 
-	return attenuation_linearised_with_sign;
+	return sample;
 }

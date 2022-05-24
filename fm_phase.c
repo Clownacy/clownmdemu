@@ -79,7 +79,7 @@ static void RecalculatePhaseStep(FM_Phase_State *phase)
 	/* Octave 0 is 0.5x the frequency, 1 is 1x, 2 is 2x, 3 is 4x, etc. */
     phase->step <<= block;
     phase->step >>= 1;
-
+#
     /* Apply the detune. */
     if ((phase->detune & 4) != 0)
         phase->step -= detune;
@@ -88,8 +88,8 @@ static void RecalculatePhaseStep(FM_Phase_State *phase)
 
     /* Apply the multiplier. */
     /* Multiplier 0 is 0.5x the frequency, 1 is 1x, 2 is 2x, 3 is 3x, etc. */
-    phase->step *= phase->multiplier + 1;
-    phase->step >>= 1;
+    phase->step *= phase->multiplier;
+    phase->step /= 2;
 }
 
 void FM_Phase_State_Initialise(FM_Phase_State *phase)
@@ -99,6 +99,8 @@ void FM_Phase_State_Initialise(FM_Phase_State *phase)
     phase->f_number_and_block = 0;
     phase->detune = 0;
     phase->multiplier = 0;
+
+    RecalculatePhaseStep(phase);
 }
 
 void FM_Phase_SetFrequency(FM_Phase_State *phase, unsigned int f_number_and_block)
@@ -110,10 +112,34 @@ void FM_Phase_SetFrequency(FM_Phase_State *phase, unsigned int f_number_and_bloc
 
 void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, unsigned int detune, unsigned int multiplier)
 {
+    static const multipliers[0x10] = {
+              1,
+          1 * 2,
+          2 * 2,
+          3 * 2,
+          4 * 2,
+          5 * 2,
+          6 * 2,
+          7 * 2,
+          8 * 2,
+          9 * 2,
+        0xA * 2,
+        0xB * 2,
+        0xC * 2,
+        0xD * 2,
+        0xE * 2,
+        0xF * 2
+    };
+
     phase->detune = detune;
-    phase->multiplier = multiplier;
+    phase->multiplier = multipliers[multiplier];
 
 	RecalculatePhaseStep(phase);
+}
+
+unsigned int FM_Phase_Reset(FM_Phase_State *phase)
+{
+    phase->position = 0;
 }
 
 unsigned int FM_Phase_Increment(FM_Phase_State *phase)

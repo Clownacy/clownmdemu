@@ -159,10 +159,14 @@ void FM_DoData(const FM *fm, unsigned int data)
 					/* Key on/off. */
 					/* There's a gap between channels 3 and 4. */
 					/* TODO - Check what happens if you try to access the 'gap' channels on real hardware. */
-					/*static const unsigned int table[] = {0, 1, 2, 0, 3, 4, 5, 0};
-					FM_Channel* const channel = &fm->state->channels[table[data & 7]];
+					static const unsigned int table[] = {0, 1, 2, 0, 3, 4, 5, 0};
+					FM_ChannelMetadata* const channel_metadata = &fm->state->channels[table[data & 7]];
+					const FM_Channel channel = {&fm->constant->channels, &channel_metadata->state};
 
-					channel->key_on = (data & 0xF0) != 0;*/
+					FM_Channel_SetKeyOn(&channel, 0, (data & (1 << 4)) != 0);
+					FM_Channel_SetKeyOn(&channel, 2, (data & (1 << 5)) != 0);
+					FM_Channel_SetKeyOn(&channel, 1, (data & (1 << 6)) != 0);
+					FM_Channel_SetKeyOn(&channel, 3, (data & (1 << 7)) != 0);
 
 					break;
 				}
@@ -201,21 +205,39 @@ void FM_DoData(const FM *fm, unsigned int data)
 						PrintError("Unrecognised FM address latched (0x%02X)", fm->state->address);
 						break;
 
-					case 0x50 / 0x10:
-					case 0x60 / 0x10:
-					case 0x70 / 0x10:
-					case 0x80 / 0x10:
-					case 0x90 / 0x10:
-						break;
-
 					case 0x30 / 0x10:
 						/* Detune and multiplier. */
-						FM_Channel_SetDetuneAndMultiplier(&channel, operator_index, (data >> 4) & 7, (data >> 0) & 0xF);
+						FM_Channel_SetDetuneAndMultiplier(&channel, operator_index, (data >> 4) & 7, data & 0xF);
 						break;
 
 					case 0x40 / 0x10:
-						/* Volume attenuation. */
+						/* Total level. */
 						FM_Channel_SetTotalLevel(&channel, operator_index, data & 0x7F);
+						break;
+
+					case 0x50 / 0x10:
+						/* Key scale and attack rate. */
+						FM_Channel_SetKeyScaleAndAttackRate(&channel, operator_index, (data >> 6) & 3, data & 0x1F);
+						break;
+
+					case 0x60 / 0x10:
+						/* Amplitude modulation on and decay rate. */
+						/* TODO: LFO. */
+						FM_Channel_DecayRate(&channel, operator_index, data & 0x1F);
+						break;
+
+					case 0x70 / 0x10:
+						/* Sustain rate. */
+						FM_Channel_SetSustainRate(&channel, operator_index, data & 0x1F);
+						break;
+
+					case 0x80 / 0x10:
+						/* Sustain level and release rate. */
+						FM_Channel_SetSustainLevelAndReleaseRate(&channel, operator_index, (data >> 4) & 0xF, data & 0xF);
+						break;
+
+					case 0x90 / 0x10:
+						/* TODO: SSG-EG. */
 						break;
 				}
 			}
@@ -271,7 +293,7 @@ void FM_Update(const FM *fm, short *sample_buffer, size_t total_frames)
 		/* These will be used in later boolean algebra, to avoid branches. */
 		const unsigned int left_mask = channel_metadata->pan_left ? -1 : 0;
 		const unsigned int right_mask = channel_metadata->pan_right ? -1 : 0;
-		const unsigned int dac_mask = channel_metadata == &fm->state->channels[5] && fm->state->dac_enabled ? -1 : 0;
+		const unsigned int dac_mask = (channel_metadata == &fm->state->channels[5] && fm->state->dac_enabled) ? -1 : 0;
 
 		short *sample_buffer_pointer;
 
@@ -280,7 +302,7 @@ void FM_Update(const FM *fm, short *sample_buffer, size_t total_frames)
 		while (sample_buffer_pointer != sample_buffer_end)
 		{
 			/* The FM sample is 16-bit, so divide it by 6 so that it can be mixed with the other five channels without clipping. */
-			const int fm_sample = FM_Channel_GetSample(&channel) / 6;
+			const int fm_sample = FM_Channel_GetSample(&channel); /* / 6 TODO: Temporarily dummied-out. */
 
 			/* Do some boolean algebra to select the FM sample or the DAC sample. */
 			const int sample = (fm_sample & ~dac_mask) | (fm->state->dac_sample & dac_mask);
