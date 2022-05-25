@@ -134,12 +134,9 @@ int FM_Operator_Process(const FM_Operator *fm_operator, int phase_modulation)
 	/* Update and obtain attenuation. */
 	const unsigned int attenuation = FM_Envelope_Update(&fm_operator->state->envelope);
 
-	/* The phase modulation is 15-bit, but we need it to be 10-bit, just like the phase. */
-	/* TODO: WTF according to my tests this isn't needed? */
-	/*const int phase_modulation_10_bit = phase_modulation / (1 << 5);*/
-
 	/* Modulate the phase. */
-	const unsigned int modulated_phase = (phase + phase_modulation) & 0x3FF;
+	/* The modulation is divided by two because up to two operators can provide modulation at once. */
+	const unsigned int modulated_phase = (phase + phase_modulation / 2) & 0x3FF;
 
 	/* Reduce the phase down to a single quarter of the span of a sine wave, since the other three quarters
 	   are just mirrored anyway. This allows us to use a much smaller sine wave lookup table. */
@@ -155,7 +152,7 @@ int FM_Operator_Process(const FM_Operator *fm_operator, int phase_modulation)
 	const unsigned int combined_attenuation = phase_as_attenuation + (attenuation << 2);
 
 	/* Convert from logarithm (decibel) back to linear (sound pressure). */
-	const int sample_absolute = InversePow2(fm_operator->constant, combined_attenuation) & 0x1FFF;
+	const int sample_absolute = InversePow2(fm_operator->constant, combined_attenuation);
 
 	/* Restore the sign bit that we extracted earlier. */
 	const int sample = (phase_is_in_negative_wave ? -sample_absolute : sample_absolute);

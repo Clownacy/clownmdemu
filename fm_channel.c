@@ -202,5 +202,5 @@ int FM_Channel_GetSample(const FM_Channel *channel)
 			break;
 	}
 
-	return sample;
+	return CC_CLAMP(-0x1FFF, 0x1FFF, sample) * 4;
 }

@@ -34,7 +34,7 @@ void FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on)
 		envelope->current_mode = FM_ENVELOPE_MODE_ATTACK;
 		envelope->current_attenuation = 0x3FF;
 
-		if (CalculateRate(envelope) >= 0x3E)
+		if (CalculateRate(envelope) >= 0x1F * 2)
 		{
 			envelope->current_mode = FM_ENVELOPE_MODE_DECAY;
 			envelope->current_attenuation = 0;
@@ -73,7 +73,7 @@ void FM_Envelope_SetSustainLevelAndReleaseRate(FM_Envelope_State *envelope, unsi
 	envelope->sustain_level = sustain_level == 0xF ? 0x3FF : sustain_level * 0x20;
 
 	/* Convert from 4-bit to 5-bit to match the others. */
-	envelope->rates[FM_ENVELOPE_MODE_RELEASE] = (release_rate * 2) + 1;
+	envelope->rates[FM_ENVELOPE_MODE_RELEASE] = (release_rate << 1) | 1;
 }
 
 unsigned int FM_Envelope_Update(FM_Envelope_State *envelope)
