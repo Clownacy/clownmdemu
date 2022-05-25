@@ -212,5 +212,7 @@ int FM_Channel_GetSample(const FM_Channel *channel)
 	channel->state->operator_1_previous_samples[1] = channel->state->operator_1_previous_samples[0];
 	channel->state->operator_1_previous_samples[0] = operator_1_sample;
 
+	/* Clamp the sample, and then move it to the top end of the 16-bit audio range. */
+	/* Apparently this is what a real YM2612 does. */
 	return CC_CLAMP(-0x1FFF, 0x1FFF, sample) * 4;
 }

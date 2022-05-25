@@ -79,7 +79,7 @@ static void RecalculatePhaseStep(FM_Phase_State *phase)
 	/* Octave 0 is 0.5x the frequency, 1 is 1x, 2 is 2x, 3 is 4x, etc. */
     phase->step <<= block;
     phase->step >>= 1;
-#
+
     /* Apply the detune. */
     if ((phase->detune & 4) != 0)
         phase->step -= detune;
@@ -90,6 +90,9 @@ static void RecalculatePhaseStep(FM_Phase_State *phase)
     /* Multiplier 0 is 0.5x the frequency, 1 is 1x, 2 is 2x, 3 is 3x, etc. */
     phase->step *= phase->multiplier;
     phase->step /= 2;
+
+    /* Emulate the 20-bit overflow that could occur here on a real YM2612. */
+    phase->step &= 0xFFFFF;
 }
 
 void FM_Phase_State_Initialise(FM_Phase_State *phase)
@@ -103,11 +106,17 @@ void FM_Phase_State_Initialise(FM_Phase_State *phase)
     RecalculatePhaseStep(phase);
 }
 
+unsigned int FM_Phase_GetKeyCode(const FM_Phase_State *phase)
+{
+    return phase->key_code;
+}
+
 void FM_Phase_SetFrequency(FM_Phase_State *phase, unsigned int f_number_and_block)
 {
-	phase->f_number_and_block = f_number_and_block;
+    phase->f_number_and_block = f_number_and_block;
+    phase->key_code = f_number_and_block >> 9;
 
-	RecalculatePhaseStep(phase);
+    RecalculatePhaseStep(phase);
 }
 
 void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, unsigned int detune, unsigned int multiplier)
@@ -115,7 +124,7 @@ void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, unsigned int detune,
     phase->detune = detune;
     phase->multiplier = multiplier == 0 ? 1 : multiplier * 2;
 
-	RecalculatePhaseStep(phase);
+    RecalculatePhaseStep(phase);
 }
 
 unsigned int FM_Phase_Reset(FM_Phase_State *phase)

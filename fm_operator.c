@@ -18,6 +18,7 @@ void FM_Operator_Constant_Initialise(FM_Operator_Constant *constant)
 {
 	const unsigned int sine_table_length = CC_COUNT_OF(constant->logarithmic_attenuation_sine_table);
 	const unsigned int pow_table_length = CC_COUNT_OF(constant->power_table);
+	const double log2 = log(2.0);
 
 	/* Generate sine wave lookup table. */
 	for (unsigned int i = 0; i < sine_table_length; ++i)
@@ -41,7 +42,7 @@ void FM_Operator_Constant_Initialise(FM_Operator_Constant *constant)
 		    table in this form because logarithms simplify multiplication down to addition,
 		    and this allowed them to attenuate the sine result by the envelope generator
 		    output simply by adding the two numbers together." */
-		const double sin_result_as_attenuation = -log(sin_result_normalized) / log(2.0);
+		const double sin_result_as_attenuation = -log(sin_result_normalized) / log2;
 		/* "The division by log(2) is required because the log function is base 10, but the
 		    YM2612 uses a base 2 logarithmic value. Dividing the base 10 log result by
 		    log10(2) will convert the result to a base 2 logarithmic value, which can then
@@ -93,7 +94,7 @@ void FM_Operator_SetFrequency(const FM_Operator *fm_operator, unsigned int f_num
 void FM_Operator_SetKeyOn(const FM_Operator *fm_operator, cc_bool key_on)
 {
 	FM_Phase_Reset(&fm_operator->state->phase);
-	FM_Envelope_SetKeyOn(&fm_operator->state->envelope, key_on);
+	FM_Envelope_SetKeyOn(&fm_operator->state->envelope, key_on, FM_Phase_GetKeyCode(&fm_operator->state->phase));
 }
 
 void FM_Operator_SetDetuneAndMultiplier(const FM_Operator *fm_operator, unsigned int detune, unsigned int multiplier)
@@ -132,7 +133,7 @@ int FM_Operator_Process(const FM_Operator *fm_operator, int phase_modulation)
 	const unsigned int phase = FM_Phase_Increment(&fm_operator->state->phase);
 
 	/* Update and obtain attenuation. */
-	const unsigned int attenuation = FM_Envelope_Update(&fm_operator->state->envelope);
+	const unsigned int attenuation = FM_Envelope_Update(&fm_operator->state->envelope, FM_Phase_GetKeyCode(&fm_operator->state->phase));
 
 	/* Modulate the phase. */
 	/* The modulation is divided by two because up to two operators can provide modulation at once. */

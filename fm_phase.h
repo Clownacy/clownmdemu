@@ -7,11 +7,14 @@ typedef struct FM_Phase_State
 	unsigned long step;
 
 	unsigned int f_number_and_block;
+	unsigned int key_code;
 	unsigned int detune;
 	unsigned int multiplier;
 } FM_Phase_State;
 
 void FM_Phase_State_Initialise(FM_Phase_State *phase);
+
+unsigned int FM_Phase_GetKeyCode(const FM_Phase_State *phase);
 
 void FM_Phase_SetFrequency(FM_Phase_State *phase, unsigned int f_number_and_block);
 void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, unsigned int detune, unsigned int multiplier);

@@ -262,7 +262,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 					case 0xA4 / 4:
 						/* Frequency high bits. */
 						/* http://gendev.spritesmind.net/forum/viewtopic.php?p=5621#p5621 */
-						channel_metadata->cached_upper_frequency_bits = data;
+						channel_metadata->cached_upper_frequency_bits = data & 0x3F;
 						break;
 
 					case 0xB0 / 4:
