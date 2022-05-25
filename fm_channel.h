@@ -15,7 +15,7 @@ typedef struct FM_Channel_State
 	FM_Operator_State operators[4];
 	unsigned int feedback;
 	unsigned int algorithm;
-	cc_bool key_on;
+	unsigned int operator_1_previous_samples[2];
 } FM_Channel_State;
 
 typedef struct FM_Channel

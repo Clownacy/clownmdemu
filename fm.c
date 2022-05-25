@@ -266,7 +266,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 						break;
 
 					case 0xB0 / 4:
-						FM_Channel_SetFeedbackAndAlgorithm(&channel, (data >> 3) & 0xF, data & 7);
+						FM_Channel_SetFeedbackAndAlgorithm(&channel, (data >> 3) & 7, data & 7);
 						break;
 
 					case 0xB4 / 4:
