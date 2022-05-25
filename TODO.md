@@ -12,6 +12,15 @@
   - Sprite/pixel limit
   - Sprite masking
   - Sprite table caching
+- FM
+  - 6 FM channels
+    - Phase Generator
+    - Envelope Generator
+      - ASDR envelopes
+    - Operators
+      - Feedback
+      - Algorithms
+  - DAC channel
 - PSG
   - 3 tone channels
   - Noise channel
@@ -27,8 +36,7 @@
   - Instruction cycle durations
   - User mode
   - Exceptions
-  - The ABCD, ADDX, CHK, ILLEGAL, MOVE USP, NBCD, NEGX, RESET, SBCD, SUBX, STOP,
-    TRAP, and TRAPV instructions
+  - The ABCD, ADDX, NBCD, NEGX, RESET, SBCD, SUBX, and STOP instructions
 - VDP
   - Slot-based rendering
   - Interlacing in Interlace Mode 2
@@ -37,6 +45,13 @@
   - Mode 4
 - Z80
 - FM
+  - Envelope Generator
+    - SSG-EG
+  - Low-Frequency Oscillator
+  - Timer A and Timer B
+  - Per-operator frequencies
+  - Debug registers
+  - Busy flag
 - SRAM
 - Cartridge mappers
 - Joypads
