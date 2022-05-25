@@ -38,7 +38,7 @@ static void GenerateFMAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_t
 
 static void GenerateAndPlayFMSamples(M68kCallbackUserData *m68k_callback_user_data)
 {
-	const unsigned int fm_current_cycle = m68k_callback_user_data->current_cycle / CLOWNMDEMU_FM_SAMELE_RATE_DIVIDER;
+	const unsigned int fm_current_cycle = m68k_callback_user_data->current_cycle / (CLOWNMDEMU_M68K_CLOCK_DIVIDER * CLOWNMDEMU_FM_SAMPLE_RATE_DIVIDER);
 
 	const size_t samples_to_generate = fm_current_cycle - m68k_callback_user_data->fm_previous_cycle;
 
