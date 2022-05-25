@@ -301,8 +301,8 @@ void FM_Update(const FM *fm, short *sample_buffer, size_t total_frames)
 
 		while (sample_buffer_pointer != sample_buffer_end)
 		{
-			/* The FM sample is 16-bit, so divide it by 6 so that it can be mixed with the other five channels without clipping. */
-			const int fm_sample = FM_Channel_GetSample(&channel) / 6;
+			/* The FM sample is 16-bit, so divide it by 8 so that it can be mixed with the other five FM channels and the PSG without clipping. */
+			const int fm_sample = FM_Channel_GetSample(&channel) / 8;
 
 			/* Do some boolean algebra to select the FM sample or the DAC sample. */
 			const int sample = (fm_sample & ~dac_mask) | (fm->state->dac_sample & dac_mask);
