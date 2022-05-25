@@ -112,27 +112,8 @@ void FM_Phase_SetFrequency(FM_Phase_State *phase, unsigned int f_number_and_bloc
 
 void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, unsigned int detune, unsigned int multiplier)
 {
-    static const multipliers[0x10] = {
-              1,
-          1 * 2,
-          2 * 2,
-          3 * 2,
-          4 * 2,
-          5 * 2,
-          6 * 2,
-          7 * 2,
-          8 * 2,
-          9 * 2,
-        0xA * 2,
-        0xB * 2,
-        0xC * 2,
-        0xD * 2,
-        0xE * 2,
-        0xF * 2
-    };
-
     phase->detune = detune;
-    phase->multiplier = multipliers[multiplier];
+    phase->multiplier = multiplier == 0 ? 1 : multiplier * 2;
 
 	RecalculatePhaseStep(phase);
 }
