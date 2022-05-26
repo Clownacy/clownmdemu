@@ -174,7 +174,8 @@ void FM_DoData(const FM *fm, unsigned int data)
 				case 0x2A:
 					/* DAC sample. */
 					/* Convert from unsigned 8-bit PCM to signed 16-bit PCM. */
-					fm->state->dac_sample = ((int)data - 0x80) * 0x100;
+					/* The division by 8 is to lower its volume to that of a single FM channel. */
+					fm->state->dac_sample = ((int)data - 0x80) * (0x100 / 8);
 					break;
 
 				case 0x2B:
