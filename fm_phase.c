@@ -127,7 +127,7 @@ void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, unsigned int detune,
 	RecalculatePhaseStep(phase);
 }
 
-unsigned int FM_Phase_Reset(FM_Phase_State *phase)
+void FM_Phase_Reset(FM_Phase_State *phase)
 {
 	phase->position = 0;
 }

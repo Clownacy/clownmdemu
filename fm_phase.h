@@ -19,7 +19,7 @@ unsigned int FM_Phase_GetKeyCode(const FM_Phase_State *phase);
 void FM_Phase_SetFrequency(FM_Phase_State *phase, unsigned int f_number_and_block);
 void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, unsigned int detune, unsigned int multiplier);
 
-unsigned int FM_Phase_Reset(FM_Phase_State *phase);
+void FM_Phase_Reset(FM_Phase_State *phase);
 unsigned int FM_Phase_Increment(FM_Phase_State *phase);
 
 #endif /* FM_PHASE_H */
