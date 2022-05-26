@@ -9,7 +9,7 @@ static unsigned int CalculateRate(const FM_Envelope_State *envelope, unsigned in
 	if (envelope->rates[envelope->current_mode] == 0)
 		rate = 0;
 	else
-		rate = CC_MIN(0x3F, envelope->rates[envelope->current_mode] * 2 + (key_code / (8 >> envelope->key_scale)));
+		rate = CC_MIN(0x3F, envelope->rates[envelope->current_mode] * 2 + (key_code / envelope->key_scale));
 
 	return rate;
 }
@@ -25,6 +25,8 @@ void FM_Envelope_State_Initialise(FM_Envelope_State *state)
 
 	/* Silence channel. */
 	FM_Envelope_SetTotalLevel(state, 0x7F);
+
+	FM_Envelope_SetKeyScaleAndAttackRate(state, 0, 0);
 }
 
 void FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on, unsigned int key_code)
@@ -54,7 +56,7 @@ void FM_Envelope_SetTotalLevel(FM_Envelope_State *envelope, unsigned int total_l
 
 void FM_Envelope_SetKeyScaleAndAttackRate(FM_Envelope_State *envelope, unsigned int key_scale, unsigned int attack_rate)
 {
-	envelope->key_scale = key_scale;
+	envelope->key_scale = 8 >> key_scale;
 	envelope->rates[FM_ENVELOPE_MODE_ATTACK] = attack_rate;
 }
 
