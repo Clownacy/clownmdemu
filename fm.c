@@ -105,6 +105,12 @@ https://github.com/nukeykt/Nuked-OPN2
 
 */
 
+/* 8 is chosen because there are 6 FM channels, of which the DAC can replace one of, as well at the PSG.
+   The PSG with all of its channels at maximum volume reaches the volume of a single FM channel at maximum.
+   Technically, this means that 7 is a more appropriate number than 8. However, dividing by 8 is simpler
+   than dividing by 7, so that was opted for instead. */
+#define VOLUME_DIVIDER 8
+
 #include "fm.h"
 
 #include <math.h>
@@ -174,8 +180,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 				case 0x2A:
 					/* DAC sample. */
 					/* Convert from unsigned 8-bit PCM to signed 16-bit PCM. */
-					/* The division by 8 is to lower its volume to that of a single FM channel. */
-					fm->state->dac_sample = ((int)data - 0x80) * (0x100 / 8);
+					fm->state->dac_sample = ((int)data - 0x80) * (0x100 / VOLUME_DIVIDER);
 					break;
 
 				case 0x2B:
@@ -302,8 +307,8 @@ void FM_Update(const FM *fm, short *sample_buffer, size_t total_frames)
 
 		while (sample_buffer_pointer != sample_buffer_end)
 		{
-			/* The FM sample is 16-bit, so divide it by 8 so that it can be mixed with the other five FM channels and the PSG without clipping. */
-			const int fm_sample = FM_Channel_GetSample(&channel) / 8;
+			/* The FM sample is 16-bit, so divide it so that it can be mixed with the other five FM channels and the PSG without clipping. */
+			const int fm_sample = FM_Channel_GetSample(&channel) / VOLUME_DIVIDER;
 
 			/* Do some boolean algebra to select the FM sample or the DAC sample. */
 			const int sample = (fm_sample & ~dac_mask) | (fm->state->dac_sample & dac_mask);
