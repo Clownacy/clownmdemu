@@ -40,7 +40,6 @@ void FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on, unsigned 
 		if (key_on)
 		{
 			envelope->current_mode = FM_ENVELOPE_MODE_ATTACK;
-			envelope->current_attenuation = 0x3FF;
 
 			if (CalculateRate(envelope, key_code) >= 0x1F * 2)
 			{
