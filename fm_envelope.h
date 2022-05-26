@@ -26,6 +26,8 @@ typedef struct FM_Envelope_State
 
 	unsigned int rates[4];
 	FM_Envelope_Mode current_mode;
+
+	cc_bool key_on;
 } FM_Envelope_State;
 
 void FM_Envelope_State_Initialise(FM_Envelope_State *state);
