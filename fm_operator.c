@@ -93,8 +93,9 @@ void FM_Operator_SetFrequency(const FM_Operator *fm_operator, unsigned int f_num
 
 void FM_Operator_SetKeyOn(const FM_Operator *fm_operator, cc_bool key_on)
 {
-	FM_Phase_Reset(&fm_operator->state->phase);
-	FM_Envelope_SetKeyOn(&fm_operator->state->envelope, key_on, FM_Phase_GetKeyCode(&fm_operator->state->phase));
+	/* If we switch from key-off to key-on, then reset the Phase Generator. */
+	if (FM_Envelope_SetKeyOn(&fm_operator->state->envelope, key_on, FM_Phase_GetKeyCode(&fm_operator->state->phase)))
+		FM_Phase_Reset(&fm_operator->state->phase);
 }
 
 void FM_Operator_SetDetuneAndMultiplier(const FM_Operator *fm_operator, unsigned int detune, unsigned int multiplier)

@@ -29,11 +29,13 @@ void FM_Envelope_State_Initialise(FM_Envelope_State *state)
 	FM_Envelope_SetKeyScaleAndAttackRate(state, 0, 0);
 }
 
-void FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on, unsigned int key_code)
+cc_bool FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on, unsigned int key_code)
 {
+	const cc_bool key_state_changed = envelope->key_on != key_on;
+
 	/* An envelope cannot be key-on'd if it isn't key-off'd, and vice versa. */
 	/* This is relied upon by Sonic's spring sound. */
-	if (key_on != envelope->key_on)
+	if (key_state_changed)
 	{
 		envelope->key_on = key_on;
 
@@ -52,6 +54,8 @@ void FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on, unsigned 
 			envelope->current_mode = FM_ENVELOPE_MODE_RELEASE;
 		}
 	}
+
+	return key_state_changed && key_on;
 }
 
 void FM_Envelope_SetTotalLevel(FM_Envelope_State *envelope, unsigned int total_level)
