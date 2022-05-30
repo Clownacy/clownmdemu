@@ -24,6 +24,8 @@ add_library(clownmdemu STATIC
 	"psg.h"
 	"vdp.c"
 	"vdp.h"
+	"z80.c"
+	"z80.h"
 )
 
 set_target_properties(clownmdemu PROPERTIES
