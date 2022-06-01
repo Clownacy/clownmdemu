@@ -131,11 +131,21 @@ typedef enum Z80_Condition
 	Z80_CONDITION_ZERO = 1,
 	Z80_CONDITION_NOT_CARRY = 2,
 	Z80_CONDITION_CARRY = 3,
-	Z80_CONDITION_PAIRITY_OVERFLOW = 4,
-	Z80_CONDITION_PAIRITY_EQUALITY = 5,
+	Z80_CONDITION_PARITY_OVERFLOW = 4,
+	Z80_CONDITION_PARITY_EQUALITY = 5,
 	Z80_CONDITION_PLUS = 6,
 	Z80_CONDITION_MINUS = 7
 } Z80_Condition;
+
+enum
+{
+	Z80_FLAG_CARRY           = 1 << 0,
+	Z80_FLAG_ADD_SUBTRACT    = 1 << 1,
+	Z80_FLAG_PARITY_OVERFLOW = 1 << 2,
+	Z80_FLAG_HALF_CARRY      = 1 << 4,
+	Z80_FLAG_ZERO            = 1 << 6,
+	Z80_FLAG_SIGN            = 1 << 7
+};
 
 typedef enum Z80_RegisterMode
 {
@@ -160,22 +170,45 @@ typedef struct Z80_InstructionMetadata
 	cc_bool read_destination;
 	cc_bool write_destination;
 	cc_bool has_displacement;
+	cc_bool indirect_16bit;
 } Z80_InstructionMetadata;
 
 typedef struct Z80_Instruction
 {
 	Z80_InstructionMetadata metadata;
 	unsigned short literal;
-	unsigned char displacement;
+	signed char displacement;
 } Z80_Instruction;
+
+typedef struct Z80_RegistersAF
+{
+	unsigned char a;
+	unsigned char f;
+} Z80_RegistersAF;
+
+typedef struct Z80_RegistersBCDEHL
+{
+	unsigned char b;
+	unsigned char c;
+	unsigned char d;
+	unsigned char e;
+	unsigned char h;
+	unsigned char l;
+} Z80_RegistersBCDEHL;
 
 typedef struct Z80_State
 {
 	Z80_RegisterMode register_mode;
 	Z80_InstructionMode instruction_mode;
+	unsigned int cycles;
 	unsigned short program_counter;
 	unsigned short stack_pointer;
-	unsigned char a, b, c, d, e, f, h, l, ixh, ixl, iyh, iyl;
+	Z80_RegistersAF af[2];
+	Z80_RegistersBCDEHL bc_de_hl[2];
+	unsigned char ixh, ixl, iyh, iyl;
+	cc_bool alternate_af;
+	cc_bool alternate_bc_de_hl;
+	cc_bool interrupts_enabled;
 } Z80_State;
 
 typedef struct Z80_ReadInstructionCallback

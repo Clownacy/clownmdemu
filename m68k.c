@@ -1,3 +1,16 @@
+/*
+TODO:
+
+68k memory access order:
+https://gendev.spritesmind.net/forum/viewtopic.php?p=36896#p36896
+
+DIVU/DIVS timing:
+https://gendev.spritesmind.net/forum/viewtopic.php?p=35569#p35569
+
+Z80 reset stuff:
+https://gendev.spritesmind.net/forum/viewtopic.php?p=36118#p36118
+*/
+
 #include "m68k.h"
 
 #include <assert.h>

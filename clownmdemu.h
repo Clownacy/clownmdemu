@@ -10,7 +10,7 @@
 #include "m68k.h"
 #include "psg.h"
 #include "vdp.h"
-/*#include "z80.h"*/
+#include "z80.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -97,6 +97,7 @@ typedef struct ClownMDEmu_State
 		unsigned int z80;
 	} countdowns;
 	M68k_State m68k;
+	Z80_State z80;
 	unsigned char m68k_ram[0x10000];
 	unsigned char z80_ram[0x2000];
 	VDP_State vdp;
@@ -108,6 +109,9 @@ typedef struct ClownMDEmu_State
 		unsigned char control;
 		unsigned char data;
 	} joypads[3];
+	unsigned int z80_bank;
+	cc_bool m68k_has_z80_bus;
+	cc_bool z80_reset;
 } ClownMDEmu_State;
 
 typedef struct ClownMDEmu

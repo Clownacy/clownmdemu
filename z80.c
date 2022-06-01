@@ -1,8 +1,14 @@
 #include "z80.h"
 
+#include <assert.h>
+
 #include "clowncommon.h"
 
+#include "error.h"
+
 #define SIGN_EXTEND(value, bitmask) (((value) & ((bitmask) >> 1u)) - ((value) & (((bitmask) >> 1u) + 1u)))
+
+#define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%X", state->program_counter)
 
 typedef struct DecodeInstructionCallbackData
 {
@@ -14,11 +20,70 @@ static unsigned int DecodeInstructionCallback(void *user_data)
 {
 	const DecodeInstructionCallbackData* const callback_data = user_data;
 
-	return callback_data->read_callback->callback(callback_data->read_callback->user_data, callback_data->state->program_counter++);
+	const unsigned int value = callback_data->read_callback->callback(callback_data->read_callback->user_data, callback_data->state->program_counter);
+
+	++callback_data->state->program_counter;
+	callback_data->state->program_counter &= 0xFFFF;
+
+	return value;
+}
+
+static cc_bool EvaluateCondition(unsigned char flags, Z80_Condition condition)
+{
+	switch (condition)
+	{
+		case Z80_CONDITION_NOT_ZERO:
+			return (flags & Z80_FLAG_ZERO) == 0;
+
+		case Z80_CONDITION_ZERO:
+			return (flags & Z80_FLAG_ZERO) != 0;
+
+		case Z80_CONDITION_NOT_CARRY:
+			return (flags & Z80_FLAG_CARRY) == 0;
+
+		case Z80_CONDITION_CARRY:
+			return (flags & Z80_FLAG_CARRY) != 0;
+
+		case Z80_CONDITION_PARITY_OVERFLOW:
+			return (flags & Z80_FLAG_PARITY_OVERFLOW) == 0;
+
+		case Z80_CONDITION_PARITY_EQUALITY:
+			return (flags & Z80_FLAG_PARITY_OVERFLOW) != 0;
+
+		case Z80_CONDITION_PLUS:
+			return (flags & Z80_FLAG_SIGN) == 0;
+
+		case Z80_CONDITION_MINUS:
+			return (flags & Z80_FLAG_SIGN) != 0;
+
+		default:
+			/* Should never occur. */
+			assert(0);
+			return cc_false;
+	}
+}
+
+/* TODO: Eliminate this. */
+static unsigned int Read16Bit(const Z80_ReadCallback *read_callback, unsigned int address)
+{
+	unsigned int value;
+	value = read_callback->callback(read_callback->user_data, address + 0);
+	value |= read_callback->callback(read_callback->user_data, address + 1) << 8;
+	return value;
+}
+
+/* TODO: Eliminate this. */
+static void Write16Bit(const Z80_WriteCallback *write_callback, unsigned int address, unsigned int value)
+{
+	write_callback->callback(write_callback->user_data, address + 0, value & 0xFF);
+	write_callback->callback(write_callback->user_data, address + 1, value >> 8);
 }
 
 static unsigned int ReadOperand(Z80_State *state, const Z80_Instruction *instruction, unsigned int operand, const Z80_ReadCallback *read_callback)
 {
+	const Z80_RegistersAF* const af = &state->af[state->alternate_af];
+	const Z80_RegistersBCDEHL* const bc_de_hl = &state->bc_de_hl[state->alternate_bc_de_hl];
+
 	unsigned int value;
 
 	switch (instruction->metadata.operands[operand])
@@ -28,47 +93,89 @@ static unsigned int ReadOperand(Z80_State *state, const Z80_Instruction *instruc
 			break;
 
 		case Z80_OPERAND_A:
-			value = state->a;
+			value = af->a;
 			break;
 
 		case Z80_OPERAND_B:
-			value = state->b;
+			value = bc_de_hl->b;
 			break;
 
 		case Z80_OPERAND_C:
-			value = state->c;
+			value = bc_de_hl->c;
 			break;
 
 		case Z80_OPERAND_D:
-			value = state->d;
+			value = bc_de_hl->d;
 			break;
 
 		case Z80_OPERAND_E:
-			value = state->e;
+			value = bc_de_hl->e;
 			break;
 
 		case Z80_OPERAND_H:
-			value = state->h;
+			switch (state->register_mode)
+			{
+				case Z80_REGISTER_MODE_HL:
+					value = bc_de_hl->h;
+					break;
+
+				case Z80_REGISTER_MODE_IX:
+					value = state->ixh;
+					break;
+
+				case Z80_REGISTER_MODE_IY:
+					value = state->iyh;
+					break;
+			}
+
 			break;
 
 		case Z80_OPERAND_L:
-			value = state->l;
+			switch (state->register_mode)
+			{
+				case Z80_REGISTER_MODE_HL:
+					value = bc_de_hl->l;
+					break;
+
+				case Z80_REGISTER_MODE_IX:
+					value = state->ixl;
+					break;
+
+				case Z80_REGISTER_MODE_IY:
+					value = state->iyl;
+					break;
+			}
+
 			break;
 
 		case Z80_OPERAND_AF:
-			value = (state->a << 8) | state->f;
+			value = (af->a << 8) | af->f;
 			break;
 
 		case Z80_OPERAND_BC:
-			value = (state->b << 8) | state->c;
+			value = (bc_de_hl->b << 8) | bc_de_hl->c;
 			break;
 
 		case Z80_OPERAND_DE:
-			value = (state->d << 8) | state->e;
+			value = (bc_de_hl->d << 8) | bc_de_hl->e;
 			break;
 
 		case Z80_OPERAND_HL:
-			value = (state->h << 8) | state->l;
+			switch (state->register_mode)
+			{
+				case Z80_REGISTER_MODE_HL:
+					value = (bc_de_hl->h << 8) | bc_de_hl->l;
+					break;
+
+				case Z80_REGISTER_MODE_IX:
+					value = (state->ixh << 8) | state->iyl;
+					break;
+
+				case Z80_REGISTER_MODE_IY:
+					value = (state->iyh << 8) | state->iyl;
+					break;
+			}
+
 			break;
 
 		case Z80_OPERAND_PC:
@@ -79,6 +186,11 @@ static unsigned int ReadOperand(Z80_State *state, const Z80_Instruction *instruc
 			value = state->stack_pointer;
 			break;
 
+		case Z80_OPERAND_LITERAL_8BIT:
+		case Z80_OPERAND_LITERAL_16BIT:
+			value = instruction->literal;
+			break;
+
 		case Z80_OPERAND_BC_INDIRECT:
 		case Z80_OPERAND_DE_INDIRECT:
 		case Z80_OPERAND_HL_INDIRECT:
@@ -86,23 +198,38 @@ static unsigned int ReadOperand(Z80_State *state, const Z80_Instruction *instruc
 		{
 			unsigned int address;
 
-			switch (instruction->metadata.opcode)
+			switch (instruction->metadata.operands[operand])
 			{
 				default:
 					/* Should never occur. */
+					assert(0);
 					address = 0;
 					break;
 
 				case Z80_OPERAND_BC_INDIRECT:
-					address = (state->b << 8) | state->c;
+					address = (bc_de_hl->b << 8) | bc_de_hl->c;
 					break;
 
 				case Z80_OPERAND_DE_INDIRECT:
-					address = (state->h << 8) | state->e;
+					address = (bc_de_hl->d << 8) | bc_de_hl->e;
 					break;
 
 				case Z80_OPERAND_HL_INDIRECT:
-					address = (state->h << 8) | state->l;
+					switch (state->register_mode)
+					{
+						case Z80_REGISTER_MODE_HL:
+							address = (bc_de_hl->h << 8) | bc_de_hl->l;
+							break;
+
+						case Z80_REGISTER_MODE_IX:
+							address = ((state->ixh << 8) | state->ixl) + instruction->displacement;
+							break;
+
+						case Z80_REGISTER_MODE_IY:
+							address = ((state->iyh << 8) | state->iyl) + instruction->displacement;
+							break;
+					}
+
 					break;
 
 				case Z80_OPERAND_ADDRESS:
@@ -110,8 +237,10 @@ static unsigned int ReadOperand(Z80_State *state, const Z80_Instruction *instruc
 					break;
 			}
 
-			value = read_callback->callback(read_callback->user_data, address + 0);
-			value |= read_callback->callback(read_callback->user_data, address + 1) << 8;
+			if (instruction->metadata.indirect_16bit)
+				value = Read16Bit(read_callback, address);
+			else
+				value = read_callback->callback(read_callback->user_data, address);
 
 			break;
 		}
@@ -120,59 +249,106 @@ static unsigned int ReadOperand(Z80_State *state, const Z80_Instruction *instruc
 	return value;
 }
 
-static unsigned int WriteOperand(Z80_State *state, const Z80_Instruction *instruction, unsigned int operand, unsigned int value, const Z80_WriteCallback *write_callback)
+static void WriteOperand(Z80_State *state, const Z80_Instruction *instruction, unsigned int operand, unsigned int value, const Z80_WriteCallback *write_callback)
 {
+	Z80_RegistersAF* const af = &state->af[state->alternate_af];
+	Z80_RegistersBCDEHL* const bc_de_hl = &state->bc_de_hl[state->alternate_bc_de_hl];
+
 	switch (instruction->metadata.operands[operand])
 	{
 		case Z80_OPERAND_NONE:
 			break;
 
 		case Z80_OPERAND_A:
-			state->a = value;
+			af->a = value;
 			break;
 
 		case Z80_OPERAND_B:
-			state->b = value;
+			bc_de_hl->b = value;
 			break;
 
 		case Z80_OPERAND_C:
-			state->c = value;
+			bc_de_hl->c = value;
 			break;
 
 		case Z80_OPERAND_D:
-			state->d = value;
+			bc_de_hl->d = value;
 			break;
 
 		case Z80_OPERAND_E:
-			state->e = value;
+			bc_de_hl->e = value;
 			break;
 
 		case Z80_OPERAND_H:
-			state->h = value;
+			switch (state->register_mode)
+			{
+				case Z80_REGISTER_MODE_HL:
+					bc_de_hl->h = value;
+					break;
+
+				case Z80_REGISTER_MODE_IX:
+					state->ixh = value;
+					break;
+
+				case Z80_REGISTER_MODE_IY:
+					state->iyh = value;
+					break;
+			}
+
 			break;
 
 		case Z80_OPERAND_L:
-			state->l = value;
+			switch (state->register_mode)
+			{
+				case Z80_REGISTER_MODE_HL:
+					bc_de_hl->l = value;
+					break;
+
+				case Z80_REGISTER_MODE_IX:
+					state->ixl = value;
+					break;
+
+				case Z80_REGISTER_MODE_IY:
+					state->iyl = value;
+					break;
+			}
+
 			break;
 
 		case Z80_OPERAND_AF:
-			state->a = value >> 8;
-			state->f = value & 0xFF;
+			af->a = value >> 8;
+			af->f = value & 0xFF;
 			break;
 
 		case Z80_OPERAND_BC:
-			state->b = value >> 8;
-			state->c = value & 0xFF;
+			bc_de_hl->b = value >> 8;
+			bc_de_hl->c = value & 0xFF;
 			break;
 
 		case Z80_OPERAND_DE:
-			state->d = value >> 8;
-			state->e = value & 0xFF;
+			bc_de_hl->d = value >> 8;
+			bc_de_hl->e = value & 0xFF;
 			break;
 
 		case Z80_OPERAND_HL:
-			state->h = value >> 8;
-			state->l = value & 0xFF;
+			switch (state->register_mode)
+			{
+				case Z80_REGISTER_MODE_HL:
+					bc_de_hl->h = value >> 8;
+					bc_de_hl->l = value & 0xFF;
+					break;
+
+				case Z80_REGISTER_MODE_IX:
+					state->ixh = value >> 8;
+					state->ixl = value & 0xFF;
+					break;
+
+				case Z80_REGISTER_MODE_IY:
+					state->iyh = value >> 8;
+					state->iyl = value & 0xFF;
+					break;
+			}
+
 			break;
 
 		case Z80_OPERAND_PC:
@@ -190,23 +366,38 @@ static unsigned int WriteOperand(Z80_State *state, const Z80_Instruction *instru
 		{
 			unsigned int address;
 
-			switch (instruction->metadata.opcode)
+			switch (instruction->metadata.operands[operand])
 			{
 				default:
 					/* Should never occur. */
+					assert(0);
 					address = 0;
 					break;
 
 				case Z80_OPERAND_BC_INDIRECT:
-					address = (state->b << 8) | state->c;
+					address = (bc_de_hl->b << 8) | bc_de_hl->c;
 					break;
 
 				case Z80_OPERAND_DE_INDIRECT:
-					address = (state->h << 8) | state->e;
+					address = (bc_de_hl->d << 8) | bc_de_hl->e;
 					break;
 
 				case Z80_OPERAND_HL_INDIRECT:
-					address = (state->h << 8) | state->l;
+					switch (state->register_mode)
+					{
+						case Z80_REGISTER_MODE_HL:
+							address = (bc_de_hl->h << 8) | bc_de_hl->l;
+							break;
+
+						case Z80_REGISTER_MODE_IX:
+							address = ((state->ixh << 8) | state->ixl) + instruction->displacement;
+							break;
+
+						case Z80_REGISTER_MODE_IY:
+							address = ((state->iyh << 8) | state->iyl) + instruction->displacement;
+							break;
+					}
+
 					break;
 
 				case Z80_OPERAND_ADDRESS:
@@ -214,14 +405,14 @@ static unsigned int WriteOperand(Z80_State *state, const Z80_Instruction *instru
 					break;
 			}
 
-			write_callback->callback(write_callback->user_data, address + 0, value & 0xFF);
-			write_callback->callback(write_callback->user_data, address + 1, value >> 8);
+			if (instruction->metadata.indirect_16bit)
+				Write16Bit(write_callback, address, value);
+			else
+				write_callback->callback(write_callback->user_data, address, value);
 
 			break;
 		}
 	}
-
-	return value;
 }
 
 void Z80_State_Initialise(Z80_State *state)
@@ -233,6 +424,13 @@ void Z80_State_Initialise(Z80_State *state)
 void Z80_Reset(Z80_State *state)
 {
 	state->program_counter = 0;
+}
+
+void Z80_Interrupt(Z80_State *state)
+{
+	/* TODO: The other interrupt modes. */
+	if (state->interrupts_enabled)
+		state->program_counter = 0x38;
 }
 
 void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_InstructionMode instruction_mode, unsigned char opcode)
@@ -261,6 +459,7 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 	metadata->operands[1] = Z80_OPERAND_NONE;
 	metadata->read_destination = cc_false;
 	metadata->write_destination = cc_false;
+	metadata->indirect_16bit = cc_false;
 
 	switch (instruction_mode)
 	{
@@ -310,6 +509,7 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 								metadata->operands[0] = Z80_OPERAND_LITERAL_16BIT;
 								metadata->operands[1] = register_pairs_1[p];
 								metadata->write_destination = cc_true;
+								metadata->indirect_16bit = cc_true;
 							}
 							else
 							{
@@ -324,7 +524,7 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 
 						case 2:
 						{
-							static const Z80_Operand operands[4] = {Z80_OPERAND_BC, Z80_OPERAND_DE, Z80_OPERAND_ADDRESS, Z80_OPERAND_ADDRESS};
+							static const Z80_Operand operands[4] = {Z80_OPERAND_BC_INDIRECT, Z80_OPERAND_DE_INDIRECT, Z80_OPERAND_ADDRESS, Z80_OPERAND_ADDRESS};
 
 							const Z80_Operand operand_a = p == 2 ? Z80_OPERAND_HL_INDIRECT : Z80_OPERAND_A;
 							const Z80_Operand operand_b = operands[p];
@@ -342,6 +542,8 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 								metadata->operands[0] = operand_b;
 								metadata->operands[1] = operand_a;
 							}
+
+							break;
 						}
 
 						case 3:
@@ -435,10 +637,12 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 
 									case 2:
 										metadata->opcode = Z80_OPCODE_JP_HL;
+										metadata->operands[0] = Z80_OPERAND_HL;
 										break;
 
 									case 3:
 										metadata->opcode = Z80_OPCODE_LD_SP_HL;
+										metadata->operands[0] = Z80_OPERAND_HL;
 										break;
 								}
 							}
@@ -560,7 +764,6 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 					metadata->operands[1] = registers[z];
 					metadata->embedded_literal = y;
 					metadata->read_destination = cc_true;
-					metadata->write_destination = cc_true;
 					break;
 
 				case 2:
@@ -680,31 +883,32 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 	}
 }
 
-void Z80_DecodeInstruction(Z80_Instruction *instruction, Z80_InstructionMode instruction_mode, const Z80_ReadInstructionCallback *read_callback)
+void Z80_DecodeInstruction(Z80_Instruction *instruction, Z80_InstructionMode instruction_mode, Z80_RegisterMode register_mode, const Z80_ReadInstructionCallback *read_callback)
 {
-	Z80_DecodeInstructionMetadata(&instruction->metadata, read_callback->callback(read_callback->user_data), instruction_mode);
+	Z80_DecodeInstructionMetadata(&instruction->metadata, instruction_mode, read_callback->callback(read_callback->user_data));
 
-	if (instruction->metadata.has_displacement)
-		instruction->displacement = read_callback->callback(read_callback->user_data);
-
-	switch (instruction->metadata.operands[0])
+	if (instruction->metadata.has_displacement || (register_mode != Z80_REGISTER_MODE_HL && (instruction->metadata.operands[0] == Z80_OPERAND_HL_INDIRECT || instruction->metadata.operands[1] == Z80_OPERAND_HL_INDIRECT)))
 	{
-		default:
-			break;
+		const unsigned int displacement = read_callback->callback(read_callback->user_data);
+		instruction->displacement = SIGN_EXTEND(displacement, 0xFF);
+	}
 
-		case Z80_OPERAND_LITERAL_8BIT:
-			instruction->literal = read_callback->callback(read_callback->user_data);
-			break;
-
-		case Z80_OPERAND_LITERAL_16BIT:
-			instruction->literal = read_callback->callback(read_callback->user_data);
-			instruction->literal |= read_callback->callback(read_callback->user_data) << 8;
-			break;
+	if (instruction->metadata.operands[0] == Z80_OPERAND_LITERAL_8BIT)
+	{
+		instruction->literal = read_callback->callback(read_callback->user_data);
+	}
+	else if (instruction->metadata.operands[0] == Z80_OPERAND_LITERAL_16BIT || instruction->metadata.operands[0] == Z80_OPERAND_ADDRESS || instruction->metadata.operands[1] == Z80_OPERAND_ADDRESS)
+	{
+		instruction->literal = read_callback->callback(read_callback->user_data);
+		instruction->literal |= read_callback->callback(read_callback->user_data) << 8;
 	}
 }
 
 void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction, const Z80_ReadAndWriteCallbacks *callbacks)
 {
+	Z80_RegistersAF* const af = &state->af[state->alternate_af];
+	Z80_RegistersBCDEHL* const bc_de_hl = &state->bc_de_hl[state->alternate_bc_de_hl];
+
 	const unsigned int source_value = ReadOperand(state, instruction, 0, &callbacks->read);
 
 	unsigned int destination_value;
@@ -714,7 +918,629 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 
 	switch (instruction->metadata.opcode)
 	{
+		case Z80_OPCODE_NOP:
+			/* Does nothing, naturally. */
+			state->cycles = 4;
+			break;
 
+		case Z80_OPCODE_EX_AF_AF:
+			state->alternate_af = !state->alternate_af;
+			state->cycles = 4;
+			break;
+
+		case Z80_OPCODE_DJNZ:
+			if (--bc_de_hl->b != 0)
+			{
+				state->cycles = 13;
+				state->program_counter += instruction->displacement;
+			}
+			else
+			{
+				state->cycles = 8;
+			}
+
+			break;
+
+		case Z80_OPCODE_JR_CONDITIONAL:
+			state->cycles = 7;
+			/* TODO: Conditions. */
+			/* Fallthrough */
+		case Z80_OPCODE_JR_UNCONDITIONAL:
+			state->cycles = 12;
+			state->program_counter += instruction->displacement;
+			break;
+
+		case Z80_OPCODE_LD_16BIT:
+			destination_value = source_value;
+			break;
+
+		case Z80_OPCODE_ADD_HL:
+			destination_value += source_value;
+			destination_value &= 0xFFFF;
+			break;
+
+		case Z80_OPCODE_LD_8BIT:
+			destination_value = source_value;
+			break;
+
+		case Z80_OPCODE_INC_16BIT:
+			++destination_value;
+			destination_value &= 0xFFFF;
+			break;
+
+		case Z80_OPCODE_DEC_16BIT:
+			--destination_value;
+			destination_value &= 0xFFFF;
+			break;
+
+		case Z80_OPCODE_INC_8BIT:
+			++destination_value;
+			destination_value &= 0xFF;
+			break;
+
+		case Z80_OPCODE_DEC_8BIT:
+			--destination_value;
+			destination_value &= 0xFF;
+			break;
+
+		case Z80_OPCODE_RLCA:
+		{
+			const cc_bool carry = (af->a & 0x80) != 0;
+
+			af->a <<= 1;
+			af->a &= 0xFF;
+			af->a |= carry ? 0x01 : 0;
+
+			af->f &= ~(Z80_FLAG_CARRY | Z80_FLAG_HALF_CARRY | Z80_FLAG_ADD_SUBTRACT);
+			af->f |= carry ? Z80_FLAG_CARRY : 0;
+
+			break;
+		}
+
+		case Z80_OPCODE_RRCA:
+		{
+			const cc_bool carry = (af->a & 0x01) != 0;
+
+			af->a >>= 1;
+			af->a |= carry ? 0x80 : 0;
+
+			af->f &= ~(Z80_FLAG_CARRY | Z80_FLAG_HALF_CARRY | Z80_FLAG_ADD_SUBTRACT);
+			af->f |= carry ? Z80_FLAG_CARRY : 0;
+
+			break;
+		}
+
+		case Z80_OPCODE_RLA:
+		{
+			const cc_bool carry = (af->a & 0x80) != 0;
+
+			af->a <<= 1;
+			af->a &= 0xFF;
+			af->a |= (af->f &= Z80_FLAG_CARRY) != 0 ? 0x01 : 0;
+
+			af->f &= ~(Z80_FLAG_CARRY | Z80_FLAG_HALF_CARRY | Z80_FLAG_ADD_SUBTRACT);
+			af->f |= carry ? Z80_FLAG_CARRY : 0;
+
+			break;
+		}
+
+		case Z80_OPCODE_RRA:
+		{
+			const cc_bool carry = (af->a & 0x01) != 0;
+
+			af->a >>= 1;
+			af->a |= (af->f &= Z80_FLAG_CARRY) != 0 ? 0x80 : 0;
+
+			af->f &= ~(Z80_FLAG_CARRY | Z80_FLAG_HALF_CARRY | Z80_FLAG_ADD_SUBTRACT);
+			af->f |= carry ? Z80_FLAG_CARRY : 0;
+
+			break;
+		}
+
+		case Z80_OPCODE_DAA:
+			/* TODO */
+			UNIMPLEMENTED_INSTRUCTION("DAA");
+			break;
+
+		case Z80_OPCODE_CPL:
+			af->a = ~af->a;
+			af->a &= 0xFF;
+
+			af->f |= Z80_FLAG_HALF_CARRY | Z80_FLAG_ADD_SUBTRACT;
+
+			break;
+
+		case Z80_OPCODE_SCF:
+			af->f &= ~(Z80_FLAG_HALF_CARRY | Z80_FLAG_ADD_SUBTRACT);
+			af->f |= Z80_FLAG_CARRY;
+			break;
+
+		case Z80_OPCODE_CCF:
+			af->f &= ~(Z80_FLAG_ADD_SUBTRACT | Z80_FLAG_HALF_CARRY);
+
+			af->f |= (af->f & Z80_FLAG_CARRY) != 0 ? Z80_FLAG_HALF_CARRY : 0;
+			af->f ^= Z80_FLAG_CARRY;
+
+			break;
+
+		case Z80_OPCODE_HALT:
+			/* TODO */
+			UNIMPLEMENTED_INSTRUCTION("HALT");
+			break;
+
+		case Z80_OPCODE_ADD_A:
+			af->f = 0;
+
+			/* Set half-carry flag. */
+			af->f |= ((af->a & 0xF) + (source_value & 0xF) & 0x10) != 0 ? Z80_FLAG_HALF_CARRY : 0;
+
+			/* Perform addition. */
+			af->a += source_value;
+
+			/* Set remaining flags. */
+			af->f |= (af->a & 0x80) != 0 ? Z80_FLAG_SIGN : 0;
+			af->f |= af->a == 0 ? Z80_FLAG_ZERO : 0;
+			af->f |= (af->a & 0x100) != 0 ? Z80_FLAG_CARRY : 0;
+			af->f |= ((af->a & 0x80) != 0) != ((af->f & Z80_FLAG_CARRY) != 0) ? Z80_FLAG_PARITY_OVERFLOW : 0;
+
+			af->a &= 0xFF;
+
+			break;
+
+		case Z80_OPCODE_ADC_A:
+			af->f = 0;
+
+			/* Set half-carry flag. */
+			af->f |= ((af->a & 0xF) + (source_value & 0xF) & 0x10) != 0 ? Z80_FLAG_HALF_CARRY : 0;
+
+			/* Perform addition. */
+			af->a += source_value;
+			af->a += (af->f & Z80_FLAG_CARRY) != 0;
+
+			/* Set remaining flags. */
+			af->f |= (af->a & 0x80) != 0 ? Z80_FLAG_SIGN : 0;
+			af->f |= af->a == 0 ? Z80_FLAG_ZERO : 0;
+			af->f |= (af->a & 0x100) != 0 ? Z80_FLAG_CARRY : 0;
+			af->f |= ((af->a & 0x80) != 0) != ((af->f & Z80_FLAG_CARRY) != 0) ? Z80_FLAG_PARITY_OVERFLOW : 0;
+
+			af->a &= 0xFF;
+
+			break;
+
+		case Z80_OPCODE_SUB:
+			af->f = 0;
+
+			/* Set half-carry flag. */
+			af->f |= ((af->a & 0xF) - (source_value & 0xF) & 0x10) != 0 ? Z80_FLAG_HALF_CARRY : 0;
+
+			/* Perform subtraction. */
+			af->a -= source_value;
+
+			/* Set remaining flags. */
+			af->f |= (af->a & 0x80) != 0 ? Z80_FLAG_SIGN : 0;
+			af->f |= af->a == 0 ? Z80_FLAG_ZERO : 0;
+			af->f |= (af->a & 0x100) != 0 ? Z80_FLAG_CARRY : 0;
+			af->f |= ((af->a & 0x80) != 0) != ((af->f & Z80_FLAG_CARRY) != 0) ? Z80_FLAG_PARITY_OVERFLOW : 0;
+			af->f |= Z80_FLAG_ADD_SUBTRACT;
+
+			af->a &= 0xFF;
+
+			break;
+
+		case Z80_OPCODE_SBC_A:
+			af->f = 0;
+
+			/* Set half-carry flag. */
+			af->f |= ((af->a & 0xF) - (source_value & 0xF) & 0x10) != 0 ? Z80_FLAG_HALF_CARRY : 0;
+
+			/* Perform subtraction. */
+			af->a -= source_value;
+			af->a -= (af->f & Z80_FLAG_CARRY) != 0;
+
+			/* Set remaining flags. */
+			af->f |= (af->a & 0x80) != 0 ? Z80_FLAG_SIGN : 0;
+			af->f |= af->a == 0 ? Z80_FLAG_ZERO : 0;
+			af->f |= (af->a & 0x100) != 0 ? Z80_FLAG_CARRY : 0;
+			af->f |= ((af->a & 0x80) != 0) != ((af->f & Z80_FLAG_CARRY) != 0) ? Z80_FLAG_PARITY_OVERFLOW : 0;
+			af->f |= Z80_FLAG_ADD_SUBTRACT;
+
+			af->a &= 0xFF;
+
+			break;
+
+		case Z80_OPCODE_AND:
+			af->a &= source_value;
+
+			af->f = 0;
+			af->f |= (af->a & 0x80) != 0 ? Z80_FLAG_SIGN : 0;
+			af->f |= af->a == 0 ? Z80_FLAG_ZERO : 0;
+			af->f |= Z80_FLAG_HALF_CARRY;
+			/* TODO: Parity. */
+			break;
+
+		case Z80_OPCODE_XOR:
+			af->a ^= source_value;
+
+			af->f = 0;
+			af->f |= (af->a & 0x80) != 0 ? Z80_FLAG_SIGN : 0;
+			af->f |= af->a == 0 ? Z80_FLAG_ZERO : 0;
+			/* TODO: Parity. */
+			break;
+
+		case Z80_OPCODE_OR:
+			af->a |= source_value;
+
+			af->f = 0;
+			af->f |= (af->a & 0x80) != 0 ? Z80_FLAG_SIGN : 0;
+			af->f |= af->a == 0 ? Z80_FLAG_ZERO : 0;
+			/* TODO: Parity. */
+			break;
+
+		case Z80_OPCODE_CP:
+		{
+			const unsigned int result = af->a - source_value;
+
+			af->f = 0;
+
+			/* Set half-carry flag. */
+			af->f |= ((af->a & 0xF) - (source_value & 0xF) & 0x10) != 0 ? Z80_FLAG_HALF_CARRY : 0;
+
+			/* Set remaining flags. */
+			af->f |= (result & 0x80) != 0 ? Z80_FLAG_SIGN : 0;
+			af->f |= result == 0 ? Z80_FLAG_ZERO : 0;
+			af->f |= (result & 0x100) != 0 ? Z80_FLAG_CARRY : 0;
+			af->f |= ((result & 0x80) != 0) != ((af->f & Z80_FLAG_CARRY) != 0) ? Z80_FLAG_PARITY_OVERFLOW : 0;
+			af->f |= Z80_FLAG_ADD_SUBTRACT;
+
+			break;
+		}
+
+		case Z80_OPCODE_POP:
+			destination_value = Read16Bit(&callbacks->read, state->stack_pointer);
+			state->stack_pointer += 2;
+			break;
+
+		case Z80_OPCODE_RET_CONDITIONAL:
+			if (!EvaluateCondition(af->f, instruction->metadata.condition))
+				break;
+			/* Fallthrough */
+		case Z80_OPCODE_RET_UNCONDITIONAL:
+			state->program_counter = Read16Bit(&callbacks->read, state->stack_pointer);
+			state->stack_pointer += 2;
+			break;
+
+		case Z80_OPCODE_EXX:
+			state->alternate_bc_de_hl = !state->alternate_bc_de_hl;
+			break;
+
+		case Z80_OPCODE_LD_SP_HL:
+			state->stack_pointer = source_value;
+			break;
+
+		case Z80_OPCODE_JP_CONDITIONAL:
+			if (!EvaluateCondition(af->f, instruction->metadata.condition))
+				break;
+			/* Fallthrough */
+		case Z80_OPCODE_JP_UNCONDITIONAL:
+		case Z80_OPCODE_JP_HL:
+			state->program_counter = source_value;
+			break;
+
+		case Z80_OPCODE_CB_PREFIX:
+		case Z80_OPCODE_DD_PREFIX:
+		case Z80_OPCODE_ED_PREFIX:
+		case Z80_OPCODE_FD_PREFIX:
+			/* Nothing to do here: this is handled in `Z80_DoCycle`. */
+			break;
+
+		case Z80_OPCODE_OUT:
+			/* TODO */
+			UNIMPLEMENTED_INSTRUCTION("OUT");
+			break;
+
+		case Z80_OPCODE_IN:
+			/* TODO */
+			UNIMPLEMENTED_INSTRUCTION("IN");
+			break;
+
+		case Z80_OPCODE_EX_SP_HL:
+		{
+			const unsigned int old_sp = state->stack_pointer;
+
+			state->stack_pointer = (bc_de_hl->h << 8) | bc_de_hl->l;
+			bc_de_hl->h = old_sp >> 8;
+			bc_de_hl->l = old_sp & 0xFF;
+
+			break;
+		}
+
+		case Z80_OPCODE_EX_DE_HL:
+		{
+			unsigned char old;
+
+			old = bc_de_hl->h;
+			bc_de_hl->h = bc_de_hl->d;
+			bc_de_hl->d = old;
+
+			old = bc_de_hl->l;
+			bc_de_hl->l = bc_de_hl->e;
+			bc_de_hl->e = old;
+
+			break;
+		}
+
+		case Z80_OPCODE_DI:
+			state->interrupts_enabled = cc_false;
+			break;
+
+		case Z80_OPCODE_EI:
+			state->interrupts_enabled = cc_true;
+			break;
+
+		case Z80_OPCODE_PUSH:
+			state->stack_pointer -= 2;
+			callbacks->write.callback(callbacks->write.user_data, --state->stack_pointer, source_value >> 8);
+			callbacks->write.callback(callbacks->write.user_data, --state->stack_pointer, source_value & 0xFF);
+			break;
+
+		case Z80_OPCODE_CALL_CONDITIONAL:
+			if (!EvaluateCondition(af->f, instruction->metadata.condition))
+				break;
+			/* Fallthrough */
+		case Z80_OPCODE_CALL_UNCONDITIONAL:
+			callbacks->write.callback(callbacks->write.user_data, --state->stack_pointer, state->program_counter >> 8);
+			callbacks->write.callback(callbacks->write.user_data, --state->stack_pointer, state->program_counter & 0xFF);
+			state->program_counter = instruction->literal;
+			break;
+
+		case Z80_OPCODE_RST:
+			callbacks->write.callback(callbacks->write.user_data, --state->stack_pointer, state->program_counter >> 8);
+			callbacks->write.callback(callbacks->write.user_data, --state->stack_pointer, state->program_counter & 0xFF);
+			state->program_counter = instruction->metadata.embedded_literal;
+			break;
+
+		case Z80_OPCODE_RLC:
+		{
+			const cc_bool carry = (destination_value & 0x80) != 0;
+
+			destination_value <<= 1;
+			destination_value &= 0xFF;
+			destination_value |= carry ? 0x01 : 0;
+
+			af->f &= ~(Z80_FLAG_CARRY | Z80_FLAG_HALF_CARRY | Z80_FLAG_ADD_SUBTRACT);
+			af->f |= carry ? Z80_FLAG_CARRY : 0;
+
+			break;
+		}
+
+		case Z80_OPCODE_RRC:
+		{
+			const cc_bool carry = (destination_value & 0x01) != 0;
+
+			destination_value >>= 1;
+			destination_value |= carry ? 0x80 : 0;
+
+			af->f &= ~(Z80_FLAG_CARRY | Z80_FLAG_HALF_CARRY | Z80_FLAG_ADD_SUBTRACT);
+			af->f |= carry ? Z80_FLAG_CARRY : 0;
+
+			break;
+		}
+
+		case Z80_OPCODE_RL:
+		{
+			const cc_bool carry = (destination_value & 0x80) != 0;
+
+			destination_value <<= 1;
+			destination_value &= 0xFF;
+			destination_value |= (af->f &= Z80_FLAG_CARRY) != 0 ? 0x01 : 0;
+
+			af->f &= ~(Z80_FLAG_CARRY | Z80_FLAG_HALF_CARRY | Z80_FLAG_ADD_SUBTRACT);
+			af->f |= carry ? Z80_FLAG_CARRY : 0;
+
+			break;
+		}
+
+		case Z80_OPCODE_RR:
+		{
+			const cc_bool carry = (destination_value & 0x01) != 0;
+
+			destination_value >>= 1;
+			destination_value |= (af->f &= Z80_FLAG_CARRY) != 0 ? 0x80 : 0;
+
+			af->f &= ~(Z80_FLAG_CARRY | Z80_FLAG_HALF_CARRY | Z80_FLAG_ADD_SUBTRACT);
+			af->f |= carry ? Z80_FLAG_CARRY : 0;
+
+			break;
+		}
+
+		case Z80_OPCODE_SLA:
+		case Z80_OPCODE_SLL:
+		{
+			const cc_bool carry = (destination_value & 0x80) != 0;
+
+			destination_value <<= 1;
+			destination_value &= 0xFF;
+
+			af->f = 0;
+			af->f |= (destination_value & 0x80) != 0 ? Z80_FLAG_SIGN : 0;
+			af->f |= destination_value == 0 ? Z80_FLAG_ZERO : 0;
+			/* TODO: Parity. */
+			af->f |= carry ? Z80_FLAG_CARRY : 0;
+
+			break;
+		}
+
+		case Z80_OPCODE_SRA:
+		{
+			const cc_bool carry = (destination_value & 0x01) != 0;
+
+			destination_value = (destination_value >> 1) | (destination_value & 0x80);
+
+			af->f = 0;
+			af->f |= (destination_value & 0x80) != 0 ? Z80_FLAG_SIGN : 0;
+			af->f |= destination_value == 0 ? Z80_FLAG_ZERO : 0;
+			/* TODO: Parity. */
+			af->f |= carry ? Z80_FLAG_CARRY : 0;
+
+			break;
+		}
+
+		case Z80_OPCODE_SRL:
+		{
+			const cc_bool carry = (destination_value & 0x01) != 0;
+
+			destination_value >>= 1;
+
+			af->f = 0;
+			af->f |= (destination_value & 0x80) != 0 ? Z80_FLAG_SIGN : 0;
+			af->f |= destination_value == 0 ? Z80_FLAG_ZERO : 0;
+			/* TODO: Parity. */
+			af->f |= carry ? Z80_FLAG_CARRY : 0;
+
+			break;
+		}
+
+		case Z80_OPCODE_BIT:
+			af->f &= ~Z80_FLAG_CARRY;
+			af->f |= (destination_value & (1 << instruction->metadata.embedded_literal) == 0) ? Z80_FLAG_ZERO : 0;
+			af->f |= Z80_FLAG_HALF_CARRY;
+			break;
+
+		case Z80_OPCODE_RES:
+			destination_value &= ~(1 << instruction->metadata.embedded_literal);
+			break;
+
+		case Z80_OPCODE_SET:
+			destination_value |= 1 << instruction->metadata.embedded_literal;
+			break;
+
+		case Z80_OPCODE_IN_REGISTER:
+			UNIMPLEMENTED_INSTRUCTION("IN (register)");
+			break;
+
+		case Z80_OPCODE_IN_NO_REGISTER:
+			UNIMPLEMENTED_INSTRUCTION("IN (no register)");
+			break;
+
+		case Z80_OPCODE_OUT_REGISTER:
+			UNIMPLEMENTED_INSTRUCTION("OUT (register)");
+			break;
+
+		case Z80_OPCODE_OUT_NO_REGISTER:
+			UNIMPLEMENTED_INSTRUCTION("OUT (no register)");
+			break;
+
+		case Z80_OPCODE_SBC_HL:
+			UNIMPLEMENTED_INSTRUCTION("SBC HL");
+			break;
+
+		case Z80_OPCODE_ADC_HL:
+			UNIMPLEMENTED_INSTRUCTION("ADC HL");
+			break;
+
+		case Z80_OPCODE_NEG:
+			UNIMPLEMENTED_INSTRUCTION("NEG");
+			break;
+
+		case Z80_OPCODE_RETN:
+			UNIMPLEMENTED_INSTRUCTION("RETN");
+			break;
+
+		case Z80_OPCODE_RETI:
+			UNIMPLEMENTED_INSTRUCTION("RETI");
+			break;
+
+		case Z80_OPCODE_IM:
+			UNIMPLEMENTED_INSTRUCTION("IM");
+			break;
+
+		case Z80_OPCODE_LD_I_A:
+			UNIMPLEMENTED_INSTRUCTION("LD I,A");
+			break;
+
+		case Z80_OPCODE_LD_R_A:
+			UNIMPLEMENTED_INSTRUCTION("LD R,A");
+			break;
+
+		case Z80_OPCODE_LD_A_I:
+			UNIMPLEMENTED_INSTRUCTION("LD A,I");
+			break;
+
+		case Z80_OPCODE_LD_A_R:
+			UNIMPLEMENTED_INSTRUCTION("LD A,R");
+			break;
+
+		case Z80_OPCODE_RRD:
+			UNIMPLEMENTED_INSTRUCTION("RRD");
+			break;
+
+		case Z80_OPCODE_RLD:
+			UNIMPLEMENTED_INSTRUCTION("RLD");
+			break;
+
+		case Z80_OPCODE_LDI:
+			UNIMPLEMENTED_INSTRUCTION("LDI");
+			break;
+
+		case Z80_OPCODE_LDD:
+			UNIMPLEMENTED_INSTRUCTION("LDD");
+			break;
+
+		case Z80_OPCODE_LDIR:
+			UNIMPLEMENTED_INSTRUCTION("LDIR");
+			break;
+
+		case Z80_OPCODE_LDDR:
+			UNIMPLEMENTED_INSTRUCTION("LDDR");
+			break;
+
+		case Z80_OPCODE_CPI:
+			UNIMPLEMENTED_INSTRUCTION("CPI");
+			break;
+
+		case Z80_OPCODE_CPD:
+			UNIMPLEMENTED_INSTRUCTION("CPD");
+			break;
+
+		case Z80_OPCODE_CPIR:
+			UNIMPLEMENTED_INSTRUCTION("CPIR");
+			break;
+
+		case Z80_OPCODE_CPDR:
+			UNIMPLEMENTED_INSTRUCTION("CPDR");
+			break;
+
+		case Z80_OPCODE_INI:
+			UNIMPLEMENTED_INSTRUCTION("INI");
+			break;
+
+		case Z80_OPCODE_IND:
+			UNIMPLEMENTED_INSTRUCTION("IND");
+			break;
+
+		case Z80_OPCODE_INIR:
+			UNIMPLEMENTED_INSTRUCTION("INIR");
+			break;
+
+		case Z80_OPCODE_INDR:
+			UNIMPLEMENTED_INSTRUCTION("INDR");
+			break;
+
+		case Z80_OPCODE_OUTI:
+			UNIMPLEMENTED_INSTRUCTION("OTDI");
+			break;
+
+		case Z80_OPCODE_OUTD:
+			UNIMPLEMENTED_INSTRUCTION("OUTD");
+			break;
+
+		case Z80_OPCODE_OTIR:
+			UNIMPLEMENTED_INSTRUCTION("OTIR");
+			break;
+
+		case Z80_OPCODE_OTDR:
+			UNIMPLEMENTED_INSTRUCTION("OTDR");
+			break;
 	}
 
 	if (instruction->metadata.write_destination)
@@ -728,7 +1554,31 @@ void Z80_DoCycle(Z80_State *state, const Z80_ReadAndWriteCallbacks *callbacks)
 
 	Z80_Instruction instruction;
 
-	Z80_DecodeInstruction(&instruction, state->instruction_mode, &read_instruction_callback);
+	Z80_DecodeInstruction(&instruction, state->instruction_mode, state->register_mode, &read_instruction_callback);
 
 	Z80_ExecuteInstruction(state, &instruction, callbacks);
+
+	switch (instruction.metadata.opcode)
+	{
+		default:
+			state->register_mode = Z80_REGISTER_MODE_HL;
+			state->instruction_mode = Z80_INSTRUCTION_MODE_NORMAL;
+			break;
+
+		case Z80_OPCODE_CB_PREFIX:
+			state->instruction_mode = Z80_INSTRUCTION_MODE_BITS;
+			break;
+
+		case Z80_OPCODE_ED_PREFIX:
+			state->instruction_mode = Z80_INSTRUCTION_MODE_MISC;
+			break;
+
+		case Z80_OPCODE_DD_PREFIX:
+			state->register_mode = Z80_REGISTER_MODE_IX;
+			break;
+
+		case Z80_OPCODE_FD_PREFIX:
+			state->register_mode = Z80_REGISTER_MODE_IY;
+			break;
+	}
 }

@@ -103,6 +103,8 @@ http://gendev.spritesmind.net/forum/viewtopic.php?p=31285#p31285
 And of course there's Nuked, which will answer all questions once and for all:
 https://github.com/nukeykt/Nuked-OPN2
 
+The 9th DAC sample bit.
+
 */
 
 /* 8 is chosen because there are 6 FM channels, of which the DAC can replace one of, as well at the PSG.
