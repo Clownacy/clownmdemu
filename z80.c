@@ -819,6 +819,8 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 							else
 								metadata->opcode = Z80_OPCODE_ADC_HL;
 
+							metadata->operands[0] = register_pairs_1[p];
+
 							break;
 
 						case 3:
@@ -1092,6 +1094,7 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 			af->f = 0;
 
 			/* Set half-carry flag. */
+			/* TODO: Pretty sure this is incorrect - shouldn't it add the carry as well? */
 			af->f |= ((af->a & 0xF) + (source_value & 0xF) & 0x10) != 0 ? Z80_FLAG_HALF_CARRY : 0;
 
 			/* Perform addition. */
@@ -1448,8 +1451,31 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 			break;
 
 		case Z80_OPCODE_ADC_HL:
-			UNIMPLEMENTED_INSTRUCTION("ADC HL");
+		{
+			bc_de_hl->l += source_value & 0xFF;
+
+			af->f = 0;
+
+			/* Set half-carry flag. */
+			/* TODO */
+			/*af->f |= ((af->a & 0xF) + (source_value & 0xF) & 0x10) != 0 ? Z80_FLAG_HALF_CARRY : 0;*/
+
+			/* Perform addition. */
+			bc_de_hl->h += source_value >> 8;
+			bc_de_hl->h += bc_de_hl->l >> 8;
+			bc_de_hl->h += (af->f & Z80_FLAG_CARRY) != 0;
+
+			/* Set remaining flags. */
+			af->f |= (bc_de_hl->h & 0x80) != 0 ? Z80_FLAG_SIGN : 0;
+			af->f |= bc_de_hl->h == 0 ? Z80_FLAG_ZERO : 0;
+			af->f |= (bc_de_hl->h & 0x100) != 0 ? Z80_FLAG_CARRY : 0;
+			af->f |= ((bc_de_hl->h & 0x80) != 0) != ((af->f & Z80_FLAG_CARRY) != 0) ? Z80_FLAG_PARITY_OVERFLOW : 0;
+
+			bc_de_hl->h &= 0xFF;
+			bc_de_hl->l &= 0xFF;
+
 			break;
+		}
 
 		case Z80_OPCODE_NEG:
 			UNIMPLEMENTED_INSTRUCTION("NEG");
@@ -1492,16 +1518,76 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 			break;
 
 		case Z80_OPCODE_LDI:
-			UNIMPLEMENTED_INSTRUCTION("LDI");
+		{
+			const unsigned int de = (bc_de_hl->d << 8) | bc_de_hl->e;
+			const unsigned int hl = (bc_de_hl->h << 8) | bc_de_hl->l;
+
+			callbacks->write.callback(callbacks->write.user_data, de, callbacks->read.callback(callbacks->read.user_data, hl));
+
+			/* Increment 'hl'. */
+			++bc_de_hl->l;
+			bc_de_hl->h += bc_de_hl->l >> 8;
+			bc_de_hl->h &= 0xFF;
+			bc_de_hl->l &= 0xFF;
+
+			/* Increment 'de'. */
+			++bc_de_hl->e;
+			bc_de_hl->d += bc_de_hl->e >> 8;
+			bc_de_hl->d &= 0xFF;
+			bc_de_hl->e &= 0xFF;
+
+			/* Decrement 'bc'. */
+			--bc_de_hl->c;
+			bc_de_hl->b += bc_de_hl->c >> 8;
+			bc_de_hl->b &= 0xFF;
+			bc_de_hl->c &= 0xFF;
+
+			af->f &= Z80_FLAG_CARRY | Z80_FLAG_ZERO | Z80_FLAG_SIGN;
+			af->f |= (bc_de_hl->b | bc_de_hl->c) != 0 ? Z80_FLAG_PARITY_OVERFLOW : 0;
+
 			break;
+		}
 
 		case Z80_OPCODE_LDD:
 			UNIMPLEMENTED_INSTRUCTION("LDD");
 			break;
 
 		case Z80_OPCODE_LDIR:
-			UNIMPLEMENTED_INSTRUCTION("LDIR");
+		{
+			unsigned int bc;
+			unsigned int de;
+			unsigned int hl;
+
+			bc = (bc_de_hl->b << 8) | bc_de_hl->c;
+			de = (bc_de_hl->d << 8) | bc_de_hl->e;
+			hl = (bc_de_hl->h << 8) | bc_de_hl->l;
+
+			do
+			{
+				callbacks->write.callback(callbacks->write.user_data, de, callbacks->read.callback(callbacks->read.user_data, hl));
+
+				++hl;
+				hl &= 0xFFFF;
+
+				++de;
+				de &= 0xFFFF;
+
+				--bc;
+				bc &= 0xFFFF;
+
+			} while (bc != 0);
+
+			bc_de_hl->b = 0;
+			bc_de_hl->c = 0;
+			bc_de_hl->d = de >> 8;
+			bc_de_hl->e = de & 0xFF;
+			bc_de_hl->h = hl >> 8;
+			bc_de_hl->l = hl & 0xFF;
+
+			af->f &= Z80_FLAG_CARRY | Z80_FLAG_ZERO | Z80_FLAG_SIGN;
+
 			break;
+		}
 
 		case Z80_OPCODE_LDDR:
 			UNIMPLEMENTED_INSTRUCTION("LDDR");
