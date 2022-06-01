@@ -943,7 +943,8 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 
 		case Z80_OPCODE_JR_CONDITIONAL:
 			state->cycles = 7;
-			/* TODO: Conditions. */
+			if (!EvaluateCondition(af->f, instruction->metadata.condition))
+				break;
 			/* Fallthrough */
 		case Z80_OPCODE_JR_UNCONDITIONAL:
 			state->cycles = 12;
@@ -1401,8 +1402,8 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 		}
 
 		case Z80_OPCODE_BIT:
-			af->f &= ~Z80_FLAG_CARRY;
-			af->f |= (destination_value & (1 << instruction->metadata.embedded_literal) == 0) ? Z80_FLAG_ZERO : 0;
+			af->f &= Z80_FLAG_CARRY;
+			af->f |= ((destination_value & (1 << instruction->metadata.embedded_literal)) == 0) ? Z80_FLAG_ZERO : 0;
 			af->f |= Z80_FLAG_HALF_CARRY;
 			break;
 
