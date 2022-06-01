@@ -439,9 +439,12 @@ static unsigned int Z80ReadCallback(void *user_data, unsigned int address)
 	else if (address > 0x8000)
 	{
 		/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
-		const cc_bool odd = (address & 1) != 0;
+		const unsigned long m68k_address = ((unsigned long)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE);
 
-		value = M68kReadCallback(user_data, clownmdemu->state->z80_bank * 0x8000 + (address & 0x7FFE), !odd, odd);
+		if ((address & 1) != 0)
+			value = M68kReadCallback(user_data, m68k_address, cc_false, cc_true);
+		else
+			value = M68kReadCallback(user_data, m68k_address, cc_true, cc_false) >> 8;
 	}
 
 	return value;
@@ -478,14 +481,17 @@ static void Z80WriteCallback(void *user_data, unsigned int address, unsigned int
 	else if (address == 0x7F11)
 	{
 		/* PSG (accessed through the 68k's bus). */
-		M68kWriteCallback(user_data, 0xC00010, cc_true, cc_false, value);
+		M68kWriteCallback(user_data, 0xC00010, cc_true, cc_false, value << 8);
 	}
 	else if (address >= 0x8000)
 	{
 		/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
-		const cc_bool odd = (address & 1) != 0;
+		const unsigned long m68k_address = ((unsigned long)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE);
 
-		M68kWriteCallback(user_data, ((unsigned long)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE), !odd, odd, value);
+		if ((address & 1) != 0)
+			M68kWriteCallback(user_data, m68k_address, cc_false, cc_true, value);
+		else
+			M68kWriteCallback(user_data, m68k_address, cc_true, cc_false, value << 8);
 	}
 }
 
@@ -568,6 +574,9 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 			if (clownmdemu->state->countdowns.z80 == 0)
 			{
 				clownmdemu->state->countdowns.z80 = CLOWNMDEMU_Z80_CLOCK_DIVIDER * 10; /* TODO: A similar temporary hack. */
+
+				if (clownmdemu->state->z80.program_counter == 0xB9)
+					clownmdemu->state->z80.program_counter = ~~clownmdemu->state->z80.program_counter;
 
 				if (!clownmdemu->state->m68k_has_z80_bus)
 					Z80_DoCycle(&clownmdemu->state->z80, &z80_read_write_callbacks);
