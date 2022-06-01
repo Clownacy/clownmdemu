@@ -426,11 +426,23 @@ void Z80_Reset(Z80_State *state)
 	state->program_counter = 0;
 }
 
-void Z80_Interrupt(Z80_State *state)
+void Z80_Interrupt(Z80_State *state, const Z80_ReadAndWriteCallbacks *callbacks)
 {
 	/* TODO: The other interrupt modes. */
 	if (state->interrupts_enabled)
+	{
+		state->interrupts_enabled = cc_false;
+
+		--state->stack_pointer;
+		state->stack_pointer &= 0xFFFF;
+		callbacks->write.callback(callbacks->write.user_data, state->stack_pointer, state->program_counter >> 8);
+
+		--state->stack_pointer;
+		state->stack_pointer &= 0xFFFF;
+		callbacks->write.callback(callbacks->write.user_data, state->stack_pointer, state->program_counter & 0xFF);
+
 		state->program_counter = 0x38;
+	}
 }
 
 void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_InstructionMode instruction_mode, unsigned char opcode)
