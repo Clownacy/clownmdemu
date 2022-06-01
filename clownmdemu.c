@@ -615,7 +615,10 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 		{
 			/* Do V-Int */
 			if (clownmdemu->state->vdp.v_int_enabled)
+			{
 				M68k_Interrupt(&clownmdemu->state->m68k, &m68k_read_write_callbacks, 6);
+				Z80_Interrupt(&clownmdemu->state->z80);
+			}
 
 			/* Flag that we have entered the V-blank region */
 			clownmdemu->state->vdp.currently_in_vblank = cc_true;

@@ -1199,6 +1199,7 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 		case Z80_OPCODE_POP:
 			destination_value = Read16Bit(&callbacks->read, state->stack_pointer);
 			state->stack_pointer += 2;
+			state->stack_pointer &= 0xFFFF;
 			break;
 
 		case Z80_OPCODE_RET_CONDITIONAL:
@@ -1208,6 +1209,7 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 		case Z80_OPCODE_RET_UNCONDITIONAL:
 			state->program_counter = Read16Bit(&callbacks->read, state->stack_pointer);
 			state->stack_pointer += 2;
+			state->stack_pointer &= 0xFFFF;
 			break;
 
 		case Z80_OPCODE_EXX:
@@ -1279,9 +1281,13 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 			break;
 
 		case Z80_OPCODE_PUSH:
-			state->stack_pointer -= 2;
-			callbacks->write.callback(callbacks->write.user_data, --state->stack_pointer, source_value >> 8);
-			callbacks->write.callback(callbacks->write.user_data, --state->stack_pointer, source_value & 0xFF);
+			--state->stack_pointer;
+			state->stack_pointer &= 0xFFFF;
+			callbacks->write.callback(callbacks->write.user_data, state->stack_pointer, source_value >> 8);
+
+			--state->stack_pointer;
+			state->stack_pointer &= 0xFFFF;
+			callbacks->write.callback(callbacks->write.user_data, state->stack_pointer, source_value & 0xFF);
 			break;
 
 		case Z80_OPCODE_CALL_CONDITIONAL:
@@ -1289,8 +1295,14 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 				break;
 			/* Fallthrough */
 		case Z80_OPCODE_CALL_UNCONDITIONAL:
-			callbacks->write.callback(callbacks->write.user_data, --state->stack_pointer, state->program_counter >> 8);
-			callbacks->write.callback(callbacks->write.user_data, --state->stack_pointer, state->program_counter & 0xFF);
+			--state->stack_pointer;
+			state->stack_pointer &= 0xFFFF;
+			callbacks->write.callback(callbacks->write.user_data, state->stack_pointer, state->program_counter >> 8);
+
+			--state->stack_pointer;
+			state->stack_pointer &= 0xFFFF;
+			callbacks->write.callback(callbacks->write.user_data, state->stack_pointer, state->program_counter & 0xFF);
+
 			state->program_counter = instruction->literal;
 			break;
 

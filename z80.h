@@ -237,8 +237,9 @@ typedef struct Z80_ReadAndWriteCallbacks
 
 void Z80_State_Initialise(Z80_State *state);
 void Z80_Reset(Z80_State *state);
+void Z80_Interrupt(Z80_State *state);
 void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_InstructionMode instruction_mode, unsigned char opcode);
-void Z80_DecodeInstruction(Z80_Instruction *instruction, Z80_InstructionMode instruction_mode, const Z80_ReadInstructionCallback *read_callback);
+void Z80_DecodeInstruction(Z80_Instruction *instruction, Z80_InstructionMode instruction_mode, Z80_RegisterMode register_mode, const Z80_ReadInstructionCallback *read_callback);
 void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction, const Z80_ReadAndWriteCallbacks *callbacks);
 void Z80_DoCycle(Z80_State *state, const Z80_ReadAndWriteCallbacks *callbacks);
 
