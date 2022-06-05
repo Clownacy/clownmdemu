@@ -417,13 +417,19 @@ static void WriteOperand(Z80_State *state, const Z80_Instruction *instruction, u
 
 void Z80_State_Initialise(Z80_State *state)
 {
-	state->register_mode = Z80_REGISTER_MODE_HL;
-	state->instruction_mode = Z80_INSTRUCTION_MODE_NORMAL;
+	Z80_Reset(state);
 }
 
 void Z80_Reset(Z80_State *state)
 {
+	/* Revert back to a prefix-free mode. */
+	state->register_mode = Z80_REGISTER_MODE_HL;
+	state->instruction_mode = Z80_INSTRUCTION_MODE_NORMAL;
+
 	state->program_counter = 0;
+
+	/* The official Z80 manual claims that this happens ('z80cpu_um.pdf' page 18). */
+	state->interrupts_enabled = cc_false;
 }
 
 void Z80_Interrupt(Z80_State *state, const Z80_ReadAndWriteCallbacks *callbacks)
@@ -538,11 +544,12 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 						{
 							static const Z80_Operand operands[4] = {Z80_OPERAND_BC_INDIRECT, Z80_OPERAND_DE_INDIRECT, Z80_OPERAND_ADDRESS, Z80_OPERAND_ADDRESS};
 
-							const Z80_Operand operand_a = p == 2 ? Z80_OPERAND_HL_INDIRECT : Z80_OPERAND_A;
+							const Z80_Operand operand_a = p == 2 ? Z80_OPERAND_HL : Z80_OPERAND_A;
 							const Z80_Operand operand_b = operands[p];
 
 							metadata->opcode = p == 2 ? Z80_OPCODE_LD_16BIT : Z80_OPCODE_LD_8BIT;
 							metadata->write_destination = cc_true;
+							metadata->indirect_16bit = p == 2;
 
 							if (!q)
 							{
@@ -1322,8 +1329,14 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 			break;
 
 		case Z80_OPCODE_RST:
-			callbacks->write.callback(callbacks->write.user_data, --state->stack_pointer, state->program_counter >> 8);
-			callbacks->write.callback(callbacks->write.user_data, --state->stack_pointer, state->program_counter & 0xFF);
+			--state->stack_pointer;
+			state->stack_pointer &= 0xFFFF;
+			callbacks->write.callback(callbacks->write.user_data, state->stack_pointer, state->program_counter >> 8);
+
+			--state->stack_pointer;
+			state->stack_pointer &= 0xFFFF;
+			callbacks->write.callback(callbacks->write.user_data, state->stack_pointer, state->program_counter & 0xFF);
+
 			state->program_counter = instruction->metadata.embedded_literal;
 			break;
 
@@ -1474,7 +1487,7 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 
 			/* Perform addition. */
 			bc_de_hl->h += source_value >> 8;
-			bc_de_hl->h += bc_de_hl->l >> 8;
+			bc_de_hl->h += bc_de_hl->l >> 8; /* TODO: Broken. */
 			bc_de_hl->h += (af->f & Z80_FLAG_CARRY) != 0;
 
 			/* Set remaining flags. */
@@ -1538,19 +1551,19 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 
 			/* Increment 'hl'. */
 			++bc_de_hl->l;
-			bc_de_hl->h += bc_de_hl->l >> 8;
+			bc_de_hl->h += bc_de_hl->l >> 8; /* TODO: Broken. */
 			bc_de_hl->h &= 0xFF;
 			bc_de_hl->l &= 0xFF;
 
 			/* Increment 'de'. */
 			++bc_de_hl->e;
-			bc_de_hl->d += bc_de_hl->e >> 8;
+			bc_de_hl->d += bc_de_hl->e >> 8; /* TODO: Broken. */
 			bc_de_hl->d &= 0xFF;
 			bc_de_hl->e &= 0xFF;
 
 			/* Decrement 'bc'. */
 			--bc_de_hl->c;
-			bc_de_hl->b += bc_de_hl->c >> 8;
+			bc_de_hl->b += bc_de_hl->c >> 8; /* TODO: Broken. */
 			bc_de_hl->b &= 0xFF;
 			bc_de_hl->c &= 0xFF;
 
