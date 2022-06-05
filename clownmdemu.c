@@ -253,7 +253,7 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 	}
 	else
 	{
-		PrintError("68k attempted to read invalid memory 0x%lX at 0x%lX", address, clownmdemu->state->m68k.program_counter);
+		PrintError("Attempted to read invalid 68k address 0x%lX", address);
 	}
 
 	return value;
@@ -277,7 +277,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 			frontend_callbacks->cartridge_written(frontend_callbacks->user_data, address + 1, low_byte);
 
 		/* TODO - This is temporary, just to catch possible bugs in the 68k emulator */
-		PrintError("68k attempted to write to ROM 0x%lX at 0x%lX", address, clownmdemu->state->m68k.program_counter);
+		PrintError("Attempted to write to ROM address 0x%lX", address);
 	}
 	else if ((address >= 0xA00000 && address <= 0xA01FFF) || (address == 0xA04000 || address == 0xA04002))
 	{
@@ -401,7 +401,7 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 	}
 	else
 	{
-		PrintError("68k attempted to write invalid memory 0x%lX at 0x%lX", address, clownmdemu->state->m68k.program_counter);
+		PrintError("Attempted to write invalid 68k address 0x%lX", address);
 	}
 }
 
