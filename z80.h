@@ -139,12 +139,18 @@ typedef enum Z80_Condition
 
 enum
 {
-	Z80_FLAG_CARRY           = 1 << 0,
-	Z80_FLAG_ADD_SUBTRACT    = 1 << 1,
-	Z80_FLAG_PARITY_OVERFLOW = 1 << 2,
-	Z80_FLAG_HALF_CARRY      = 1 << 4,
-	Z80_FLAG_ZERO            = 1 << 6,
-	Z80_FLAG_SIGN            = 1 << 7
+	Z80_FLAG_BIT_CARRY            = 0,
+	Z80_FLAG_BIT_ADD_SUBTRACT     = 1,
+	Z80_FLAG_BIT_PARITY_OVERFLOW  = 2,
+	Z80_FLAG_BIT_HALF_CARRY       = 4,
+	Z80_FLAG_BIT_ZERO             = 6,
+	Z80_FLAG_BIT_SIGN             = 7,
+	Z80_FLAG_MASK_CARRY           = 1 << Z80_FLAG_BIT_CARRY,
+	Z80_FLAG_MASK_ADD_SUBTRACT    = 1 << Z80_FLAG_BIT_ADD_SUBTRACT,
+	Z80_FLAG_MASK_PARITY_OVERFLOW = 1 << Z80_FLAG_BIT_PARITY_OVERFLOW,
+	Z80_FLAG_MASK_HALF_CARRY      = 1 << Z80_FLAG_BIT_HALF_CARRY,
+	Z80_FLAG_MASK_ZERO            = 1 << Z80_FLAG_BIT_ZERO,
+	Z80_FLAG_MASK_SIGN            = 1 << Z80_FLAG_BIT_SIGN
 };
 
 typedef enum Z80_RegisterMode
@@ -203,11 +209,9 @@ typedef struct Z80_State
 	unsigned int cycles;
 	unsigned short program_counter;
 	unsigned short stack_pointer;
-	Z80_RegistersAF af[2];
-	Z80_RegistersBCDEHL bc_de_hl[2];
+	unsigned char a, f, b, c, d, e, h, l;
+	unsigned char a_, f_, b_, c_, d_, e_, h_, l_; /* Backup registers. */
 	unsigned char ixh, ixl, iyh, iyl;
-	cc_bool alternate_af;
-	cc_bool alternate_bc_de_hl;
 	cc_bool interrupts_enabled;
 } Z80_State;
 
