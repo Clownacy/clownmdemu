@@ -1326,19 +1326,9 @@ void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction
 		}
 
 		case Z80_OPCODE_EX_DE_HL:
-		{
-			unsigned char old;
-
-			old = state->h;
-			state->h = state->d;
-			state->d = old;
-
-			old = state->l;
-			state->l = state->e;
-			state->e = old;
-
+			SWAP(state->d, state->h);
+			SWAP(state->e, state->l);
 			break;
-		}
 
 		case Z80_OPCODE_DI:
 			state->interrupts_enabled = cc_false;
