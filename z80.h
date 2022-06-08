@@ -111,15 +111,23 @@ typedef enum Z80_Operand
 	Z80_OPERAND_E,
 	Z80_OPERAND_H,
 	Z80_OPERAND_L,
+	Z80_OPERAND_IXH,
+	Z80_OPERAND_IXL,
+	Z80_OPERAND_IYH,
+	Z80_OPERAND_IYL,
 	Z80_OPERAND_AF,
 	Z80_OPERAND_BC,
 	Z80_OPERAND_DE,
 	Z80_OPERAND_HL,
+	Z80_OPERAND_IX,
+	Z80_OPERAND_IY,
 	Z80_OPERAND_PC,
 	Z80_OPERAND_SP,
 	Z80_OPERAND_BC_INDIRECT,
 	Z80_OPERAND_DE_INDIRECT,
 	Z80_OPERAND_HL_INDIRECT,
+	Z80_OPERAND_IX_INDIRECT,
+	Z80_OPERAND_IY_INDIRECT,
 	Z80_OPERAND_ADDRESS,
 	Z80_OPERAND_LITERAL_8BIT,
 	Z80_OPERAND_LITERAL_16BIT
@@ -238,7 +246,7 @@ void Z80_Constant_Initialise(Z80_Constant *constant);
 void Z80_State_Initialise(Z80_State *state);
 void Z80_Reset(const Z80 *z80);
 void Z80_Interrupt(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks);
-void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_InstructionMode instruction_mode, unsigned char opcode);
+void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_InstructionMode instruction_mode, Z80_RegisterMode register_mode, unsigned char opcode);
 void Z80_DecodeInstruction(Z80_Instruction *instruction, Z80_InstructionMode instruction_mode, Z80_RegisterMode register_mode, const Z80_ReadInstructionCallback *read_callback);
 void Z80_ExecuteInstruction(const Z80 *z80, const Z80_Instruction *instruction, const Z80_ReadAndWriteCallbacks *callbacks);
 void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks);
