@@ -352,7 +352,11 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 			const cc_bool new_z80_reset = (high_byte & 1) == 0;
 
 			if (clownmdemu->state->z80_reset && !new_z80_reset)
-				Z80_Reset(&clownmdemu->state->z80);
+			{
+				const Z80 z80 = {&clownmdemu->constant->z80, &clownmdemu->state->z80};
+
+				Z80_Reset(&z80);
+			}
 
 			clownmdemu->state->z80_reset = new_z80_reset;
 		}
@@ -497,6 +501,7 @@ static void Z80WriteCallback(void *user_data, unsigned int address, unsigned int
 
 void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant)
 {
+	Z80_Constant_Initialise(&constant->z80);
 	VDP_Constant_Initialise(&constant->vdp);
 	FM_Constant_Initialise(&constant->fm);
 	PSG_Constant_Initialise(&constant->psg);
@@ -532,6 +537,7 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 	const unsigned int television_vertical_resolution = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
 	const unsigned int console_vertical_resolution = (clownmdemu->state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
 	const unsigned int cycles_per_scanline = (clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / television_vertical_resolution;
+	const Z80 z80 = {&clownmdemu->constant->z80, &clownmdemu->state->z80};
 
 	cpu_callback_user_data.data_and_callbacks.data = clownmdemu;
 	cpu_callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
@@ -576,7 +582,7 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 				clownmdemu->state->countdowns.z80 = CLOWNMDEMU_Z80_CLOCK_DIVIDER * 10; /* TODO: A similar temporary hack. */
 
 				if (!clownmdemu->state->m68k_has_z80_bus)
-					Z80_DoCycle(&clownmdemu->state->z80, &z80_read_write_callbacks);
+					Z80_DoCycle(&z80, &z80_read_write_callbacks);
 			}
 
 			--clownmdemu->state->countdowns.z80;
@@ -617,7 +623,7 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 			if (clownmdemu->state->vdp.v_int_enabled)
 			{
 				M68k_Interrupt(&clownmdemu->state->m68k, &m68k_read_write_callbacks, 6);
-				Z80_Interrupt(&clownmdemu->state->z80, &z80_read_write_callbacks);
+				Z80_Interrupt(&z80, &z80_read_write_callbacks);
 			}
 
 			/* Flag that we have entered the V-blank region */
@@ -634,6 +640,8 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 
 void ClownMDEmu_Reset(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
+	const Z80 z80 = {&clownmdemu->constant->z80, &clownmdemu->state->z80};
+
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	CPUCallbackUserData callback_user_data;
 
@@ -645,7 +653,7 @@ void ClownMDEmu_Reset(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callba
 	m68k_read_write_callbacks.user_data = &callback_user_data;
 
 	M68k_Reset(&clownmdemu->state->m68k, &m68k_read_write_callbacks);
-	Z80_Reset(&clownmdemu->state->z80);
+	Z80_Reset(&z80);
 }
 
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg))

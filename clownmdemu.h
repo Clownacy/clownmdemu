@@ -84,6 +84,7 @@ typedef struct ClownMDEmu_Configuration
 
 typedef struct ClownMDEmu_Constant
 {
+	Z80_Constant z80;
 	VDP_Constant vdp;
 	FM_Constant fm;
 	PSG_Constant psg;

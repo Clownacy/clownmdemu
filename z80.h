@@ -186,21 +186,10 @@ typedef struct Z80_Instruction
 	signed char displacement;
 } Z80_Instruction;
 
-typedef struct Z80_RegistersAF
+typedef struct Z80_Constant
 {
-	unsigned char a;
-	unsigned char f;
-} Z80_RegistersAF;
-
-typedef struct Z80_RegistersBCDEHL
-{
-	unsigned char b;
-	unsigned char c;
-	unsigned char d;
-	unsigned char e;
-	unsigned char h;
-	unsigned char l;
-} Z80_RegistersBCDEHL;
+	unsigned char parity_lookup[0x100];
+} Z80_Constant;
 
 typedef struct Z80_State
 {
@@ -239,12 +228,19 @@ typedef struct Z80_ReadAndWriteCallbacks
 	Z80_WriteCallback write;
 } Z80_ReadAndWriteCallbacks;
 
+typedef struct Z80
+{
+	const Z80_Constant *constant;
+	Z80_State *state;
+} Z80;
+
+void Z80_Constant_Initialise(Z80_Constant *constant);
 void Z80_State_Initialise(Z80_State *state);
-void Z80_Reset(Z80_State *state);
-void Z80_Interrupt(Z80_State *state, const Z80_ReadAndWriteCallbacks *callbacks);
+void Z80_Reset(const Z80 *z80);
+void Z80_Interrupt(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks);
 void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_InstructionMode instruction_mode, unsigned char opcode);
 void Z80_DecodeInstruction(Z80_Instruction *instruction, Z80_InstructionMode instruction_mode, Z80_RegisterMode register_mode, const Z80_ReadInstructionCallback *read_callback);
-void Z80_ExecuteInstruction(Z80_State *state, const Z80_Instruction *instruction, const Z80_ReadAndWriteCallbacks *callbacks);
-void Z80_DoCycle(Z80_State *state, const Z80_ReadAndWriteCallbacks *callbacks);
+void Z80_ExecuteInstruction(const Z80 *z80, const Z80_Instruction *instruction, const Z80_ReadAndWriteCallbacks *callbacks);
+void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks);
 
 #endif /* Z80_H */
