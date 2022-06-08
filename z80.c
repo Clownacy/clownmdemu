@@ -886,6 +886,9 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 
 						case 4:
 							metadata->opcode = Z80_OPCODE_NEG;
+							metadata->operands[0] = Z80_OPERAND_A;
+							metadata->operands[1] = Z80_OPERAND_A;
+							metadata->write_destination = cc_true;
 							break;
 
 						case 5:
@@ -931,7 +934,9 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 	/* Convert HL to IX and IY if needed. */
 	for (i = 0; i < 2; ++i)
 	{
-		if (metadata->operands[i ^ 1] != Z80_OPERAND_HL_INDIRECT)
+		if (metadata->operands[i ^ 1] != Z80_OPERAND_HL_INDIRECT
+		 && metadata->operands[i ^ 1] != Z80_OPERAND_IX_INDIRECT
+		 && metadata->operands[i ^ 1] != Z80_OPERAND_IY_INDIRECT)
 		{
 			switch (metadata->operands[i])
 			{
@@ -1297,6 +1302,9 @@ void Z80_ExecuteInstruction(const Z80 *z80, const Z80_Instruction *instruction, 
 
 			break;
 
+		case Z80_OPCODE_NEG:
+			destination_value = 0;
+			/* Fallthrough */
 		case Z80_OPCODE_CP:
 		case Z80_OPCODE_SUB:
 			z80->state->f = 0;
@@ -1610,8 +1618,26 @@ void Z80_ExecuteInstruction(const Z80 *z80, const Z80_Instruction *instruction, 
 			break;
 
 		case Z80_OPCODE_SBC_HL:
-			UNIMPLEMENTED_INSTRUCTION("SBC HL");
+		{
+			/* Needs to be 'unsigned long' so that it can hold the carry bit. */
+			unsigned long result_value_long;
+
+			source_value = ~source_value;
+			result_value_long = (unsigned long)source_value + (unsigned long)destination_value + ((z80->state->f & Z80_FLAG_MASK_CARRY) != 0 ? 0 : 1);
+			result_value = result_value_long & 0xFFFF;
+
+			z80->state->f = 0;
+
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_HALF_CARRY_16BIT;
+			CONDITION_OVERFLOW_16BIT;
+			CONDITION_CARRY_16BIT;
+
+			z80->state->f |= Z80_FLAG_MASK_ADD_SUBTRACT;
+
 			break;
+		}
 
 		case Z80_OPCODE_ADC_HL:
 		{
@@ -1629,10 +1655,6 @@ void Z80_ExecuteInstruction(const Z80 *z80, const Z80_Instruction *instruction, 
 
 			break;
 		}
-
-		case Z80_OPCODE_NEG:
-			UNIMPLEMENTED_INSTRUCTION("NEG");
-			break;
 
 		case Z80_OPCODE_RETN:
 			UNIMPLEMENTED_INSTRUCTION("RETN");
