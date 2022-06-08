@@ -220,7 +220,7 @@ static unsigned int ReadOperand(Z80_State *state, const Z80_Instruction *instruc
 					break;
 
 				case Z80_REGISTER_MODE_IX:
-					value = (state->ixh << 8) | state->iyl;
+					value = (state->ixh << 8) | state->ixl;
 					break;
 
 				case Z80_REGISTER_MODE_IY:
@@ -1223,7 +1223,7 @@ void Z80_ExecuteInstruction(const Z80 *z80, const Z80_Instruction *instruction, 
 			break;
 
 		case Z80_OPCODE_SCF:
-			z80->state->f &= ~(Z80_FLAG_MASK_HALF_CARRY | Z80_FLAG_MASK_ADD_SUBTRACT);
+			z80->state->f &= Z80_FLAG_MASK_SIGN | Z80_FLAG_MASK_ZERO | Z80_FLAG_MASK_PARITY_OVERFLOW;
 			z80->state->f |= Z80_FLAG_MASK_CARRY;
 			break;
 
