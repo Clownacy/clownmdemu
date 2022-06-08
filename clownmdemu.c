@@ -440,7 +440,7 @@ static unsigned int Z80ReadCallback(void *user_data, unsigned int address)
 		/* PSG */
 		/* TODO */
 	}
-	else if (address > 0x8000)
+	else if (address >= 0x8000)
 	{
 		/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
 		const unsigned long m68k_address = ((unsigned long)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE);
@@ -485,7 +485,7 @@ static void Z80WriteCallback(void *user_data, unsigned int address, unsigned int
 	else if (address == 0x7F11)
 	{
 		/* PSG (accessed through the 68k's bus). */
-		M68kWriteCallback(user_data, 0xC00010, cc_true, cc_false, value << 8);
+		M68kWriteCallback(user_data, 0xC00010, cc_false, cc_true, value);
 	}
 	else if (address >= 0x8000)
 	{
