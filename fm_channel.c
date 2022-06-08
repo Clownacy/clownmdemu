@@ -1,5 +1,7 @@
 #include "fm_channel.h"
 
+#include <assert.h>
+
 #include "clowncommon.h"
 
 void FM_Channel_Constant_Initialise(FM_Channel_Constant *constant)
@@ -107,6 +109,10 @@ int FM_Channel_GetSample(const FM_Channel *channel)
 	   so there is no possibility of overflow. */
 	switch (channel->state->algorithm)
 	{
+		default:
+			/* Should not happen. */
+			assert(0);
+			/* Fallthrough */
 		case 0:
 			/* "Four serial connection mode". */
 			operator_1_sample = FM_Operator_Process(&operator1, feedback_modulation);

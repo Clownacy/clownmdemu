@@ -28,7 +28,7 @@ https://gendev.spritesmind.net/forum/viewtopic.php?p=36118#p36118
 
 #define SIGN_EXTEND(value, bitmask) (((value) & ((bitmask) >> 1ul)) - ((value) & (((bitmask) >> 1ul) + 1ul)))
 
-#define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%X", state->program_counter)
+#define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%lX", state->program_counter)
 
 typedef enum AddressMode
 {

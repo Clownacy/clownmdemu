@@ -20,8 +20,10 @@ void FM_Operator_Constant_Initialise(FM_Operator_Constant *constant)
 	const unsigned int pow_table_length = CC_COUNT_OF(constant->power_table);
 	const double log2 = log(2.0);
 
+	unsigned int i;
+
 	/* Generate sine wave lookup table. */
-	for (unsigned int i = 0; i < sine_table_length; ++i)
+	for (i = 0; i < sine_table_length; ++i)
 	{
 		/* "Calculate the normalized phase value for the input into the sine table.Note
 		    that this is calculated as a normalized result from 0.0-1.0 where 0 is not
@@ -59,7 +61,7 @@ void FM_Operator_Constant_Initialise(FM_Operator_Constant *constant)
 	}
 
 	/* Generate power lookup table. */
-	for (unsigned int i = 0; i < pow_table_length; ++i)
+	for (i = 0; i < pow_table_length; ++i)
 	{
 		/* "Normalize the current index to the range 0.0 - 1.0.Note that in this case, 0.0
 		    is a value which is never actually reached, since we start from i+1. They only
