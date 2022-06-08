@@ -1272,10 +1272,9 @@ void Z80_ExecuteInstruction(const Z80 *z80, const Z80_Instruction *instruction, 
 			break;
 
 		case Z80_OPCODE_ADD_A:
-			z80->state->f = 0;
-
 			result_value = destination_value + source_value;
 
+			z80->state->f = 0;
 			CONDITION_CARRY;
 
 			result_value &= 0xFF;
@@ -1288,10 +1287,9 @@ void Z80_ExecuteInstruction(const Z80 *z80, const Z80_Instruction *instruction, 
 			break;
 
 		case Z80_OPCODE_ADC_A:
-			z80->state->f = 0;
-
 			result_value = destination_value + source_value + ((z80->state->f & Z80_FLAG_MASK_CARRY) != 0 ? 1 : 0);
 
+			z80->state->f = 0;
 			CONDITION_CARRY;
 
 			result_value &= 0xFF;
@@ -1308,12 +1306,11 @@ void Z80_ExecuteInstruction(const Z80 *z80, const Z80_Instruction *instruction, 
 			/* Fallthrough */
 		case Z80_OPCODE_CP:
 		case Z80_OPCODE_SUB:
-			z80->state->f = 0;
-
 			source_value = ~source_value;
 
 			result_value = destination_value + source_value + 1;
 
+			z80->state->f = 0;
 			CONDITION_CARRY;
 
 			result_value &= 0xFF;
@@ -1330,12 +1327,11 @@ void Z80_ExecuteInstruction(const Z80 *z80, const Z80_Instruction *instruction, 
 			break;
 
 		case Z80_OPCODE_SBC_A:
-			z80->state->f = 0;
-
 			source_value = ~source_value;
 
 			result_value = destination_value + source_value + ((z80->state->f & Z80_FLAG_MASK_CARRY) != 0 ? 0 : 1);
 
+			z80->state->f = 0;
 			CONDITION_CARRY;
 
 			result_value &= 0xFF;
