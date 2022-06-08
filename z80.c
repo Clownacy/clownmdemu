@@ -870,6 +870,7 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 						case 3:
 							metadata->opcode = Z80_OPCODE_LD_16BIT;
 							metadata->write_destination = cc_true;
+							metadata->indirect_16bit = cc_true;
 
 							if (!q)
 							{
