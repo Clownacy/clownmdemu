@@ -206,6 +206,8 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 	{
 		/* MEMORY MODE */
 		/* TODO */
+		/* https://gendev.spritesmind.net/forum/viewtopic.php?p=28843&sid=65d8f210be331ff257a43b4e3dddb7c3#p28843 */
+		/* According to this, this flag is only functional on earlier models, and effectively halves the 68k's speed when running from cartridge. */
 	}
 	else if (address == 0xA11100)
 	{
