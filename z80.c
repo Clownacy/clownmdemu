@@ -1,3 +1,8 @@
+/*
+Useful:
+https://floooh.github.io/2021/12/06/z80-instruction-timing.html
+*/
+
 #include "z80.h"
 
 #include <assert.h>
@@ -513,12 +518,12 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 
 								case 2:
 									metadata->opcode = Z80_OPCODE_DJNZ;
-									metadata->has_displacement = cc_true;
+									metadata->operands[0] = Z80_OPERAND_LITERAL_8BIT;
 									break;
 
 								case 3:
 									metadata->opcode = Z80_OPCODE_JR_UNCONDITIONAL;
-									metadata->has_displacement = cc_true;
+									metadata->operands[0] = Z80_OPERAND_LITERAL_8BIT;
 									break;
 
 								case 4:
@@ -526,7 +531,7 @@ void Z80_DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Z80_Instru
 								case 6:
 								case 7:
 									metadata->opcode = Z80_OPCODE_JR_CONDITIONAL;
-									metadata->has_displacement = cc_true;
+									metadata->operands[0] = Z80_OPERAND_LITERAL_8BIT;
 									metadata->condition = y - 4;
 									break;
 							}
@@ -1072,6 +1077,8 @@ void Z80_ExecuteInstruction(const Z80 *z80, const Z80_Instruction *instruction, 
 	unsigned int result_value;
 	unsigned char swap_holder;
 
+	z80->state->cycles = 4; /* 4 cycles for the opcode fetch. */
+
 	if (z80->state->instruction_mode == Z80_INSTRUCTION_MODE_BITS && z80->state->register_mode != Z80_REGISTER_MODE_HL)
 	{
 		/* Handle double-prefix instructions. */
@@ -1107,7 +1114,7 @@ void Z80_ExecuteInstruction(const Z80 *z80, const Z80_Instruction *instruction, 
 			if (z80->state->b != 0)
 			{
 				z80->state->cycles = 13;
-				z80->state->program_counter += instruction->displacement;
+				z80->state->program_counter += SIGN_EXTEND(source_value, 0xFF);
 			}
 			else
 			{
@@ -1123,7 +1130,7 @@ void Z80_ExecuteInstruction(const Z80 *z80, const Z80_Instruction *instruction, 
 			/* Fallthrough */
 		case Z80_OPCODE_JR_UNCONDITIONAL:
 			z80->state->cycles = 12;
-			z80->state->program_counter += instruction->displacement;
+			z80->state->program_counter += SIGN_EXTEND(source_value, 0xFF);
 			break;
 
 		case Z80_OPCODE_LD_16BIT:
@@ -1859,6 +1866,7 @@ void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
 			break;
 
 		case Z80_OPCODE_ED_PREFIX:
+			z80->state->register_mode = Z80_REGISTER_MODE_HL;
 			z80->state->instruction_mode = Z80_INSTRUCTION_MODE_MISC;
 			break;
 
