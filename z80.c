@@ -3,6 +3,8 @@ Useful:
 https://floooh.github.io/2021/12/06/z80-instruction-timing.html
 */
 
+/* TODO: R and I registers. */
+
 #include "z80.h"
 
 #include <assert.h>
@@ -387,10 +389,10 @@ static unsigned int ReadOperand(const Z80 *z80, const Instruction *instruction, 
 		case OPERAND_IX_INDIRECT:
 		case OPERAND_IY_INDIRECT:
 		case OPERAND_ADDRESS:
+			value = MemoryRead(z80, callbacks, instruction->address);
+
 			if (instruction->metadata.indirect_16bit)
-				value = MemoryRead16Bit(z80, callbacks, instruction->address);
-			else
-				value = MemoryRead(z80, callbacks, instruction->address);
+				value = MemoryRead(z80, callbacks, instruction->address + 1) << 8;
 
 			break;
 	}
@@ -1082,6 +1084,9 @@ static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z8
 	{
 		displacement = InstructionMemoryRead(z80, callbacks);
 		displacement = SIGN_EXTEND(displacement, 0xFF);
+
+		/* The displacement byte adds 5 cycles on top of the 3 required to read it. */
+		z80->state->cycles += 5;
 	}
 
 	instruction->double_prefix_mode = cc_false;
@@ -1106,6 +1111,9 @@ static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z8
 
 				/* Yes, double-prefix mode fetches the opcode with a regular memory read. */
 				opcode = InstructionMemoryRead(z80, callbacks);
+
+				/* Reading the opcode is overlaid with the 5 displacement cycles, so the above memory read doesn't cost 3 cycles. */
+				z80->state->cycles -= 3;
 			}
 
 			/* 'Z80_REGISTER_MODE_HL' is used here so that the destination operand write only has to check for HL instead of IX and IY. */
@@ -1128,6 +1136,13 @@ static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z8
 
 		case OPERAND_LITERAL_8BIT:
 			instruction->literal = InstructionMemoryRead(z80, callbacks);
+
+			if (instruction->metadata.has_displacement)
+			{
+				/* Reading the literal is overlaid with the 5 displacement cycles, so the above memory read doesn't cost 3 cycles. */
+				z80->state->cycles -= 3;
+			}
+
 			break;
 
 		case OPERAND_LITERAL_16BIT:
@@ -1227,11 +1242,19 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			break;
 
 		case OPCODE_DJNZ:
+			/* This instruction takes an extra cycle. */
+			z80->state->cycles += 1;
+
 			--z80->state->b;
 			z80->state->b &= 0xFF;
 
 			if (z80->state->b != 0)
+			{
 				z80->state->program_counter += SIGN_EXTEND(source_value, 0xFF);
+
+				/* Branching takes 5 cycles. */
+				z80->state->cycles += 5;
+			}
 
 			break;
 
@@ -1241,6 +1264,10 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			/* Fallthrough */
 		case OPCODE_JR_UNCONDITIONAL:
 			z80->state->program_counter += SIGN_EXTEND(source_value, 0xFF);
+
+			/* Branching takes 5 cycles. */
+			z80->state->cycles += 5;
+
 			break;
 
 		case OPCODE_LD_16BIT:
@@ -1258,6 +1285,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			CONDITION_CARRY_16BIT;
 			CONDITION_HALF_CARRY_16BIT;
 
+			/* This instruction requires an extra 7 cycles. */
+			z80->state->cycles += 7;
+
 			break;
 		}
 
@@ -1267,10 +1297,18 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 
 		case OPCODE_INC_16BIT:
 			result_value = (destination_value + 1) & 0xFFFF;
+
+			/* This instruction requires an extra 2 cycles. */
+			z80->state->cycles += 2;
+
 			break;
 
 		case OPCODE_DEC_16BIT:
 			result_value = (destination_value - 1) & 0xFFFF;
+
+			/* This instruction requires an extra 2 cycles. */
+			z80->state->cycles += 2;
+
 			break;
 
 		case OPCODE_INC_8BIT:
@@ -1283,6 +1321,11 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			CONDITION_ZERO;
 			CONDITION_HALF_CARRY;
 			CONDITION_OVERFLOW;
+
+			/* The memory-accessing version takes an extra cycle. */
+			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 
@@ -1300,6 +1343,12 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
 			/* TODO: I thought this needed to be inverted? */
 			/*z80->state->f ^= FLAG_MASK_HALF_CARRY;*/
+
+			/* The memory-accessing version takes an extra cycle. */
+			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+
 
 			break;
 
@@ -1499,6 +1548,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			break;
 
 		case OPCODE_RET_CONDITIONAL:
+			/* This instruction requires an extra cycle. */
+			z80->state->cycles += 1;
+
 			if (!EvaluateCondition(z80->state->f, instruction->metadata.condition))
 				break;
 			/* Fallthrough */
@@ -1518,6 +1570,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			break;
 
 		case OPCODE_LD_SP_HL:
+			/* This instruction requires 2 cycles. */
+			z80->state->cycles += 2;
+
 			z80->state->stack_pointer = source_value;
 			break;
 
@@ -1555,6 +1610,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			break;
 
 		case OPCODE_EX_SP_HL:
+			/* This instruction requires 3 extra cycles. */
+			z80->state->cycles += 3;
+
 			result_value = MemoryRead16Bit(z80, callbacks, z80->state->stack_pointer);
 			MemoryWrite16Bit(z80, callbacks, z80->state->stack_pointer, destination_value);
 			break;
@@ -1573,6 +1631,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			break;
 
 		case OPCODE_PUSH:
+			/* This instruction requires an extra cycle. */
+			z80->state->cycles += 1;
+
 			--z80->state->stack_pointer;
 			z80->state->stack_pointer &= 0xFFFF;
 			MemoryWrite(z80, callbacks, z80->state->stack_pointer, source_value >> 8);
@@ -1587,6 +1648,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 				break;
 			/* Fallthrough */
 		case OPCODE_CALL_UNCONDITIONAL:
+			/* This instruction takes an extra cycle. */
+			z80->state->cycles += 1;
+
 			--z80->state->stack_pointer;
 			z80->state->stack_pointer &= 0xFFFF;
 			MemoryWrite(z80, callbacks, z80->state->stack_pointer, z80->state->program_counter >> 8);
@@ -1599,6 +1663,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			break;
 
 		case OPCODE_RST:
+			/* This instruction requires an extra cycle. */
+			z80->state->cycles += 1;
+
 			--z80->state->stack_pointer;
 			z80->state->stack_pointer &= 0xFFFF;
 			MemoryWrite(z80, callbacks, z80->state->stack_pointer, z80->state->program_counter >> 8);
@@ -1620,6 +1687,11 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->f &= ~(FLAG_MASK_CARRY | FLAG_MASK_HALF_CARRY | FLAG_MASK_ADD_SUBTRACT);
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
+			/* The memory-accessing version takes an extra cycle. */
+			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+
 			break;
 		}
 
@@ -1632,6 +1704,11 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 
 			z80->state->f &= ~(FLAG_MASK_CARRY | FLAG_MASK_HALF_CARRY | FLAG_MASK_ADD_SUBTRACT);
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
+
+			/* The memory-accessing version takes an extra cycle. */
+			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 		}
@@ -1646,6 +1723,11 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->f &= ~(FLAG_MASK_CARRY | FLAG_MASK_HALF_CARRY | FLAG_MASK_ADD_SUBTRACT);
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
+			/* The memory-accessing version takes an extra cycle. */
+			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+
 			break;
 		}
 
@@ -1658,6 +1740,11 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 
 			z80->state->f &= ~(FLAG_MASK_CARRY | FLAG_MASK_HALF_CARRY | FLAG_MASK_ADD_SUBTRACT);
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
+
+			/* The memory-accessing version takes an extra cycle. */
+			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 		}
@@ -1675,6 +1762,11 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			/* TODO: Parity. */
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
+			/* The memory-accessing version takes an extra cycle. */
+			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+
 			break;
 		}
 
@@ -1689,6 +1781,11 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->f |= result_value == 0 ? FLAG_MASK_ZERO : 0;
 			/* TODO: Parity. */
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
+
+			/* The memory-accessing version takes an extra cycle. */
+			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 		}
@@ -1705,6 +1802,11 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			/* TODO: Parity. */
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
+			/* The memory-accessing version takes an extra cycle. */
+			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+
 			break;
 		}
 
@@ -1712,14 +1814,32 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->f &= FLAG_MASK_CARRY;
 			z80->state->f |= ((destination_value & instruction->metadata.embedded_literal) == 0) ? FLAG_MASK_ZERO : 0;
 			z80->state->f |= FLAG_MASK_HALF_CARRY;
+
+			/* The memory-accessing version takes an extra cycle. */
+			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+
 			break;
 
 		case OPCODE_RES:
 			result_value = destination_value & instruction->metadata.embedded_literal;
+
+			/* The memory-accessing version takes an extra cycle. */
+			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+
 			break;
 
 		case OPCODE_SET:
 			result_value = destination_value | instruction->metadata.embedded_literal;
+
+			/* The memory-accessing version takes an extra cycle. */
+			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+
 			break;
 
 		case OPCODE_IN_REGISTER:
@@ -1757,6 +1877,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 
 			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
 
+			/* This instruction requires an extra 7 cycles. */
+			z80->state->cycles += 7;
+
 			break;
 		}
 
@@ -1774,6 +1897,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			CONDITION_OVERFLOW_16BIT;
 			CONDITION_CARRY_16BIT;
 
+			/* This instruction requires an extra 7 cycles. */
+			z80->state->cycles += 7;
+
 			break;
 		}
 
@@ -1790,26 +1916,48 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			break;
 
 		case OPCODE_LD_I_A:
-			UNIMPLEMENTED_INSTRUCTION("LD I,A");
+			/* This instruction requires an extra cycle. */
+			z80->state->cycles += 1;
+
+			z80->state->i = z80->state->a;
+
 			break;
 
 		case OPCODE_LD_R_A:
-			UNIMPLEMENTED_INSTRUCTION("LD R,A");
+			/* This instruction requires an extra cycle. */
+			z80->state->cycles += 1;
+
+			z80->state->r = z80->state->a;
+
 			break;
 
 		case OPCODE_LD_A_I:
-			UNIMPLEMENTED_INSTRUCTION("LD A,I");
+			/* This instruction requires an extra cycle. */
+			z80->state->cycles += 1;
+
+			z80->state->a = z80->state->i;
+
 			break;
 
 		case OPCODE_LD_A_R:
-			UNIMPLEMENTED_INSTRUCTION("LD A,R");
+			/* This instruction requires an extra cycle. */
+			z80->state->cycles += 1;
+
+			z80->state->a = z80->state->r;
+
 			break;
 
 		case OPCODE_RRD:
+			/* This instruction requires an extra 4 cycles. */
+			z80->state->cycles += 4;
+
 			UNIMPLEMENTED_INSTRUCTION("RRD");
 			break;
 
 		case OPCODE_RLD:
+			/* This instruction requires an extra 4 cycles. */
+			z80->state->cycles += 4;
+
 			UNIMPLEMENTED_INSTRUCTION("RLD");
 			break;
 
@@ -1853,12 +2001,57 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->f &= FLAG_MASK_CARRY | FLAG_MASK_ZERO | FLAG_MASK_SIGN;
 			z80->state->f |= (z80->state->b | z80->state->c) != 0 ? FLAG_MASK_PARITY_OVERFLOW : 0;
 
+			/* This instruction requires an extra 2 cycles. */
+			z80->state->cycles += 2;
+
 			break;
 		}
 
 		case OPCODE_LDD:
-			UNIMPLEMENTED_INSTRUCTION("LDD");
+		{
+			const unsigned int de = ((unsigned int)z80->state->d << 8) | z80->state->e;
+			const unsigned int hl = ((unsigned int)z80->state->h << 8) | z80->state->l;
+
+			MemoryWrite(z80, callbacks, de, MemoryRead(z80, callbacks, hl));
+
+			/* Decrement 'hl'. */
+			--z80->state->l;
+			z80->state->l &= 0xFF;
+
+			if (z80->state->l == 0)
+			{
+				--z80->state->h;
+				z80->state->h &= 0xFF;
+			}
+
+			/* Decrement 'de'. */
+			--z80->state->e;
+			z80->state->e &= 0xFF;
+
+			if (z80->state->e == 0)
+			{
+				--z80->state->d;
+				z80->state->d &= 0xFF;
+			}
+
+			/* Decrement 'bc'. */
+			--z80->state->c;
+			z80->state->c &= 0xFF;
+
+			if (z80->state->c == 0xFF)
+			{
+				--z80->state->b;
+				z80->state->b &= 0xFF;
+			}
+
+			z80->state->f &= FLAG_MASK_CARRY | FLAG_MASK_ZERO | FLAG_MASK_SIGN;
+			z80->state->f |= (z80->state->b | z80->state->c) != 0 ? FLAG_MASK_PARITY_OVERFLOW : 0;
+
+			/* This instruction requires an extra 2 cycles. */
+			z80->state->cycles += 2;
+
 			break;
+		}
 
 		case OPCODE_LDIR:
 		{
@@ -1870,7 +2063,7 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			de = ((unsigned int)z80->state->d << 8) | z80->state->e;
 			hl = ((unsigned int)z80->state->h << 8) | z80->state->l;
 
-			do
+			for (;;)
 			{
 				MemoryWrite(z80, callbacks, de, MemoryRead(z80, callbacks, hl));
 
@@ -1883,7 +2076,15 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 				--bc;
 				bc &= 0xFFFF;
 
-			} while (bc != 0);
+				/* An extra 2 cycles are needed here. */
+				z80->state->cycles += 2;
+
+				if (bc == 0)
+					break;
+
+				/* An extra 5 cycles are needed here. */
+				z80->state->cycles += 5;
+			}
 
 			z80->state->b = 0;
 			z80->state->c = 0;
@@ -1898,8 +2099,49 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 		}
 
 		case OPCODE_LDDR:
-			UNIMPLEMENTED_INSTRUCTION("LDDR");
+		{
+			unsigned int bc;
+			unsigned int de;
+			unsigned int hl;
+
+			bc = ((unsigned int)z80->state->b << 8) | z80->state->c;
+			de = ((unsigned int)z80->state->d << 8) | z80->state->e;
+			hl = ((unsigned int)z80->state->h << 8) | z80->state->l;
+
+			for (;;)
+			{
+				MemoryWrite(z80, callbacks, de, MemoryRead(z80, callbacks, hl));
+
+				--hl;
+				hl &= 0xFFFF;
+
+				--de;
+				de &= 0xFFFF;
+
+				--bc;
+				bc &= 0xFFFF;
+
+				/* An extra 2 cycles are needed here. */
+				z80->state->cycles += 2;
+
+				if (bc == 0)
+					break;
+
+				/* An extra 5 cycles are needed here. */
+				z80->state->cycles += 5;
+			}
+
+			z80->state->b = 0;
+			z80->state->c = 0;
+			z80->state->d = de >> 8;
+			z80->state->e = de & 0xFF;
+			z80->state->h = hl >> 8;
+			z80->state->l = hl & 0xFF;
+
+			z80->state->f &= FLAG_MASK_CARRY | FLAG_MASK_ZERO | FLAG_MASK_SIGN;
+
 			break;
+		}
 
 		case OPCODE_CPI:
 			UNIMPLEMENTED_INSTRUCTION("CPI");

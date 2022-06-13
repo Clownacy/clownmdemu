@@ -24,7 +24,7 @@ typedef struct Z80_State
 	unsigned char a, f, b, c, d, e, h, l;
 	unsigned char a_, f_, b_, c_, d_, e_, h_, l_; /* Backup registers. */
 	unsigned char ixh, ixl, iyh, iyl;
-	unsigned char r;
+	unsigned char r, i;
 	cc_bool interrupts_enabled;
 } Z80_State;
 
