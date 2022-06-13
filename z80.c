@@ -2144,7 +2144,9 @@ void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
 		 && z80->state->interrupts_enabled
 		 /* Interrupts should not be able to occur directly after a prefix instruction. */
 		 && instruction.metadata->opcode != Z80_OPCODE_DD_PREFIX
-		 && instruction.metadata->opcode != Z80_OPCODE_FD_PREFIX)
+		 && instruction.metadata->opcode != Z80_OPCODE_FD_PREFIX
+		 /* Curiously, interrupts do not occur directly after 'EI' instructions either. */
+		 && instruction.metadata->opcode != Z80_OPCODE_EI)
 		{
 			z80->state->interrupt_pending = cc_false;
 			z80->state->interrupts_enabled = cc_false;
