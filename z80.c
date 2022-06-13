@@ -923,7 +923,11 @@ static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z8
 
 	opcode = OpcodeFetch(z80, callbacks);
 
+#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 	instruction->metadata = &z80->constant->instruction_metadata_lookup_normal[z80->state->register_mode][opcode];
+#else
+	DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_NORMAL, z80->state->register_mode, opcode);
+#endif
 
 	/* Obtain displacement byte if one exists. */
 	if (instruction->metadata->has_displacement)
@@ -962,13 +966,23 @@ static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z8
 				z80->state->cycles -= 3;
 			}
 
+		#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 			instruction->metadata = &z80->constant->instruction_metadata_lookup_bits[opcode];
+		#else
+			DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_HL, opcode);
+		#endif
 
 			break;
 
 		case Z80_OPCODE_ED_PREFIX:
 			opcode = OpcodeFetch(z80, callbacks);
+
+		#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 			instruction->metadata = &z80->constant->instruction_metadata_lookup_misc[opcode];
+		#else
+			DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_MISC, Z80_REGISTER_MODE_HL, opcode);
+		#endif
+
 			break;
 	}
 
@@ -2052,6 +2066,7 @@ void Z80_Constant_Initialise(Z80_Constant *constant)
 {
 	unsigned int i;
 
+#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 	/* Pre-compute instruction metadata, to speed up opcode decoding. */
 	for (i = 0; i < 0x100; ++i)
 	{
@@ -2064,6 +2079,7 @@ void Z80_Constant_Initialise(Z80_Constant *constant)
 
 		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_misc[i], INSTRUCTION_MODE_MISC, Z80_REGISTER_MODE_HL, i);
 	}
+#endif
 
 	for (i = 0; i < 0x100; ++i)
 	{
@@ -2126,6 +2142,11 @@ void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
 	if (--z80->state->cycles == 0)
 	{
 		Instruction instruction;
+
+	#ifndef Z80_PRECOMPUTE_INSTRUCTION_METADATA
+		InstructionMetadata metadata;
+		instruction.metadata = &metadata;
+	#endif
 
 		DecodeInstruction(z80, &instruction, callbacks);
 

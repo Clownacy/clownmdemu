@@ -1,6 +1,9 @@
 #ifndef Z80_H
 #define Z80_H
 
+/* If enabled, a lookup table is used to optimise opcode decoding. Disable this to save RAM. */
+#define Z80_PRECOMPUTE_INSTRUCTION_METADATA
+
 #include "clowncommon.h"
 
 typedef enum Z80_Opcode
@@ -167,9 +170,11 @@ typedef struct InstructionMetadata
 
 typedef struct Z80_Constant
 {
+#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 	InstructionMetadata instruction_metadata_lookup_normal[3][0x100];
 	InstructionMetadata instruction_metadata_lookup_bits[0x100];
 	InstructionMetadata instruction_metadata_lookup_misc[0x100];
+#endif
 	unsigned char parity_lookup[0x100];
 } Z80_Constant;
 
