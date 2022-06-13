@@ -1455,7 +1455,7 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			break;
 
 		case Z80_OPCODE_FD_PREFIX:
-			z80->state->register_mode = Z80_REGISTER_MODE_IX;
+			z80->state->register_mode = Z80_REGISTER_MODE_IY;
 			break;
 
 		case Z80_OPCODE_OUT:
