@@ -19,148 +19,6 @@ https://floooh.github.io/2021/12/06/z80-instruction-timing.html
 
 #define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%X", z80->state->program_counter)
 
-typedef enum Opcode
-{
-	OPCODE_NOP,
-	OPCODE_EX_AF_AF,
-	OPCODE_DJNZ,
-	OPCODE_JR_UNCONDITIONAL,
-	OPCODE_JR_CONDITIONAL,
-	OPCODE_LD_16BIT,
-	OPCODE_ADD_HL,
-	OPCODE_LD_8BIT,
-	OPCODE_INC_16BIT,
-	OPCODE_DEC_16BIT,
-	OPCODE_INC_8BIT,
-	OPCODE_DEC_8BIT,
-	OPCODE_RLCA,
-	OPCODE_RRCA,
-	OPCODE_RLA,
-	OPCODE_RRA,
-	OPCODE_DAA,
-	OPCODE_CPL,
-	OPCODE_SCF,
-	OPCODE_CCF,
-	OPCODE_HALT,
-	OPCODE_ADD_A,
-	OPCODE_ADC_A,
-	OPCODE_SUB,
-	OPCODE_SBC_A,
-	OPCODE_AND,
-	OPCODE_XOR,
-	OPCODE_OR,
-	OPCODE_CP,
-	OPCODE_RET_CONDITIONAL,
-	OPCODE_POP,
-	OPCODE_RET_UNCONDITIONAL,
-	OPCODE_EXX,
-	OPCODE_JP_HL,
-	OPCODE_LD_SP_HL,
-	OPCODE_JP_CONDITIONAL,
-	OPCODE_JP_UNCONDITIONAL,
-	OPCODE_CB_PREFIX,
-	OPCODE_OUT,
-	OPCODE_IN,
-	OPCODE_EX_SP_HL,
-	OPCODE_EX_DE_HL,
-	OPCODE_DI,
-	OPCODE_EI,
-	OPCODE_CALL_CONDITIONAL,
-	OPCODE_PUSH,
-	OPCODE_CALL_UNCONDITIONAL,
-	OPCODE_DD_PREFIX,
-	OPCODE_ED_PREFIX,
-	OPCODE_FD_PREFIX,
-	OPCODE_RST,
-	OPCODE_RLC,
-	OPCODE_RRC,
-	OPCODE_RL,
-	OPCODE_RR,
-	OPCODE_SLA,
-	OPCODE_SRA,
-	OPCODE_SLL,
-	OPCODE_SRL,
-	OPCODE_BIT,
-	OPCODE_RES,
-	OPCODE_SET,
-	OPCODE_IN_REGISTER,
-	OPCODE_IN_NO_REGISTER,
-	OPCODE_OUT_REGISTER,
-	OPCODE_OUT_NO_REGISTER,
-	OPCODE_SBC_HL,
-	OPCODE_ADC_HL,
-	OPCODE_NEG,
-	OPCODE_RETN,
-	OPCODE_RETI,
-	OPCODE_IM,
-	OPCODE_LD_I_A,
-	OPCODE_LD_R_A,
-	OPCODE_LD_A_I,
-	OPCODE_LD_A_R,
-	OPCODE_RRD,
-	OPCODE_RLD,
-	OPCODE_LDI,
-	OPCODE_LDD,
-	OPCODE_LDIR,
-	OPCODE_LDDR,
-	OPCODE_CPI,
-	OPCODE_CPD,
-	OPCODE_CPIR,
-	OPCODE_CPDR,
-	OPCODE_INI,
-	OPCODE_IND,
-	OPCODE_INIR,
-	OPCODE_INDR,
-	OPCODE_OUTI,
-	OPCODE_OUTD,
-	OPCODE_OTIR,
-	OPCODE_OTDR
-} Opcode;
-
-typedef enum Operand
-{
-	OPERAND_NONE,
-	OPERAND_A,
-	OPERAND_B,
-	OPERAND_C,
-	OPERAND_D,
-	OPERAND_E,
-	OPERAND_H,
-	OPERAND_L,
-	OPERAND_IXH,
-	OPERAND_IXL,
-	OPERAND_IYH,
-	OPERAND_IYL,
-	OPERAND_AF,
-	OPERAND_BC,
-	OPERAND_DE,
-	OPERAND_HL,
-	OPERAND_IX,
-	OPERAND_IY,
-	OPERAND_PC,
-	OPERAND_SP,
-	OPERAND_BC_INDIRECT,
-	OPERAND_DE_INDIRECT,
-	OPERAND_HL_INDIRECT,
-	OPERAND_IX_INDIRECT,
-	OPERAND_IY_INDIRECT,
-	OPERAND_ADDRESS,
-	OPERAND_LITERAL_8BIT,
-	OPERAND_LITERAL_16BIT
-} Operand;
-
-typedef enum Condition
-{
-	CONDITION_NOT_ZERO = 0,
-	CONDITION_ZERO = 1,
-	CONDITION_NOT_CARRY = 2,
-	CONDITION_CARRY = 3,
-	CONDITION_PARITY_OVERFLOW = 4,
-	CONDITION_PARITY_EQUALITY = 5,
-	CONDITION_PLUS = 6,
-	CONDITION_MINUS = 7
-} Condition;
-
 typedef enum InstructionMode
 {
 	INSTRUCTION_MODE_NORMAL,
@@ -184,21 +42,9 @@ enum
 	FLAG_MASK_SIGN = 1 << FLAG_BIT_SIGN
 };
 
-typedef struct InstructionMetadata
-{
-	Opcode opcode;
-	Operand operands[2];
-	Condition condition;
-	unsigned int embedded_literal;
-	cc_bool read_destination;
-	cc_bool write_destination;
-	cc_bool has_displacement;
-	cc_bool indirect_16bit;
-} InstructionMetadata;
-
 typedef struct Instruction
 {
-	InstructionMetadata metadata;
+	const InstructionMetadata *metadata;
 	unsigned int literal;
 	unsigned int address;
 	cc_bool double_prefix_mode;
@@ -391,7 +237,7 @@ static unsigned int ReadOperand(const Z80 *z80, const Instruction *instruction, 
 		case OPERAND_ADDRESS:
 			value = MemoryRead(z80, callbacks, instruction->address);
 
-			if (instruction->metadata.indirect_16bit)
+			if (instruction->metadata->indirect_16bit)
 				value = MemoryRead(z80, callbacks, instruction->address + 1) << 8;
 
 			break;
@@ -500,7 +346,7 @@ static void WriteOperand(const Z80 *z80, const Instruction *instruction, Operand
 		case OPERAND_IX_INDIRECT:
 		case OPERAND_IY_INDIRECT:
 		case OPERAND_ADDRESS:
-			if (instruction->metadata.indirect_16bit)
+			if (instruction->metadata->indirect_16bit)
 				MemoryWrite16Bit(z80, callbacks, instruction->address, value);
 			else
 				MemoryWrite(z80, callbacks, instruction->address, value);
@@ -1077,10 +923,10 @@ static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z8
 
 	opcode = OpcodeFetch(z80, callbacks);
 
-	DecodeInstructionMetadata(&instruction->metadata, INSTRUCTION_MODE_NORMAL, z80->state->register_mode, opcode);
+	instruction->metadata = &z80->constant->instruction_metadata_lookup_normal[z80->state->register_mode][opcode];
 
 	/* Obtain displacement byte if one exists. */
-	if (instruction->metadata.has_displacement)
+	if (instruction->metadata->has_displacement)
 	{
 		displacement = InstructionMemoryRead(z80, callbacks);
 		displacement = SIGN_EXTEND(displacement, 0xFF);
@@ -1092,7 +938,7 @@ static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z8
 	instruction->double_prefix_mode = cc_false;
 
 	/* Handle prefix instructions. */
-	switch (instruction->metadata.opcode)
+	switch (instruction->metadata->opcode)
 	{
 		default:
 			/* Nothing to do here. */
@@ -1116,19 +962,18 @@ static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z8
 				z80->state->cycles -= 3;
 			}
 
-			/* 'Z80_REGISTER_MODE_HL' is used here so that the destination operand write only has to check for HL instead of IX and IY. */
-			DecodeInstructionMetadata(&instruction->metadata, INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_HL, opcode);
+			instruction->metadata = &z80->constant->instruction_metadata_lookup_bits[opcode];
 
 			break;
 
 		case OPCODE_ED_PREFIX:
 			opcode = OpcodeFetch(z80, callbacks);
-			DecodeInstructionMetadata(&instruction->metadata, INSTRUCTION_MODE_MISC, Z80_REGISTER_MODE_HL, opcode);
+			instruction->metadata = &z80->constant->instruction_metadata_lookup_misc[opcode];
 			break;
 	}
 
 	/* Obtain literal data. */
-	switch (instruction->metadata.operands[0])
+	switch (instruction->metadata->operands[0])
 	{
 		default:
 			/* Nothing to do here. */
@@ -1137,7 +982,7 @@ static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z8
 		case OPERAND_LITERAL_8BIT:
 			instruction->literal = InstructionMemoryRead(z80, callbacks);
 
-			if (instruction->metadata.has_displacement)
+			if (instruction->metadata->has_displacement)
 			{
 				/* Reading the literal is overlaid with the 5 displacement cycles, so the above memory read doesn't cost 3 cycles. */
 				z80->state->cycles -= 3;
@@ -1154,7 +999,7 @@ static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z8
 	/* Pre-calculate the address of indirect memory operands. */
 	for (i = 0; i < 2; ++i)
 	{
-		switch (instruction->metadata.operands[i])
+		switch (instruction->metadata->operands[i])
 		{
 			default:
 				break;
@@ -1223,14 +1068,14 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 	}
 	else
 	{
-		if (instruction->metadata.operands[0] != OPERAND_NONE)
-			source_value = ReadOperand(z80, instruction, instruction->metadata.operands[0], callbacks);
+		if (instruction->metadata->operands[0] != OPERAND_NONE)
+			source_value = ReadOperand(z80, instruction, instruction->metadata->operands[0], callbacks);
 
-		if (instruction->metadata.read_destination)
-			destination_value = ReadOperand(z80, instruction, instruction->metadata.operands[1], callbacks);
+		if (instruction->metadata->read_destination)
+			destination_value = ReadOperand(z80, instruction, instruction->metadata->operands[1], callbacks);
 	}
 
-	switch (instruction->metadata.opcode)
+	switch (instruction->metadata->opcode)
 	{
 		case OPCODE_NOP:
 			/* Does nothing, naturally. */
@@ -1259,7 +1104,7 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			break;
 
 		case OPCODE_JR_CONDITIONAL:
-			if (!EvaluateCondition(z80->state->f, instruction->metadata.condition))
+			if (!EvaluateCondition(z80->state->f, instruction->metadata->condition))
 				break;
 			/* Fallthrough */
 		case OPCODE_JR_UNCONDITIONAL:
@@ -1323,9 +1168,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			CONDITION_OVERFLOW;
 
 			/* The memory-accessing version takes an extra cycle. */
-			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+			z80->state->cycles += instruction->metadata->operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 
@@ -1345,9 +1190,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			/*z80->state->f ^= FLAG_MASK_HALF_CARRY;*/
 
 			/* The memory-accessing version takes an extra cycle. */
-			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+			z80->state->cycles += instruction->metadata->operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IY_INDIRECT;
 
 
 			break;
@@ -1551,7 +1396,7 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			/* This instruction requires an extra cycle. */
 			z80->state->cycles += 1;
 
-			if (!EvaluateCondition(z80->state->f, instruction->metadata.condition))
+			if (!EvaluateCondition(z80->state->f, instruction->metadata->condition))
 				break;
 			/* Fallthrough */
 		case OPCODE_RET_UNCONDITIONAL:
@@ -1577,7 +1422,7 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			break;
 
 		case OPCODE_JP_CONDITIONAL:
-			if (!EvaluateCondition(z80->state->f, instruction->metadata.condition))
+			if (!EvaluateCondition(z80->state->f, instruction->metadata->condition))
 				break;
 			/* Fallthrough */
 		case OPCODE_JP_UNCONDITIONAL:
@@ -1644,7 +1489,7 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			break;
 
 		case OPCODE_CALL_CONDITIONAL:
-			if (!EvaluateCondition(z80->state->f, instruction->metadata.condition))
+			if (!EvaluateCondition(z80->state->f, instruction->metadata->condition))
 				break;
 			/* Fallthrough */
 		case OPCODE_CALL_UNCONDITIONAL:
@@ -1674,7 +1519,7 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->stack_pointer &= 0xFFFF;
 			MemoryWrite(z80, callbacks, z80->state->stack_pointer, z80->state->program_counter & 0xFF);
 
-			z80->state->program_counter = instruction->metadata.embedded_literal;
+			z80->state->program_counter = instruction->metadata->embedded_literal;
 			break;
 
 		case OPCODE_RLC:
@@ -1688,9 +1533,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			/* The memory-accessing version takes an extra cycle. */
-			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+			z80->state->cycles += instruction->metadata->operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 		}
@@ -1706,9 +1551,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			/* The memory-accessing version takes an extra cycle. */
-			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+			z80->state->cycles += instruction->metadata->operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 		}
@@ -1724,9 +1569,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			/* The memory-accessing version takes an extra cycle. */
-			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+			z80->state->cycles += instruction->metadata->operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 		}
@@ -1742,9 +1587,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			/* The memory-accessing version takes an extra cycle. */
-			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+			z80->state->cycles += instruction->metadata->operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 		}
@@ -1763,9 +1608,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			/* The memory-accessing version takes an extra cycle. */
-			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+			z80->state->cycles += instruction->metadata->operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 		}
@@ -1783,9 +1628,9 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			/* The memory-accessing version takes an extra cycle. */
-			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+			z80->state->cycles += instruction->metadata->operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 		}
@@ -1803,42 +1648,42 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			/* The memory-accessing version takes an extra cycle. */
-			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+			z80->state->cycles += instruction->metadata->operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 		}
 
 		case OPCODE_BIT:
 			z80->state->f &= FLAG_MASK_CARRY;
-			z80->state->f |= ((destination_value & instruction->metadata.embedded_literal) == 0) ? FLAG_MASK_ZERO : 0;
+			z80->state->f |= ((destination_value & instruction->metadata->embedded_literal) == 0) ? FLAG_MASK_ZERO : 0;
 			z80->state->f |= FLAG_MASK_HALF_CARRY;
 
 			/* The memory-accessing version takes an extra cycle. */
-			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+			z80->state->cycles += instruction->metadata->operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 
 		case OPCODE_RES:
-			result_value = destination_value & instruction->metadata.embedded_literal;
+			result_value = destination_value & instruction->metadata->embedded_literal;
 
 			/* The memory-accessing version takes an extra cycle. */
-			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+			z80->state->cycles += instruction->metadata->operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 
 		case OPCODE_SET:
-			result_value = destination_value | instruction->metadata.embedded_literal;
+			result_value = destination_value | instruction->metadata->embedded_literal;
 
 			/* The memory-accessing version takes an extra cycle. */
-			z80->state->cycles += instruction->metadata.operands[1] == OPERAND_HL_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IX_INDIRECT
-			                   || instruction->metadata.operands[1] == OPERAND_IY_INDIRECT;
+			z80->state->cycles += instruction->metadata->operands[1] == OPERAND_HL_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IX_INDIRECT
+			                   || instruction->metadata->operands[1] == OPERAND_IY_INDIRECT;
 
 			break;
 
@@ -2192,13 +2037,13 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 			break;
 	}
 
-	if (instruction->metadata.write_destination)
+	if (instruction->metadata->write_destination)
 	{
-		WriteOperand(z80, instruction, instruction->metadata.operands[1], result_value, callbacks);
+		WriteOperand(z80, instruction, instruction->metadata->operands[1], result_value, callbacks);
 
 		/* Handle double-prefix instructions. */
 		/* Don't do a redundant write in double-prefix mode when operating on '(HL)'. */
-		if (instruction->double_prefix_mode && instruction->metadata.operands[1] != OPERAND_HL_INDIRECT)
+		if (instruction->double_prefix_mode && instruction->metadata->operands[1] != OPERAND_HL_INDIRECT)
 			WriteOperand(z80, instruction, z80->state->register_mode == Z80_REGISTER_MODE_IX ? OPERAND_IX_INDIRECT : OPERAND_IY_INDIRECT, result_value, callbacks);
 	}
 }
@@ -2206,6 +2051,19 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 void Z80_Constant_Initialise(Z80_Constant *constant)
 {
 	unsigned int i;
+
+	/* Pre-compute instruction metadata, to speed up opcode decoding. */
+	for (i = 0; i < 0x100; ++i)
+	{
+		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_normal[Z80_REGISTER_MODE_HL][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_HL, i);
+		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_normal[Z80_REGISTER_MODE_IX][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_IX, i);
+		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_normal[Z80_REGISTER_MODE_IY][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_IY, i);
+
+		/* 'Z80_REGISTER_MODE_HL' is used here so that the destination operand write only has to check for HL instead of IX and IY. */
+		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_bits[i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_HL, i);
+
+		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_misc[i], INSTRUCTION_MODE_MISC, Z80_REGISTER_MODE_HL, i);
+	}
 
 	for (i = 0; i < 0x100; ++i)
 	{
