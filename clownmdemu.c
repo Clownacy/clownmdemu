@@ -452,6 +452,10 @@ static unsigned int Z80ReadCallback(void *user_data, unsigned int address)
 		else
 			value = M68kReadCallback(user_data, m68k_address, cc_true, cc_false) >> 8;
 	}
+	else
+	{
+		PrintError("Attempted to read invalid Z80 address 0x%lX", address);
+	}
 
 	return value;
 }
@@ -498,6 +502,10 @@ static void Z80WriteCallback(void *user_data, unsigned int address, unsigned int
 			M68kWriteCallback(user_data, m68k_address, cc_false, cc_true, value);
 		else
 			M68kWriteCallback(user_data, m68k_address, cc_true, cc_false, value << 8);
+	}
+	else
+	{
+		PrintError("Attempted to write invalid Z80 address 0x%lX", address);
 	}
 }
 
