@@ -189,6 +189,7 @@ typedef struct Z80_State
 	unsigned char ixh, ixl, iyh, iyl;
 	unsigned char r, i;
 	cc_bool interrupts_enabled;
+	cc_bool interrupt_pending;
 } Z80_State;
 
 typedef struct Z80_ReadAndWriteCallbacks

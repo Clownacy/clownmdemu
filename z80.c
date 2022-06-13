@@ -2115,27 +2115,13 @@ void Z80_Reset(const Z80 *z80)
 
 	/* The official Z80 manual claims that this happens ('z80cpu_um.pdf' page 18). */
 	z80->state->interrupts_enabled = cc_false;
+
+	z80->state->interrupt_pending = cc_false;
 }
 
 void Z80_Interrupt(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
 {
-	/* TODO: The other interrupt modes. */
-	/* TODO: Interrupts should not be able to occur directly after a prefix instruction. */
-	if (z80->state->interrupts_enabled)
-	{
-		z80->state->interrupts_enabled = cc_false;
-
-		/* TODO: Interrupt duration. */
-		--z80->state->stack_pointer;
-		z80->state->stack_pointer &= 0xFFFF;
-		callbacks->write(callbacks->user_data, z80->state->stack_pointer, z80->state->program_counter >> 8);
-
-		--z80->state->stack_pointer;
-		z80->state->stack_pointer &= 0xFFFF;
-		callbacks->write(callbacks->user_data, z80->state->stack_pointer, z80->state->program_counter & 0xFF);
-
-		z80->state->program_counter = 0x38;
-	}
+	z80->state->interrupt_pending = cc_true;
 }
 
 void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
@@ -2152,5 +2138,27 @@ void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
 		DecodeInstruction(z80, &instruction, callbacks);
 
 		ExecuteInstruction(z80, &instruction, callbacks);
+
+		/* TODO: The other interrupt modes. */
+		if (z80->state->interrupt_pending
+		 && z80->state->interrupts_enabled
+		 /* Interrupts should not be able to occur directly after a prefix instruction. */
+		 && instruction.metadata->opcode != Z80_OPCODE_DD_PREFIX
+		 && instruction.metadata->opcode != Z80_OPCODE_FD_PREFIX)
+		{
+			z80->state->interrupt_pending = cc_false;
+			z80->state->interrupts_enabled = cc_false;
+
+			/* TODO: Interrupt duration. */
+			--z80->state->stack_pointer;
+			z80->state->stack_pointer &= 0xFFFF;
+			callbacks->write(callbacks->user_data, z80->state->stack_pointer, z80->state->program_counter >> 8);
+
+			--z80->state->stack_pointer;
+			z80->state->stack_pointer &= 0xFFFF;
+			callbacks->write(callbacks->user_data, z80->state->stack_pointer, z80->state->program_counter & 0xFF);
+
+			z80->state->program_counter = 0x38;
+		}
 	}
 }
