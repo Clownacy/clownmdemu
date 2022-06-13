@@ -238,7 +238,7 @@ static unsigned int ReadOperand(const Z80 *z80, const Instruction *instruction, 
 			value = MemoryRead(z80, callbacks, instruction->address);
 
 			if (instruction->metadata->indirect_16bit)
-				value = MemoryRead(z80, callbacks, instruction->address + 1) << 8;
+				value |= MemoryRead(z80, callbacks, instruction->address + 1) << 8;
 
 			break;
 	}
@@ -967,9 +967,9 @@ static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z8
 			}
 
 		#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
-			instruction->metadata = &z80->constant->instruction_metadata_lookup_bits[opcode];
+			instruction->metadata = &z80->constant->instruction_metadata_lookup_bits[z80->state->register_mode][opcode];
 		#else
-			DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_HL, opcode);
+			DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_BITS, z80->state->register_mode, opcode);
 		#endif
 
 			break;
@@ -2056,8 +2056,8 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 		WriteOperand(z80, instruction, instruction->metadata->operands[1], result_value, callbacks);
 
 		/* Handle double-prefix instructions. */
-		/* Don't do a redundant write in double-prefix mode when operating on '(HL)'. */
-		if (instruction->double_prefix_mode && instruction->metadata->operands[1] != Z80_OPERAND_HL_INDIRECT)
+		/* Don't do a redundant write in double-prefix mode when operating on '(IX+*)' or (IY+*). */
+		if (instruction->double_prefix_mode && instruction->metadata->operands[1] != Z80_OPERAND_IX_INDIRECT && instruction->metadata->operands[1] != Z80_OPERAND_IY_INDIRECT)
 			WriteOperand(z80, instruction, z80->state->register_mode == Z80_REGISTER_MODE_IX ? Z80_OPERAND_IX_INDIRECT : Z80_OPERAND_IY_INDIRECT, result_value, callbacks);
 	}
 }
@@ -2074,8 +2074,9 @@ void Z80_Constant_Initialise(Z80_Constant *constant)
 		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_normal[Z80_REGISTER_MODE_IX][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_IX, i);
 		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_normal[Z80_REGISTER_MODE_IY][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_IY, i);
 
-		/* 'Z80_REGISTER_MODE_HL' is used here so that the destination operand write only has to check for HL instead of IX and IY. */
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_bits[i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_HL, i);
+		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_bits[Z80_REGISTER_MODE_HL][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_HL, i);
+		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_bits[Z80_REGISTER_MODE_IX][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_IX, i);
+		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_bits[Z80_REGISTER_MODE_IY][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_IY, i);
 
 		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_misc[i], INSTRUCTION_MODE_MISC, Z80_REGISTER_MODE_HL, i);
 	}

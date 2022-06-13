@@ -172,7 +172,7 @@ typedef struct Z80_Constant
 {
 #ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 	Z80_InstructionMetadata instruction_metadata_lookup_normal[3][0x100];
-	Z80_InstructionMetadata instruction_metadata_lookup_bits[0x100];
+	Z80_InstructionMetadata instruction_metadata_lookup_bits[3][0x100];
 	Z80_InstructionMetadata instruction_metadata_lookup_misc[0x100];
 #endif
 	unsigned char parity_lookup[0x100];
