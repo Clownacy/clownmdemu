@@ -156,7 +156,7 @@ typedef enum Z80_RegisterMode
 	Z80_REGISTER_MODE_IY
 } Z80_RegisterMode;
 
-typedef struct InstructionMetadata
+typedef struct Z80_InstructionMetadata
 {
 	Z80_Opcode opcode;
 	Z80_Operand operands[2];
@@ -166,14 +166,14 @@ typedef struct InstructionMetadata
 	cc_bool write_destination;
 	cc_bool has_displacement;
 	cc_bool indirect_16bit;
-} InstructionMetadata;
+} Z80_InstructionMetadata;
 
 typedef struct Z80_Constant
 {
 #ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
-	InstructionMetadata instruction_metadata_lookup_normal[3][0x100];
-	InstructionMetadata instruction_metadata_lookup_bits[0x100];
-	InstructionMetadata instruction_metadata_lookup_misc[0x100];
+	Z80_InstructionMetadata instruction_metadata_lookup_normal[3][0x100];
+	Z80_InstructionMetadata instruction_metadata_lookup_bits[0x100];
+	Z80_InstructionMetadata instruction_metadata_lookup_misc[0x100];
 #endif
 	unsigned char parity_lookup[0x100];
 } Z80_Constant;

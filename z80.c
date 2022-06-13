@@ -44,7 +44,7 @@ enum
 
 typedef struct Instruction
 {
-	const InstructionMetadata *metadata;
+	const Z80_InstructionMetadata *metadata;
 	unsigned int literal;
 	unsigned int address;
 	cc_bool double_prefix_mode;
@@ -355,7 +355,7 @@ static void WriteOperand(const Z80 *z80, const Instruction *instruction, Z80_Ope
 	}
 }
 
-static void DecodeInstructionMetadata(InstructionMetadata *metadata, InstructionMode instruction_mode, Z80_RegisterMode register_mode, unsigned char opcode)
+static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, InstructionMode instruction_mode, Z80_RegisterMode register_mode, unsigned char opcode)
 {
 	static const Z80_Operand registers[8] = {Z80_OPERAND_B, Z80_OPERAND_C, Z80_OPERAND_D, Z80_OPERAND_E, Z80_OPERAND_H, Z80_OPERAND_L, Z80_OPERAND_HL_INDIRECT, Z80_OPERAND_A};
 	static const Z80_Operand register_pairs_1[4] = {Z80_OPERAND_BC, Z80_OPERAND_DE, Z80_OPERAND_HL, Z80_OPERAND_SP};
@@ -2144,7 +2144,7 @@ void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
 		Instruction instruction;
 
 	#ifndef Z80_PRECOMPUTE_INSTRUCTION_METADATA
-		InstructionMetadata metadata;
+		Z80_InstructionMetadata metadata;
 		instruction.metadata = &metadata;
 	#endif
 
