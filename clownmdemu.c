@@ -551,10 +551,9 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
 	m68k_read_write_callbacks.user_data = &cpu_callback_user_data;
 
-	z80_read_write_callbacks.read.callback = Z80ReadCallback;
-	z80_read_write_callbacks.read.user_data = &cpu_callback_user_data;
-	z80_read_write_callbacks.write.callback = Z80WriteCallback;
-	z80_read_write_callbacks.write.user_data = &cpu_callback_user_data;
+	z80_read_write_callbacks.read = Z80ReadCallback;
+	z80_read_write_callbacks.write = Z80WriteCallback;
+	z80_read_write_callbacks.user_data = &cpu_callback_user_data;
 
 	/*ReadInput(state);*/
 
@@ -581,7 +580,7 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 			/* Z80 */
 			if (clownmdemu->state->countdowns.z80 == 0)
 			{
-				clownmdemu->state->countdowns.z80 = CLOWNMDEMU_Z80_CLOCK_DIVIDER * 8; /* TODO: A similar temporary hack. */
+				clownmdemu->state->countdowns.z80 = CLOWNMDEMU_Z80_CLOCK_DIVIDER;
 
 				if (!clownmdemu->state->m68k_has_z80_bus)
 					Z80_DoCycle(&z80, &z80_read_write_callbacks);
