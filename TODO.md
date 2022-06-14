@@ -3,6 +3,12 @@
   - Most instructions
   - Condition codes
   - Interrupts
+  - Exceptions (very incomplete and broken)
+- Z80
+  - Most instructions
+  - Flags
+  - Interrupt mode 1
+  - Instruction cycle durations
 - VDP
   - Scanline-based rendering
   - H40 and H30
@@ -25,7 +31,7 @@
   - 3 tone channels
   - Noise channel
     - White noise mode
-	- Periodic noise mode
+    - Periodic noise mode
 - Joypads
   - 3-button Mega Drive controller
   - Two joypads
@@ -39,11 +45,16 @@
   - The ABCD, ADDX, NBCD, NEGX, RESET, SBCD, SUBX, and STOP instructions
 - VDP
   - Slot-based rendering
-  - Interlacing in Interlace Mode 2
+  - Interlacing in Interlace Mode 1 and Interlace Mode 2
   - Edgecase when the sprite mask is the first sprite rendered on the scanline
-  - DMA copy
+  - VRAM-to-VRAM DMA
+  - DMA transfer durations
+  - HV counter
   - Mode 4
 - Z80
+  - Other instructions (DAA, CPIR, etc.)
+  - Interrupt modes 0 and 2
+  - Proper interrupt timings
 - FM
   - Envelope Generator
     - SSG-EG
@@ -57,4 +68,8 @@
 - Joypads
   - Having more than two joypads connected at once
   - Types of joypad besides the standard 3-button Mega Drive controller
+- Master System support
+- Game Gear support
+- Mega CD support
+- 32X support
 - Remaining quirks and undefined behaviour of the original Mega Drive hardware
