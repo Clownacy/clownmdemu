@@ -14,8 +14,8 @@ https://floooh.github.io/2021/12/06/z80-instruction-timing.html
 
 #include "error.h"
 
-/* TODO: Use a bit index here instead of a bitmask. Apply this change to the 68k emulator too. */
-#define SIGN_EXTEND(value, bitmask) (((value) & ((bitmask) >> 1u)) - ((value) & (((bitmask) >> 1u) + 1u)))
+/* Note that this uses 'unsigned int' literals so that it works with 32-bit types. */
+#define SIGN_EXTEND(bit_index, value) (((value) & ((1u << (bit_index)) - 1u)) - ((value) & (1u << (bit_index))))
 
 #define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%X", z80->state->program_counter)
 
@@ -933,7 +933,7 @@ static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z8
 	if (instruction->metadata->has_displacement)
 	{
 		displacement = InstructionMemoryRead(z80, callbacks);
-		displacement = SIGN_EXTEND(displacement, 0xFF);
+		displacement = SIGN_EXTEND(7, displacement);
 
 		/* The displacement byte adds 5 cycles on top of the 3 required to read it. */
 		z80->state->cycles += 5;
@@ -1109,7 +1109,7 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 
 			if (z80->state->b != 0)
 			{
-				z80->state->program_counter += SIGN_EXTEND(source_value, 0xFF);
+				z80->state->program_counter += SIGN_EXTEND(7, source_value);
 
 				/* Branching takes 5 cycles. */
 				z80->state->cycles += 5;
@@ -1122,7 +1122,7 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 				break;
 			/* Fallthrough */
 		case Z80_OPCODE_JR_UNCONDITIONAL:
-			z80->state->program_counter += SIGN_EXTEND(source_value, 0xFF);
+			z80->state->program_counter += SIGN_EXTEND(7, source_value);
 
 			/* Branching takes 5 cycles. */
 			z80->state->cycles += 5;
