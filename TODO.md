@@ -68,6 +68,7 @@
 - Joypads
   - Having more than two joypads connected at once
   - Types of joypad besides the standard 3-button Mega Drive controller
+  - The latch delay that Decap Attack requires in order for its input to work
 - Master System support
 - Game Gear support
 - Mega CD support

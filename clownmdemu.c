@@ -495,6 +495,10 @@ static void Z80WriteCallback(void *user_data, unsigned int address, unsigned int
 	}
 	else if (address >= 0x8000)
 	{
+		/* TODO: Apparently Mamono Hunter Youko needs the Z80 to be able to write to 68k RAM in order to boot?
+		   777 Casino also does weird stuff like this.
+		   http://gendev.spritesmind.net/forum/viewtopic.php?f=24&t=347&start=30 */
+
 		/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
 		const unsigned long m68k_address = ((unsigned long)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE);
 
