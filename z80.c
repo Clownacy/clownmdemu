@@ -433,7 +433,6 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 								metadata->operands[0] = Z80_OPERAND_LITERAL_16BIT;
 								metadata->operands[1] = register_pairs_1[p];
 								metadata->write_destination = cc_true;
-								metadata->indirect_16bit = cc_true;
 							}
 							else
 							{
