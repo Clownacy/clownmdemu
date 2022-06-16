@@ -141,6 +141,12 @@ static unsigned int ReadOperand(const Z80 *z80, const Instruction *instruction, 
 {
 	unsigned int value;
 
+	/* Handle double-prefix instructions. */
+	/* Technically, this is only relevant to the destination operand and not the source operand,
+	   but double-prefix instructions don't have a source operand, so this is not a problem. */
+	if (instruction->double_prefix_mode)
+		operand = z80->state->register_mode == Z80_REGISTER_MODE_IX ? Z80_OPERAND_IX_INDIRECT : Z80_OPERAND_IY_INDIRECT;
+
 	switch (operand)
 	{
 		default:
@@ -248,6 +254,13 @@ static unsigned int ReadOperand(const Z80 *z80, const Instruction *instruction, 
 
 static void WriteOperand(const Z80 *z80, const Instruction *instruction, Z80_Operand operand, unsigned int value, const Z80_ReadAndWriteCallbacks *callbacks)
 {
+	/* Handle double-prefix instructions. */
+	const Z80_Operand double_prefix_operand = z80->state->register_mode == Z80_REGISTER_MODE_IX ? Z80_OPERAND_IX_INDIRECT : Z80_OPERAND_IY_INDIRECT;
+
+	/* Don't do a redundant write in double-prefix mode when operating on '(IX+*)' or (IY+*). */
+	if (instruction->double_prefix_mode && operand != double_prefix_operand)
+		WriteOperand(z80, instruction, double_prefix_operand, value, callbacks);
+
 	switch (operand)
 	{
 		default:
@@ -1074,19 +1087,11 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 
 	z80->state->register_mode = Z80_REGISTER_MODE_HL;
 
-	if (instruction->double_prefix_mode)
-	{
-		/* Handle double-prefix instructions. */
-		destination_value = ReadOperand(z80, instruction, z80->state->register_mode == Z80_REGISTER_MODE_IX ? Z80_OPERAND_IX_INDIRECT : Z80_OPERAND_IY_INDIRECT, callbacks);
-	}
-	else
-	{
-		if (instruction->metadata->operands[0] != Z80_OPERAND_NONE)
-			source_value = ReadOperand(z80, instruction, instruction->metadata->operands[0], callbacks);
+	if (instruction->metadata->operands[0] != Z80_OPERAND_NONE)
+		source_value = ReadOperand(z80, instruction, instruction->metadata->operands[0], callbacks);
 
-		if (instruction->metadata->read_destination)
-			destination_value = ReadOperand(z80, instruction, instruction->metadata->operands[1], callbacks);
-	}
+	if (instruction->metadata->read_destination)
+		destination_value = ReadOperand(z80, instruction, instruction->metadata->operands[1], callbacks);
 
 	switch (instruction->metadata->opcode)
 	{
@@ -2051,14 +2056,7 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 	}
 
 	if (instruction->metadata->write_destination)
-	{
 		WriteOperand(z80, instruction, instruction->metadata->operands[1], result_value, callbacks);
-
-		/* Handle double-prefix instructions. */
-		/* Don't do a redundant write in double-prefix mode when operating on '(IX+*)' or (IY+*). */
-		if (instruction->double_prefix_mode && instruction->metadata->operands[1] != Z80_OPERAND_IX_INDIRECT && instruction->metadata->operands[1] != Z80_OPERAND_IY_INDIRECT)
-			WriteOperand(z80, instruction, z80->state->register_mode == Z80_REGISTER_MODE_IX ? Z80_OPERAND_IX_INDIRECT : Z80_OPERAND_IY_INDIRECT, result_value, callbacks);
-	}
 }
 
 void Z80_Constant_Initialise(Z80_Constant *constant)
