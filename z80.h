@@ -162,8 +162,6 @@ typedef struct Z80_InstructionMetadata
 	Z80_Operand operands[2];
 	Z80_Condition condition;
 	unsigned int embedded_literal;
-	cc_bool read_destination;
-	cc_bool write_destination;
 	cc_bool has_displacement;
 	cc_bool indirect_16bit;
 } Z80_InstructionMetadata;

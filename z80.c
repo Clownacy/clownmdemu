@@ -394,8 +394,6 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 
 	metadata->operands[0] = Z80_OPERAND_NONE;
 	metadata->operands[1] = Z80_OPERAND_NONE;
-	metadata->read_destination = cc_false;
-	metadata->write_destination = cc_false;
 	metadata->indirect_16bit = cc_false;
 
 	switch (instruction_mode)
@@ -445,15 +443,12 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 								metadata->opcode = Z80_OPCODE_LD_16BIT;
 								metadata->operands[0] = Z80_OPERAND_LITERAL_16BIT;
 								metadata->operands[1] = register_pairs_1[p];
-								metadata->write_destination = cc_true;
 							}
 							else
 							{
 								metadata->opcode = Z80_OPCODE_ADD_HL;
 								metadata->operands[0] = register_pairs_1[p];
 								metadata->operands[1] = Z80_OPERAND_HL;
-								metadata->read_destination = cc_true;
-								metadata->write_destination = cc_true;
 							}
 
 							break;
@@ -466,7 +461,6 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 							const Z80_Operand operand_b = operands[p];
 
 							metadata->opcode = p == 2 ? Z80_OPCODE_LD_16BIT : Z80_OPCODE_LD_8BIT;
-							metadata->write_destination = cc_true;
 							metadata->indirect_16bit = p == 2;
 
 							if (!q)
@@ -490,29 +484,22 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 								metadata->opcode = Z80_OPCODE_DEC_16BIT;
 
 							metadata->operands[1] = register_pairs_1[p];
-							metadata->read_destination = cc_true;
-							metadata->write_destination = cc_true;
 							break;
 
 						case 4:
 							metadata->opcode = Z80_OPCODE_INC_8BIT;
 							metadata->operands[1] = registers[y];
-							metadata->read_destination = cc_true;
-							metadata->write_destination = cc_true;
 							break;
 
 						case 5:
 							metadata->opcode = Z80_OPCODE_DEC_8BIT;
 							metadata->operands[1] = registers[y];
-							metadata->read_destination = cc_true;
-							metadata->write_destination = cc_true;
 							break;
 
 						case 6:
 							metadata->opcode = Z80_OPCODE_LD_8BIT;
 							metadata->operands[0] = Z80_OPERAND_LITERAL_8BIT;
 							metadata->operands[1] = registers[y];
-							metadata->write_destination = cc_true;
 							break;
 
 						case 7:
@@ -535,7 +522,6 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 						metadata->opcode = Z80_OPCODE_LD_8BIT;
 						metadata->operands[0] = registers[z];
 						metadata->operands[1] = registers[y];
-						metadata->write_destination = cc_true;
 					}
 
 					break;
@@ -543,9 +529,6 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 				case 2:
 					metadata->opcode = arithmetic_logic_opcodes[y];
 					metadata->operands[0] = registers[z];
-					metadata->operands[1] = Z80_OPERAND_A;
-					metadata->read_destination = cc_true;
-					metadata->write_destination = metadata->opcode != Z80_OPCODE_CP;
 					break;
 
 				case 3:
@@ -561,7 +544,6 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 							{
 								metadata->opcode = Z80_OPCODE_POP;
 								metadata->operands[1] = register_pairs_2[p];
-								metadata->write_destination = cc_true;
 							}
 							else
 							{
@@ -624,8 +606,6 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 								case 4:
 									metadata->opcode = Z80_OPCODE_EX_SP_HL;
 									metadata->operands[1] = Z80_OPERAND_HL;
-									metadata->read_destination = cc_true;
-									metadata->write_destination = cc_true;
 									break;
 
 								case 5:
@@ -683,9 +663,6 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 						case 6:
 							metadata->opcode = arithmetic_logic_opcodes[y];
 							metadata->operands[0] = Z80_OPERAND_LITERAL_8BIT;
-							metadata->operands[1] = Z80_OPERAND_A;
-							metadata->read_destination = cc_true;
-							metadata->write_destination = metadata->opcode != Z80_OPCODE_CP;
 							break;
 
 						case 7:
@@ -705,31 +682,24 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 				case 0:
 					metadata->opcode = rotate_shift_opcodes[y];
 					metadata->operands[1] = registers[z];
-					metadata->read_destination = cc_true;
-					metadata->write_destination = cc_true;
 					break;
 
 				case 1:
 					metadata->opcode = Z80_OPCODE_BIT;
 					metadata->operands[1] = registers[z];
 					metadata->embedded_literal = 1u << y;
-					metadata->read_destination = cc_true;
 					break;
 
 				case 2:
 					metadata->opcode = Z80_OPCODE_RES;
 					metadata->operands[1] = registers[z];
 					metadata->embedded_literal = ~(1u << y);
-					metadata->read_destination = cc_true;
-					metadata->write_destination = cc_true;
 					break;
 
 				case 3:
 					metadata->opcode = Z80_OPCODE_SET;
 					metadata->operands[1] = registers[z];
 					metadata->embedded_literal = 1u << y;
-					metadata->read_destination = cc_true;
-					metadata->write_destination = cc_true;
 					break;
 			}
 
@@ -771,14 +741,11 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 
 							metadata->operands[0] = register_pairs_1[p];
 							metadata->operands[1] = Z80_OPERAND_HL;
-							metadata->read_destination = cc_true;
-							metadata->write_destination = cc_true;
 
 							break;
 
 						case 3:
 							metadata->opcode = Z80_OPCODE_LD_16BIT;
-							metadata->write_destination = cc_true;
 							metadata->indirect_16bit = cc_true;
 
 							if (!q)
@@ -798,7 +765,6 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 							metadata->opcode = Z80_OPCODE_NEG;
 							metadata->operands[0] = Z80_OPERAND_A;
 							metadata->operands[1] = Z80_OPERAND_A;
-							metadata->write_destination = cc_true;
 							break;
 
 						case 5:
@@ -1083,15 +1049,12 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 	unsigned int source_value;
 	unsigned int destination_value;
 	unsigned int result_value;
+	/* Needs to be 'unsigned long' so that it can hold the carry bit. */
+	unsigned long result_value_long;
 	unsigned char swap_holder;
+	cc_bool carry;
 
 	z80->state->register_mode = Z80_REGISTER_MODE_HL;
-
-	if (instruction->metadata->operands[0] != Z80_OPERAND_NONE)
-		source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
-
-	if (instruction->metadata->read_destination)
-		destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
 
 	switch (instruction->metadata->opcode)
 	{
@@ -1113,7 +1076,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 			if (z80->state->b != 0)
 			{
-				z80->state->program_counter += SIGN_EXTEND(7, source_value);
+				z80->state->program_counter += SIGN_EXTEND(7, instruction->literal);
 
 				/* Branching takes 5 cycles. */
 				z80->state->cycles += 5;
@@ -1126,21 +1089,23 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 				break;
 			/* Fallthrough */
 		case Z80_OPCODE_JR_UNCONDITIONAL:
-			z80->state->program_counter += SIGN_EXTEND(7, source_value);
+			z80->state->program_counter += SIGN_EXTEND(7, instruction->literal);
 
 			/* Branching takes 5 cycles. */
 			z80->state->cycles += 5;
 
 			break;
 
+		case Z80_OPCODE_LD_8BIT:
 		case Z80_OPCODE_LD_16BIT:
-			result_value = source_value;
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]));
 			break;
 
 		case Z80_OPCODE_ADD_HL:
-		{
-			/* Needs to be 'unsigned long' so that it can hold the carry bit. */
-			const unsigned long result_value_long = (unsigned long)source_value + (unsigned long)destination_value;
+			source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
+			result_value_long = (unsigned long)source_value + (unsigned long)destination_value;
 			result_value = result_value_long & 0xFFFF;
 
 			z80->state->f &= FLAG_MASK_SIGN | FLAG_MASK_ZERO | FLAG_MASK_PARITY_OVERFLOW;
@@ -1148,18 +1113,19 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			CONDITION_CARRY_16BIT;
 			CONDITION_HALF_CARRY_16BIT;
 
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
+
 			/* This instruction requires an extra 7 cycles. */
 			z80->state->cycles += 7;
 
 			break;
-		}
-
-		case Z80_OPCODE_LD_8BIT:
-			result_value = source_value;
-			break;
 
 		case Z80_OPCODE_INC_16BIT:
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
 			result_value = (destination_value + 1) & 0xFFFF;
+
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
 
 			/* This instruction requires an extra 2 cycles. */
 			z80->state->cycles += 2;
@@ -1167,7 +1133,11 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_DEC_16BIT:
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
 			result_value = (destination_value - 1) & 0xFFFF;
+
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
 
 			/* This instruction requires an extra 2 cycles. */
 			z80->state->cycles += 2;
@@ -1176,6 +1146,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 		case Z80_OPCODE_INC_8BIT:
 			source_value = 1;
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
 			result_value = (destination_value + source_value) & 0xFF;
 
 			z80->state->f &= FLAG_MASK_CARRY;
@@ -1184,6 +1156,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			CONDITION_ZERO;
 			CONDITION_HALF_CARRY;
 			CONDITION_OVERFLOW;
+
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
 
 			/* The memory-accessing version takes an extra cycle. */
 			z80->state->cycles += instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT
@@ -1194,6 +1168,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 		case Z80_OPCODE_DEC_8BIT:
 			source_value = -1;
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
 			result_value = (destination_value + source_value) & 0xFF;
 
 			z80->state->f &= FLAG_MASK_CARRY;
@@ -1207,17 +1183,17 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			/* TODO: I thought this needed to be inverted? */
 			/*z80->state->f ^= FLAG_MASK_HALF_CARRY;*/
 
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
+
 			/* The memory-accessing version takes an extra cycle. */
 			z80->state->cycles += instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IX_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IY_INDIRECT;
 
-
 			break;
 
 		case Z80_OPCODE_RLCA:
-		{
-			const cc_bool carry = (z80->state->a & 0x80) != 0;
+			carry = (z80->state->a & 0x80) != 0;
 
 			z80->state->a <<= 1;
 			z80->state->a &= 0xFF;
@@ -1227,11 +1203,9 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			break;
-		}
 
 		case Z80_OPCODE_RRCA:
-		{
-			const cc_bool carry = (z80->state->a & 0x01) != 0;
+			carry = (z80->state->a & 0x01) != 0;
 
 			z80->state->a >>= 1;
 			z80->state->a |= carry ? 0x80 : 0;
@@ -1240,11 +1214,9 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			break;
-		}
 
 		case Z80_OPCODE_RLA:
-		{
-			const cc_bool carry = (z80->state->a & 0x80) != 0;
+			carry = (z80->state->a & 0x80) != 0;
 
 			z80->state->a <<= 1;
 			z80->state->a &= 0xFF;
@@ -1254,11 +1226,9 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			break;
-		}
 
 		case Z80_OPCODE_RRA:
-		{
-			const cc_bool carry = (z80->state->a & 0x01) != 0;
+			carry = (z80->state->a & 0x01) != 0;
 
 			z80->state->a >>= 1;
 			z80->state->a |= (z80->state->f &= FLAG_MASK_CARRY) != 0 ? 0x80 : 0;
@@ -1267,7 +1237,6 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			break;
-		}
 
 		case Z80_OPCODE_DAA:
 			/* TODO */
@@ -1301,6 +1270,9 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_ADD_A:
+			source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
+			destination_value = z80->state->a;
+
 			result_value = destination_value + source_value;
 
 			z80->state->f = 0;
@@ -1313,9 +1285,14 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			CONDITION_HALF_CARRY;
 			CONDITION_OVERFLOW;
 
+			z80->state->a = result_value;
+
 			break;
 
 		case Z80_OPCODE_ADC_A:
+			source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
+			destination_value = z80->state->a;
+
 			result_value = destination_value + source_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 1 : 0);
 
 			z80->state->f = 0;
@@ -1328,14 +1305,110 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			CONDITION_HALF_CARRY;
 			CONDITION_OVERFLOW;
 
+			z80->state->a = result_value;
+
 			break;
 
-		case Z80_OPCODE_NEG:
-			destination_value = 0;
-			/* Fallthrough */
-		case Z80_OPCODE_CP:
 		case Z80_OPCODE_SUB:
+			source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
 			source_value = ~source_value;
+			destination_value = z80->state->a;
+
+			result_value = destination_value + source_value + 1;
+
+			z80->state->f = 0;
+			CONDITION_CARRY;
+
+			result_value &= 0xFF;
+
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_HALF_CARRY;
+			CONDITION_OVERFLOW;
+
+			/* TODO: I thought these needed to be inverted? */
+			/*z80->state->f ^= FLAG_MASK_HALF_CARRY | FLAG_MASK_CARRY;*/
+			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
+
+			z80->state->a = result_value;
+
+			break;
+
+		case Z80_OPCODE_SBC_A:
+			source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
+			source_value = ~source_value;
+			destination_value = z80->state->a;
+
+			result_value = destination_value + source_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 0 : 1);
+
+			z80->state->f = 0;
+			CONDITION_CARRY;
+
+			result_value &= 0xFF;
+
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_HALF_CARRY;
+			CONDITION_OVERFLOW;
+
+			/* TODO: I thought these needed to be inverted? */
+			/*z80->state->f ^= FLAG_MASK_HALF_CARRY | FLAG_MASK_CARRY;*/
+			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
+
+			z80->state->a = result_value;
+
+			break;
+
+		case Z80_OPCODE_AND:
+			source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
+			destination_value = z80->state->a;
+
+			result_value = destination_value & source_value;
+
+			z80->state->f = 0;
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			z80->state->f |= FLAG_MASK_HALF_CARRY;
+			CONDITION_PARITY;
+
+			z80->state->a = result_value;
+
+			break;
+
+		case Z80_OPCODE_XOR:
+			source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
+			destination_value = z80->state->a;
+
+			result_value = destination_value ^ source_value;
+
+			z80->state->f = 0;
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_PARITY;
+
+			z80->state->a = result_value;
+
+			break;
+
+		case Z80_OPCODE_OR:
+			source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
+			destination_value = z80->state->a;
+
+			result_value = destination_value | source_value;
+
+			z80->state->f = 0;
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_PARITY;
+
+			z80->state->a = result_value;
+
+			break;
+
+		case Z80_OPCODE_CP:
+			source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
+			source_value = ~source_value;
+			destination_value = z80->state->a;
 
 			result_value = destination_value + source_value + 1;
 
@@ -1355,57 +1428,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 			break;
 
-		case Z80_OPCODE_SBC_A:
-			source_value = ~source_value;
-
-			result_value = destination_value + source_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 0 : 1);
-
-			z80->state->f = 0;
-			CONDITION_CARRY;
-
-			result_value &= 0xFF;
-
-			CONDITION_SIGN;
-			CONDITION_ZERO;
-			CONDITION_HALF_CARRY;
-			CONDITION_OVERFLOW;
-
-			/* TODO: I thought these needed to be inverted? */
-			/*z80->state->f ^= FLAG_MASK_HALF_CARRY | FLAG_MASK_CARRY;*/
-			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
-
-			break;
-
-		case Z80_OPCODE_AND:
-			result_value = destination_value & source_value;
-
-			z80->state->f = 0;
-			CONDITION_SIGN;
-			CONDITION_ZERO;
-			z80->state->f |= FLAG_MASK_HALF_CARRY;
-			CONDITION_PARITY;
-			break;
-
-		case Z80_OPCODE_XOR:
-			result_value = destination_value ^ source_value;
-
-			z80->state->f = 0;
-			CONDITION_SIGN;
-			CONDITION_ZERO;
-			CONDITION_PARITY;
-			break;
-
-		case Z80_OPCODE_OR:
-			result_value = destination_value | source_value;
-
-			z80->state->f = 0;
-			CONDITION_SIGN;
-			CONDITION_ZERO;
-			CONDITION_PARITY;
-			break;
-
 		case Z80_OPCODE_POP:
-			result_value = MemoryRead16Bit(z80, callbacks, z80->state->stack_pointer);
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], MemoryRead16Bit(z80, callbacks, z80->state->stack_pointer));
 			z80->state->stack_pointer += 2;
 			z80->state->stack_pointer &= 0xFFFF;
 			break;
@@ -1436,7 +1460,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			/* This instruction requires 2 cycles. */
 			z80->state->cycles += 2;
 
-			z80->state->stack_pointer = source_value;
+			z80->state->stack_pointer = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
 			break;
 
 		case Z80_OPCODE_JP_CONDITIONAL:
@@ -1445,7 +1469,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			/* Fallthrough */
 		case Z80_OPCODE_JP_UNCONDITIONAL:
 		case Z80_OPCODE_JP_HL:
-			z80->state->program_counter = source_value;
+			z80->state->program_counter = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
 			break;
 
 		case Z80_OPCODE_CB_PREFIX:
@@ -1476,8 +1500,10 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			/* This instruction requires 3 extra cycles. */
 			z80->state->cycles += 3;
 
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
 			result_value = MemoryRead16Bit(z80, callbacks, z80->state->stack_pointer);
 			MemoryWrite16Bit(z80, callbacks, z80->state->stack_pointer, destination_value);
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
 			break;
 
 		case Z80_OPCODE_EX_DE_HL:
@@ -1497,6 +1523,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			/* This instruction requires an extra cycle. */
 			z80->state->cycles += 1;
 
+			source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
+
 			--z80->state->stack_pointer;
 			z80->state->stack_pointer &= 0xFFFF;
 			MemoryWrite(z80, callbacks, z80->state->stack_pointer, source_value >> 8);
@@ -1504,6 +1532,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			--z80->state->stack_pointer;
 			z80->state->stack_pointer &= 0xFFFF;
 			MemoryWrite(z80, callbacks, z80->state->stack_pointer, source_value & 0xFF);
+
 			break;
 
 		case Z80_OPCODE_CALL_CONDITIONAL:
@@ -1541,8 +1570,9 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_RLC:
-		{
-			const cc_bool carry = (destination_value & 0x80) != 0;
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
+			carry = (destination_value & 0x80) != 0;
 
 			result_value = (destination_value << 1) & 0xFF;
 			result_value |= carry ? 0x01 : 0;
@@ -1550,17 +1580,19 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			z80->state->f &= ~(FLAG_MASK_CARRY | FLAG_MASK_HALF_CARRY | FLAG_MASK_ADD_SUBTRACT);
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
+
 			/* The memory-accessing version takes an extra cycle. */
 			z80->state->cycles += instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IX_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IY_INDIRECT;
 
 			break;
-		}
 
 		case Z80_OPCODE_RRC:
-		{
-			const cc_bool carry = (destination_value & 0x01) != 0;
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
+			carry = (destination_value & 0x01) != 0;
 
 			result_value = destination_value >> 1;
 			result_value |= carry ? 0x80 : 0;
@@ -1568,17 +1600,19 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			z80->state->f &= ~(FLAG_MASK_CARRY | FLAG_MASK_HALF_CARRY | FLAG_MASK_ADD_SUBTRACT);
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
+
 			/* The memory-accessing version takes an extra cycle. */
 			z80->state->cycles += instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IX_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IY_INDIRECT;
 
 			break;
-		}
 
 		case Z80_OPCODE_RL:
-		{
-			const cc_bool carry = (destination_value & 0x80) != 0;
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
+			carry = (destination_value & 0x80) != 0;
 
 			result_value = (destination_value << 1) & 0xFF;
 			result_value |= (z80->state->f &= FLAG_MASK_CARRY) != 0 ? 0x01 : 0;
@@ -1586,17 +1620,19 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			z80->state->f &= ~(FLAG_MASK_CARRY | FLAG_MASK_HALF_CARRY | FLAG_MASK_ADD_SUBTRACT);
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
+
 			/* The memory-accessing version takes an extra cycle. */
 			z80->state->cycles += instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IX_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IY_INDIRECT;
 
 			break;
-		}
 
 		case Z80_OPCODE_RR:
-		{
-			const cc_bool carry = (destination_value & 0x01) != 0;
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
+			carry = (destination_value & 0x01) != 0;
 
 			result_value = destination_value >> 1;
 			result_value |= (z80->state->f &= FLAG_MASK_CARRY) != 0 ? 0x80 : 0;
@@ -1604,18 +1640,20 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			z80->state->f &= ~(FLAG_MASK_CARRY | FLAG_MASK_HALF_CARRY | FLAG_MASK_ADD_SUBTRACT);
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
+
 			/* The memory-accessing version takes an extra cycle. */
 			z80->state->cycles += instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IX_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IY_INDIRECT;
 
 			break;
-		}
 
 		case Z80_OPCODE_SLA:
 		case Z80_OPCODE_SLL:
-		{
-			const cc_bool carry = (destination_value & 0x80) != 0;
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
+			carry = (destination_value & 0x80) != 0;
 
 			result_value = (destination_value << 1) & 0xFF;
 
@@ -1625,17 +1663,19 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			/* TODO: Parity. */
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
+
 			/* The memory-accessing version takes an extra cycle. */
 			z80->state->cycles += instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IX_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IY_INDIRECT;
 
 			break;
-		}
 
 		case Z80_OPCODE_SRA:
-		{
-			const cc_bool carry = (destination_value & 0x01) != 0;
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
+			carry = (destination_value & 0x01) != 0;
 
 			result_value = (destination_value >> 1) | (destination_value & 0x80);
 
@@ -1645,17 +1685,19 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			/* TODO: Parity. */
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
+
 			/* The memory-accessing version takes an extra cycle. */
 			z80->state->cycles += instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IX_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IY_INDIRECT;
 
 			break;
-		}
 
 		case Z80_OPCODE_SRL:
-		{
-			const cc_bool carry = (destination_value & 0x01) != 0;
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
+			carry = (destination_value & 0x01) != 0;
 
 			result_value = destination_value >> 1;
 
@@ -1665,15 +1707,18 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			/* TODO: Parity. */
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
+
 			/* The memory-accessing version takes an extra cycle. */
 			z80->state->cycles += instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IX_INDIRECT
 			                   || instruction->metadata->operands[1] == Z80_OPERAND_IY_INDIRECT;
 
 			break;
-		}
 
 		case Z80_OPCODE_BIT:
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
 			z80->state->f &= FLAG_MASK_CARRY;
 			z80->state->f |= ((destination_value & instruction->metadata->embedded_literal) == 0) ? FLAG_MASK_ZERO : 0;
 			z80->state->f |= FLAG_MASK_HALF_CARRY;
@@ -1686,7 +1731,11 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_RES:
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
 			result_value = destination_value & instruction->metadata->embedded_literal;
+
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
 
 			/* The memory-accessing version takes an extra cycle. */
 			z80->state->cycles += instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT
@@ -1696,7 +1745,11 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_SET:
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
 			result_value = destination_value | instruction->metadata->embedded_literal;
+
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
 
 			/* The memory-accessing version takes an extra cycle. */
 			z80->state->cycles += instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT
@@ -1722,11 +1775,10 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_SBC_HL:
-		{
-			/* Needs to be 'unsigned long' so that it can hold the carry bit. */
-			unsigned long result_value_long;
-
+			source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
 			source_value = ~source_value;
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
 			result_value_long = (unsigned long)source_value + (unsigned long)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 0 : 1);
 			result_value = result_value_long & 0xFFFF;
 
@@ -1740,16 +1792,18 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
 
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
+
 			/* This instruction requires an extra 7 cycles. */
 			z80->state->cycles += 7;
 
 			break;
-		}
 
 		case Z80_OPCODE_ADC_HL:
-		{
-			/* Needs to be 'unsigned long' so that it can hold the carry bit. */
-			const unsigned long result_value_long = (unsigned long)source_value + (unsigned long)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 1 : 0);
+			source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
+			destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
+
+			result_value_long = (unsigned long)source_value + (unsigned long)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 1 : 0);
 			result_value = result_value_long & 0xFFFF;
 
 			z80->state->f = 0;
@@ -1760,11 +1814,37 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			CONDITION_OVERFLOW_16BIT;
 			CONDITION_CARRY_16BIT;
 
+			WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
+
 			/* This instruction requires an extra 7 cycles. */
 			z80->state->cycles += 7;
 
 			break;
-		}
+
+		case Z80_OPCODE_NEG:
+			source_value = z80->state->a;
+			source_value = ~source_value;
+			destination_value = 0;
+
+			result_value = destination_value + source_value + 1;
+
+			z80->state->f = 0;
+			CONDITION_CARRY;
+
+			result_value &= 0xFF;
+
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_HALF_CARRY;
+			CONDITION_OVERFLOW;
+
+			/* TODO: I thought these needed to be inverted? */
+			/*z80->state->f ^= FLAG_MASK_HALF_CARRY | FLAG_MASK_CARRY;*/
+			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
+
+			z80->state->a = result_value;
+
+			break;
 
 		case Z80_OPCODE_RETN:
 			UNIMPLEMENTED_INSTRUCTION("RETN");
@@ -2054,9 +2134,6 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			UNIMPLEMENTED_INSTRUCTION("OTDR");
 			break;
 	}
-
-	if (instruction->metadata->write_destination)
-		WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
 }
 
 void Z80_Constant_Initialise(Z80_Constant *constant)
