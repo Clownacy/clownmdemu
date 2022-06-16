@@ -137,7 +137,7 @@ static void MemoryWrite16Bit(const Z80 *z80, const Z80_ReadAndWriteCallbacks *ca
 	MemoryWrite(z80, callbacks, address + 1, value >> 8);
 }
 
-static unsigned int ReadOperand(const Z80 *z80, const Instruction *instruction, Z80_Operand operand, const Z80_ReadAndWriteCallbacks *callbacks)
+static unsigned int ReadOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Instruction *instruction, Z80_Operand operand)
 {
 	unsigned int value;
 
@@ -252,14 +252,14 @@ static unsigned int ReadOperand(const Z80 *z80, const Instruction *instruction, 
 	return value;
 }
 
-static void WriteOperand(const Z80 *z80, const Instruction *instruction, Z80_Operand operand, unsigned int value, const Z80_ReadAndWriteCallbacks *callbacks)
+static void WriteOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Instruction *instruction, Z80_Operand operand, unsigned int value)
 {
 	/* Handle double-prefix instructions. */
 	const Z80_Operand double_prefix_operand = z80->state->register_mode == Z80_REGISTER_MODE_IX ? Z80_OPERAND_IX_INDIRECT : Z80_OPERAND_IY_INDIRECT;
 
 	/* Don't do a redundant write in double-prefix mode when operating on '(IX+*)' or (IY+*). */
 	if (instruction->double_prefix_mode && operand != double_prefix_operand)
-		WriteOperand(z80, instruction, double_prefix_operand, value, callbacks);
+		WriteOperand(z80, callbacks, instruction, double_prefix_operand, value);
 
 	switch (operand)
 	{
@@ -927,7 +927,7 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 	}
 }
 
-static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z80_ReadAndWriteCallbacks *callbacks)
+static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, Instruction *instruction)
 {
 	unsigned int opcode;
 	int displacement;
@@ -1078,7 +1078,7 @@ static void DecodeInstruction(const Z80 *z80, Instruction *instruction, const Z8
 #define CONDITION_PARITY z80->state->f |= z80->constant->parity_lookup[result_value]
 #define CONDITION_CARRY CONDITION_CARRY_BASE(result_value, 8)
 
-static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, const Z80_ReadAndWriteCallbacks *callbacks)
+static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Instruction *instruction)
 {
 	unsigned int source_value;
 	unsigned int destination_value;
@@ -1088,10 +1088,10 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 	z80->state->register_mode = Z80_REGISTER_MODE_HL;
 
 	if (instruction->metadata->operands[0] != Z80_OPERAND_NONE)
-		source_value = ReadOperand(z80, instruction, instruction->metadata->operands[0], callbacks);
+		source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0]);
 
 	if (instruction->metadata->read_destination)
-		destination_value = ReadOperand(z80, instruction, instruction->metadata->operands[1], callbacks);
+		destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1]);
 
 	switch (instruction->metadata->opcode)
 	{
@@ -2056,7 +2056,7 @@ static void ExecuteInstruction(const Z80 *z80, const Instruction *instruction, c
 	}
 
 	if (instruction->metadata->write_destination)
-		WriteOperand(z80, instruction, instruction->metadata->operands[1], result_value, callbacks);
+		WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value);
 }
 
 void Z80_Constant_Initialise(Z80_Constant *constant)
@@ -2116,7 +2116,7 @@ void Z80_Reset(const Z80 *z80)
 	z80->state->interrupt_pending = cc_false;
 }
 
-void Z80_Interrupt(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
+void Z80_Interrupt(const Z80 *z80)
 {
 	z80->state->interrupt_pending = cc_true;
 }
@@ -2132,9 +2132,9 @@ void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
 		instruction.metadata = &metadata;
 	#endif
 
-		DecodeInstruction(z80, &instruction, callbacks);
+		DecodeInstruction(z80, callbacks, &instruction);
 
-		ExecuteInstruction(z80, &instruction, callbacks);
+		ExecuteInstruction(z80, callbacks, &instruction);
 
 		/* TODO: The other interrupt modes. */
 		if (z80->state->interrupt_pending
