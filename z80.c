@@ -116,8 +116,8 @@ static unsigned int OpcodeFetch(const Z80 *z80, const Z80_ReadAndWriteCallbacks 
 	/* Opcode fetches take an extra cycle. */
 	++z80->state->cycles;
 
-	++z80->state->r;
-	z80->state->r &= 0xFF;
+	/* Increment the lower 7 bits of the 'R' register. */
+	z80->state->r = (z80->state->r & 0x80) | ((z80->state->r + 1) & 0x7F);
 
 	return InstructionMemoryRead(z80, callbacks);
 }
