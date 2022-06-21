@@ -136,5 +136,5 @@ unsigned int FM_Phase_Increment(FM_Phase_State *phase)
 {
 	phase->position += phase->step;
 
-	return (phase->position >> 10) & 0x3FF;
+	return phase->position;
 }

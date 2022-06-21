@@ -8,6 +8,9 @@
 
 static unsigned int InversePow2(const FM_Operator_Constant *constant, unsigned int value)
 {
+	/* TODO: Maybe replace this whole thing with a single lookup table? */
+
+	/* The attenuation is in 5.8 fixed point format. */
 	const unsigned int whole = value >> 8;
 	const unsigned int fraction = value & 0xFF;
 
@@ -52,7 +55,7 @@ void FM_Operator_Constant_Initialise(FM_Operator_Constant *constant)
 		    2^(log10(x)/log10(2)) = 2^log2(x) = x
 		    If there was a native log2() function provided we could use that instead." */
 
-		/* "Convert the attenuation value to a rounded 12 - bit result in 4.8 fixed point
+		/* "Convert the attenuation value to a rounded 12-bit result in 4.8 fixed point
 		    format." */
 		const unsigned int sinResult = (unsigned int)((sin_result_as_attenuation * 256.0) + 0.5);
 
@@ -132,10 +135,10 @@ void FM_Operator_SetSustainLevelAndReleaseRate(const FM_Operator *fm_operator, u
 
 int FM_Operator_Process(const FM_Operator *fm_operator, int phase_modulation)
 {
-	/* Update and obtain phase. */
-	const unsigned int phase = FM_Phase_Increment(&fm_operator->state->phase);
+	/* Update and obtain phase and make it 10-bit (the upper bits are discarded later). */
+	const unsigned int phase = FM_Phase_Increment(&fm_operator->state->phase) >> 10;
 
-	/* Update and obtain attenuation. */
+	/* Update and obtain attenuation (10-bit). */
 	const unsigned int attenuation = FM_Envelope_Update(&fm_operator->state->envelope, FM_Phase_GetKeyCode(&fm_operator->state->phase));
 
 	/* Modulate the phase. */
@@ -148,11 +151,12 @@ int FM_Operator_Process(const FM_Operator *fm_operator, int phase_modulation)
 	const cc_bool phase_is_in_mirrored_half_of_wave = (modulated_phase & 0x100) != 0;
 	const unsigned int quarter_phase = (modulated_phase & 0xFF) ^ (phase_is_in_mirrored_half_of_wave ? 0xFF : 0);
 
-	/* This table triples as a sine wave lookup table, a logarithm lookup table, and an attenuation lookup table. */
+	/* This table triples as a sine wave lookup table, a logarithm lookup table, and an attenuation lookup table.
+	   The obtained attenuation is 12-bit. */
 	const unsigned int phase_as_attenuation = fm_operator->constant->logarithmic_attenuation_sine_table[quarter_phase];
 
 	/* Both attenuations are logarithms (measurements of decibels), so we can attenuate them by each other by just adding
-	   them together instead of multiplying them. */
+	   them together instead of multiplying them. The result is a 13-bit value. */
 	const unsigned int combined_attenuation = phase_as_attenuation + (attenuation << 2);
 
 	/* Convert from logarithm (decibel) back to linear (sound pressure). */
@@ -161,5 +165,6 @@ int FM_Operator_Process(const FM_Operator *fm_operator, int phase_modulation)
 	/* Restore the sign bit that we extracted earlier. */
 	const int sample = (phase_is_in_negative_wave ? -sample_absolute : sample_absolute);
 
+	/* Return the 14-bit sample. */
 	return sample;
 }

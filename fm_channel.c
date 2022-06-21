@@ -15,6 +15,8 @@ void FM_Channel_State_Initialise(FM_Channel_State *state)
 
 	for (i = 0; i < CC_COUNT_OF(state->operators); ++i)
 		FM_Operator_State_Initialise(&state->operators[i]);
+
+	state->feedback_divisor = 1;
 }
 
 void FM_Channel_SetFrequency(const FM_Channel *channel, unsigned int f_number_and_block)
@@ -31,7 +33,7 @@ void FM_Channel_SetFrequency(const FM_Channel *channel, unsigned int f_number_an
 
 void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel *channel, unsigned int feedback, unsigned int algorithm)
 {
-	channel->state->feedback = 9 - feedback;
+	channel->state->feedback_divisor = 1 << (9 - feedback);
 	channel->state->algorithm = algorithm;
 }
 
@@ -91,7 +93,7 @@ int FM_Channel_GetSample(const FM_Channel *channel)
 	const FM_Operator operator3 = {&channel->constant->operators, &channel->state->operators[1]};
 	const FM_Operator operator4 = {&channel->constant->operators, &channel->state->operators[3]};
 
-	unsigned int feedback_modulation;
+	int feedback_modulation;
 	int operator_1_sample;
 	int operator_2_sample;
 	int operator_3_sample;
@@ -99,10 +101,10 @@ int FM_Channel_GetSample(const FM_Channel *channel)
 	int sample;
 
 	/* Compute operator 1's self-feedback modulation. */
-	if (channel->state->feedback == 9 - 0)
+	if (channel->state->feedback_divisor == 1 << (9 - 0))
 		feedback_modulation = 0;
 	else
-		feedback_modulation = (channel->state->operator_1_previous_samples[0] + channel->state->operator_1_previous_samples[1]) >> channel->state->feedback;
+		feedback_modulation = (channel->state->operator_1_previous_samples[0] + channel->state->operator_1_previous_samples[1]) / channel->state->feedback_divisor;
 
 	/* Feed the operators into each other to produce the final sample. */
 	/* Note that the operators output a 14-bit sample, meaning that, if all four are summed, then the result is a 16-bit sample,
@@ -218,7 +220,7 @@ int FM_Channel_GetSample(const FM_Channel *channel)
 	channel->state->operator_1_previous_samples[1] = channel->state->operator_1_previous_samples[0];
 	channel->state->operator_1_previous_samples[0] = operator_1_sample;
 
-	/* Clamp the sample, and then move it to the top end of the 16-bit audio range. */
-	/* Apparently this is what a real YM2612 does. */
-	return CC_CLAMP(-0x1FFF, 0x1FFF, sample) * 4;
+	/* Clamp the sample to a signed 14-bit range. According to Nuked OPN2, real YM2612s actually reduce the sample to 9-bit and
+	   clamp it to -0x100 and 0xFF instead, but I don't bother doing that here since having more bit depth makes for better audio. */
+	return CC_CLAMP(-0x1FFF, 0x1FFF, sample);
 }
