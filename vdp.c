@@ -24,6 +24,11 @@ static void WriteAndIncrement(VDP_State *state, unsigned int value, void (*colou
 
 	switch (state->access.selected_buffer)
 	{
+		default:
+			/* Should never happen. */
+			assert(0);
+			break;
+
 		case VDP_ACCESS_VRAM:
 		{
 			/* Update sprite cache if we're writing to the sprite table */
@@ -35,7 +40,7 @@ static void WriteAndIncrement(VDP_State *state, unsigned int value, void (*colou
 				state->sprite_row_cache.needs_updating = cc_true;
 			}
 
-			state->vram[index & (CC_COUNT_OF(state->vram) - 1)] = (unsigned short)value;
+			state->vram[index % CC_COUNT_OF(state->vram)] = (unsigned short)value;
 
 			break;
 		}
@@ -46,7 +51,7 @@ static void WriteAndIncrement(VDP_State *state, unsigned int value, void (*colou
 			const unsigned int colour = value & 0xEEE;
 
 			/* Fit index to within CRAM */
-			const unsigned int index_wrapped = index & (CC_COUNT_OF(state->cram) - 1);
+			const unsigned int index_wrapped = index % CC_COUNT_OF(state->cram);
 
 			/* Store regular Mega Drive-format colour (with garbage bits intact) */
 			state->cram[index_wrapped] = (unsigned short)value;
@@ -71,7 +76,7 @@ static void WriteAndIncrement(VDP_State *state, unsigned int value, void (*colou
 		}
 
 		case VDP_ACCESS_VSRAM:
-			state->vsram[index & (CC_COUNT_OF(state->vsram) - 1)] = (unsigned short)value;
+			state->vsram[index % CC_COUNT_OF(state->vsram)] = (unsigned short)value;
 			break;
 	}
 
@@ -86,20 +91,21 @@ static unsigned int ReadAndIncrement(VDP_State *state)
 
 	switch (state->access.selected_buffer)
 	{
+		default:
+			/* Should never happen. */
+			assert(0);
+			break;
+
 		case VDP_ACCESS_VRAM:
-			value = state->vram[index & (CC_COUNT_OF(state->vram) - 1)];
+			value = state->vram[index % CC_COUNT_OF(state->vram)];
 			break;
 
 		case VDP_ACCESS_CRAM:
-			value = state->cram[index & (CC_COUNT_OF(state->cram) - 1)];
+			value = state->cram[index % CC_COUNT_OF(state->cram)];
 			break;
 
 		case VDP_ACCESS_VSRAM:
-			value = state->vsram[index & (CC_COUNT_OF(state->vsram) - 1)];
-			break;
-
-		default:
-			value = 0;
+			value = state->vsram[index % CC_COUNT_OF(state->vsram)];
 			break;
 	}
 
@@ -287,6 +293,9 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 				switch (vdp->state->hscroll_mode)
 				{
 					default:
+						/* Should never happen. */
+						assert(0);
+						/* Fallthrough */
 					case VDP_HSCROLL_MODE_FULL:
 						hscroll = vdp->state->vram[vdp->state->hscroll_address + i];
 						break;
@@ -332,6 +341,9 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 					switch (vdp->state->vscroll_mode)
 					{
 						default:
+							/* Should never happen. */
+							assert(0);
+							/* Fallthrough */
 						case VDP_VSCROLL_MODE_FULL:
 							vscroll = vdp->state->vsram[i];
 							break;
@@ -671,6 +683,7 @@ void VDP_WriteControl(const VDP *vdp, unsigned int value, void (*colour_updated_
 			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
 			{
 				/* TODO */
+				PrintError("DMA copy attempted, but not currently supported!");
 			}
 		}
 	}
