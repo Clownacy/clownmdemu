@@ -52,7 +52,8 @@
   - HV counter
   - Mode 4
 - Z80
-  - Other instructions (DAA, CPIR, etc.)
+  - The DAA, HALT, OUT, IN, RETN, RETI, IM, RRD, RLD, CPI, CPD, CPIR, CPDR,
+    INI, IND, INIR, INDR, OTDI, OUTD, OTIR, and OTDR instructions.
   - Interrupt modes 0 and 2
   - Proper interrupt timings
 - FM
