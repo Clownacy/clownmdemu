@@ -107,12 +107,6 @@ The 9th DAC sample bit.
 
 */
 
-/* 8 is chosen because there are 6 FM channels (of which the DAC can replace one) as well as the PSG.
-   The PSG with all of its channels at maximum volume reaches the volume of a single FM channel at maximum.
-   Technically, this means that 7 is a more appropriate number than 8. However, dividing by 8 is simpler
-   than dividing by 7, so that was opted for instead. */
-#define VOLUME_DIVIDER 8
-
 #include "fm.h"
 
 #include <math.h>
@@ -188,7 +182,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 				case 0x2A:
 					/* DAC sample. */
 					/* Convert from unsigned 8-bit PCM to signed 16-bit PCM. */
-					fm->state->dac_sample = ((int)data - 0x80) * (0x100 / VOLUME_DIVIDER);
+					fm->state->dac_sample = ((int)data - 0x80) * (0x100 / FM_VOLUME_DIVIDER);
 					break;
 
 				case 0x2B:
@@ -317,7 +311,7 @@ void FM_Update(const FM *fm, short *sample_buffer, size_t total_frames)
 		{
 			/* The FM sample is 14-bit, so convert it to 16-bit and then divide it so that it
 			   can be mixed with the other five FM channels and the PSG without clipping. */
-			const int fm_sample = FM_Channel_GetSample(&channel) * 4 / VOLUME_DIVIDER;
+			const int fm_sample = FM_Channel_GetSample(&channel) * 4 / FM_VOLUME_DIVIDER;
 
 			/* Do some boolean algebra to select the FM sample or the DAC sample. */
 			const int sample = (fm_sample & ~dac_mask) | (fm->state->dac_sample & dac_mask);

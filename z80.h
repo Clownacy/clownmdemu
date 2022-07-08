@@ -148,7 +148,6 @@ typedef enum Z80_Condition
 	Z80_CONDITION_MINUS = 7
 } Z80_Condition;
 
-
 typedef enum Z80_RegisterMode
 {
 	Z80_REGISTER_MODE_HL,
