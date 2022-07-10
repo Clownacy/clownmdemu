@@ -21,12 +21,20 @@ void FM_Envelope_State_Initialise(FM_Envelope_State *state)
 
 	state->cycle_counter = 0;
 
-	state->current_mode = FM_ENVELOPE_MODE_ATTACK;
+	state->delta_index = 0;
+	state->current_attenuation = 0;
 
 	/* Silence channel. */
 	FM_Envelope_SetTotalLevel(state, 0x7F);
 
 	FM_Envelope_SetKeyScaleAndAttackRate(state, 0, 0);
+	FM_Envelope_DecayRate(state, 0);
+	FM_Envelope_SetSustainRate(state, 0);
+	FM_Envelope_SetSustainLevelAndReleaseRate(state, 0, 0);
+
+	state->current_mode = FM_ENVELOPE_MODE_ATTACK;
+
+	state->key_on = cc_false;
 }
 
 cc_bool FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on, unsigned int key_code)

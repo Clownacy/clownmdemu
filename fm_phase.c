@@ -97,13 +97,9 @@ static void RecalculatePhaseStep(FM_Phase_State *phase)
 
 void FM_Phase_State_Initialise(FM_Phase_State *phase)
 {
-	phase->position = 0;
-	phase->step = 0;
-	phase->f_number_and_block = 0;
-	phase->detune = 0;
-	phase->multiplier = 0;
-
-	RecalculatePhaseStep(phase);
+	FM_Phase_SetFrequency(phase, 0);
+	FM_Phase_SetDetuneAndMultiplier(phase, 0, 0);
+	FM_Phase_Reset(phase, 0);
 }
 
 unsigned int FM_Phase_GetKeyCode(const FM_Phase_State *phase)

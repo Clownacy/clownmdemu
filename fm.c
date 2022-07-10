@@ -126,12 +126,17 @@ void FM_State_Initialise(FM_State *state)
 
 	for (channel = &state->channels[0]; channel < &state->channels[CC_COUNT_OF(state->channels)]; ++channel)
 	{
+		FM_Channel_State_Initialise(&channel->state);
+
+		channel->cached_upper_frequency_bits = 0;
+
 		/* Panning must be enabled by default. Without this, Sonic 1's 'Sega' chant doesn't play. */
 		channel->pan_left = cc_true;
 		channel->pan_right = cc_true;
-
-		FM_Channel_State_Initialise(&channel->state);
 	}
+
+	state->port = 0 * 3;
+	state->address = 0;
 
 	state->dac_sample = 0;
 	state->dac_enabled = cc_false;
