@@ -454,7 +454,7 @@ static unsigned int Z80ReadCallback(void *user_data, unsigned int address)
 	}
 	else
 	{
-		PrintError("Attempted to read invalid Z80 address 0x%lX", address);
+		PrintError("Attempted to read invalid Z80 address 0x%X", address);
 	}
 
 	return value;
@@ -509,7 +509,7 @@ static void Z80WriteCallback(void *user_data, unsigned int address, unsigned int
 	}
 	else
 	{
-		PrintError("Attempted to write invalid Z80 address 0x%lX", address);
+		PrintError("Attempted to write invalid Z80 address 0x%X", address);
 	}
 }
 

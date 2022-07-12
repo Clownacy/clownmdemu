@@ -99,7 +99,7 @@ void FM_Phase_State_Initialise(FM_Phase_State *phase)
 {
 	FM_Phase_SetFrequency(phase, 0);
 	FM_Phase_SetDetuneAndMultiplier(phase, 0, 0);
-	FM_Phase_Reset(phase, 0);
+	FM_Phase_Reset(phase);
 }
 
 unsigned int FM_Phase_GetKeyCode(const FM_Phase_State *phase)
