@@ -82,11 +82,13 @@ static unsigned int VDPReadCallback(void *user_data, unsigned long address)
 
 	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
 	{
+		/* Cartridge. */
 		value |= frontend_callbacks->cartridge_read(frontend_callbacks->user_data, address + 0) << 8;
 		value |= frontend_callbacks->cartridge_read(frontend_callbacks->user_data, address + 1) << 0;
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
+		/* 68k RAM. */
 		value |= state->m68k_ram[(address + 0) & 0xFFFF] << 8;
 		value |= state->m68k_ram[(address + 1) & 0xFFFF] << 0;
 	}
@@ -500,6 +502,7 @@ static void Z80WriteCallback(void *user_data, unsigned int address, unsigned int
 		   http://gendev.spritesmind.net/forum/viewtopic.php?f=24&t=347&start=30 */
 
 		/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
+		/* TODO: Apparently the Z80 can access the IO ports and send a bus request to itself. */
 		const unsigned long m68k_address = ((unsigned long)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE);
 
 		if ((address & 1) != 0)
@@ -566,8 +569,6 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 	z80_read_write_callbacks.read = Z80ReadCallback;
 	z80_read_write_callbacks.write = Z80WriteCallback;
 	z80_read_write_callbacks.user_data = &cpu_callback_user_data;
-
-	/*ReadInput(state);*/
 
 	/* Reload H-Int counter at the top of the screen, just like real hardware does */
 	clownmdemu->state->h_int_counter = clownmdemu->state->vdp.h_int_interval;

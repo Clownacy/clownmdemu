@@ -2156,15 +2156,18 @@ void Z80_Constant_Initialise(Z80_Constant *constant)
 	}
 #endif
 
-	for (i = 0; i < 0x100; ++i)
+	/* Compute parity lookup table. */
+	for (i = 0; i < CC_COUNT_OF(constant->parity_lookup); ++i)
 	{
 		/* http://graphics.stanford.edu/~seander/bithacks.html#ParityMultiply */
 		/* I have absolutely no idea how this works. */
 		unsigned int v;
+
 		v = i;
 		v ^= v >> 1;
 		v ^= v >> 2;
 		v = (v & 0x11) * 0x11;
+
 		constant->parity_lookup[i] = (v & 0x10) == 0 ? FLAG_MASK_PARITY_OVERFLOW : 0;
 	}
 }
@@ -2200,8 +2203,10 @@ void Z80_Interrupt(const Z80 *z80)
 
 void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
 {
+	/* Wait for previous instruction to end. */
 	if (--z80->state->cycles == 0)
 	{
+		/* Process new instruction. */
 		Instruction instruction;
 
 	#ifndef Z80_PRECOMPUTE_INSTRUCTION_METADATA
@@ -2213,6 +2218,7 @@ void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
 
 		ExecuteInstruction(z80, callbacks, &instruction);
 
+		/* Perform interrupt after processing the instruction. */
 		/* TODO: The other interrupt modes. */
 		if (z80->state->interrupt_pending
 		 && z80->state->interrupts_enabled

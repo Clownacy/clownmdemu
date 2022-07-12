@@ -136,7 +136,7 @@ void PSG_Update(const PSG *psg, short *sample_buffer, size_t total_samples)
 	/* Do the tone channels. */
 	for (i = 0; i < CC_COUNT_OF(psg->state->tones); ++i)
 	{
-		PSG_ToneState *tone = &psg->state->tones[i];
+		PSG_ToneState* const tone = &psg->state->tones[i];
 
 		sample_buffer_pointer = sample_buffer;
 
