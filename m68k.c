@@ -26,9 +26,6 @@ https://gendev.spritesmind.net/forum/viewtopic.php?p=36118#p36118
 #include <stdio.h>
 #endif
 
-/* Note that this uses 'unsigned long' literals so that it works with 32-bit types. */
-#define SIGN_EXTEND(bit_index, value) (((value) & ((1ul << (bit_index)) - 1ul)) - ((value) & (1ul << (bit_index))))
-
 #define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%lX", state->program_counter)
 
 typedef enum AddressMode
@@ -269,7 +266,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 		/* Absolute short */
 		const unsigned int short_address = ReadWord(state, callbacks, state->program_counter);
 
-		address = SIGN_EXTEND(15, short_address);
+		address = CC_SIGN_EXTEND_ULONG(15, short_address);
 		state->program_counter += 2;
 	}
 	else if (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_LONG)
@@ -328,7 +325,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 			/* Add displacement */
 			const unsigned int displacement = ReadWord(state, callbacks, state->program_counter);
 
-			address += SIGN_EXTEND(15, displacement);
+			address += CC_SIGN_EXTEND_ULONG(15, displacement);
 			state->program_counter += 2;
 		}
 		else if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_INDEX || (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_INDEX))
@@ -338,9 +335,9 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 			const cc_bool is_address_register = (extension_word & 0x8000) != 0;
 			const unsigned int displacement_reg = (extension_word >> 12) & 7;
 			const cc_bool is_longword = (extension_word & 0x0800) != 0;
-			const unsigned long displacement_literal_value = SIGN_EXTEND(7, extension_word);
+			const unsigned long displacement_literal_value = CC_SIGN_EXTEND_ULONG(7, extension_word);
 			/* TODO - Is an address register ever used here on the 68k? */
-			const unsigned long displacement_reg_value = SIGN_EXTEND(is_longword ? 31 : 15, (is_address_register ? state->address_registers : state->data_registers)[displacement_reg]);
+			const unsigned long displacement_reg_value = CC_SIGN_EXTEND_ULONG(is_longword ? 31 : 15, (is_address_register ? state->address_registers : state->data_registers)[displacement_reg]);
 
 			address += displacement_reg_value;
 			address += displacement_literal_value;
@@ -1628,7 +1625,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_CMPA:
 			case INSTRUCTION_SUBA:
 				if (!opcode_bit_8)
-					source_value = SIGN_EXTEND(15, source_value);
+					source_value = CC_SIGN_EXTEND_ULONG(15, source_value);
 				/* Fallthrough */
 			case INSTRUCTION_CMP:
 			case INSTRUCTION_CMPI:
@@ -1641,7 +1638,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_ADDA:
 				if (!opcode_bit_8)
-					source_value = SIGN_EXTEND(15, source_value);
+					source_value = CC_SIGN_EXTEND_ULONG(15, source_value);
 				/* Fallthrough */
 			case INSTRUCTION_ADD:
 			case INSTRUCTION_ADDI:
@@ -1741,7 +1738,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			}
 
 			case INSTRUCTION_MOVEA:
-				result_value = operation_size == 2 ? SIGN_EXTEND(15, source_value) : source_value;
+				result_value = operation_size == 2 ? CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;
 				break;
 
 			case INSTRUCTION_LEA:
@@ -1762,7 +1759,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				state->address_registers[opcode_primary_register] = state->address_registers[7];
 
 				/* Offset the stack pointer by the immediate value */
-				state->address_registers[7] += SIGN_EXTEND(15, source_value);
+				state->address_registers[7] += CC_SIGN_EXTEND_ULONG(15, source_value);
 
 				break;
 
@@ -1790,7 +1787,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_EXT:
-				result_value = SIGN_EXTEND((opcode & 0x0040) != 0 ? 15 : 7, destination_value);
+				result_value = CC_SIGN_EXTEND_ULONG((opcode & 0x0040) != 0 ? 15 : 7, destination_value);
 				break;
 
 			case INSTRUCTION_NBCD:
@@ -1919,7 +1916,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 							if (opcode & 0x0040)
 								state->data_registers[i] = ReadLongWord(state, callbacks, memory_address);
 							else
-								state->data_registers[i] = SIGN_EXTEND(15, ReadWord(state, callbacks, memory_address));
+								state->data_registers[i] = CC_SIGN_EXTEND_ULONG(15, ReadWord(state, callbacks, memory_address));
 						}
 						else
 						{
@@ -1947,7 +1944,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 							if (opcode & 0x0040)
 								state->address_registers[i] = ReadLongWord(state, callbacks, memory_address);
 							else
-								state->address_registers[i] = SIGN_EXTEND(15, ReadWord(state, callbacks, memory_address));
+								state->address_registers[i] = CC_SIGN_EXTEND_ULONG(15, ReadWord(state, callbacks, memory_address));
 						}
 						else
 						{
@@ -2002,7 +1999,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					if (loop_counter-- != 0)
 					{
 						state->program_counter -= 2;
-						state->program_counter += SIGN_EXTEND(15, source_value);
+						state->program_counter += CC_SIGN_EXTEND_ULONG(15, source_value);
 					}
 
 					state->data_registers[opcode_primary_register] &= ~0xFFFFul;
@@ -2027,18 +2024,18 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				if ((opcode & 0x00FF) != 0)
 				{
-					state->program_counter += SIGN_EXTEND(7, opcode);
+					state->program_counter += CC_SIGN_EXTEND_ULONG(7, opcode);
 				}
 				else
 				{
 					state->program_counter -= 2;
-					state->program_counter += SIGN_EXTEND(15, source_value);
+					state->program_counter += CC_SIGN_EXTEND_ULONG(15, source_value);
 				}
 
 				break;
 
 			case INSTRUCTION_MOVEQ:
-				result_value = SIGN_EXTEND(7, opcode);
+				result_value = CC_SIGN_EXTEND_ULONG(7, opcode);
 				break;
 
 			case INSTRUCTION_DIVS:
@@ -2048,8 +2045,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				const cc_bool destination_is_negative = instruction == INSTRUCTION_DIVS && state->data_registers[opcode_secondary_register] & 0x80000000;
 				const cc_bool result_is_negative = source_is_negative != destination_is_negative;
 
-				const unsigned int absolute_source_value = source_is_negative ? 0 - SIGN_EXTEND(15, source_value) : source_value;
-				const unsigned long absolute_destination_value = destination_is_negative ? 0 - SIGN_EXTEND(31, state->data_registers[opcode_secondary_register]) : state->data_registers[opcode_secondary_register] & 0xFFFFFFFF;
+				const unsigned int absolute_source_value = source_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;
+				const unsigned long absolute_destination_value = destination_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(31, state->data_registers[opcode_secondary_register]) : state->data_registers[opcode_secondary_register] & 0xFFFFFFFF;
 
 				if (source_value == 0)
 				{
@@ -2099,8 +2096,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				const cc_bool multiplicand_is_negative = instruction == INSTRUCTION_MULS && state->data_registers[opcode_secondary_register] & 0x8000;
 				const cc_bool result_is_negative = multiplier_is_negative != multiplicand_is_negative;
 
-				const unsigned int multiplier = multiplier_is_negative ? 0 - SIGN_EXTEND(15, source_value) : source_value;
-				const unsigned int multiplicand = multiplicand_is_negative ? 0 - SIGN_EXTEND(15, state->data_registers[opcode_secondary_register]) : state->data_registers[opcode_secondary_register] & 0xFFFF;
+				const unsigned int multiplier = multiplier_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;
+				const unsigned int multiplicand = multiplicand_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, state->data_registers[opcode_secondary_register]) : state->data_registers[opcode_secondary_register] & 0xFFFF;
 
 				const unsigned long absolute_result = (unsigned long)multiplicand * multiplier;
 				const unsigned long result = result_is_negative ? 0 - absolute_result : absolute_result;

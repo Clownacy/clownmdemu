@@ -14,9 +14,6 @@ https://floooh.github.io/2021/12/06/z80-instruction-timing.html
 
 #include "error.h"
 
-/* Note that this uses 'unsigned int' literals so that it works with 32-bit types. */
-#define SIGN_EXTEND(bit_index, value) (((value) & ((1u << (bit_index)) - 1u)) - ((value) & (1u << (bit_index))))
-
 #define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%X", z80->state->program_counter)
 
 typedef enum InstructionMode
@@ -911,7 +908,7 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 	if (instruction->metadata->has_displacement)
 	{
 		displacement = InstructionMemoryRead(z80, callbacks);
-		displacement = SIGN_EXTEND(7, displacement);
+		displacement = CC_SIGN_EXTEND_UINT(7, displacement);
 
 		/* The displacement byte adds 5 cycles on top of the 3 required to read it. */
 		z80->state->cycles += 5;
@@ -1081,7 +1078,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 			if (z80->state->b != 0)
 			{
-				z80->state->program_counter += SIGN_EXTEND(7, instruction->literal);
+				z80->state->program_counter += CC_SIGN_EXTEND_UINT(7, instruction->literal);
 
 				/* Branching takes 5 cycles. */
 				z80->state->cycles += 5;
@@ -1094,7 +1091,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 				break;
 			/* Fallthrough */
 		case Z80_OPCODE_JR_UNCONDITIONAL:
-			z80->state->program_counter += SIGN_EXTEND(7, instruction->literal);
+			z80->state->program_counter += CC_SIGN_EXTEND_UINT(7, instruction->literal);
 
 			/* Branching takes 5 cycles. */
 			z80->state->cycles += 5;
