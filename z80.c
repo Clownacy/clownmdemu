@@ -890,7 +890,7 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, Instruction *instruction)
 {
 	unsigned int opcode;
-	int displacement;
+	unsigned int displacement;
 	unsigned int i;
 
 	opcode = OpcodeFetch(z80, callbacks);
