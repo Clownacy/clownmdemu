@@ -157,12 +157,12 @@ typedef enum Z80_RegisterMode
 
 typedef struct Z80_InstructionMetadata
 {
+	/* TODO: Maybe pack these into `unsigned char`s. */
 	Z80_Opcode opcode;
 	Z80_Operand operands[2];
 	Z80_Condition condition;
-	unsigned int embedded_literal;
+	unsigned char embedded_literal;
 	cc_bool has_displacement;
-	cc_bool indirect_16bit;
 } Z80_InstructionMetadata;
 
 typedef struct Z80_Constant

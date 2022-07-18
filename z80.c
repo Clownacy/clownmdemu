@@ -240,7 +240,7 @@ static unsigned int ReadOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks 
 		case Z80_OPERAND_ADDRESS:
 			value = MemoryRead(z80, callbacks, instruction->address);
 
-			if (instruction->metadata->indirect_16bit)
+			if (instruction->metadata->opcode == Z80_OPCODE_LD_16BIT)
 				value |= MemoryRead(z80, callbacks, instruction->address + 1) << 8;
 
 			break;
@@ -356,7 +356,7 @@ static void WriteOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callba
 		case Z80_OPERAND_IX_INDIRECT:
 		case Z80_OPERAND_IY_INDIRECT:
 		case Z80_OPERAND_ADDRESS:
-			if (instruction->metadata->indirect_16bit)
+			if (instruction->metadata->opcode == Z80_OPCODE_LD_16BIT)
 				MemoryWrite16Bit(z80, callbacks, instruction->address, value);
 			else
 				MemoryWrite(z80, callbacks, instruction->address, value);
@@ -391,7 +391,6 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 
 	metadata->operands[0] = Z80_OPERAND_NONE;
 	metadata->operands[1] = Z80_OPERAND_NONE;
-	metadata->indirect_16bit = cc_false;
 
 	switch (instruction_mode)
 	{
@@ -458,7 +457,6 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 							const Z80_Operand operand_b = operands[p];
 
 							metadata->opcode = p == 2 ? Z80_OPCODE_LD_16BIT : Z80_OPCODE_LD_8BIT;
-							metadata->indirect_16bit = p == 2;
 
 							if (!q)
 							{
@@ -743,7 +741,6 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 
 						case 3:
 							metadata->opcode = Z80_OPCODE_LD_16BIT;
-							metadata->indirect_16bit = cc_true;
 
 							if (!q)
 							{
