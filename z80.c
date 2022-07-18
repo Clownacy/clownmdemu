@@ -1032,14 +1032,14 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 
 #define CONDITION_HALF_CARRY_16BIT CONDITION_HALF_CARRY_BASE(12)
 #define CONDITION_OVERFLOW_16BIT CONDITION_OVERFLOW_BASE(15)
-#define CONDITION_CARRY_16BIT CONDITION_CARRY_BASE(result_value_long, 16)
+#define CONDITION_CARRY_16BIT CONDITION_CARRY_BASE(result_value_with_carry_16bit, 16)
 
 #define CONDITION_SIGN z80->state->f |= (result_value >> (7 - FLAG_BIT_SIGN)) & FLAG_MASK_SIGN
 #define CONDITION_ZERO z80->state->f |= result_value == 0 ? FLAG_MASK_ZERO : 0
 #define CONDITION_HALF_CARRY CONDITION_HALF_CARRY_BASE(4)
 #define CONDITION_OVERFLOW CONDITION_OVERFLOW_BASE(7)
 #define CONDITION_PARITY z80->state->f |= z80->constant->parity_lookup[result_value]
-#define CONDITION_CARRY CONDITION_CARRY_BASE(result_value, 8); result_value &= 0xFF
+#define CONDITION_CARRY CONDITION_CARRY_BASE(result_value_with_carry, 8)
 
 #define READ_SOURCE source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0])
 #define READ_DESTINATION destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1])
@@ -1051,8 +1051,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 	unsigned int source_value;
 	unsigned int destination_value;
 	unsigned int result_value;
-	/* Needs to be 'unsigned long' so that it can hold the carry bit. */
-	unsigned long result_value_long;
+	unsigned int result_value_with_carry;
+	unsigned long result_value_with_carry_16bit;
 	unsigned char swap_holder;
 	cc_bool carry;
 
@@ -1112,8 +1112,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			READ_SOURCE;
 			READ_DESTINATION;
 
-			result_value_long = (unsigned long)source_value + (unsigned long)destination_value;
-			result_value = result_value_long & 0xFFFF;
+			result_value_with_carry_16bit = (unsigned long)source_value + (unsigned long)destination_value;
+			result_value = result_value_with_carry_16bit & 0xFFFF;
 
 			z80->state->f &= FLAG_MASK_SIGN | FLAG_MASK_ZERO | FLAG_MASK_PARITY_OVERFLOW;
 
@@ -1280,7 +1280,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			READ_SOURCE;
 			destination_value = z80->state->a;
 
-			result_value = destination_value + source_value;
+			result_value_with_carry = destination_value + source_value;
+			result_value = result_value_with_carry & 0xFF;
 
 			z80->state->f = 0;
 			CONDITION_CARRY;
@@ -1297,7 +1298,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			READ_SOURCE;
 			destination_value = z80->state->a;
 
-			result_value = destination_value + source_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 1 : 0);
+			result_value_with_carry = destination_value + source_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 1 : 0);
+			result_value = result_value_with_carry & 0xFF;
 
 			z80->state->f = 0;
 			CONDITION_CARRY;
@@ -1315,7 +1317,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			source_value = ~source_value;
 			destination_value = z80->state->a;
 
-			result_value = destination_value + source_value + 1;
+			result_value_with_carry = destination_value + source_value + 1;
+			result_value = result_value_with_carry & 0xFF;
 
 			z80->state->f = 0;
 			CONDITION_CARRY;
@@ -1337,7 +1340,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			source_value = ~source_value;
 			destination_value = z80->state->a;
 
-			result_value = destination_value + source_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 0 : 1);
+			result_value_with_carry = destination_value + source_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 0 : 1);
+			result_value = result_value_with_carry & 0xFF;
 
 			z80->state->f = 0;
 			CONDITION_CARRY;
@@ -1405,7 +1409,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			source_value = ~source_value;
 			destination_value = z80->state->a;
 
-			result_value = destination_value + source_value + 1;
+			result_value_with_carry = destination_value + source_value + 1;
+			result_value = result_value_with_carry & 0xFF;
 
 			z80->state->f = 0;
 			CONDITION_CARRY;
@@ -1781,8 +1786,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			source_value = ~source_value;
 			READ_DESTINATION;
 
-			result_value_long = (unsigned long)source_value + (unsigned long)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 0 : 1);
-			result_value = result_value_long & 0xFFFF;
+			result_value_with_carry_16bit = (unsigned long)source_value + (unsigned long)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 0 : 1);
+			result_value = result_value_with_carry_16bit & 0xFFFF;
 
 			z80->state->f = 0;
 
@@ -1805,8 +1810,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			READ_SOURCE;
 			READ_DESTINATION;
 
-			result_value_long = (unsigned long)source_value + (unsigned long)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 1 : 0);
-			result_value = result_value_long & 0xFFFF;
+			result_value_with_carry_16bit = (unsigned long)source_value + (unsigned long)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 1 : 0);
+			result_value = result_value_with_carry_16bit & 0xFFFF;
 
 			z80->state->f = 0;
 
@@ -1828,7 +1833,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			source_value = ~source_value;
 			destination_value = 0;
 
-			result_value = destination_value + source_value + 1;
+			result_value_with_carry = destination_value + source_value + 1;
+			result_value = result_value_with_carry & 0xFF;
 
 			z80->state->f = 0;
 			CONDITION_CARRY;
