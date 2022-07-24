@@ -427,7 +427,7 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 								case 7:
 									metadata->opcode = Z80_OPCODE_JR_CONDITIONAL;
 									metadata->operands[0] = Z80_OPERAND_LITERAL_8BIT;
-									metadata->condition = y - 4;
+									metadata->condition = (Z80_Condition)(y - 4);
 									break;
 							}
 
@@ -531,7 +531,7 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 					{
 						case 0:
 							metadata->opcode = Z80_OPCODE_RET_CONDITIONAL;
-							metadata->condition = y;
+							metadata->condition = (Z80_Condition)y;
 							break;
 
 						case 1:
@@ -568,7 +568,7 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 
 						case 2:
 							metadata->opcode = Z80_OPCODE_JP_CONDITIONAL;
-							metadata->condition = y;
+							metadata->condition = (Z80_Condition)y;
 							metadata->operands[0] = Z80_OPERAND_LITERAL_16BIT;
 							break;
 
@@ -620,7 +620,7 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 
 						case 4:
 							metadata->opcode = Z80_OPCODE_CALL_CONDITIONAL;
-							metadata->condition = y;
+							metadata->condition = (Z80_Condition)y;
 							metadata->operands[0] = Z80_OPERAND_LITERAL_16BIT;
 							break;
 

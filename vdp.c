@@ -124,20 +124,20 @@ void VDP_Constant_Initialise(VDP_Constant *constant)
 	const unsigned int priority_mask = 0x40;
 	const unsigned int not_shadowed_mask = 0x80;
 
-	unsigned int old, new;
+	unsigned int old_pixel, new_pixel;
 
-	for (old = 0; old < CC_COUNT_OF(constant->blit_lookup); ++old)
+	for (old_pixel = 0; old_pixel < CC_COUNT_OF(constant->blit_lookup); ++old_pixel)
 	{
-		for (new = 0; new < CC_COUNT_OF(constant->blit_lookup[0]); ++new)
+		for (new_pixel = 0; new_pixel < CC_COUNT_OF(constant->blit_lookup[0]); ++new_pixel)
 		{
-			const unsigned int old_palette_line_index = old & palette_line_index_mask;
-			const unsigned int old_colour_index = old & colour_index_mask;
-			const cc_bool old_priority = (old & priority_mask) != 0;
-			const cc_bool old_not_shadowed = (old & not_shadowed_mask) != 0;
+			const unsigned int old_palette_line_index = old_pixel & palette_line_index_mask;
+			const unsigned int old_colour_index = old_pixel & colour_index_mask;
+			const cc_bool old_priority = (old_pixel & priority_mask) != 0;
+			const cc_bool old_not_shadowed = (old_pixel & not_shadowed_mask) != 0;
 
-			const unsigned int new_palette_line_index = new & palette_line_index_mask;
-			const unsigned int new_colour_index = new & colour_index_mask;
-			const cc_bool new_priority = (new & priority_mask) != 0;
+			const unsigned int new_palette_line_index = new_pixel & palette_line_index_mask;
+			const unsigned int new_colour_index = new_pixel & colour_index_mask;
+			const cc_bool new_priority = (new_pixel & priority_mask) != 0;
 			const cc_bool new_not_shadowed = new_priority;
 
 			const cc_bool draw_new_pixel = new_palette_line_index != 0 && (old_palette_line_index == 0 || !old_priority || new_priority);
@@ -145,11 +145,11 @@ void VDP_Constant_Initialise(VDP_Constant *constant)
 			unsigned int output;
 
 			/* First, generate the table for regular blitting */
-			output = draw_new_pixel ? new : old;
+			output = draw_new_pixel ? new_pixel : old_pixel;
 
 			output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
 
-			constant->blit_lookup[old][new] = (unsigned char)output;
+			constant->blit_lookup[old_pixel][new_pixel] = (unsigned char)output;
 
 			/* Now, generate the table for shadow/highlight blitting */
 			if (draw_new_pixel)
@@ -182,7 +182,7 @@ void VDP_Constant_Initialise(VDP_Constant *constant)
 				output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
 			}
 
-			constant->blit_lookup_shadow_highlight[old][new] = (unsigned char)output;
+			constant->blit_lookup_shadow_highlight[old_pixel][new_pixel] = (unsigned char)output;
 		}
 	}
 }

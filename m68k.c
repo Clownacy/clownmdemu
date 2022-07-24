@@ -348,13 +348,15 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 	return address;
 }
 
+typedef	enum DecodedAddressModeType
+{
+	DECODED_ADDRESS_MODE_TYPE_REGISTER,
+	DECODED_ADDRESS_MODE_TYPE_MEMORY
+} DecodedAddressModeType;
+
 typedef struct DecodedAddressMode
 {
-	enum
-	{
-		DECODED_ADDRESS_MODE_TYPE_REGISTER,
-		DECODED_ADDRESS_MODE_TYPE_MEMORY
-	} type;
+	DecodedAddressModeType type;
 	union
 	{
 		struct
@@ -595,8 +597,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 		const cc_bool opcode_bit_8 = (opcode & 0x100) != 0;
 
 		const unsigned int opcode_primary_register = (opcode >> 0) & 7;
-		const AddressMode opcode_primary_address_mode = (opcode >> 3) & 7;
-		const AddressMode opcode_secondary_address_mode = (opcode >> 6) & 7;
+		const AddressMode opcode_primary_address_mode = (AddressMode)((opcode >> 3) & 7);
+		const AddressMode opcode_secondary_address_mode = (AddressMode)((opcode >> 6) & 7);
 		const unsigned int opcode_secondary_register = (opcode >> 9) & 7;
 
 		unsigned int operation_size = 1; /* Set to 1 by default to prevent an invalid shift later on */

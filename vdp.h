@@ -24,6 +24,47 @@ typedef struct VDP_Constant
 	unsigned char blit_lookup_shadow_highlight[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
 } VDP_Constant;
 
+typedef enum VDP_Access
+{
+	VDP_ACCESS_VRAM,
+	VDP_ACCESS_CRAM,
+	VDP_ACCESS_VSRAM
+} VDP_Access;
+
+typedef enum VDP_DMAMode
+{
+	VDP_DMA_MODE_MEMORY_TO_VRAM,
+	VDP_DMA_MODE_FILL,
+	VDP_DMA_MODE_COPY
+} VDP_DMAMode;
+
+typedef enum VDP_HScrollMode
+{
+	VDP_HSCROLL_MODE_FULL,
+	VDP_HSCROLL_MODE_1CELL,
+	VDP_HSCROLL_MODE_1LINE
+} VDP_HScrollMode;
+
+typedef enum VDP_VScrollMode
+{
+	VDP_VSCROLL_MODE_FULL,
+	VDP_VSCROLL_MODE_2CELL
+} VDP_VScrollMode;
+
+typedef struct VDP_SpriteRowCacheEntry
+{
+	unsigned char table_index;
+	unsigned char y_in_sprite;
+	unsigned char width;
+	unsigned char height;
+} VDP_SpriteRowCacheEntry;
+
+typedef struct VDP_SpriteRowCacheRow
+{
+	unsigned char total;
+	VDP_SpriteRowCacheEntry sprites[20];
+} VDP_SpriteRowCacheRow;
+
 typedef struct VDP_State
 {
 	struct
@@ -31,12 +72,7 @@ typedef struct VDP_State
 		cc_bool write_pending;
 		unsigned short cached_write;
 
-		enum
-		{
-			VDP_ACCESS_VRAM,
-			VDP_ACCESS_CRAM,
-			VDP_ACCESS_VSRAM
-		} selected_buffer;
+		VDP_Access selected_buffer;
 
 		cc_bool read_mode;
 		unsigned short index;
@@ -47,12 +83,7 @@ typedef struct VDP_State
 	{
 		cc_bool enabled;
 		cc_bool pending;
-		enum
-		{
-			VDP_DMA_MODE_MEMORY_TO_VRAM,
-			VDP_DMA_MODE_FILL,
-			VDP_DMA_MODE_COPY
-		} mode;
+		VDP_DMAMode mode;
 		unsigned char source_address_high;
 		unsigned short source_address_low;
 		unsigned short length;
@@ -81,18 +112,8 @@ typedef struct VDP_State
 	unsigned char h_int_interval;
 	cc_bool currently_in_vblank;
 
-	enum
-	{
-		VDP_HSCROLL_MODE_FULL,
-		VDP_HSCROLL_MODE_1CELL,
-		VDP_HSCROLL_MODE_1LINE
-	} hscroll_mode;
-
-	enum
-	{
-		VDP_VSCROLL_MODE_FULL,
-		VDP_VSCROLL_MODE_2CELL
-	} vscroll_mode;
+	VDP_HScrollMode hscroll_mode;
+	VDP_VScrollMode vscroll_mode;
 
 	unsigned short vram[0x8000];
 	unsigned short cram[4 * 16];
@@ -106,18 +127,7 @@ typedef struct VDP_State
 	struct
 	{
 		cc_bool needs_updating;
-		struct VDP_SpriteRowCacheRow
-		{
-			unsigned char total;
-
-			struct VDP_SpriteRowCacheEntry
-			{
-				unsigned char table_index;
-				unsigned char y_in_sprite;
-				unsigned char width;
-				unsigned char height;
-			} sprites[20];
-		} rows[VDP_MAX_SCANLINES];
+		VDP_SpriteRowCacheRow rows[VDP_MAX_SCANLINES];
 	} sprite_row_cache;
 } VDP_State;
 
