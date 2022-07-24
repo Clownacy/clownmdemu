@@ -246,7 +246,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 	info->geometry.base_height  = 224;
 	info->geometry.max_width    = FRAMEBUFFER_WIDTH;
 	info->geometry.max_height   = FRAMEBUFFER_HEIGHT;
-	info->geometry.aspect_ratio = 320.f / 224.0f;
+	info->geometry.aspect_ratio = 320.0f / 224.0f;
 
 	info->timing.fps            = 60.0 / 1.001;	/* Standard NTSC framerate. */
 	info->timing.sample_rate    = CLOWNMDEMU_FM_SAMPLE_RATE_NTSC;
@@ -305,19 +305,6 @@ void retro_reset(void)
 
 static void check_variables(void)
 {
-}
-
-static void audio_callback(void)
-{
-	static unsigned int phase;
-
-	for (unsigned i = 0; i < 30000 / 60; i++, phase++)
-	{
-		int16_t val = 0x800 * sinf(2.0f * M_PI * phase * 300.0f / 30000.0f);
-		libretro_callbacks.audio(val, val);
-	}
-
-	phase %= 100;
 }
 
 void retro_run(void)
