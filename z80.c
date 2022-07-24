@@ -895,6 +895,9 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 
 	opcode = OpcodeFetch(z80, callbacks);
 
+	/* Shut up a 'may be used uninitialised' compiler warning. */
+	displacement = 0;
+
 #ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 	instruction->metadata = &z80->constant->instruction_metadata_lookup_normal[z80->state->register_mode][opcode];
 #else

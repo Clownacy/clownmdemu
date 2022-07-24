@@ -94,8 +94,7 @@ static unsigned int ReadAndIncrement(VDP_State *state)
 		default:
 			/* Should never happen. */
 			assert(0);
-			break;
-
+			/* Fallthrough */
 		case VDP_ACCESS_VRAM:
 			value = state->vram[index % CC_COUNT_OF(state->vram)];
 			break;
