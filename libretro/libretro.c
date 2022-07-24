@@ -153,16 +153,20 @@ static void FMAudioToBeGeneratedCallback(void *user_data, size_t total_frames, v
 {
 	(void)user_data;
 
-	short dummy_buffer[0x100][2];
+	short sample_buffer[0x100][2];
 	size_t frames_remaining;
 
 	frames_remaining = total_frames;
 
 	while (frames_remaining != 0)
 	{
-		const size_t frames_to_do = CC_MIN(frames_remaining, CC_COUNT_OF(dummy_buffer));
+		const size_t frames_to_do = CC_MIN(frames_remaining, CC_COUNT_OF(sample_buffer));
 
-		generate_fm_audio(&clownmdemu, &dummy_buffer[0][0], frames_to_do);
+		memset(sample_buffer, 0, sizeof(sample_buffer));
+
+		generate_fm_audio(&clownmdemu, &sample_buffer[0][0], frames_to_do);
+
+		libretro_callbacks.audio_batch(&sample_buffer[0][0], frames_to_do);
 
 		frames_remaining -= frames_to_do;
 	}
@@ -245,6 +249,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 	info->geometry.aspect_ratio = 320.f / 224.0f;
 
 	info->timing.fps            = 60.0 / 1.001;	/* Standard NTSC framerate. */
+	info->timing.sample_rate    = CLOWNMDEMU_FM_SAMPLE_RATE_NTSC;
 }
 
 void retro_set_environment(retro_environment_t environment_callback)
