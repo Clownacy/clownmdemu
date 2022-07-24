@@ -1,2 +1,14 @@
-SOURCES_C   := 
-SOURCES_CXX := $(CORE_DIR)/libretro.c
+SOURCES_C   := $(CORE_DIR)/libretro.c \
+               $(CORE_DIR)/../clownmdemu.c \
+               $(CORE_DIR)/../error.c \
+               $(CORE_DIR)/../fm.c \
+               $(CORE_DIR)/../fm_channel.c \
+               $(CORE_DIR)/../fm_envelope.c \
+               $(CORE_DIR)/../fm_operator.c \
+               $(CORE_DIR)/../fm_phase.c \
+               $(CORE_DIR)/../m68k.c \
+               $(CORE_DIR)/../psg.c \
+               $(CORE_DIR)/../vdp.c \
+               $(CORE_DIR)/../z80.c
+
+SOURCES_CXX := 

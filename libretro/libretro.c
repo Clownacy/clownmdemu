@@ -1,225 +1,300 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
 #include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
-#include <stdio.h>
-#if defined(_WIN32) && !defined(_XBOX)
-#include <windows.h>
-#endif
 #include "libretro.h"
 
-#define VIDEO_WIDTH 256
-#define VIDEO_HEIGHT 384
-#define VIDEO_PIXELS VIDEO_WIDTH * VIDEO_HEIGHT
+#include "../clownmdemu.h"
 
-static uint8_t *frame_buf;
+#define FRAMEBUFFER_WIDTH 320
+#define FRAMEBUFFER_HEIGHT 480
+
+static ClownMDEmu_Configuration clownmdemu_configuration;
+static ClownMDEmu_Constant clownmdemu_constant;
+static ClownMDEmu_State clownmdemu_state;
+static ClownMDEmu clownmdemu = {&clownmdemu_configuration, &clownmdemu_constant, &clownmdemu_state};
+
+static uint16_t framebuffer[FRAMEBUFFER_HEIGHT][FRAMEBUFFER_WIDTH];
+static uint16_t colours[16 * 4 * 3]; /* 16 colours, 4 palette lines, 3 brightnesses. */
+static unsigned int current_screen_width;
+static unsigned int current_screen_height;
+static const unsigned char *rom;
+static size_t rom_size;
+
+static unsigned int CartridgeReadCallback(void *user_data, unsigned long address)
+{
+	(void)user_data;
+
+	if (address >= rom_size)
+		return 0;
+	else
+		return rom[address];
+}
+
+static void CartridgeWriteCallback(void *user_data, unsigned long address, unsigned int value)
+{
+	(void)user_data;
+	(void)address;
+	(void)value;
+}
+
+static void ColourUpdatedCallback(void *user_data, unsigned int index, unsigned int colour)
+{
+	(void)user_data;
+
+	const unsigned int red   = (colour >> 0) & 0xF;
+	const unsigned int green = (colour >> 4) & 0xF;
+	const unsigned int blue  = (colour >> 8) & 0xF;
+
+	colours[index] = (((red   << 1) | (red   >> 3)) << 10)
+	               | (((green << 1) | (green >> 3)) << 5)
+	               | (((blue  << 1) | (blue  >> 3)) << 0);
+}
+
+static void ScanlineRenderedCallback(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height)
+{
+	const unsigned char *source_pixel_pointer = pixels;
+	uint16_t *destination_pixel_pointer = framebuffer[scanline];
+
+	unsigned int i;
+
+	(void)user_data;
+
+	for (i = 0; i < screen_width; ++i)
+		*destination_pixel_pointer++ = colours[*source_pixel_pointer++];
+
+	current_screen_width = screen_width;
+	current_screen_height = screen_height;
+}
+
+static cc_bool InputRequestedCallback(void *user_data, unsigned int player_id, ClownMDEmu_Button button_id)
+{
+	(void)player_id;
+	(void)button_id;
+
+	return cc_false;
+}
+
+static void FMAudioToBeGeneratedCallback(void *user_data, size_t total_frames, void (*generate_fm_audio)(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames))
+{
+	(void)user_data;
+
+	short dummy_buffer[0x100][2];
+	size_t frames_remaining;
+
+	frames_remaining = total_frames;
+
+	while (frames_remaining != 0)
+	{
+		const size_t frames_to_do = CC_MIN(frames_remaining, CC_COUNT_OF(dummy_buffer));
+
+		generate_fm_audio(&clownmdemu, &dummy_buffer[0][0], frames_to_do);
+
+		frames_remaining -= frames_to_do;
+	}
+}
+
+static void PSGAudioToBeGeneratedCallback(void *user_data, size_t total_samples, void (*generate_psg_audio)(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples))
+{
+	(void)user_data;
+
+	short dummy_buffer[0x100];
+	size_t frames_remaining;
+
+	frames_remaining = total_samples;
+
+	while (frames_remaining != 0)
+	{
+		const size_t frames_to_do = CC_MIN(frames_remaining, CC_COUNT_OF(dummy_buffer));
+
+		generate_psg_audio(&clownmdemu, &dummy_buffer[0], frames_to_do);
+
+		frames_remaining -= frames_to_do;
+	}
+}
+
+static const ClownMDEmu_Callbacks clownmdemu_callbacks = {
+	NULL,
+	CartridgeReadCallback,
+	CartridgeWriteCallback,
+	ColourUpdatedCallback,
+	ScanlineRenderedCallback,
+	InputRequestedCallback,
+	FMAudioToBeGeneratedCallback,
+	PSGAudioToBeGeneratedCallback
+};
+
+struct
+{
+	retro_environment_t        environment;
+	retro_video_refresh_t      video;
+	retro_audio_sample_t       audio;
+	retro_audio_sample_batch_t audio_batch;
+	retro_input_poll_t         input_poll;
+	retro_input_state_t        input_state;
+} libretro_callbacks;
+
 static struct retro_log_callback logging;
 static retro_log_printf_t log_cb;
-static bool use_audio_cb;
-static float last_aspect;
-static float last_sample_rate;
-char retro_base_directory[4096];
-char retro_game_path[4096];
 
 static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 {
-   (void)level;
-   va_list va;
-   va_start(va, fmt);
-   vfprintf(stderr, fmt, va);
-   va_end(va);
+	(void)level;
+	va_list va;
+	va_start(va, fmt);
+	vfprintf(stderr, fmt, va);
+	va_end(va);
 }
-
-
-static retro_environment_t environ_cb;
 
 void retro_init(void)
 {
-   frame_buf = (uint8_t*)malloc(VIDEO_PIXELS * sizeof(uint32_t));
-   const char *dir = NULL;
-   if (environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &dir) && dir)
-   {
-      snprintf(retro_base_directory, sizeof(retro_base_directory), "%s", dir);
-   }
-   
+	ClownMDEmu_Constant_Initialise(&clownmdemu_constant);
+	ClownMDEmu_State_Initialise(&clownmdemu_state);
 }
 
 void retro_deinit(void)
 {
-   free(frame_buf);
-   frame_buf = NULL;
 }
 
-unsigned retro_api_version(void)
+unsigned int retro_api_version(void)
 {
-   return RETRO_API_VERSION;
+	return RETRO_API_VERSION;
 }
 
 void retro_set_controller_port_device(unsigned port, unsigned device)
 {
-   log_cb(RETRO_LOG_INFO, "Plugging device %u into port %u.\n", device, port);
+	log_cb(RETRO_LOG_INFO, "Plugging device %u into port %u.\n", device, port);
 }
 
 void retro_get_system_info(struct retro_system_info *info)
 {
-   memset(info, 0, sizeof(*info));
-   info->library_name     = "skeleton";
-   info->library_version  = "0.1";
-   info->need_fullpath    = true;
-   info->valid_extensions = "";
+	memset(info, 0, sizeof(*info));
+	info->library_name     = "clownmdemu";
+	info->library_version  = "0.1";
+	info->need_fullpath    = false;
+	info->valid_extensions = ".bin";
 }
-
-static retro_video_refresh_t video_cb;
-static retro_audio_sample_t audio_cb;
-static retro_audio_sample_batch_t audio_batch_cb;
-static retro_input_poll_t input_poll_cb;
-static retro_input_state_t input_state_cb;
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
-   float aspect                = 0.0f;
-   float sampling_rate         = 30000.0f;
+	info->geometry.base_width   = 320;
+	info->geometry.base_height  = 224;
+	info->geometry.max_width    = FRAMEBUFFER_WIDTH;
+	info->geometry.max_height   = FRAMEBUFFER_HEIGHT;
+	info->geometry.aspect_ratio = 320.f / 224.0f;
 
-
-   info->geometry.base_width   = VIDEO_WIDTH;
-   info->geometry.base_height  = VIDEO_HEIGHT;
-   info->geometry.max_width    = VIDEO_WIDTH;
-   info->geometry.max_height   = VIDEO_HEIGHT;
-   info->geometry.aspect_ratio = aspect;
-
-   last_aspect                 = aspect;
-   last_sample_rate            = sampling_rate;
+	info->timing.fps            = 60.0;
 }
 
-static struct retro_rumble_interface rumble;
-
-void retro_set_environment(retro_environment_t cb)
+void retro_set_environment(retro_environment_t environment_callback)
 {
-   environ_cb = cb;
+	libretro_callbacks.environment = environment_callback;
 
-   if (cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &logging))
-      log_cb = logging.log;
-   else
-      log_cb = fallback_log;
+	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &logging))
+		log_cb = logging.log;
+	else
+		log_cb = fallback_log;
 
-   static const struct retro_controller_description controllers[] = {
-      { "Nintendo DS", RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 0) },
-   };
+	static const struct retro_controller_description controllers[] = {
+		{ "Nintendo DS", RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 0) },
+	};
 
-   static const struct retro_controller_info ports[] = {
-      { controllers, 1 },
-      { NULL, 0 },
-   };
+	static const struct retro_controller_info ports[] = {
+		{ controllers, 1 },
+		{ NULL, 0 },
+	};
 
-   cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
+	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
 }
 
-void retro_set_audio_sample(retro_audio_sample_t cb)
+void retro_set_audio_sample(retro_audio_sample_t audio_callback)
 {
-   audio_cb = cb;
+	libretro_callbacks.audio = audio_callback;
 }
 
-void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb)
+void retro_set_audio_sample_batch(retro_audio_sample_batch_t audio_batch_callback)
 {
-   audio_batch_cb = cb;
+	libretro_callbacks.audio_batch = audio_batch_callback;
 }
 
-void retro_set_input_poll(retro_input_poll_t cb)
+void retro_set_input_poll(retro_input_poll_t input_poll_callback)
 {
-   input_poll_cb = cb;
+	libretro_callbacks.input_poll = input_poll_callback;
 }
 
-void retro_set_input_state(retro_input_state_t cb)
+void retro_set_input_state(retro_input_state_t input_state_callback)
 {
-   input_state_cb = cb;
+	libretro_callbacks.input_state = input_state_callback;
 }
 
-void retro_set_video_refresh(retro_video_refresh_t cb)
+void retro_set_video_refresh(retro_video_refresh_t video_callback)
 {
-   video_cb = cb;
+	libretro_callbacks.video = video_callback;
 }
-
-static unsigned x_coord;
-static unsigned y_coord;
-static unsigned phase;
-static int mouse_rel_x;
-static int mouse_rel_y;
 
 void retro_reset(void)
 {
-   x_coord = 0;
-   y_coord = 0;
+	ClownMDEmu_Reset(&clownmdemu, &clownmdemu_callbacks);
 }
-
-static void update_input(void)
-{
-
-}
-
 
 static void check_variables(void)
 {
-
 }
 
 static void audio_callback(void)
 {
-   for (unsigned i = 0; i < 30000 / 60; i++, phase++)
-   {
-      int16_t val = 0x800 * sinf(2.0f * M_PI * phase * 300.0f / 30000.0f);
-      audio_cb(val, val);
-   }
+	static unsigned int phase;
 
-   phase %= 100;
-}
+	for (unsigned i = 0; i < 30000 / 60; i++, phase++)
+	{
+		int16_t val = 0x800 * sinf(2.0f * M_PI * phase * 300.0f / 30000.0f);
+		libretro_callbacks.audio(val, val);
+	}
 
-static void audio_set_state(bool enable)
-{
-   (void)enable;
+	phase %= 100;
 }
 
 void retro_run(void)
 {
-   unsigned i;
-   update_input();
+	ClownMDEmu_Iterate(&clownmdemu, &clownmdemu_callbacks);
 
+	libretro_callbacks.video(framebuffer, current_screen_width, current_screen_height, sizeof(framebuffer[0]));
 
-
-   bool updated = false;
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
-      check_variables();
+	bool updated = false;
+	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
+		check_variables();
 }
 
 bool retro_load_game(const struct retro_game_info *info)
 {
-   struct retro_input_descriptor desc[] = {
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Left" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Up" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "Down" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "Right" },
-      { 0 },
-   };
+	struct retro_input_descriptor desc[] = {
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Left" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Up" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "Down" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "Right" },
+		{ 0 },
+	};
 
-   environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
+	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
+/*
+	enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_XRGB8888;
+	if (!libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
+	{
+		log_cb(RETRO_LOG_INFO, "XRGB8888 is not supported.\n");
+		return false;
+	}
+*/
+	check_variables();
 
-   enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_XRGB8888;
-   if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
-   {
-      log_cb(RETRO_LOG_INFO, "XRGB8888 is not supported.\n");
-      return false;
-   }
+	rom = (const unsigned char*)info->data;
+	rom_size = info->size;
 
-   snprintf(retro_game_path, sizeof(retro_game_path), "%s", info->path);
-   struct retro_audio_callback audio_cb = { audio_callback, audio_set_state };
-   use_audio_cb = environ_cb(RETRO_ENVIRONMENT_SET_AUDIO_CALLBACK, &audio_cb);
+	ClownMDEmu_Reset(&clownmdemu, &clownmdemu_callbacks);
 
-   check_variables();
-
-   (void)info;
-   return true;
+	return true;
 }
 
 void retro_unload_game(void)
@@ -229,39 +304,39 @@ void retro_unload_game(void)
 
 unsigned retro_get_region(void)
 {
-   return RETRO_REGION_NTSC;
+	return RETRO_REGION_NTSC;
 }
 
 bool retro_load_game_special(unsigned type, const struct retro_game_info *info, size_t num)
 {
-   return false;
+	return false;
 }
 
 size_t retro_serialize_size(void)
 {
-   return 0;
+	return 0;
 }
 
 bool retro_serialize(void *data_, size_t size)
 {
-   return false;
+	return false;
 }
 
 bool retro_unserialize(const void *data_, size_t size)
 {
-   return false;
+	return false;
 }
 
 void *retro_get_memory_data(unsigned id)
 {
-   (void)id;
-   return NULL;
+	(void)id;
+	return NULL;
 }
 
 size_t retro_get_memory_size(unsigned id)
 {
-   (void)id;
-   return 0;
+	(void)id;
+	return 0;
 }
 
 void retro_cheat_reset(void)
@@ -269,8 +344,8 @@ void retro_cheat_reset(void)
 
 void retro_cheat_set(unsigned index, bool enabled, const char *code)
 {
-   (void)index;
-   (void)enabled;
-   (void)code;
+	(void)index;
+	(void)enabled;
+	(void)code;
 }
 

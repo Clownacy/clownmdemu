@@ -40,7 +40,7 @@ else ifneq ($(findstring MINGW,$(shell uname -a)),)
 endif
 
 CORE_DIR    += .
-TARGET_NAME := skeleton
+TARGET_NAME := clownmdemu
 LIBM		    = -lm
 
 ifeq ($(ARCHFLAGS),)
@@ -126,7 +126,7 @@ endif
 
 include Makefile.common
 
-OBJECTS := $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o)
+OBJECTS := $(addprefix objects/libretro/, $(SOURCES_C:.c=.o)) $(SOURCES_CXX:.cpp=.o)
 
 CFLAGS   += -Wall -D__LIBRETRO__ $(fpic)
 CXXFLAGS += -Wall -D__LIBRETRO__ $(fpic)
@@ -141,9 +141,15 @@ else
 	$(Q)$(CXX) $(fpic) $(SHARED) $(INCLUDES) -o $@ $(OBJECTS) $(LDFLAGS)
 endif
 
-%.o: %.c
+objects/libretro/%.o: %.c
+	$(Q)mkdir -p $(@D)
 	@$(if $(Q), $(shell echo echo CC $<),)
-	$(Q)$(CXX) $(CFLAGS) $(fpic) -c -o $@ $<
+	$(Q)$(CC) $(CFLAGS) $(fpic) -c -o $@ $<
+
+objects/libretro/%.o: %.cpp
+	$(Q)mkdir -p $(@D)
+	@$(if $(Q), $(shell echo echo CXX $<),)
+	$(Q)$(CXX) $(CXXFLAGS) $(fpic) -c -o $@ $<
 
 clean:
 	rm -f $(OBJECTS) $(TARGET)
