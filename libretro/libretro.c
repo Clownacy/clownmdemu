@@ -356,7 +356,6 @@ bool retro_load_game(const struct retro_game_info *info)
 
 void retro_unload_game(void)
 {
-
 }
 
 unsigned retro_get_region(void)
@@ -371,17 +370,19 @@ bool retro_load_game_special(unsigned type, const struct retro_game_info *info, 
 
 size_t retro_serialize_size(void)
 {
-	return 0;
+	return sizeof(clownmdemu_state);
 }
 
 bool retro_serialize(void *data_, size_t size)
 {
-	return false;
+	memcpy(data_, &clownmdemu_state, sizeof(clownmdemu_state));
+	return true;
 }
 
 bool retro_unserialize(const void *data_, size_t size)
 {
-	return false;
+	memcpy(&clownmdemu_state, data_, sizeof(clownmdemu_state));
+	return true;
 }
 
 void *retro_get_memory_data(unsigned id)
@@ -397,7 +398,8 @@ size_t retro_get_memory_size(unsigned id)
 }
 
 void retro_cheat_reset(void)
-{}
+{
+}
 
 void retro_cheat_set(unsigned index, bool enabled, const char *code)
 {
