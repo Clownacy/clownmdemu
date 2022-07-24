@@ -41,16 +41,31 @@ static void CartridgeWriteCallback(void *user_data, unsigned long address, unsig
 	(void)value;
 }
 
-static void ColourUpdatedCallback(void *user_data, unsigned int index, unsigned int colour)
+static void ColourUpdatedCallback0RGB1555(void *user_data, unsigned int index, unsigned int colour)
 {
 	(void)user_data;
 
+	/* Convert from 0BGR4444 to 0RGB1555. */
 	const unsigned int red   = (colour >> 0) & 0xF;
 	const unsigned int green = (colour >> 4) & 0xF;
 	const unsigned int blue  = (colour >> 8) & 0xF;
 
 	colours[index] = (((red   << 1) | (red   >> 3)) << 10)
 	               | (((green << 1) | (green >> 3)) << 5)
+	               | (((blue  << 1) | (blue  >> 3)) << 0);
+}
+
+static void ColourUpdatedCallbackRGB565(void *user_data, unsigned int index, unsigned int colour)
+{
+	(void)user_data;
+
+	/* Convert from 0BGR4444 to RGB565. */
+	const unsigned int red   = (colour >> 0) & 0xF;
+	const unsigned int green = (colour >> 4) & 0xF;
+	const unsigned int blue  = (colour >> 8) & 0xF;
+
+	colours[index] = (((red   << 1) | (red   >> 3)) << 11)
+	               | (((green << 2) | (green >> 2)) << 5)
 	               | (((blue  << 1) | (blue  >> 3)) << 0);
 }
 
@@ -116,11 +131,11 @@ static void PSGAudioToBeGeneratedCallback(void *user_data, size_t total_samples,
 	}
 }
 
-static const ClownMDEmu_Callbacks clownmdemu_callbacks = {
+static ClownMDEmu_Callbacks clownmdemu_callbacks = {
 	NULL,
 	CartridgeReadCallback,
 	CartridgeWriteCallback,
-	ColourUpdatedCallback,
+	ColourUpdatedCallback0RGB1555,
 	ScanlineRenderedCallback,
 	InputRequestedCallback,
 	FMAudioToBeGeneratedCallback,
@@ -279,14 +294,11 @@ bool retro_load_game(const struct retro_game_info *info)
 	};
 
 	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
-/*
-	enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_XRGB8888;
-	if (!libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
-	{
-		log_cb(RETRO_LOG_INFO, "XRGB8888 is not supported.\n");
-		return false;
-	}
-*/
+
+	enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_RGB565;
+	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
+		clownmdemu_callbacks.colour_updated = ColourUpdatedCallbackRGB565;
+
 	check_variables();
 
 	rom = (const unsigned char*)info->data;
