@@ -24,6 +24,19 @@ static unsigned int current_screen_height;
 static const unsigned char *rom;
 static size_t rom_size;
 
+struct
+{
+	retro_environment_t        environment;
+	retro_video_refresh_t      video;
+	retro_audio_sample_t       audio;
+	retro_audio_sample_batch_t audio_batch;
+	retro_input_poll_t         input_poll;
+	retro_input_state_t        input_state;
+} libretro_callbacks;
+
+static struct retro_log_callback logging;
+static retro_log_printf_t log_cb;
+
 static unsigned int CartridgeReadCallback(void *user_data, unsigned long address)
 {
 	(void)user_data;
@@ -87,10 +100,53 @@ static void ScanlineRenderedCallback(void *user_data, unsigned int scanline, con
 
 static cc_bool InputRequestedCallback(void *user_data, unsigned int player_id, ClownMDEmu_Button button_id)
 {
-	(void)player_id;
-	(void)button_id;
+	cc_bool button_state = cc_false;
 
-	return cc_false;
+	if (player_id == 0)
+	{
+		unsigned int libretro_button_id;
+
+		switch (button_id)
+		{
+			default:
+				/* Fallthrough */
+			case CLOWNMDEMU_BUTTON_UP:
+				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_UP;
+				break;
+
+			case CLOWNMDEMU_BUTTON_DOWN:
+				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_DOWN;
+				break;
+
+			case CLOWNMDEMU_BUTTON_LEFT:
+				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_LEFT;
+				break;
+
+			case CLOWNMDEMU_BUTTON_RIGHT:
+				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_RIGHT;
+				break;
+
+			case CLOWNMDEMU_BUTTON_A:
+				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_Y;
+				break;
+
+			case CLOWNMDEMU_BUTTON_B:
+				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_B;
+				break;
+
+			case CLOWNMDEMU_BUTTON_C:
+				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_A;
+				break;
+
+			case CLOWNMDEMU_BUTTON_START:
+				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_START;
+				break;
+		}
+
+		button_state = libretro_callbacks.input_state(0, RETRO_DEVICE_JOYPAD, 0, libretro_button_id);
+	}
+
+	return button_state;
 }
 
 static void FMAudioToBeGeneratedCallback(void *user_data, size_t total_frames, void (*generate_fm_audio)(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames))
@@ -142,19 +198,6 @@ static ClownMDEmu_Callbacks clownmdemu_callbacks = {
 	PSGAudioToBeGeneratedCallback
 };
 
-struct
-{
-	retro_environment_t        environment;
-	retro_video_refresh_t      video;
-	retro_audio_sample_t       audio;
-	retro_audio_sample_batch_t audio_batch;
-	retro_input_poll_t         input_poll;
-	retro_input_state_t        input_state;
-} libretro_callbacks;
-
-static struct retro_log_callback logging;
-static retro_log_printf_t log_cb;
-
 static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 {
 	(void)level;
@@ -201,7 +244,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 	info->geometry.max_height   = FRAMEBUFFER_HEIGHT;
 	info->geometry.aspect_ratio = 320.f / 224.0f;
 
-	info->timing.fps            = 60.0;
+	info->timing.fps            = 60.0 / 1.001;	/* Standard NTSC framerate. */
 }
 
 void retro_set_environment(retro_environment_t environment_callback)
@@ -274,6 +317,8 @@ static void audio_callback(void)
 
 void retro_run(void)
 {
+	libretro_callbacks.input_poll();
+
 	ClownMDEmu_Iterate(&clownmdemu, &clownmdemu_callbacks);
 
 	libretro_callbacks.video(framebuffer, current_screen_width, current_screen_height, sizeof(framebuffer[0]));
