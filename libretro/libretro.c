@@ -25,8 +25,18 @@ static ClownMDEmu_Constant clownmdemu_constant;
 static ClownMDEmu_State clownmdemu_state;
 static ClownMDEmu clownmdemu = {&clownmdemu_configuration, &clownmdemu_constant, &clownmdemu_state};
 
-static uint16_t framebuffer[FRAMEBUFFER_HEIGHT][FRAMEBUFFER_WIDTH];
-static uint16_t colours[16 * 4 * 3]; /* 16 colours, 4 palette lines, 3 brightnesses. */
+static union
+{
+	uint16_t u16[FRAMEBUFFER_HEIGHT][FRAMEBUFFER_WIDTH];
+	uint32_t u32[FRAMEBUFFER_HEIGHT][FRAMEBUFFER_WIDTH];
+} framebuffer;
+
+static union
+{
+	uint16_t u16[16 * 4 * 3]; /* 16 colours, 4 palette lines, 3 brightnesses. */
+	uint32_t u32[16 * 4 * 3];
+} colours;
+
 static unsigned int current_screen_width;
 static unsigned int current_screen_height;
 static const unsigned char *rom;
@@ -60,7 +70,7 @@ static void CartridgeWriteCallback(void *user_data, unsigned long address, unsig
 	(void)value;
 }
 
-static void ColourUpdatedCallback0RGB1555(void *user_data, unsigned int index, unsigned int colour)
+static void ColourUpdatedCallback_0RGB1555(void *user_data, unsigned int index, unsigned int colour)
 {
 	(void)user_data;
 
@@ -69,12 +79,12 @@ static void ColourUpdatedCallback0RGB1555(void *user_data, unsigned int index, u
 	const unsigned int green = (colour >> 4) & 0xF;
 	const unsigned int blue  = (colour >> 8) & 0xF;
 
-	colours[index] = (((red   << 1) | (red   >> 3)) << 10)
-	               | (((green << 1) | (green >> 3)) << 5)
-	               | (((blue  << 1) | (blue  >> 3)) << 0);
+	colours.u16[index] = (((red   << 1) | (red   >> 3)) << (5 * 2))
+	                   | (((green << 1) | (green >> 3)) << (5 * 1))
+	                   | (((blue  << 1) | (blue  >> 3)) << (5 * 0));
 }
 
-static void ColourUpdatedCallbackRGB565(void *user_data, unsigned int index, unsigned int colour)
+static void ColourUpdatedCallback_RGB565(void *user_data, unsigned int index, unsigned int colour)
 {
 	(void)user_data;
 
@@ -83,22 +93,52 @@ static void ColourUpdatedCallbackRGB565(void *user_data, unsigned int index, uns
 	const unsigned int green = (colour >> 4) & 0xF;
 	const unsigned int blue  = (colour >> 8) & 0xF;
 
-	colours[index] = (((red   << 1) | (red   >> 3)) << 11)
-	               | (((green << 2) | (green >> 2)) << 5)
-	               | (((blue  << 1) | (blue  >> 3)) << 0);
+	colours.u16[index] = (((red   << 1) | (red   >> 3)) << 11)
+	                   | (((green << 2) | (green >> 2)) << 5)
+	                   | (((blue  << 1) | (blue  >> 3)) << 0);
 }
 
-static void ScanlineRenderedCallback(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height)
+static void ColourUpdatedCallback_XRGB8888(void *user_data, unsigned int index, unsigned int colour)
+{
+	(void)user_data;
+
+	/* Convert from 0BGR4444 to XRGB8888. */
+	const unsigned int red   = (colour >> 0) & 0xF;
+	const unsigned int green = (colour >> 4) & 0xF;
+	const unsigned int blue  = (colour >> 8) & 0xF;
+
+	colours.u32[index] = (((red   << 4) | (red   >> 0)) << (8 * 2))
+	                   | (((green << 4) | (green >> 0)) << (8 * 1))
+	                   | (((blue  << 4) | (blue  >> 0)) << (8 * 0));
+}
+
+static void ScanlineRenderedCallback_16Bit(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height)
 {
 	const unsigned char *source_pixel_pointer = pixels;
-	uint16_t *destination_pixel_pointer = framebuffer[scanline];
+	uint16_t *destination_pixel_pointer = framebuffer.u16[scanline];
 
 	unsigned int i;
 
 	(void)user_data;
 
 	for (i = 0; i < screen_width; ++i)
-		*destination_pixel_pointer++ = colours[*source_pixel_pointer++];
+		*destination_pixel_pointer++ = colours.u16[*source_pixel_pointer++];
+
+	current_screen_width = screen_width;
+	current_screen_height = screen_height;
+}
+
+static void ScanlineRenderedCallback_32Bit(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height)
+{
+	const unsigned char *source_pixel_pointer = pixels;
+	uint32_t *destination_pixel_pointer = framebuffer.u32[scanline];
+
+	unsigned int i;
+
+	(void)user_data;
+
+	for (i = 0; i < screen_width; ++i)
+		*destination_pixel_pointer++ = colours.u32[*source_pixel_pointer++];
 
 	current_screen_width = screen_width;
 	current_screen_height = screen_height;
@@ -201,8 +241,8 @@ static ClownMDEmu_Callbacks clownmdemu_callbacks = {
 	NULL,
 	CartridgeReadCallback,
 	CartridgeWriteCallback,
-	ColourUpdatedCallback0RGB1555,
-	ScanlineRenderedCallback,
+	ColourUpdatedCallback_0RGB1555,
+	ScanlineRenderedCallback_16Bit,
 	InputRequestedCallback,
 	FMAudioToBeGeneratedCallback,
 	PSGAudioToBeGeneratedCallback
@@ -352,11 +392,25 @@ static void check_variables(void)
 
 void retro_run(void)
 {
+	void *current_framebuffer;
+	size_t current_framebuffer_pitch;
+
 	libretro_callbacks.input_poll();
+
+	if (clownmdemu_callbacks.scanline_rendered == ScanlineRenderedCallback_16Bit)
+	{
+		current_framebuffer = &framebuffer.u16;
+		current_framebuffer_pitch = sizeof(framebuffer.u16[0]);
+	}
+	else
+	{
+		current_framebuffer = &framebuffer.u32;
+		current_framebuffer_pitch = sizeof(framebuffer.u32[0]);
+	}
 
 	ClownMDEmu_Iterate(&clownmdemu, &clownmdemu_callbacks);
 
-	libretro_callbacks.video(framebuffer, current_screen_width, current_screen_height, sizeof(framebuffer[0]));
+	libretro_callbacks.video(current_framebuffer, current_screen_width, current_screen_height, current_framebuffer_pitch);
 
 	bool updated = false;
 	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
@@ -375,9 +429,28 @@ bool retro_load_game(const struct retro_game_info *info)
 
 	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
 
-	enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_RGB565;
-	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
-		clownmdemu_callbacks.colour_updated = ColourUpdatedCallbackRGB565;
+	enum retro_pixel_format pixel_format;
+
+	pixel_format = RETRO_PIXEL_FORMAT_RGB565;
+	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &pixel_format))
+	{
+		clownmdemu_callbacks.colour_updated = ColourUpdatedCallback_RGB565;
+		clownmdemu_callbacks.scanline_rendered = ScanlineRenderedCallback_16Bit;
+	}
+	else
+	{
+		pixel_format = RETRO_PIXEL_FORMAT_XRGB8888;
+		if (libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &pixel_format))
+		{
+			clownmdemu_callbacks.colour_updated = ColourUpdatedCallback_XRGB8888;
+			clownmdemu_callbacks.scanline_rendered = ScanlineRenderedCallback_32Bit;
+		}
+		else
+		{
+			clownmdemu_callbacks.colour_updated = ColourUpdatedCallback_0RGB1555;
+			clownmdemu_callbacks.scanline_rendered = ScanlineRenderedCallback_16Bit;
+		}
+	}
 
 	check_variables();
 
