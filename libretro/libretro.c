@@ -293,6 +293,9 @@ static void ClownMDEmuErrorLog(const char *format, va_list arg)
 
 void retro_init(void)
 {
+	uint64_t serialisation_quirks = RETRO_SERIALIZATION_QUIRK_ENDIAN_DEPENDENT | RETRO_SERIALIZATION_QUIRK_PLATFORM_DEPENDENT;
+	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &serialisation_quirks);
+
 	ClownMDEmu_SetErrorCallback(ClownMDEmuErrorLog);
 
 	ClownMDEmu_Constant_Initialise(&clownmdemu_constant);
