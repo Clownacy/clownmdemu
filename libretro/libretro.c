@@ -17,15 +17,18 @@
 /* Change this to adjust the low-pass filter. */
 #define SAMPLE_RATE 48000
 
+/* Mixer data. */
 static Mixer_Constant mixer_constant;
 static Mixer_State mixer_state;
 static const Mixer mixer = {&mixer_constant, &mixer_state};
 
+/* clownmdemu data. */
 static ClownMDEmu_Configuration clownmdemu_configuration;
 static ClownMDEmu_Constant clownmdemu_constant;
 static ClownMDEmu_State clownmdemu_state;
 static const ClownMDEmu clownmdemu = {&clownmdemu_configuration, &clownmdemu_constant, &clownmdemu_state};
 
+/* Frontend data. */
 static union
 {
 	uint16_t u16[FRAMEBUFFER_HEIGHT][FRAMEBUFFER_WIDTH];
@@ -43,7 +46,7 @@ static unsigned int current_screen_height;
 static const unsigned char *rom;
 static size_t rom_size;
 
-struct
+static struct
 {
 	retro_environment_t        environment;
 	retro_video_refresh_t      video;
@@ -301,11 +304,11 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
 
 void retro_get_system_info(struct retro_system_info *info)
 {
-	memset(info, 0, sizeof(*info));
 	info->library_name     = "clownmdemu";
-	info->library_version  = "0.1";
+	info->library_version  = "v0.1";
 	info->need_fullpath    = false;
-	info->valid_extensions = ".bin";
+	info->valid_extensions = "bin|md|gen";
+	info->block_extract    = false;
 }
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
@@ -330,6 +333,7 @@ void retro_set_environment(retro_environment_t environment_callback)
 	else
 		libretro_callbacks.log = FallbackErrorLogCallback;
 
+	/* TODO: Leftover junk from Skeletor. */
 	static const struct retro_controller_description controllers[] = {
 		{ "Nintendo DS", RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 0) },
 	};
@@ -374,6 +378,7 @@ void retro_reset(void)
 
 static void check_variables(void)
 {
+	/* TODO */
 }
 
 static void MixerCompleteCallback(const void *user_data, short *audio_samples, size_t total_frames)
@@ -385,6 +390,7 @@ static void MixerCompleteCallback(const void *user_data, short *audio_samples, s
 
 void retro_run(void)
 {
+	/* Poll inputs. */
 	libretro_callbacks.input_poll();
 
 	Mixer_Begin(&mixer);
@@ -393,11 +399,13 @@ void retro_run(void)
 
 	Mixer_End(&mixer, MixerCompleteCallback, NULL);
 
+	/* Upload the completed frame to the frontend. */
 	if (clownmdemu_callbacks.scanline_rendered == ScanlineRenderedCallback_16Bit)
 		libretro_callbacks.video(&framebuffer.u16, current_screen_width, current_screen_height, sizeof(framebuffer.u16[0]));
 	else
 		libretro_callbacks.video(&framebuffer.u32, current_screen_width, current_screen_height, sizeof(framebuffer.u32[0]));
 
+	/* TODO: Leftover junk from Skeletor. */
 	bool updated = false;
 	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
 		check_variables();
@@ -405,6 +413,7 @@ void retro_run(void)
 
 bool retro_load_game(const struct retro_game_info *info)
 {
+	/* TODO: Leftover junk from Skeletor. */
 	struct retro_input_descriptor desc[] = {
 		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Left" },
 		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Up" },
@@ -415,6 +424,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
 	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
 
+	/* Determine which pixel format to render as. */
 	enum retro_pixel_format pixel_format;
 
 	pixel_format = RETRO_PIXEL_FORMAT_RGB565;
@@ -438,11 +448,14 @@ bool retro_load_game(const struct retro_game_info *info)
 		}
 	}
 
+	/* TODO: Leftover junk from Skeletor. */
 	check_variables();
 
+	/* Initialise the ROM. */
 	rom = (const unsigned char*)info->data;
 	rom_size = info->size;
 
+	/* Boot the emulated Mega Drive. */
 	ClownMDEmu_Reset(&clownmdemu, &clownmdemu_callbacks);
 
 	return true;
@@ -450,15 +463,18 @@ bool retro_load_game(const struct retro_game_info *info)
 
 void retro_unload_game(void)
 {
+	/* Nothing to do here... */
 }
 
 unsigned retro_get_region(void)
 {
+	/* TODO: PAL mode. */
 	return RETRO_REGION_NTSC;
 }
 
 bool retro_load_game_special(unsigned type, const struct retro_game_info *info, size_t num)
 {
+	/* We don't need anything special. */
 	return false;
 }
 
@@ -467,27 +483,29 @@ size_t retro_serialize_size(void)
 	return sizeof(clownmdemu_state);
 }
 
-bool retro_serialize(void *data_, size_t size)
+bool retro_serialize(void *data, size_t size)
 {
-	memcpy(data_, &clownmdemu_state, sizeof(clownmdemu_state));
+	memcpy(data, &clownmdemu_state, sizeof(clownmdemu_state));
 	return true;
 }
 
-bool retro_unserialize(const void *data_, size_t size)
+bool retro_unserialize(const void *data, size_t size)
 {
-	memcpy(&clownmdemu_state, data_, sizeof(clownmdemu_state));
+	memcpy(&clownmdemu_state, data, sizeof(clownmdemu_state));
 	return true;
 }
 
-void *retro_get_memory_data(unsigned id)
+void* retro_get_memory_data(unsigned id)
 {
 	(void)id;
+
 	return NULL;
 }
 
 size_t retro_get_memory_size(unsigned id)
 {
 	(void)id;
+
 	return 0;
 }
 
@@ -495,10 +513,9 @@ void retro_cheat_reset(void)
 {
 }
 
-void retro_cheat_set(unsigned index, bool enabled, const char *code)
+void retro_cheat_set(unsigned int index, bool enabled, const char *code)
 {
 	(void)index;
 	(void)enabled;
 	(void)code;
 }
-
