@@ -151,53 +151,46 @@ static void ScanlineRenderedCallback_32Bit(const void *user_data, unsigned int s
 
 static cc_bool InputRequestedCallback(const void *user_data, unsigned int player_id, ClownMDEmu_Button button_id)
 {
-	cc_bool button_state = cc_false;
+	unsigned int libretro_button_id;
 
-	if (player_id == 0)
+	switch (button_id)
 	{
-		unsigned int libretro_button_id;
+		default:
+			/* Fallthrough */
+		case CLOWNMDEMU_BUTTON_UP:
+			libretro_button_id = RETRO_DEVICE_ID_JOYPAD_UP;
+			break;
 
-		switch (button_id)
-		{
-			default:
-				/* Fallthrough */
-			case CLOWNMDEMU_BUTTON_UP:
-				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_UP;
-				break;
+		case CLOWNMDEMU_BUTTON_DOWN:
+			libretro_button_id = RETRO_DEVICE_ID_JOYPAD_DOWN;
+			break;
 
-			case CLOWNMDEMU_BUTTON_DOWN:
-				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_DOWN;
-				break;
+		case CLOWNMDEMU_BUTTON_LEFT:
+			libretro_button_id = RETRO_DEVICE_ID_JOYPAD_LEFT;
+			break;
 
-			case CLOWNMDEMU_BUTTON_LEFT:
-				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_LEFT;
-				break;
+		case CLOWNMDEMU_BUTTON_RIGHT:
+			libretro_button_id = RETRO_DEVICE_ID_JOYPAD_RIGHT;
+			break;
 
-			case CLOWNMDEMU_BUTTON_RIGHT:
-				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_RIGHT;
-				break;
+		case CLOWNMDEMU_BUTTON_A:
+			libretro_button_id = RETRO_DEVICE_ID_JOYPAD_Y;
+			break;
 
-			case CLOWNMDEMU_BUTTON_A:
-				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_Y;
-				break;
+		case CLOWNMDEMU_BUTTON_B:
+			libretro_button_id = RETRO_DEVICE_ID_JOYPAD_B;
+			break;
 
-			case CLOWNMDEMU_BUTTON_B:
-				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_B;
-				break;
+		case CLOWNMDEMU_BUTTON_C:
+			libretro_button_id = RETRO_DEVICE_ID_JOYPAD_A;
+			break;
 
-			case CLOWNMDEMU_BUTTON_C:
-				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_A;
-				break;
-
-			case CLOWNMDEMU_BUTTON_START:
-				libretro_button_id = RETRO_DEVICE_ID_JOYPAD_START;
-				break;
-		}
-
-		button_state = libretro_callbacks.input_state(0, RETRO_DEVICE_JOYPAD, 0, libretro_button_id);
+		case CLOWNMDEMU_BUTTON_START:
+			libretro_button_id = RETRO_DEVICE_ID_JOYPAD_START;
+			break;
 	}
 
-	return button_state;
+	return libretro_callbacks.input_state(player_id, RETRO_DEVICE_JOYPAD, 0, libretro_button_id);
 }
 
 static void FMAudioToBeGeneratedCallback(const void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames))
