@@ -20,6 +20,13 @@ enum
 #define CC_SIGN_EXTEND_UINT(bit_index, value) CC_SIGN_EXTEND(unsigned int, bit_index, value)
 #define CC_SIGN_EXTEND_ULONG(bit_index, value) CC_SIGN_EXTEND(unsigned long, bit_index, value)
 
+/* GCC 3.2 is the earliest version of GCC of which I can find proof of supporting this. */
+#if defined(__GNUC__) && defined(__GNUC_MINOR__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2))
+ #define CC_ATTRIBUTE_PRINTF(a, b) __attribute__((format(printf, a, b)))
+#else
+ #define CC_ATTRIBUTE_PRINTF(a, b)
+#endif
+
 /* Common constants. */
 #define CC_PI 3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679
 

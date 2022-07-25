@@ -3,20 +3,14 @@
 
 #include <stdarg.h>
 
+#include "clowncommon.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Prevent errors when '__attribute__((format(printf, X, X)))' is not supported. */
-/* GCC 3.2 is the earliest version of GCC of which I can find proof of supporting this. */
-#if defined(__GNUC__) && defined(__GNUC_MINOR__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2))
-#define ATTRIBUTE_PRINTF(a, b) __attribute__((format(printf, a, b)))
-#else
-#define ATTRIBUTE_PRINTF(a, b)
-#endif
-
 void SetErrorCallback(void (*error_callback)(const char *format, va_list arg));
-ATTRIBUTE_PRINTF(1, 2) void PrintError(const char *format, ...);
+CC_ATTRIBUTE_PRINTF(1, 2) void PrintError(const char *format, ...);
 
 #ifdef __cplusplus
 }

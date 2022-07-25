@@ -12,14 +12,6 @@
 #define FRAMEBUFFER_WIDTH 320
 #define FRAMEBUFFER_HEIGHT 480
 
-/* Prevent errors when '__attribute__((format(printf, X, X)))' is not supported. */
-/* GCC 3.2 is the earliest version of GCC of which I can find proof of supporting this. */
-#if defined(__GNUC__) && defined(__GNUC_MINOR__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2))
-#define ATTRIBUTE_PRINTF(a, b) __attribute__((format(printf, a, b)))
-#else
-#define ATTRIBUTE_PRINTF(a, b)
-#endif
-
 static ClownMDEmu_Configuration clownmdemu_configuration;
 static ClownMDEmu_Constant clownmdemu_constant;
 static ClownMDEmu_State clownmdemu_state;
@@ -50,7 +42,7 @@ struct
 	retro_audio_sample_batch_t audio_batch;
 	retro_input_poll_t         input_poll;
 	retro_input_state_t        input_state;
-	ATTRIBUTE_PRINTF(2, 3) retro_log_printf_t log;
+	CC_ATTRIBUTE_PRINTF(2, 3) retro_log_printf_t log;
 } libretro_callbacks;
 
 static unsigned int CartridgeReadCallback(void *user_data, unsigned long address)
@@ -248,7 +240,7 @@ static ClownMDEmu_Callbacks clownmdemu_callbacks = {
 	PSGAudioToBeGeneratedCallback
 };
 
-ATTRIBUTE_PRINTF(2, 3) static void FallbackErrorLogCallback(enum retro_log_level level, const char *format, ...)
+CC_ATTRIBUTE_PRINTF(2, 3) static void FallbackErrorLogCallback(enum retro_log_level level, const char *format, ...)
 {
 	switch (level)
 	{
