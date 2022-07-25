@@ -18,7 +18,7 @@ enum
 /* Some of the logic here is based on research done by Nemesis:
    https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016 */
 
-static void WriteAndIncrement(VDP_State *state, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data)
+static void WriteAndIncrement(VDP_State *state, unsigned int value, void (*colour_updated_callback)(const void *user_data, unsigned int index, unsigned int colour), const void *colour_updated_callback_user_data)
 {
 	const unsigned int index = state->access.index / 2;
 
@@ -229,7 +229,7 @@ void VDP_State_Initialise(VDP_State *state)
 	state->sprite_row_cache.needs_updating = cc_true;
 }
 
-void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_rendered_callback)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), void *scanline_rendered_callback_user_data)
+void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_rendered_callback)(const void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), const void *scanline_rendered_callback_user_data)
 {
 	unsigned int i;
 
@@ -596,7 +596,7 @@ unsigned int VDP_ReadControl(const VDP *vdp)
 	return (vdp->state->currently_in_vblank << 3) | (1 << 2); /* The H-blank bit is forced for now so Sonic 2's two-player mode works */
 }
 
-void VDP_WriteData(const VDP *vdp, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data)
+void VDP_WriteData(const VDP *vdp, unsigned int value, void (*colour_updated_callback)(const void *user_data, unsigned int index, unsigned int colour), const void *colour_updated_callback_user_data)
 {
 	if (vdp->state->access.read_mode)
 	{
@@ -626,7 +626,7 @@ void VDP_WriteData(const VDP *vdp, unsigned int value, void (*colour_updated_cal
 }
 
 /* TODO - Retention of partial commands */
-void VDP_WriteControl(const VDP *vdp, unsigned int value, void (*colour_updated_callback)(void *user_data, unsigned int index, unsigned int colour), void *colour_updated_callback_user_data, unsigned int (*read_callback)(void *user_data, unsigned long address), void *read_callback_user_data)
+void VDP_WriteControl(const VDP *vdp, unsigned int value, void (*colour_updated_callback)(const void *user_data, unsigned int index, unsigned int colour), const void *colour_updated_callback_user_data, unsigned int (*read_callback)(const void *user_data, unsigned long address), const void *read_callback_user_data)
 {
 	if (vdp->state->access.write_pending)
 	{

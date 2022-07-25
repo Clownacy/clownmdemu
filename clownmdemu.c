@@ -17,7 +17,7 @@
 
 typedef struct DataAndCallbacks
 {
-	ClownMDEmu *data;
+	const ClownMDEmu *data;
 	const ClownMDEmu_Callbacks *frontend_callbacks;
 } DataAndCallbacks;
 
@@ -29,7 +29,7 @@ typedef struct CPUCallbackUserData
 	unsigned int psg_previous_cycle;
 } CPUCallbackUserData;
 
-static void GenerateFMAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames)
+static void GenerateFMAudio(const ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames)
 {
 	const FM fm = {&clownmdemu->constant->fm, &clownmdemu->state->fm};
 
@@ -50,7 +50,7 @@ static void GenerateAndPlayFMSamples(CPUCallbackUserData *m68k_callback_user_dat
 	}
 }
 
-static void GeneratePSGAudio(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples)
+static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples)
 {
 	const PSG psg = {&clownmdemu->constant->psg, &clownmdemu->state->psg};
 
@@ -73,7 +73,7 @@ static void GenerateAndPlayPSGSamples(CPUCallbackUserData *m68k_callback_user_da
 
 /* VDP memory access callback */
 
-static unsigned int VDPReadCallback(void *user_data, unsigned long address)
+static unsigned int VDPReadCallback(const void *user_data, unsigned long address)
 {
 	DataAndCallbacks *data_and_callbacks = (DataAndCallbacks*)user_data;
 	ClownMDEmu_State *state = data_and_callbacks->data->state;
@@ -102,14 +102,14 @@ static unsigned int VDPReadCallback(void *user_data, unsigned long address)
 
 /* 68k memory access callbacks */
 
-static unsigned int Z80ReadCallback(void *user_data, unsigned int address);
-static void Z80WriteCallback(void *user_data, unsigned int address, unsigned int value);
+static unsigned int Z80ReadCallback(const void *user_data, unsigned int address);
+static void Z80WriteCallback(const void *user_data, unsigned int address, unsigned int value);
 
-static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte)
+static unsigned int M68kReadCallback(const void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte)
 {
-	CPUCallbackUserData *callback_user_data = (CPUCallbackUserData*)user_data;
-	ClownMDEmu *clownmdemu = callback_user_data->data_and_callbacks.data;
-	const ClownMDEmu_Callbacks *frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+	const ClownMDEmu_Callbacks* const frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
 	unsigned int value = 0;
 
 	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
@@ -263,11 +263,11 @@ static unsigned int M68kReadCallback(void *user_data, unsigned long address, cc_
 	return value;
 }
 
-static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned int value)
+static void M68kWriteCallback(const void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned int value)
 {
-	CPUCallbackUserData *callback_user_data = (CPUCallbackUserData*)user_data;
-	ClownMDEmu *clownmdemu = callback_user_data->data_and_callbacks.data;
-	const ClownMDEmu_Callbacks *frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+	const ClownMDEmu_Callbacks* const frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
 
 	const unsigned char high_byte = (unsigned char)((value >> 8) & 0xFF);
 	const unsigned char low_byte = (unsigned char)((value >> 0) & 0xFF);
@@ -415,10 +415,10 @@ static void M68kWriteCallback(void *user_data, unsigned long address, cc_bool do
 
 /* Z80 memory access callbacks */
 
-static unsigned int Z80ReadCallback(void *user_data, unsigned int address)
+static unsigned int Z80ReadCallback(const void *user_data, unsigned int address)
 {
 	const CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
-	ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
 
 	/* I suppose, on read hardware, in an open-bus situation, this would actually
 	   be a static variable that retains its value from the last call. */
@@ -462,10 +462,10 @@ static unsigned int Z80ReadCallback(void *user_data, unsigned int address)
 	return value;
 }
 
-static void Z80WriteCallback(void *user_data, unsigned int address, unsigned int value)
+static void Z80WriteCallback(const void *user_data, unsigned int address, unsigned int value)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
-	ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
 
 	if (address < 0x2000)
 	{
@@ -544,7 +544,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	PSG_State_Initialise(&state->psg);
 }
 
-void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
+void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
 	unsigned int scanline, i;
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
@@ -652,7 +652,7 @@ void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *call
 	GenerateAndPlayPSGSamples(&cpu_callback_user_data);
 }
 
-void ClownMDEmu_Reset(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
+void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
 	const Z80 z80 = {&clownmdemu->constant->z80, &clownmdemu->state->z80};
 

@@ -22,9 +22,9 @@ typedef struct M68k_State
 
 typedef struct M68k_ReadWriteCallbacks
 {
-	unsigned int (*read_callback)(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte);
-	void (*write_callback)(void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned int value);
-	void *user_data;
+	unsigned int (*read_callback)(const void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte);
+	void (*write_callback)(const void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned int value);
+	const void *user_data;
 } M68k_ReadWriteCallbacks;
 
 void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks);

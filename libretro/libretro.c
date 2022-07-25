@@ -19,12 +19,12 @@
 
 static Mixer_Constant mixer_constant;
 static Mixer_State mixer_state;
-static Mixer mixer = {&mixer_constant, &mixer_state};
+static const Mixer mixer = {&mixer_constant, &mixer_state};
 
 static ClownMDEmu_Configuration clownmdemu_configuration;
 static ClownMDEmu_Constant clownmdemu_constant;
 static ClownMDEmu_State clownmdemu_state;
-static ClownMDEmu clownmdemu = {&clownmdemu_configuration, &clownmdemu_constant, &clownmdemu_state};
+static const ClownMDEmu clownmdemu = {&clownmdemu_configuration, &clownmdemu_constant, &clownmdemu_state};
 
 static union
 {
@@ -54,7 +54,7 @@ struct
 	CC_ATTRIBUTE_PRINTF(2, 3) retro_log_printf_t log;
 } libretro_callbacks;
 
-static unsigned int CartridgeReadCallback(void *user_data, unsigned long address)
+static unsigned int CartridgeReadCallback(const void *user_data, unsigned long address)
 {
 	(void)user_data;
 
@@ -64,14 +64,14 @@ static unsigned int CartridgeReadCallback(void *user_data, unsigned long address
 		return rom[address];
 }
 
-static void CartridgeWriteCallback(void *user_data, unsigned long address, unsigned int value)
+static void CartridgeWriteCallback(const void *user_data, unsigned long address, unsigned int value)
 {
 	(void)user_data;
 	(void)address;
 	(void)value;
 }
 
-static void ColourUpdatedCallback_0RGB1555(void *user_data, unsigned int index, unsigned int colour)
+static void ColourUpdatedCallback_0RGB1555(const void *user_data, unsigned int index, unsigned int colour)
 {
 	(void)user_data;
 
@@ -85,7 +85,7 @@ static void ColourUpdatedCallback_0RGB1555(void *user_data, unsigned int index, 
 	                   | (((blue  << 1) | (blue  >> 3)) << (5 * 0));
 }
 
-static void ColourUpdatedCallback_RGB565(void *user_data, unsigned int index, unsigned int colour)
+static void ColourUpdatedCallback_RGB565(const void *user_data, unsigned int index, unsigned int colour)
 {
 	(void)user_data;
 
@@ -99,7 +99,7 @@ static void ColourUpdatedCallback_RGB565(void *user_data, unsigned int index, un
 	                   | (((blue  << 1) | (blue  >> 3)) << 0);
 }
 
-static void ColourUpdatedCallback_XRGB8888(void *user_data, unsigned int index, unsigned int colour)
+static void ColourUpdatedCallback_XRGB8888(const void *user_data, unsigned int index, unsigned int colour)
 {
 	(void)user_data;
 
@@ -113,7 +113,7 @@ static void ColourUpdatedCallback_XRGB8888(void *user_data, unsigned int index, 
 	                   | (((blue  << 4) | (blue  >> 0)) << (8 * 0));
 }
 
-static void ScanlineRenderedCallback_16Bit(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height)
+static void ScanlineRenderedCallback_16Bit(const void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height)
 {
 	const unsigned char *source_pixel_pointer = pixels;
 	uint16_t *destination_pixel_pointer = framebuffer.u16[scanline];
@@ -129,7 +129,7 @@ static void ScanlineRenderedCallback_16Bit(void *user_data, unsigned int scanlin
 	current_screen_height = screen_height;
 }
 
-static void ScanlineRenderedCallback_32Bit(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height)
+static void ScanlineRenderedCallback_32Bit(const void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height)
 {
 	const unsigned char *source_pixel_pointer = pixels;
 	uint32_t *destination_pixel_pointer = framebuffer.u32[scanline];
@@ -145,7 +145,7 @@ static void ScanlineRenderedCallback_32Bit(void *user_data, unsigned int scanlin
 	current_screen_height = screen_height;
 }
 
-static cc_bool InputRequestedCallback(void *user_data, unsigned int player_id, ClownMDEmu_Button button_id)
+static cc_bool InputRequestedCallback(const void *user_data, unsigned int player_id, ClownMDEmu_Button button_id)
 {
 	cc_bool button_state = cc_false;
 
@@ -196,14 +196,14 @@ static cc_bool InputRequestedCallback(void *user_data, unsigned int player_id, C
 	return button_state;
 }
 
-static void FMAudioToBeGeneratedCallback(void *user_data, size_t total_frames, void (*generate_fm_audio)(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames))
+static void FMAudioToBeGeneratedCallback(const void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames))
 {
 	(void)user_data;
 
 	generate_fm_audio(&clownmdemu, Mixer_AllocateFMSamples(&mixer, total_frames), total_frames);
 }
 
-static void PSGAudioToBeGeneratedCallback(void *user_data, size_t total_samples, void (*generate_psg_audio)(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples))
+static void PSGAudioToBeGeneratedCallback(const void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples))
 {
 	(void)user_data;
 
@@ -376,7 +376,7 @@ static void check_variables(void)
 {
 }
 
-static void MixerCompleteCallback(void *user_data, short *audio_samples, size_t total_frames)
+static void MixerCompleteCallback(const void *user_data, short *audio_samples, size_t total_frames)
 {
 	(void)user_data;
 

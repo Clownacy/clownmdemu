@@ -191,9 +191,9 @@ typedef struct Z80_State
 
 typedef struct Z80_ReadAndWriteCallbacks
 {
-	unsigned int (*read)(void *user_data, unsigned int address);
-	void (*write)(void *user_data, unsigned int address, unsigned int value);
-	void *user_data;
+	unsigned int (*read)(const void *user_data, unsigned int address);
+	void (*write)(const void *user_data, unsigned int address, unsigned int value);
+	const void *user_data;
 } Z80_ReadAndWriteCallbacks;
 
 typedef struct Z80

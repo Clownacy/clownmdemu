@@ -124,21 +124,21 @@ typedef struct ClownMDEmu
 
 typedef struct ClownMDEmu_Callbacks
 {
-	void *user_data;
+	const void *user_data;
 
-	unsigned int (*cartridge_read)(void *user_data, unsigned long address);
-	void (*cartridge_written)(void *user_data, unsigned long address, unsigned int value);
-	void (*colour_updated)(void *user_data, unsigned int index, unsigned int colour);
-	void (*scanline_rendered)(void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height);
-	cc_bool (*input_requested)(void *user_data, unsigned int player_id, ClownMDEmu_Button button_id);
-	void (*fm_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_fm_audio)(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames));
-	void (*psg_audio_to_be_generated)(void *user_data, size_t total_samples, void (*generate_psg_audio)(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples));
+	unsigned int (*cartridge_read)(const void *user_data, unsigned long address);
+	void (*cartridge_written)(const void *user_data, unsigned long address, unsigned int value);
+	void (*colour_updated)(const void *user_data, unsigned int index, unsigned int colour);
+	void (*scanline_rendered)(const void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height);
+	cc_bool (*input_requested)(const void *user_data, unsigned int player_id, ClownMDEmu_Button button_id);
+	void (*fm_audio_to_be_generated)(const void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames));
+	void (*psg_audio_to_be_generated)(const void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples));
 } ClownMDEmu_Callbacks;
 
 void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant);
 void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
-void ClownMDEmu_Iterate(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
-void ClownMDEmu_Reset(ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg));
 
 #ifdef __cplusplus
