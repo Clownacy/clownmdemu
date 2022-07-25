@@ -277,9 +277,6 @@ static void UpdateOptions(void)
 
 void retro_init(void)
 {
-	uint64_t serialisation_quirks = RETRO_SERIALIZATION_QUIRK_ENDIAN_DEPENDENT | RETRO_SERIALIZATION_QUIRK_PLATFORM_DEPENDENT;
-	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &serialisation_quirks);
-
 	/* Initialise the mixer. */
 	Mixer_Constant_Initialise(&mixer_constant);
 	Mixer_State_Initialise(&mixer_state, SAMPLE_RATE);
@@ -307,9 +304,10 @@ unsigned int retro_api_version(void)
 	return RETRO_API_VERSION;
 }
 
-void retro_set_controller_port_device(unsigned port, unsigned device)
+void retro_set_controller_port_device(unsigned int port, unsigned int device)
 {
-	libretro_callbacks.log(RETRO_LOG_INFO, "Plugging device %u into port %u.\n", device, port);
+	/* TODO */
+	/*libretro_callbacks.log(RETRO_LOG_INFO, "Plugging device %u into port %u.\n", device, port);*/
 }
 
 void retro_get_system_info(struct retro_system_info *info)
@@ -337,25 +335,65 @@ void retro_set_environment(retro_environment_t environment_callback)
 {
 	libretro_callbacks.environment = environment_callback;
 
+	/* Declare the options to the frontend. */
 	libretro_set_core_options(libretro_callbacks.environment);
 
+	/* Retrieve a log callback from the frontend. */
+	{
 	struct retro_log_callback logging;
 	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &logging) && logging.log != NULL)
 		libretro_callbacks.log = logging.log;
 	else
 		libretro_callbacks.log = FallbackErrorLogCallback;
+	}
 
-	/* TODO: Leftover junk from Skeletor. */
+	/* TODO: Specialised controller types. */
+	{
 	/*static const struct retro_controller_description controllers[] = {
-		{ "Nintendo DS", RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 0) },
+		{"Control Pad", RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 0)},
 	};
 
 	static const struct retro_controller_info ports[] = {
-		{ controllers, 1 },
-		{ NULL, 0 },
+		{controllers, CC_COUNT_OF(controllers)},
+		{NULL, 0}
 	};
 
 	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);*/
+	}
+
+	/* Give the buttons proper names. */
+	{
+	const struct retro_input_descriptor desc[] = {
+		/* Player 1. */
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Up" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "Down" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Left" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "Right" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "A" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "B" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "C" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Start" },
+		/* Player 2. */
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Up" },
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "Down" },
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Left" },
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "Right" },
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "A" },
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "B" },
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "C" },
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Start" },
+		/* End. */
+		{ 0 },
+	};
+
+	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, (void*)&desc);
+	}
+
+	/* Inform frontend of serialisation quirks. */
+	{
+	uint64_t serialisation_quirks = RETRO_SERIALIZATION_QUIRK_ENDIAN_DEPENDENT | RETRO_SERIALIZATION_QUIRK_PLATFORM_DEPENDENT;
+	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &serialisation_quirks);
+	}
 }
 
 void retro_set_audio_sample(retro_audio_sample_t audio_callback)
@@ -421,17 +459,6 @@ void retro_run(void)
 
 bool retro_load_game(const struct retro_game_info *info)
 {
-	/* TODO: Leftover junk from Skeletor. */
-	/*struct retro_input_descriptor desc[] = {
-		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Left" },
-		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Up" },
-		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "Down" },
-		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "Right" },
-		{ 0 },
-	};
-
-	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);*/
-
 	enum retro_pixel_format pixel_format;
 
 	/* Determine which pixel format to render as. */
