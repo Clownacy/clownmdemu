@@ -12,6 +12,14 @@
 #define FRAMEBUFFER_WIDTH 320
 #define FRAMEBUFFER_HEIGHT 480
 
+/* Prevent errors when '__attribute__((format(printf, X, X)))' is not supported. */
+/* GCC 3.2 is the earliest version of GCC of which I can find proof of supporting this. */
+#if defined(__GNUC__) && defined(__GNUC_MINOR__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2))
+#define ATTRIBUTE_PRINTF(a, b) __attribute__((format(printf, a, b)))
+#else
+#define ATTRIBUTE_PRINTF(a, b)
+#endif
+
 static ClownMDEmu_Configuration clownmdemu_configuration;
 static ClownMDEmu_Constant clownmdemu_constant;
 static ClownMDEmu_State clownmdemu_state;
@@ -32,10 +40,8 @@ struct
 	retro_audio_sample_batch_t audio_batch;
 	retro_input_poll_t         input_poll;
 	retro_input_state_t        input_state;
+	ATTRIBUTE_PRINTF(2, 3) retro_log_printf_t log;
 } libretro_callbacks;
-
-static struct retro_log_callback logging;
-static retro_log_printf_t log_cb;
 
 static unsigned int CartridgeReadCallback(void *user_data, unsigned long address)
 {
@@ -202,17 +208,53 @@ static ClownMDEmu_Callbacks clownmdemu_callbacks = {
 	PSGAudioToBeGeneratedCallback
 };
 
-static void fallback_log(enum retro_log_level level, const char *fmt, ...)
+ATTRIBUTE_PRINTF(2, 3) static void FallbackErrorLogCallback(enum retro_log_level level, const char *format, ...)
 {
-	(void)level;
-	va_list va;
-	va_start(va, fmt);
-	vfprintf(stderr, fmt, va);
-	va_end(va);
+	switch (level)
+	{
+		case RETRO_LOG_DEBUG:
+			fputs("RETRO_LOG_DEBUG: ", stderr);
+			break;
+
+		case RETRO_LOG_INFO:
+			fputs("RETRO_LOG_INFO: ", stderr);
+			break;
+
+		case RETRO_LOG_WARN:
+			fputs("RETRO_LOG_WARN: ", stderr);
+			break;
+
+		case RETRO_LOG_ERROR:
+			fputs("RETRO_LOG_ERROR: ", stderr);
+			break;
+
+		case RETRO_LOG_DUMMY:
+			break;
+	}
+
+	va_list args;
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+}
+
+static void ClownMDEmuErrorLog(const char *format, va_list arg)
+{
+	/* libretro lacks an error log callback that takes a va_list for some dumbass reason,
+	   so we'll have to expand the message to a plain string here. */
+	char message_buffer[0x100];
+
+	/* TODO: This unbounded printf is so gross... */
+	vsprintf(message_buffer, format, arg);
+	strcat(message_buffer, "\n");
+
+	libretro_callbacks.log(RETRO_LOG_WARN, message_buffer);
 }
 
 void retro_init(void)
 {
+	ClownMDEmu_SetErrorCallback(ClownMDEmuErrorLog);
+
 	ClownMDEmu_Constant_Initialise(&clownmdemu_constant);
 	ClownMDEmu_State_Initialise(&clownmdemu_state);
 }
@@ -228,7 +270,7 @@ unsigned int retro_api_version(void)
 
 void retro_set_controller_port_device(unsigned port, unsigned device)
 {
-	log_cb(RETRO_LOG_INFO, "Plugging device %u into port %u.\n", device, port);
+	libretro_callbacks.log(RETRO_LOG_INFO, "Plugging device %u into port %u.\n", device, port);
 }
 
 void retro_get_system_info(struct retro_system_info *info)
@@ -256,10 +298,11 @@ void retro_set_environment(retro_environment_t environment_callback)
 {
 	libretro_callbacks.environment = environment_callback;
 
+	struct retro_log_callback logging;
 	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &logging))
-		log_cb = logging.log;
+		libretro_callbacks.log = logging.log;
 	else
-		log_cb = fallback_log;
+		libretro_callbacks.log = FallbackErrorLogCallback;
 
 	static const struct retro_controller_description controllers[] = {
 		{ "Nintendo DS", RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 0) },
