@@ -296,6 +296,10 @@ void retro_init(void)
 	uint64_t serialisation_quirks = RETRO_SERIALIZATION_QUIRK_ENDIAN_DEPENDENT | RETRO_SERIALIZATION_QUIRK_PLATFORM_DEPENDENT;
 	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &serialisation_quirks);
 
+	/* Emulate a Genesis. */
+	clownmdemu_configuration.general.region = CLOWNMDEMU_REGION_OVERSEAS;
+	clownmdemu_configuration.general.tv_standard = CLOWNMDEMU_TV_STANDARD_NTSC;
+
 	ClownMDEmu_SetErrorCallback(ClownMDEmuErrorLog);
 
 	ClownMDEmu_Constant_Initialise(&clownmdemu_constant);
