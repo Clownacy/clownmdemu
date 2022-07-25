@@ -1,2 +1,8 @@
+# Makefile objects.
 /objects
+
+# Makefile compiled output.
 /clownmdemu_libretro.dll
+
+# Typical CMake build directory.
+/build
