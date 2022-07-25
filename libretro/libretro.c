@@ -385,21 +385,7 @@ static void MixerCompleteCallback(const void *user_data, short *audio_samples, s
 
 void retro_run(void)
 {
-	void *current_framebuffer;
-	size_t current_framebuffer_pitch;
-
 	libretro_callbacks.input_poll();
-
-	if (clownmdemu_callbacks.scanline_rendered == ScanlineRenderedCallback_16Bit)
-	{
-		current_framebuffer = &framebuffer.u16;
-		current_framebuffer_pitch = sizeof(framebuffer.u16[0]);
-	}
-	else
-	{
-		current_framebuffer = &framebuffer.u32;
-		current_framebuffer_pitch = sizeof(framebuffer.u32[0]);
-	}
 
 	Mixer_Begin(&mixer);
 
@@ -407,7 +393,10 @@ void retro_run(void)
 
 	Mixer_End(&mixer, MixerCompleteCallback, NULL);
 
-	libretro_callbacks.video(current_framebuffer, current_screen_width, current_screen_height, current_framebuffer_pitch);
+	if (clownmdemu_callbacks.scanline_rendered == ScanlineRenderedCallback_16Bit)
+		libretro_callbacks.video(&framebuffer.u16, current_screen_width, current_screen_height, sizeof(framebuffer.u16[0]));
+	else
+		libretro_callbacks.video(&framebuffer.u32, current_screen_width, current_screen_height, sizeof(framebuffer.u32[0]));
 
 	bool updated = false;
 	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
