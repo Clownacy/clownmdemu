@@ -9,8 +9,17 @@
 
 #include "../clownmdemu.h"
 
+#include "../frontend/mixer.h"
+
 #define FRAMEBUFFER_WIDTH 320
 #define FRAMEBUFFER_HEIGHT 480
+
+/* Change this to adjust the low-pass filter. */
+#define SAMPLE_RATE 48000
+
+static Mixer_Constant mixer_constant;
+static Mixer_State mixer_state;
+static Mixer mixer = {&mixer_constant, &mixer_state};
 
 static ClownMDEmu_Configuration clownmdemu_configuration;
 static ClownMDEmu_Constant clownmdemu_constant;
@@ -191,42 +200,14 @@ static void FMAudioToBeGeneratedCallback(void *user_data, size_t total_frames, v
 {
 	(void)user_data;
 
-	short sample_buffer[0x100][2];
-	size_t frames_remaining;
-
-	frames_remaining = total_frames;
-
-	while (frames_remaining != 0)
-	{
-		const size_t frames_to_do = CC_MIN(frames_remaining, CC_COUNT_OF(sample_buffer));
-
-		memset(sample_buffer, 0, sizeof(sample_buffer));
-
-		generate_fm_audio(&clownmdemu, &sample_buffer[0][0], frames_to_do);
-
-		libretro_callbacks.audio_batch(&sample_buffer[0][0], frames_to_do);
-
-		frames_remaining -= frames_to_do;
-	}
+	generate_fm_audio(&clownmdemu, Mixer_AllocateFMSamples(&mixer, total_frames), total_frames);
 }
 
 static void PSGAudioToBeGeneratedCallback(void *user_data, size_t total_samples, void (*generate_psg_audio)(ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples))
 {
 	(void)user_data;
 
-	short dummy_buffer[0x100];
-	size_t frames_remaining;
-
-	frames_remaining = total_samples;
-
-	while (frames_remaining != 0)
-	{
-		const size_t frames_to_do = CC_MIN(frames_remaining, CC_COUNT_OF(dummy_buffer));
-
-		generate_psg_audio(&clownmdemu, &dummy_buffer[0], frames_to_do);
-
-		frames_remaining -= frames_to_do;
-	}
+	generate_psg_audio(&clownmdemu, Mixer_AllocatePSGSamples(&mixer, total_samples), total_samples);
 }
 
 static ClownMDEmu_Callbacks clownmdemu_callbacks = {
@@ -288,6 +269,12 @@ void retro_init(void)
 	uint64_t serialisation_quirks = RETRO_SERIALIZATION_QUIRK_ENDIAN_DEPENDENT | RETRO_SERIALIZATION_QUIRK_PLATFORM_DEPENDENT;
 	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &serialisation_quirks);
 
+	/* Initialise the mixer. */
+	Mixer_Constant_Initialise(&mixer_constant);
+	Mixer_State_Initialise(&mixer_state, SAMPLE_RATE);
+	Mixer_SetPALMode(&mixer, cc_false);
+
+	/* Initialise clownmdemu. */
 	/* Emulate a Genesis. */
 	clownmdemu_configuration.general.region = CLOWNMDEMU_REGION_OVERSEAS;
 	clownmdemu_configuration.general.tv_standard = CLOWNMDEMU_TV_STANDARD_NTSC;
@@ -330,7 +317,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 	info->geometry.aspect_ratio = 320.0f / 224.0f;
 
 	info->timing.fps            = 60.0 / 1.001;	/* Standard NTSC framerate. */
-	info->timing.sample_rate    = CLOWNMDEMU_FM_SAMPLE_RATE_NTSC;
+	info->timing.sample_rate    = (double)SAMPLE_RATE;
 }
 
 void retro_set_environment(retro_environment_t environment_callback)
@@ -389,6 +376,13 @@ static void check_variables(void)
 {
 }
 
+static void MixerCompleteCallback(void *user_data, short *audio_samples, size_t total_frames)
+{
+	(void)user_data;
+
+	libretro_callbacks.audio_batch(audio_samples, total_frames);
+}
+
 void retro_run(void)
 {
 	void *current_framebuffer;
@@ -407,7 +401,11 @@ void retro_run(void)
 		current_framebuffer_pitch = sizeof(framebuffer.u32[0]);
 	}
 
+	Mixer_Begin(&mixer);
+
 	ClownMDEmu_Iterate(&clownmdemu, &clownmdemu_callbacks);
+
+	Mixer_End(&mixer, MixerCompleteCallback, NULL);
 
 	libretro_callbacks.video(current_framebuffer, current_screen_width, current_screen_height, current_framebuffer_pitch);
 

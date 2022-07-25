@@ -1,4 +1,5 @@
 SOURCES_C   := $(CORE_DIR)/libretro.c \
+               $(CORE_DIR)/../frontend/mixer.c \
                $(CORE_DIR)/../clownmdemu.c \
                $(CORE_DIR)/../error.c \
                $(CORE_DIR)/../fm.c \
