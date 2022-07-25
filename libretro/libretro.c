@@ -353,7 +353,7 @@ void retro_set_environment(retro_environment_t environment_callback)
 		libretro_callbacks.log = FallbackErrorLogCallback;
 
 	/* TODO: Leftover junk from Skeletor. */
-	static const struct retro_controller_description controllers[] = {
+	/*static const struct retro_controller_description controllers[] = {
 		{ "Nintendo DS", RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 0) },
 	};
 
@@ -362,7 +362,7 @@ void retro_set_environment(retro_environment_t environment_callback)
 		{ NULL, 0 },
 	};
 
-	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
+	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);*/
 }
 
 void retro_set_audio_sample(retro_audio_sample_t audio_callback)
@@ -429,7 +429,7 @@ void retro_run(void)
 bool retro_load_game(const struct retro_game_info *info)
 {
 	/* TODO: Leftover junk from Skeletor. */
-	struct retro_input_descriptor desc[] = {
+	/*struct retro_input_descriptor desc[] = {
 		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Left" },
 		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Up" },
 		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "Down" },
@@ -437,11 +437,11 @@ bool retro_load_game(const struct retro_game_info *info)
 		{ 0 },
 	};
 
-	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
+	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);*/
 
-	/* Determine which pixel format to render as. */
 	enum retro_pixel_format pixel_format;
 
+	/* Determine which pixel format to render as. */
 	pixel_format = RETRO_PIXEL_FORMAT_RGB565;
 	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &pixel_format))
 	{
