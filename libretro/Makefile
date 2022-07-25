@@ -126,7 +126,7 @@ endif
 
 include Makefile.common
 
-OBJECTS := $(addprefix objects/libretro/, $(SOURCES_C:.c=.o)) $(SOURCES_CXX:.cpp=.o)
+OBJECTS := $(addprefix objects/libretro/, $(addsuffix .o, $(SOURCES_C)) $(SOURCES_CXX))
 
 CFLAGS   += -Wall -D__LIBRETRO__ $(fpic)
 CXXFLAGS += -Wall -D__LIBRETRO__ $(fpic)
@@ -141,12 +141,12 @@ else
 	$(Q)$(CXX) $(fpic) $(SHARED) $(INCLUDES) -o $@ $(OBJECTS) $(LDFLAGS)
 endif
 
-objects/libretro/%.o: %.c
+objects/libretro/%.c.o: %.c
 	$(Q)mkdir -p $(@D)
 	@$(if $(Q), $(shell echo echo CC $<),)
 	$(Q)$(CC) $(CFLAGS) $(fpic) -c -o $@ $<
 
-objects/libretro/%.o: %.cpp
+objects/libretro/%.cpp.o: %.cpp
 	$(Q)mkdir -p $(@D)
 	@$(if $(Q), $(shell echo echo CXX $<),)
 	$(Q)$(CXX) $(CXXFLAGS) $(fpic) -c -o $@ $<
