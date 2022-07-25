@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include "libretro.h"
+#include "libretro_core_options.h"
 
 #include "../clownmdemu.h"
 
@@ -267,6 +268,20 @@ static void ClownMDEmuErrorLog(const char *format, va_list arg)
 	libretro_callbacks.log(RETRO_LOG_WARN, message_buffer);
 }
 
+static cc_bool DoOptionBoolean(const char *key)
+{
+	struct retro_variable variable;
+	variable.key = key;
+	return libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_VARIABLE, &variable) && variable.value != NULL && strcmp(variable.value, "enabled") == 0;
+}
+
+static void UpdateOptions(void)
+{
+	clownmdemu_configuration.vdp.planes_disabled[0] = DoOptionBoolean("disable_plane_a");
+	clownmdemu_configuration.vdp.planes_disabled[1] = DoOptionBoolean("disable_plane_b");
+	clownmdemu_configuration.vdp.sprites_disabled = DoOptionBoolean("disable_sprite_plane");
+}
+
 void retro_init(void)
 {
 	uint64_t serialisation_quirks = RETRO_SERIALIZATION_QUIRK_ENDIAN_DEPENDENT | RETRO_SERIALIZATION_QUIRK_PLATFORM_DEPENDENT;
@@ -281,6 +296,8 @@ void retro_init(void)
 	/* Emulate a Genesis. */
 	clownmdemu_configuration.general.region = CLOWNMDEMU_REGION_OVERSEAS;
 	clownmdemu_configuration.general.tv_standard = CLOWNMDEMU_TV_STANDARD_NTSC;
+
+	UpdateOptions();
 
 	ClownMDEmu_SetErrorCallback(ClownMDEmuErrorLog);
 
@@ -327,8 +344,10 @@ void retro_set_environment(retro_environment_t environment_callback)
 {
 	libretro_callbacks.environment = environment_callback;
 
+	libretro_set_core_options(libretro_callbacks.environment);
+
 	struct retro_log_callback logging;
-	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &logging))
+	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &logging) && logging.log != NULL)
 		libretro_callbacks.log = logging.log;
 	else
 		libretro_callbacks.log = FallbackErrorLogCallback;
@@ -376,11 +395,6 @@ void retro_reset(void)
 	ClownMDEmu_Reset(&clownmdemu, &clownmdemu_callbacks);
 }
 
-static void check_variables(void)
-{
-	/* TODO */
-}
-
 static void MixerCompleteCallback(const void *user_data, short *audio_samples, size_t total_frames)
 {
 	(void)user_data;
@@ -390,6 +404,12 @@ static void MixerCompleteCallback(const void *user_data, short *audio_samples, s
 
 void retro_run(void)
 {
+	bool options_updated;
+
+	/* Refresh options if they've been updated. */
+	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &options_updated) && options_updated)
+		UpdateOptions();
+
 	/* Poll inputs. */
 	libretro_callbacks.input_poll();
 
@@ -404,11 +424,6 @@ void retro_run(void)
 		libretro_callbacks.video(&framebuffer.u16, current_screen_width, current_screen_height, sizeof(framebuffer.u16[0]));
 	else
 		libretro_callbacks.video(&framebuffer.u32, current_screen_width, current_screen_height, sizeof(framebuffer.u32[0]));
-
-	/* TODO: Leftover junk from Skeletor. */
-	bool updated = false;
-	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
-		check_variables();
 }
 
 bool retro_load_game(const struct retro_game_info *info)
@@ -447,9 +462,6 @@ bool retro_load_game(const struct retro_game_info *info)
 			clownmdemu_callbacks.scanline_rendered = ScanlineRenderedCallback_16Bit;
 		}
 	}
-
-	/* TODO: Leftover junk from Skeletor. */
-	check_variables();
 
 	/* Initialise the ROM. */
 	rom = (const unsigned char*)info->data;
