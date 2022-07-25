@@ -15,8 +15,8 @@
 #define FRAMEBUFFER_WIDTH 320
 #define FRAMEBUFFER_HEIGHT 480
 
-/* Change this to adjust the low-pass filter. */
-#define SAMPLE_RATE 48000
+#define SAMPLE_RATE_NO_LOWPASS 48000
+#define SAMPLE_RATE_WITH_LOWPASS 26000 /* Verify this. */
 
 /* Mixer data. */
 static Mixer_Constant mixer_constant;
@@ -46,6 +46,7 @@ static unsigned int current_screen_width;
 static unsigned int current_screen_height;
 static const unsigned char *rom;
 static size_t rom_size;
+static cc_bool lowpass_filter_enabled;
 
 static struct
 {
@@ -268,8 +269,24 @@ static cc_bool DoOptionBoolean(const char *key)
 	return libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_VARIABLE, &variable) && variable.value != NULL && strcmp(variable.value, "enabled") == 0;
 }
 
-static void UpdateOptions(void)
+static void UpdateOptions(cc_bool only_update_flags)
 {
+	if (lowpass_filter_enabled != DoOptionBoolean("lowpass_filter"))
+	{
+		lowpass_filter_enabled = !lowpass_filter_enabled;
+
+		if (!only_update_flags)
+		{
+			Mixer_State_Initialise(&mixer_state, lowpass_filter_enabled ? SAMPLE_RATE_WITH_LOWPASS : SAMPLE_RATE_NO_LOWPASS, cc_false); /* TODO: PAL mode. */
+
+			{
+			struct retro_system_av_info info;
+			retro_get_system_av_info(&info);
+			libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &info);
+			}
+		}
+	}
+
 	clownmdemu_configuration.vdp.planes_disabled[0] = DoOptionBoolean("disable_plane_a");
 	clownmdemu_configuration.vdp.planes_disabled[1] = DoOptionBoolean("disable_plane_b");
 	clownmdemu_configuration.vdp.sprites_disabled = DoOptionBoolean("disable_sprite_plane");
@@ -277,23 +294,23 @@ static void UpdateOptions(void)
 
 void retro_init(void)
 {
-	/* Initialise the mixer. */
-	Mixer_Constant_Initialise(&mixer_constant);
-	Mixer_State_Initialise(&mixer_state, SAMPLE_RATE);
-	Mixer_SetPALMode(&mixer, cc_false);
-
 	/* Initialise clownmdemu. */
 	/* Emulate a Genesis. */
 	clownmdemu_configuration.general.region = CLOWNMDEMU_REGION_OVERSEAS;
 	clownmdemu_configuration.general.tv_standard = CLOWNMDEMU_TV_STANDARD_NTSC;
 
-	UpdateOptions();
+	UpdateOptions(cc_true);
 
 	ClownMDEmu_SetErrorCallback(ClownMDEmuErrorLog);
 
 	ClownMDEmu_Constant_Initialise(&clownmdemu_constant);
 	ClownMDEmu_State_Initialise(&clownmdemu_state);
+
+	/* Initialise the mixer. */
+	Mixer_Constant_Initialise(&mixer_constant);
+	Mixer_State_Initialise(&mixer_state, lowpass_filter_enabled ? SAMPLE_RATE_WITH_LOWPASS : SAMPLE_RATE_NO_LOWPASS, cc_false); /* TODO: PAL mode. */
 }
+
 
 void retro_deinit(void)
 {
@@ -328,7 +345,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 	info->geometry.aspect_ratio = 320.0f / 224.0f;
 
 	info->timing.fps            = 60.0 / 1.001;	/* Standard NTSC framerate. */
-	info->timing.sample_rate    = (double)SAMPLE_RATE;
+	info->timing.sample_rate    = lowpass_filter_enabled ? (double)SAMPLE_RATE_WITH_LOWPASS : (double)SAMPLE_RATE_NO_LOWPASS;
 }
 
 void retro_set_environment(retro_environment_t environment_callback)
@@ -439,7 +456,7 @@ void retro_run(void)
 
 	/* Refresh options if they've been updated. */
 	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &options_updated) && options_updated)
-		UpdateOptions();
+		UpdateOptions(cc_false);
 
 	/* Poll inputs. */
 	libretro_callbacks.input_poll();

@@ -130,6 +130,28 @@ struct retro_core_option_v2_definition option_defs_us[] = {
 		/* Default value. */
 		"disabled"
 	},
+	{
+		/* Key. */
+		"lowpass_filter",
+		/* Label. */
+		"Low-Pass Filter",
+		/* Categorised label. */
+		NULL,
+		/* Description. */
+		"Apply a low-pass filter to the audio, just like on a real Mega Drive.",
+		/* Categorised description. */
+		NULL,
+		/* Category. */
+		NULL,
+		/* Values. */
+		{
+			{"enabled", NULL},
+			{"disabled", NULL},
+			{NULL, NULL},
+		},
+		/* Default value. */
+		"enabled"
+	},
 	{NULL, NULL, NULL, NULL, NULL, NULL, {{NULL, NULL}}, NULL}
 };
 
