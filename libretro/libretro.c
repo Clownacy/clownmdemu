@@ -1,7 +1,5 @@
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
@@ -154,6 +152,8 @@ static void ScanlineRenderedCallback_32Bit(const void *user_data, unsigned int s
 static cc_bool InputRequestedCallback(const void *user_data, unsigned int player_id, ClownMDEmu_Button button_id)
 {
 	unsigned int libretro_button_id;
+
+	(void)user_data;
 
 	switch (button_id)
 	{
@@ -323,6 +323,9 @@ unsigned int retro_api_version(void)
 
 void retro_set_controller_port_device(unsigned int port, unsigned int device)
 {
+	(void)port;
+	(void)device;
+
 	/* TODO */
 	/*libretro_callbacks.log(RETRO_LOG_INFO, "Plugging device %u into port %u.\n", device, port);*/
 }
@@ -520,8 +523,12 @@ unsigned retro_get_region(void)
 	return pal_mode_enabled ? RETRO_REGION_PAL : RETRO_REGION_NTSC;
 }
 
-bool retro_load_game_special(unsigned type, const struct retro_game_info *info, size_t num)
+bool retro_load_game_special(unsigned int type, const struct retro_game_info *info, size_t num)
 {
+	(void)type;
+	(void)info;
+	(void)num;
+
 	/* We don't need anything special. */
 	return false;
 }
@@ -533,24 +540,28 @@ size_t retro_serialize_size(void)
 
 bool retro_serialize(void *data, size_t size)
 {
+	(void)size;
+
 	memcpy(data, &clownmdemu_state, sizeof(clownmdemu_state));
 	return true;
 }
 
 bool retro_unserialize(const void *data, size_t size)
 {
+	(void)size;
+
 	memcpy(&clownmdemu_state, data, sizeof(clownmdemu_state));
 	return true;
 }
 
-void* retro_get_memory_data(unsigned id)
+void* retro_get_memory_data(unsigned int id)
 {
 	(void)id;
 
 	return NULL;
 }
 
-size_t retro_get_memory_size(unsigned id)
+size_t retro_get_memory_size(unsigned int id)
 {
 	(void)id;
 
