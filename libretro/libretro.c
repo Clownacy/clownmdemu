@@ -1,7 +1,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
 
 #include "libretro.h"
 #include "libretro_core_options.h"
@@ -77,12 +76,12 @@ static void CartridgeWriteCallback(const void *user_data, unsigned long address,
 
 static void ColourUpdatedCallback_0RGB1555(const void *user_data, unsigned int index, unsigned int colour)
 {
-	(void)user_data;
-
 	/* Convert from 0BGR4444 to 0RGB1555. */
 	const unsigned int red   = (colour >> 0) & 0xF;
 	const unsigned int green = (colour >> 4) & 0xF;
 	const unsigned int blue  = (colour >> 8) & 0xF;
+
+	(void)user_data;
 
 	colours.u16[index] = (((red   << 1) | (red   >> 3)) << (5 * 2))
 	                   | (((green << 1) | (green >> 3)) << (5 * 1))
@@ -91,12 +90,12 @@ static void ColourUpdatedCallback_0RGB1555(const void *user_data, unsigned int i
 
 static void ColourUpdatedCallback_RGB565(const void *user_data, unsigned int index, unsigned int colour)
 {
-	(void)user_data;
-
 	/* Convert from 0BGR4444 to RGB565. */
 	const unsigned int red   = (colour >> 0) & 0xF;
 	const unsigned int green = (colour >> 4) & 0xF;
 	const unsigned int blue  = (colour >> 8) & 0xF;
+
+	(void)user_data;
 
 	colours.u16[index] = (((red   << 1) | (red   >> 3)) << 11)
 	                   | (((green << 2) | (green >> 2)) << 5)
@@ -105,12 +104,12 @@ static void ColourUpdatedCallback_RGB565(const void *user_data, unsigned int ind
 
 static void ColourUpdatedCallback_XRGB8888(const void *user_data, unsigned int index, unsigned int colour)
 {
-	(void)user_data;
-
 	/* Convert from 0BGR4444 to XRGB8888. */
 	const unsigned int red   = (colour >> 0) & 0xF;
 	const unsigned int green = (colour >> 4) & 0xF;
 	const unsigned int blue  = (colour >> 8) & 0xF;
+
+	(void)user_data;
 
 	colours.u32[index] = (((red   << 4) | (red   >> 0)) << (8 * 2))
 	                   | (((green << 4) | (green >> 0)) << (8 * 1))
@@ -222,6 +221,8 @@ static ClownMDEmu_Callbacks clownmdemu_callbacks = {
 
 CC_ATTRIBUTE_PRINTF(2, 3) static void FallbackErrorLogCallback(enum retro_log_level level, const char *format, ...)
 {
+	va_list args;
+
 	switch (level)
 	{
 		case RETRO_LOG_DEBUG:
@@ -244,7 +245,6 @@ CC_ATTRIBUTE_PRINTF(2, 3) static void FallbackErrorLogCallback(enum retro_log_le
 			break;
 	}
 
-	va_list args;
 	va_start(args, format);
 	vfprintf(stderr, format, args);
 	va_end(args);
@@ -298,6 +298,12 @@ static void UpdateOptions(cc_bool only_update_flags)
 
 void retro_init(void)
 {
+	/* Inform frontend of serialisation quirks. */
+	{
+	uint64_t serialisation_quirks = RETRO_SERIALIZATION_QUIRK_ENDIAN_DEPENDENT | RETRO_SERIALIZATION_QUIRK_PLATFORM_DEPENDENT;
+	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &serialisation_quirks);
+	}
+
 	/* Initialise clownmdemu. */
 	UpdateOptions(cc_true);
 
@@ -385,34 +391,28 @@ void retro_set_environment(retro_environment_t environment_callback)
 	{
 	const struct retro_input_descriptor desc[] = {
 		/* Player 1. */
-		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Up" },
-		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "Down" },
-		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Left" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Up"    },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "Down"  },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Left"  },
 		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "Right" },
-		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "A" },
-		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "B" },
-		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "C" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "A"     },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "B"     },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "C"     },
 		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Start" },
 		/* Player 2. */
-		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Up" },
-		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "Down" },
-		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Left" },
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Up"    },
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "Down"  },
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Left"  },
 		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "Right" },
-		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "A" },
-		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "B" },
-		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "C" },
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "A"     },
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "B"     },
+		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "C"     },
 		{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Start" },
 		/* End. */
-		{ 0 },
+		{ 0, 0, 0, 0, NULL }
 	};
 
 	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, (void*)&desc);
-	}
-
-	/* Inform frontend of serialisation quirks. */
-	{
-	uint64_t serialisation_quirks = RETRO_SERIALIZATION_QUIRK_ENDIAN_DEPENDENT | RETRO_SERIALIZATION_QUIRK_PLATFORM_DEPENDENT;
-	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &serialisation_quirks);
 	}
 }
 
@@ -518,7 +518,7 @@ void retro_unload_game(void)
 	/* Nothing to do here... */
 }
 
-unsigned retro_get_region(void)
+unsigned int retro_get_region(void)
 {
 	return pal_mode_enabled ? RETRO_REGION_PAL : RETRO_REGION_NTSC;
 }

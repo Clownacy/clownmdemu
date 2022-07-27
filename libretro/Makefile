@@ -128,8 +128,8 @@ include Makefile.common
 
 OBJECTS := $(addprefix objects/libretro/, $(addsuffix .o, $(SOURCES_C)) $(SOURCES_CXX))
 
-CFLAGS   += -Wall -Wextra -Wpedantic -D__LIBRETRO__ $(fpic)
-CXXFLAGS += -Wall -Wextra -Wpedantic -D__LIBRETRO__ $(fpic)
+CFLAGS   += -Wall -Wextra -Wpedantic -ansi -D__LIBRETRO__ $(fpic)
+CXXFLAGS += -Wall -Wextra -Wpedantic -ansi -D__LIBRETRO__ $(fpic)
 
 all: $(TARGET)
 
