@@ -47,6 +47,7 @@ static unsigned int current_screen_height;
 static const unsigned char *rom;
 static size_t rom_size;
 static cc_bool lowpass_filter_enabled;
+static cc_bool pal_mode_enabled;
 
 static struct
 {
@@ -271,22 +272,25 @@ static cc_bool DoOptionBoolean(const char *key)
 
 static void UpdateOptions(cc_bool only_update_flags)
 {
-	if (lowpass_filter_enabled != DoOptionBoolean("lowpass_filter"))
+	const cc_bool lowpass_filter_changed = lowpass_filter_enabled != DoOptionBoolean("lowpass_filter");
+	const cc_bool pal_mode_changed = pal_mode_enabled != DoOptionBoolean("pal_mode");
+
+	lowpass_filter_enabled ^= lowpass_filter_changed;
+	pal_mode_enabled ^= pal_mode_changed;
+
+	if ((lowpass_filter_changed || pal_mode_changed) && !only_update_flags)
 	{
-		lowpass_filter_enabled = !lowpass_filter_enabled;
+		Mixer_State_Initialise(&mixer_state, lowpass_filter_enabled ? SAMPLE_RATE_WITH_LOWPASS : SAMPLE_RATE_NO_LOWPASS, pal_mode_enabled);
 
-		if (!only_update_flags)
 		{
-			Mixer_State_Initialise(&mixer_state, lowpass_filter_enabled ? SAMPLE_RATE_WITH_LOWPASS : SAMPLE_RATE_NO_LOWPASS, cc_false); /* TODO: PAL mode. */
-
-			{
-			struct retro_system_av_info info;
-			retro_get_system_av_info(&info);
-			libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &info);
-			}
+		struct retro_system_av_info info;
+		retro_get_system_av_info(&info);
+		libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &info);
 		}
 	}
 
+	clownmdemu_configuration.general.region = DoOptionBoolean("overseas_region") ? CLOWNMDEMU_REGION_OVERSEAS : CLOWNMDEMU_REGION_DOMESTIC;
+	clownmdemu_configuration.general.tv_standard = pal_mode_enabled ? CLOWNMDEMU_TV_STANDARD_PAL : CLOWNMDEMU_TV_STANDARD_NTSC;
 	clownmdemu_configuration.vdp.planes_disabled[0] = DoOptionBoolean("disable_plane_a");
 	clownmdemu_configuration.vdp.planes_disabled[1] = DoOptionBoolean("disable_plane_b");
 	clownmdemu_configuration.vdp.sprites_disabled = DoOptionBoolean("disable_sprite_plane");
@@ -295,10 +299,6 @@ static void UpdateOptions(cc_bool only_update_flags)
 void retro_init(void)
 {
 	/* Initialise clownmdemu. */
-	/* Emulate a Genesis. */
-	clownmdemu_configuration.general.region = CLOWNMDEMU_REGION_OVERSEAS;
-	clownmdemu_configuration.general.tv_standard = CLOWNMDEMU_TV_STANDARD_NTSC;
-
 	UpdateOptions(cc_true);
 
 	ClownMDEmu_SetErrorCallback(ClownMDEmuErrorLog);
@@ -308,7 +308,7 @@ void retro_init(void)
 
 	/* Initialise the mixer. */
 	Mixer_Constant_Initialise(&mixer_constant);
-	Mixer_State_Initialise(&mixer_state, lowpass_filter_enabled ? SAMPLE_RATE_WITH_LOWPASS : SAMPLE_RATE_NO_LOWPASS, cc_false); /* TODO: PAL mode. */
+	Mixer_State_Initialise(&mixer_state, lowpass_filter_enabled ? SAMPLE_RATE_WITH_LOWPASS : SAMPLE_RATE_NO_LOWPASS, pal_mode_enabled);
 }
 
 
@@ -344,7 +344,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 	info->geometry.max_height   = FRAMEBUFFER_HEIGHT;
 	info->geometry.aspect_ratio = 320.0f / 224.0f;
 
-	info->timing.fps            = 60.0 / 1.001;	/* Standard NTSC framerate. */
+	info->timing.fps            = pal_mode_enabled ? 50.0 : 60.0 / 1.001;	/* Standard PAL and NTSC framerates. */
 	info->timing.sample_rate    = lowpass_filter_enabled ? (double)SAMPLE_RATE_WITH_LOWPASS : (double)SAMPLE_RATE_NO_LOWPASS;
 }
 
@@ -517,8 +517,7 @@ void retro_unload_game(void)
 
 unsigned retro_get_region(void)
 {
-	/* TODO: PAL mode. */
-	return RETRO_REGION_NTSC;
+	return pal_mode_enabled ? RETRO_REGION_PAL : RETRO_REGION_NTSC;
 }
 
 bool retro_load_game_special(unsigned type, const struct retro_game_info *info, size_t num)

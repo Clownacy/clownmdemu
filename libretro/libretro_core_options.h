@@ -152,6 +152,50 @@ struct retro_core_option_v2_definition option_defs_us[] = {
 		/* Default value. */
 		"enabled"
 	},
+	{
+		/* Key. */
+		"pal_mode",
+		/* Label. */
+		"TV Standard",
+		/* Categorised label. */
+		NULL,
+		/* Description. */
+		"Which television standard to output in.",
+		/* Categorised description. */
+		NULL,
+		/* Category. */
+		NULL,
+		/* Values. */
+		{
+			{"enabled", "PAL (50Hz)"},
+			{"disabled", "NTSC (60Hz)"},
+			{NULL, NULL},
+		},
+		/* Default value. */
+		"disabled"
+	},
+	{
+		/* Key. */
+		"overseas_region",
+		/* Label. */
+		"Console Region",
+		/* Categorised label. */
+		NULL,
+		/* Description. */
+		"Which region the console is.",
+		/* Categorised description. */
+		NULL,
+		/* Category. */
+		NULL,
+		/* Values. */
+		{
+			{"enabled", "Overseas (Elsewhere)"},
+			{"disabled", "Domestic (Japan)"},
+			{NULL, NULL},
+		},
+		/* Default value. */
+		"enabled"
+	},
 	{NULL, NULL, NULL, NULL, NULL, NULL, {{NULL, NULL}}, NULL}
 };
 
