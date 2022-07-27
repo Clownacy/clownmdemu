@@ -16,7 +16,7 @@
 #define FRAMEBUFFER_HEIGHT 480
 
 #define SAMPLE_RATE_NO_LOWPASS 48000
-#define SAMPLE_RATE_WITH_LOWPASS 26000 /* Verify this. */
+#define SAMPLE_RATE_WITH_LOWPASS 22000 /* This sounds about right compared to my PAL Model 1 Mega Drive. */
 
 /* Mixer data. */
 static Mixer_Constant mixer_constant;
