@@ -280,7 +280,7 @@ static void UpdateOptions(cc_bool only_update_flags)
 
 	if ((lowpass_filter_changed || pal_mode_changed) && !only_update_flags)
 	{
-		Mixer_State_Initialise(&mixer_state, lowpass_filter_enabled ? SAMPLE_RATE_WITH_LOWPASS : SAMPLE_RATE_NO_LOWPASS, pal_mode_enabled);
+		Mixer_State_Initialise(&mixer_state, lowpass_filter_enabled ? SAMPLE_RATE_WITH_LOWPASS : SAMPLE_RATE_NO_LOWPASS, pal_mode_enabled, cc_false);
 
 		{
 		struct retro_system_av_info info;
@@ -314,7 +314,7 @@ void retro_init(void)
 
 	/* Initialise the mixer. */
 	Mixer_Constant_Initialise(&mixer_constant);
-	Mixer_State_Initialise(&mixer_state, lowpass_filter_enabled ? SAMPLE_RATE_WITH_LOWPASS : SAMPLE_RATE_NO_LOWPASS, pal_mode_enabled);
+	Mixer_State_Initialise(&mixer_state, lowpass_filter_enabled ? SAMPLE_RATE_WITH_LOWPASS : SAMPLE_RATE_NO_LOWPASS, pal_mode_enabled, cc_false);
 }
 
 
