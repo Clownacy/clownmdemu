@@ -43,9 +43,9 @@ static unsigned int current_screen_width;
 static unsigned int current_screen_height;
 static const unsigned char *rom;
 static size_t rom_size;
-static cc_bool lowpass_filter_enabled;
 static cc_bool pal_mode_enabled;
 static cc_bool tall_interlace_mode_2;
+static cc_bool lowpass_filter_enabled;
 
 static struct
 {
