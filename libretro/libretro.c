@@ -45,6 +45,7 @@ static const unsigned char *rom;
 static size_t rom_size;
 static cc_bool lowpass_filter_enabled;
 static cc_bool pal_mode_enabled;
+static cc_bool tall_interlace_mode_2;
 
 static struct
 {
@@ -289,6 +290,8 @@ static void UpdateOptions(cc_bool only_update_flags)
 		}
 	}
 
+	tall_interlace_mode_2 = DoOptionBoolean("tall_interlace_mode_2");
+
 	clownmdemu_configuration.general.region = DoOptionBoolean("overseas_region") ? CLOWNMDEMU_REGION_OVERSEAS : CLOWNMDEMU_REGION_DOMESTIC;
 	clownmdemu_configuration.general.tv_standard = pal_mode_enabled ? CLOWNMDEMU_TV_STANDARD_PAL : CLOWNMDEMU_TV_STANDARD_NTSC;
 	clownmdemu_configuration.vdp.planes_disabled[0] = DoOptionBoolean("disable_plane_a");
@@ -345,16 +348,28 @@ void retro_get_system_info(struct retro_system_info *info)
 	info->block_extract    = false;
 }
 
+static void SetGeometry(struct retro_game_geometry *geometry)
+{
+	geometry->base_width   = 256;
+	geometry->base_height  = 224;
+	geometry->max_width    = FRAMEBUFFER_WIDTH;
+	geometry->max_height   = FRAMEBUFFER_HEIGHT;
+	geometry->aspect_ratio = 320.0f / (float)current_screen_height;
+
+	/* Squish the aspect ratio vertically when in Interlace Mode 2. */
+	if (!tall_interlace_mode_2 && current_screen_height >= 448)
+		geometry->aspect_ratio *= 2.0f;
+}
+
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
-	info->geometry.base_width   = 320;
-	info->geometry.base_height  = 224;
-	info->geometry.max_width    = FRAMEBUFFER_WIDTH;
-	info->geometry.max_height   = FRAMEBUFFER_HEIGHT;
-	info->geometry.aspect_ratio = 320.0f / 224.0f;
+	/* Initialise this to avoid a division by 0 in SetGeometry. */
+	current_screen_height = 224;
 
-	info->timing.fps            = pal_mode_enabled ? 50.0 : 60.0 / 1.001;	/* Standard PAL and NTSC framerates. */
-	info->timing.sample_rate    = lowpass_filter_enabled ? (double)SAMPLE_RATE_WITH_LOWPASS : (double)SAMPLE_RATE_NO_LOWPASS;
+	SetGeometry(&info->geometry);
+
+	info->timing.fps = pal_mode_enabled ? 50.0 : 60.0 / 1.001;	/* Standard PAL and NTSC framerates. */
+	info->timing.sample_rate = lowpass_filter_enabled ? (double)SAMPLE_RATE_WITH_LOWPASS : (double)SAMPLE_RATE_NO_LOWPASS;
 }
 
 void retro_set_environment(retro_environment_t environment_callback)
@@ -469,6 +484,13 @@ void retro_run(void)
 	ClownMDEmu_Iterate(&clownmdemu, &clownmdemu_callbacks);
 
 	Mixer_End(&mixer, MixerCompleteCallback, NULL);
+
+	/* Update aspect ratio. */
+	{
+	struct retro_game_geometry geometry;
+	SetGeometry(&geometry);
+	libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_GEOMETRY, &geometry);
+	}
 
 	/* Upload the completed frame to the frontend. */
 	if (clownmdemu_callbacks.scanline_rendered == ScanlineRenderedCallback_16Bit)

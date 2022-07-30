@@ -196,6 +196,28 @@ struct retro_core_option_v2_definition option_defs_us[] = {
 		/* Default value. */
 		"enabled"
 	},
+	{
+		/* Key. */
+		"tall_interlace_mode_2",
+		/* Label. */
+		"Tall Interlace Mode 2",
+		/* Categorised label. */
+		NULL,
+		/* Description. */
+		"Makes games that use Interlace Mode 2 for split-screen not appear squashed.",
+		/* Categorised description. */
+		NULL,
+		/* Category. */
+		NULL,
+		/* Values. */
+		{
+			{"enabled", NULL},
+			{"disabled", NULL},
+			{NULL, NULL},
+		},
+		/* Default value. */
+		"disabled"
+	},
 	{NULL, NULL, NULL, NULL, NULL, NULL, {{NULL, NULL}}, NULL}
 };
 
