@@ -66,7 +66,7 @@ struct retro_core_option_v2_category option_cats_us[] = {
 struct retro_core_option_v2_definition option_defs_us[] = {
 	{
 		/* Key. */
-		"disable_plane_a",
+		"clownmdemu_disable_plane_a",
 		/* Label. */
 		"Debug > Disable Plane A",
 		/* Categorised label. */
@@ -88,7 +88,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
 	},
 	{
 		/* Key. */
-		"disable_plane_b",
+		"clownmdemu_disable_plane_b",
 		/* Label. */
 		"Debug > Disable Plane B",
 		/* Categorised label. */
@@ -110,7 +110,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
 	},
 	{
 		/* Key. */
-		"disable_sprite_plane",
+		"clownmdemu_disable_sprite_plane",
 		/* Label. */
 		"Debug > Disable Sprite Plane",
 		/* Categorised label. */
@@ -132,7 +132,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
 	},
 	{
 		/* Key. */
-		"pal_mode",
+		"clownmdemu_tv_standard",
 		/* Label. */
 		"TV Standard",
 		/* Categorised label. */
@@ -145,16 +145,16 @@ struct retro_core_option_v2_definition option_defs_us[] = {
 		NULL,
 		/* Values. */
 		{
-			{"enabled", "PAL (50Hz)"},
-			{"disabled", "NTSC (60Hz)"},
+			{"pal", "PAL (50Hz)"},
+			{"ntsc", "NTSC (59.94Hz)"},
 			{NULL, NULL},
 		},
 		/* Default value. */
-		"disabled"
+		"ntsc"
 	},
 	{
 		/* Key. */
-		"overseas_region",
+		"clownmdemu_overseas_region",
 		/* Label. */
 		"Console Region",
 		/* Categorised label. */
@@ -167,16 +167,16 @@ struct retro_core_option_v2_definition option_defs_us[] = {
 		NULL,
 		/* Values. */
 		{
-			{"enabled", "Overseas (Elsewhere)"},
-			{"disabled", "Domestic (Japan)"},
+			{"elsewhere", "Overseas (Elsewhere)"},
+			{"japan", "Domestic (Japan)"},
 			{NULL, NULL},
 		},
 		/* Default value. */
-		"enabled"
+		"elsewhere"
 	},
 	{
 		/* Key. */
-		"tall_interlace_mode_2",
+		"clownmdemu_tall_interlace_mode_2",
 		/* Label. */
 		"Tall Interlace Mode 2",
 		/* Categorised label. */
@@ -198,7 +198,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
 	},
 	{
 		/* Key. */
-		"lowpass_filter",
+		"clownmdemu_lowpass_filter",
 		/* Label. */
 		"Low-Pass Filter",
 		/* Categorised label. */

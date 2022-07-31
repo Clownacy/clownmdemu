@@ -264,17 +264,17 @@ static void ClownMDEmuErrorLog(const char *format, va_list arg)
 	libretro_callbacks.log(RETRO_LOG_WARN, message_buffer);
 }
 
-static cc_bool DoOptionBoolean(const char *key)
+static cc_bool DoOptionBoolean(const char *key, const char *true_value)
 {
 	struct retro_variable variable;
 	variable.key = key;
-	return libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_VARIABLE, &variable) && variable.value != NULL && strcmp(variable.value, "enabled") == 0;
+	return libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_VARIABLE, &variable) && variable.value != NULL && strcmp(variable.value, true_value) == 0;
 }
 
 static void UpdateOptions(cc_bool only_update_flags)
 {
-	const cc_bool lowpass_filter_changed = lowpass_filter_enabled != DoOptionBoolean("lowpass_filter");
-	const cc_bool pal_mode_changed = pal_mode_enabled != DoOptionBoolean("pal_mode");
+	const cc_bool lowpass_filter_changed = lowpass_filter_enabled != DoOptionBoolean("clownmdemu_lowpass_filter", "enabled");
+	const cc_bool pal_mode_changed = pal_mode_enabled != DoOptionBoolean("clownmdemu_tv_standard", "pal");
 
 	lowpass_filter_enabled ^= lowpass_filter_changed;
 	pal_mode_enabled ^= pal_mode_changed;
@@ -290,13 +290,13 @@ static void UpdateOptions(cc_bool only_update_flags)
 		}
 	}
 
-	tall_interlace_mode_2 = DoOptionBoolean("tall_interlace_mode_2");
+	tall_interlace_mode_2 = DoOptionBoolean("clownmdemu_tall_interlace_mode_2", "enabled");
 
-	clownmdemu_configuration.general.region = DoOptionBoolean("overseas_region") ? CLOWNMDEMU_REGION_OVERSEAS : CLOWNMDEMU_REGION_DOMESTIC;
+	clownmdemu_configuration.general.region = DoOptionBoolean("clownmdemu_overseas_region", "elsewhere") ? CLOWNMDEMU_REGION_OVERSEAS : CLOWNMDEMU_REGION_DOMESTIC;
 	clownmdemu_configuration.general.tv_standard = pal_mode_enabled ? CLOWNMDEMU_TV_STANDARD_PAL : CLOWNMDEMU_TV_STANDARD_NTSC;
-	clownmdemu_configuration.vdp.planes_disabled[0] = DoOptionBoolean("disable_plane_a");
-	clownmdemu_configuration.vdp.planes_disabled[1] = DoOptionBoolean("disable_plane_b");
-	clownmdemu_configuration.vdp.sprites_disabled = DoOptionBoolean("disable_sprite_plane");
+	clownmdemu_configuration.vdp.planes_disabled[0] = DoOptionBoolean("clownmdemu_disable_plane_a", "enabled");
+	clownmdemu_configuration.vdp.planes_disabled[1] = DoOptionBoolean("clownmdemu_disable_plane_b", "enabled");
+	clownmdemu_configuration.vdp.sprites_disabled = DoOptionBoolean("clownmdemu_disable_sprite_plane", "enabled");
 }
 
 void retro_init(void)
@@ -350,8 +350,8 @@ void retro_get_system_info(struct retro_system_info *info)
 
 static void SetGeometry(struct retro_game_geometry *geometry)
 {
-	geometry->base_width   = 256;
-	geometry->base_height  = 224;
+	geometry->base_width   = current_screen_width;
+	geometry->base_height  = current_screen_height;
 	geometry->max_width    = FRAMEBUFFER_WIDTH;
 	geometry->max_height   = FRAMEBUFFER_HEIGHT;
 	geometry->aspect_ratio = 320.0f / (float)current_screen_height;
@@ -363,7 +363,8 @@ static void SetGeometry(struct retro_game_geometry *geometry)
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
-	/* Initialise this to avoid a division by 0 in SetGeometry. */
+	/* Initialise these to avoid a division by 0 in SetGeometry. */
+	current_screen_width = 320;
 	current_screen_height = 224;
 
 	SetGeometry(&info->geometry);
