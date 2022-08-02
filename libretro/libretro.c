@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -31,7 +32,7 @@ static union
 {
 	uint16_t u16[FRAMEBUFFER_HEIGHT][FRAMEBUFFER_WIDTH];
 	uint32_t u32[FRAMEBUFFER_HEIGHT][FRAMEBUFFER_WIDTH];
-} framebuffer;
+} fallback_framebuffer;
 
 static union
 {
@@ -39,8 +40,14 @@ static union
 	uint32_t u32[16 * 4 * 3];
 } colours;
 
+static void *current_framebuffer;
+static size_t current_framebuffer_pitch;
 static unsigned int current_screen_width;
 static unsigned int current_screen_height;
+static void (*scanline_rendered_callback)(const void *user_data, const unsigned char *source_pixels, void *destination_pixels, unsigned int screen_width);
+static void (*fallback_colour_updated_callback)(const void *user_data, unsigned int index, unsigned int colour);
+static void (*fallback_scanline_rendered_callback)(const void *user_data, const unsigned char *source_pixels, void *destination_pixels, unsigned int screen_width);
+
 static const unsigned char *rom;
 static size_t rom_size;
 static cc_bool pal_mode_enabled;
@@ -117,10 +124,10 @@ static void ColourUpdatedCallback_XRGB8888(const void *user_data, unsigned int i
 	                   | (((blue  << 4) | (blue  >> 0)) << (8 * 0));
 }
 
-static void ScanlineRenderedCallback_16Bit(const void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height)
+static void ScanlineRenderedCallback_16Bit(const void *user_data, const unsigned char *source_pixels, void *destination_pixels, unsigned int screen_width)
 {
-	const unsigned char *source_pixel_pointer = pixels;
-	uint16_t *destination_pixel_pointer = framebuffer.u16[scanline];
+	const unsigned char *source_pixel_pointer = source_pixels;
+	uint16_t *destination_pixel_pointer = (uint16_t*)destination_pixels;
 
 	unsigned int i;
 
@@ -128,15 +135,12 @@ static void ScanlineRenderedCallback_16Bit(const void *user_data, unsigned int s
 
 	for (i = 0; i < screen_width; ++i)
 		*destination_pixel_pointer++ = colours.u16[*source_pixel_pointer++];
-
-	current_screen_width = screen_width;
-	current_screen_height = screen_height;
 }
 
-static void ScanlineRenderedCallback_32Bit(const void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height)
+static void ScanlineRenderedCallback_32Bit(const void *user_data, const unsigned char *source_pixels, void *destination_pixels, unsigned int screen_width)
 {
-	const unsigned char *source_pixel_pointer = pixels;
-	uint32_t *destination_pixel_pointer = framebuffer.u32[scanline];
+	const unsigned char *source_pixel_pointer = source_pixels;
+	uint32_t *destination_pixel_pointer = (uint32_t*)destination_pixels;
 
 	unsigned int i;
 
@@ -144,9 +148,86 @@ static void ScanlineRenderedCallback_32Bit(const void *user_data, unsigned int s
 
 	for (i = 0; i < screen_width; ++i)
 		*destination_pixel_pointer++ = colours.u32[*source_pixel_pointer++];
+}
 
-	current_screen_width = screen_width;
-	current_screen_height = screen_height;
+/* A forward-declaration needed by a circular-dependency. */
+static ClownMDEmu_Callbacks clownmdemu_callbacks;
+
+static void ScanlineRenderedCallback(const void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height)
+{
+	/* At the start of the frame, update the screen width and height
+	   and obtain a new framebuffer from the frontend. */
+	if (scanline == 0)
+	{
+		struct retro_framebuffer frontend_framebuffer;
+
+		frontend_framebuffer.width = screen_width;
+		frontend_framebuffer.height = screen_height;
+		frontend_framebuffer.access_flags = RETRO_MEMORY_ACCESS_WRITE;
+
+		if (libretro_callbacks.environment(RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER, &frontend_framebuffer)
+		&& (frontend_framebuffer.format == RETRO_PIXEL_FORMAT_0RGB1555
+		 || frontend_framebuffer.format == RETRO_PIXEL_FORMAT_XRGB8888
+		 || frontend_framebuffer.format == RETRO_PIXEL_FORMAT_RGB565))
+		{
+			current_framebuffer = frontend_framebuffer.data;
+			current_framebuffer_pitch = frontend_framebuffer.pitch;
+
+			/* Select the proper callbacks based on the framebuffer format. */
+			switch (frontend_framebuffer.format)
+			{
+				default:
+					/* Should never happen. */
+					assert(cc_false);
+					/* Fallthrough */
+				case RETRO_PIXEL_FORMAT_0RGB1555:
+					clownmdemu_callbacks.colour_updated = ColourUpdatedCallback_0RGB1555;
+					scanline_rendered_callback = ScanlineRenderedCallback_16Bit;
+					break;
+
+				case RETRO_PIXEL_FORMAT_XRGB8888:
+					clownmdemu_callbacks.colour_updated = ColourUpdatedCallback_XRGB8888;
+					scanline_rendered_callback = ScanlineRenderedCallback_32Bit;
+					break;
+
+				case RETRO_PIXEL_FORMAT_RGB565:
+					clownmdemu_callbacks.colour_updated = ColourUpdatedCallback_RGB565;
+					scanline_rendered_callback = ScanlineRenderedCallback_16Bit;
+					break;
+			}
+		}
+		else
+		{
+			/* Fall back on the internal framebuffer if the frontend one could not be
+			   obtained or was in an incompatible format. */
+			if (fallback_scanline_rendered_callback == ScanlineRenderedCallback_16Bit)
+			{
+				current_framebuffer = fallback_framebuffer.u16;
+				current_framebuffer_pitch = sizeof(fallback_framebuffer.u16[0]);
+			}
+			else
+			{
+				current_framebuffer = fallback_framebuffer.u32;
+				current_framebuffer_pitch = sizeof(fallback_framebuffer.u32[0]);
+			}
+
+			clownmdemu_callbacks.colour_updated = fallback_colour_updated_callback;
+			scanline_rendered_callback = fallback_scanline_rendered_callback;
+		}
+
+		current_screen_width = screen_width;
+		current_screen_height = screen_height;
+	}
+
+	/* Prevent mid-frame resolution changes from causing out-of-bound framebuffer accesses. */
+	if (scanline < current_screen_height)
+	{
+		/* Ditto. */
+		if (screen_width < current_screen_width)
+			screen_width = current_screen_width;
+
+		scanline_rendered_callback(user_data, pixels, (unsigned char*)current_framebuffer + (current_framebuffer_pitch * scanline), screen_width);
+	}
 }
 
 static cc_bool InputRequestedCallback(const void *user_data, unsigned int player_id, ClownMDEmu_Button button_id)
@@ -214,7 +295,7 @@ static ClownMDEmu_Callbacks clownmdemu_callbacks = {
 	CartridgeReadCallback,
 	CartridgeWriteCallback,
 	ColourUpdatedCallback_0RGB1555,
-	ScanlineRenderedCallback_16Bit,
+	ScanlineRenderedCallback,
 	InputRequestedCallback,
 	FMAudioToBeGeneratedCallback,
 	PSGAudioToBeGeneratedCallback
@@ -363,10 +444,37 @@ static void SetGeometry(struct retro_game_geometry *geometry)
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
+	enum retro_pixel_format pixel_format;
+
+	/* Determine which pixel format to render as in the event that
+	   'RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER' fails or produces a framebuffer
+	   that is in a format that we don't support. */
+	pixel_format = RETRO_PIXEL_FORMAT_RGB565;
+	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &pixel_format))
+	{
+		fallback_colour_updated_callback = ColourUpdatedCallback_RGB565;
+		fallback_scanline_rendered_callback = ScanlineRenderedCallback_16Bit;
+	}
+	else
+	{
+		pixel_format = RETRO_PIXEL_FORMAT_XRGB8888;
+		if (libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &pixel_format))
+		{
+			fallback_colour_updated_callback = ColourUpdatedCallback_XRGB8888;
+			fallback_scanline_rendered_callback = ScanlineRenderedCallback_32Bit;
+		}
+		else
+		{
+			fallback_colour_updated_callback = ColourUpdatedCallback_0RGB1555;
+			fallback_scanline_rendered_callback = ScanlineRenderedCallback_16Bit;
+		}
+	}
+
 	/* Initialise these to avoid a division by 0 in SetGeometry. */
 	current_screen_width = 320;
 	current_screen_height = 224;
 
+	/* Populate the 'retro_system_av_info' struct. */
 	SetGeometry(&info->geometry);
 
 	info->timing.fps = pal_mode_enabled ? 50.0 : 60.0 / 1.001;	/* Standard PAL and NTSC framerates. */
@@ -494,38 +602,11 @@ void retro_run(void)
 	}
 
 	/* Upload the completed frame to the frontend. */
-	if (clownmdemu_callbacks.scanline_rendered == ScanlineRenderedCallback_16Bit)
-		libretro_callbacks.video(&framebuffer.u16, current_screen_width, current_screen_height, sizeof(framebuffer.u16[0]));
-	else
-		libretro_callbacks.video(&framebuffer.u32, current_screen_width, current_screen_height, sizeof(framebuffer.u32[0]));
+	libretro_callbacks.video(current_framebuffer, current_screen_width, current_screen_height, current_framebuffer_pitch);
 }
 
 bool retro_load_game(const struct retro_game_info *info)
 {
-	enum retro_pixel_format pixel_format;
-
-	/* Determine which pixel format to render as. */
-	pixel_format = RETRO_PIXEL_FORMAT_RGB565;
-	if (libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &pixel_format))
-	{
-		clownmdemu_callbacks.colour_updated = ColourUpdatedCallback_RGB565;
-		clownmdemu_callbacks.scanline_rendered = ScanlineRenderedCallback_16Bit;
-	}
-	else
-	{
-		pixel_format = RETRO_PIXEL_FORMAT_XRGB8888;
-		if (libretro_callbacks.environment(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &pixel_format))
-		{
-			clownmdemu_callbacks.colour_updated = ColourUpdatedCallback_XRGB8888;
-			clownmdemu_callbacks.scanline_rendered = ScanlineRenderedCallback_32Bit;
-		}
-		else
-		{
-			clownmdemu_callbacks.colour_updated = ColourUpdatedCallback_0RGB1555;
-			clownmdemu_callbacks.scanline_rendered = ScanlineRenderedCallback_16Bit;
-		}
-	}
-
 	/* Initialise the ROM. */
 	rom = (const unsigned char*)info->data;
 	rom_size = info->size;
