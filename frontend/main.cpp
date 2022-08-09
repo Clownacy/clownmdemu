@@ -1557,7 +1557,7 @@ int main(int argc, char **argv)
 
 								ImGui::MenuItem("Tall Double Resolution Mode", NULL, &tall_double_resolution_mode);
 
-								if (ImGui::MenuItem("Low-Pass Filter", NULL, &low_pass_filter))
+								if (ImGui::MenuItem("Low-Pass Filter", NULL, low_pass_filter))
 									Mixer_State_Initialise(&mixer_state, audio_device_sample_rate, pal_mode, low_pass_filter);
 
 								ImGui::MenuItem("Pop-Out Display Window", NULL, &pop_out);

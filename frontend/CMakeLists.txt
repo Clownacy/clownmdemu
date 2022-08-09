@@ -104,8 +104,10 @@ target_compile_features(clownmdemufrontend PRIVATE cxx_long_long_type cxx_static
 # Disable some deprecated junk in Dear ImGui
 target_compile_definitions(clownmdemufrontend PRIVATE IMGUI_DISABLE_OBSOLETE_FUNCTIONS IMGUI_DISABLE_OBSOLETE_KEYIO)
 
-# Dear ImGui needs these directories in the include path
-target_include_directories(clownmdemufrontend PRIVATE "libraries/imgui" "libraries/imgui/backends")
+# Pick up imgui headers from the submodule directory, and add /usr/local/include
+# for OSes where libx11 is not installed out of the box. Note that CMake does not
+# treat /usr/local/include as a system directory.
+target_include_directories(clownmdemufrontend PRIVATE "/usr/local/include" "libraries/imgui" "libraries/imgui/backends")
 
 
 #
