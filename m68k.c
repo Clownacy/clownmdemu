@@ -153,6 +153,43 @@ typedef enum Instruction
 	INSTRUCTION_UNIMPLEMENTED_2
 } Instruction;
 
+typedef	enum DecodedAddressModeType
+{
+	DECODED_ADDRESS_MODE_TYPE_REGISTER,
+	DECODED_ADDRESS_MODE_TYPE_MEMORY
+} DecodedAddressModeType;
+
+typedef struct DecodedAddressMode
+{
+	DecodedAddressModeType type;
+	union
+	{
+		struct
+		{
+			unsigned long *address;
+			unsigned long operation_size_bitmask;
+		} reg;
+		struct
+		{
+			unsigned long address;
+			unsigned char operation_size_in_bytes;
+		} memory;
+	} data;
+} DecodedAddressMode;
+
+typedef struct Opcode
+{
+	unsigned int raw;
+
+	unsigned int bits_6_and_7;
+	cc_bool bit_8;
+
+	unsigned int primary_register;
+	AddressMode primary_address_mode;
+	AddressMode secondary_address_mode;
+	unsigned int secondary_register;
+} Opcode;
+
 /* Exception forward-declarations. */
 
 static void Group1Or2Exception(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, size_t vector_offset);
@@ -349,30 +386,6 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 	return address;
 }
 
-typedef	enum DecodedAddressModeType
-{
-	DECODED_ADDRESS_MODE_TYPE_REGISTER,
-	DECODED_ADDRESS_MODE_TYPE_MEMORY
-} DecodedAddressModeType;
-
-typedef struct DecodedAddressMode
-{
-	DecodedAddressModeType type;
-	union
-	{
-		struct
-		{
-			unsigned long *address;
-			unsigned long operation_size_bitmask;
-		} reg;
-		struct
-		{
-			unsigned long address;
-			unsigned char operation_size_in_bytes;
-		} memory;
-	} data;
-} DecodedAddressMode;
-
 static void DecodeAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, DecodedAddressMode *decoded_address_mode, unsigned int operation_size_in_bytes, AddressMode address_mode, unsigned int reg)
 {
 	switch (address_mode)
@@ -549,30 +562,22 @@ static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned int opcode)
 	}
 }
 
-static Instruction DecodeOpcode(unsigned int opcode)
+static Instruction DecodeOpcode(const Opcode *opcode)
 {
-	const unsigned int opcode_bits_6_and_7 = (opcode >> 6) & 3;
-	const cc_bool opcode_bit_8 = (opcode & 0x100) != 0;
-
-	const unsigned int opcode_primary_register = (opcode >> 0) & 7;
-	const AddressMode opcode_primary_address_mode = (AddressMode)((opcode >> 3) & 7);
-	const AddressMode opcode_secondary_address_mode = (AddressMode)((opcode >> 6) & 7);
-	const unsigned int opcode_secondary_register = (opcode >> 9) & 7;
-
 	Instruction instruction;
 
-	switch ((opcode >> 12) & 0xF)
+	switch ((opcode->raw >> 12) & 0xF)
 	{
 		case 0x0:
-			if (opcode_bit_8)
+			if (opcode->bit_8)
 			{
-				if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+				if (opcode->primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 				{
 					instruction = INSTRUCTION_MOVEP;
 				}
 				else
 				{
-					switch (opcode_bits_6_and_7)
+					switch (opcode->bits_6_and_7)
 					{
 						case 0:
 							instruction = INSTRUCTION_BTST_DYNAMIC;
@@ -594,12 +599,12 @@ static Instruction DecodeOpcode(unsigned int opcode)
 			}
 			else
 			{
-				switch (opcode_secondary_register)
+				switch (opcode->secondary_register)
 				{
 					case 0:
-						if (opcode_primary_address_mode == ADDRESS_MODE_SPECIAL && opcode_primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
+						if (opcode->primary_address_mode == ADDRESS_MODE_SPECIAL && opcode->primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
 						{
-							switch (opcode_bits_6_and_7)
+							switch (opcode->bits_6_and_7)
 							{
 								case 0:
 									instruction = INSTRUCTION_ORI_TO_CCR;
@@ -618,9 +623,9 @@ static Instruction DecodeOpcode(unsigned int opcode)
 						break;
 
 					case 1:
-						if (opcode_primary_address_mode == ADDRESS_MODE_SPECIAL && opcode_primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
+						if (opcode->primary_address_mode == ADDRESS_MODE_SPECIAL && opcode->primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
 						{
-							switch (opcode_bits_6_and_7)
+							switch (opcode->bits_6_and_7)
 							{
 								case 0:
 									instruction = INSTRUCTION_ANDI_TO_CCR;
@@ -647,7 +652,7 @@ static Instruction DecodeOpcode(unsigned int opcode)
 						break;
 
 					case 4:
-						switch (opcode_bits_6_and_7)
+						switch (opcode->bits_6_and_7)
 						{
 							case 0:
 								instruction = INSTRUCTION_BTST_STATIC;
@@ -669,9 +674,9 @@ static Instruction DecodeOpcode(unsigned int opcode)
 						break;
 
 					case 5:
-						if (opcode_primary_address_mode == ADDRESS_MODE_SPECIAL && opcode_primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
+						if (opcode->primary_address_mode == ADDRESS_MODE_SPECIAL && opcode->primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
 						{
-							switch (opcode_bits_6_and_7)
+							switch (opcode->bits_6_and_7)
 							{
 								case 0:
 									instruction = INSTRUCTION_EORI_TO_CCR;
@@ -700,7 +705,7 @@ static Instruction DecodeOpcode(unsigned int opcode)
 		case 0x1:
 		case 0x2:
 		case 0x3:
-			if ((opcode & 0x01C0) == 0x0040)
+			if ((opcode->raw & 0x01C0) == 0x0040)
 				instruction = INSTRUCTION_MOVEA;
 			else
 				instruction = INSTRUCTION_MOVE;
@@ -708,9 +713,9 @@ static Instruction DecodeOpcode(unsigned int opcode)
 			break;
 
 		case 0x4:
-			if (opcode_bit_8)
+			if (opcode->bit_8)
 			{
-				switch (opcode_bits_6_and_7)
+				switch (opcode->bits_6_and_7)
 				{
 					case 3:
 						instruction = INSTRUCTION_LEA;
@@ -724,11 +729,11 @@ static Instruction DecodeOpcode(unsigned int opcode)
 						break;
 				}
 			}
-			else if ((opcode & 0x0800) == 0)
+			else if ((opcode->raw & 0x0800) == 0)
 			{
-				if (opcode_bits_6_and_7 == 3)
+				if (opcode->bits_6_and_7 == 3)
 				{
-					switch (opcode_secondary_register)
+					switch (opcode->secondary_register)
 					{
 						case 0:
 							instruction = INSTRUCTION_MOVE_FROM_SR;
@@ -745,7 +750,7 @@ static Instruction DecodeOpcode(unsigned int opcode)
 				}
 				else
 				{
-					switch (opcode_secondary_register)
+					switch (opcode->secondary_register)
 					{
 						case 0:
 							instruction = INSTRUCTION_NEGX;
@@ -765,50 +770,50 @@ static Instruction DecodeOpcode(unsigned int opcode)
 					}
 				}
 			}
-			else if ((opcode & 0x0200) == 0)
+			else if ((opcode->raw & 0x0200) == 0)
 			{
-				if ((opcode & 0x01B8) == 0x0080)
+				if ((opcode->raw & 0x01B8) == 0x0080)
 					instruction = INSTRUCTION_EXT;
-				else if ((opcode & 0x01C0) == 0x0000)
+				else if ((opcode->raw & 0x01C0) == 0x0000)
 					instruction = INSTRUCTION_NBCD;
-				else if ((opcode & 0x01F8) == 0x0040)
+				else if ((opcode->raw & 0x01F8) == 0x0040)
 					instruction = INSTRUCTION_SWAP;
-				else if ((opcode & 0x01C0) == 0x0040)
+				else if ((opcode->raw & 0x01C0) == 0x0040)
 					instruction = INSTRUCTION_PEA;
-				else if ((opcode & 0x0B80) == 0x0880)
+				else if ((opcode->raw & 0x0B80) == 0x0880)
 					instruction = INSTRUCTION_MOVEM;
 			}
-			else if (opcode == 0x4AFA || opcode == 0x4AFB || opcode == 0x4AFC)
+			else if (opcode->raw == 0x4AFA || opcode->raw == 0x4AFB || opcode->raw == 0x4AFC)
 			{
 				instruction = INSTRUCTION_ILLEGAL;
 			}
-			else if ((opcode & 0x0FC0) == 0x0AC0)
+			else if ((opcode->raw & 0x0FC0) == 0x0AC0)
 			{
 				instruction = INSTRUCTION_TAS;
 			}
-			else if ((opcode & 0x0F00) == 0x0A00)
+			else if ((opcode->raw & 0x0F00) == 0x0A00)
 			{
 				instruction = INSTRUCTION_TST;
 			}
-			else if ((opcode & 0x0FF0) == 0x0E40)
+			else if ((opcode->raw & 0x0FF0) == 0x0E40)
 			{
 				instruction = INSTRUCTION_TRAP;
 			}
-			else if ((opcode & 0x0FF8) == 0x0E50)
+			else if ((opcode->raw & 0x0FF8) == 0x0E50)
 			{
 				instruction = INSTRUCTION_LINK;
 			}
-			else if ((opcode & 0x0FF8) == 0x0E58)
+			else if ((opcode->raw & 0x0FF8) == 0x0E58)
 			{
 				instruction = INSTRUCTION_UNLK;
 			}
-			else if ((opcode & 0x0FF0) == 0x0E60)
+			else if ((opcode->raw & 0x0FF0) == 0x0E60)
 			{
 				instruction = INSTRUCTION_MOVE_USP;
 			}
-			else if ((opcode & 0x0FF8) == 0x0E70)
+			else if ((opcode->raw & 0x0FF8) == 0x0E70)
 			{
-				switch (opcode_primary_register)
+				switch (opcode->primary_register)
 				{
 					case 0:
 						instruction = INSTRUCTION_RESET;
@@ -839,11 +844,11 @@ static Instruction DecodeOpcode(unsigned int opcode)
 						break;
 				}
 			}
-			else if ((opcode & 0x0FC0) == 0x0E80)
+			else if ((opcode->raw & 0x0FC0) == 0x0E80)
 			{
 				instruction = INSTRUCTION_JSR;
 			}
-			else if ((opcode & 0x0FC0) == 0x0EC0)
+			else if ((opcode->raw & 0x0FC0) == 0x0EC0)
 			{
 				instruction = INSTRUCTION_JMP;
 			}
@@ -851,16 +856,16 @@ static Instruction DecodeOpcode(unsigned int opcode)
 			break;
 
 		case 0x5:
-			if (opcode_bits_6_and_7 == 3)
+			if (opcode->bits_6_and_7 == 3)
 			{
-				if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+				if (opcode->primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 					instruction = INSTRUCTION_DBCC;
 				else
 					instruction = INSTRUCTION_SCC;
 			}
 			else
 			{
-				if (opcode_bit_8)
+				if (opcode->bit_8)
 					instruction = INSTRUCTION_SUBQ;
 				else
 					instruction = INSTRUCTION_ADDQ;
@@ -869,9 +874,9 @@ static Instruction DecodeOpcode(unsigned int opcode)
 			break;
 
 		case 0x6:
-			if (opcode_secondary_register == 0)
+			if (opcode->secondary_register == 0)
 			{
-				if (opcode_bit_8)
+				if (opcode->bit_8)
 					instruction = INSTRUCTION_BSR;
 				else
 					instruction = INSTRUCTION_BRA;
@@ -888,16 +893,16 @@ static Instruction DecodeOpcode(unsigned int opcode)
 			break;
 
 		case 0x8:
-			if (opcode_bits_6_and_7 == 3)
+			if (opcode->bits_6_and_7 == 3)
 			{
-				if (opcode_bit_8)
+				if (opcode->bit_8)
 					instruction = INSTRUCTION_DIVS;
 				else
 					instruction = INSTRUCTION_DIVU;
 			}
 			else
 			{
-				if ((opcode & 0x0170) == 0x0100)
+				if ((opcode->raw & 0x0170) == 0x0100)
 					instruction = INSTRUCTION_SBCD;
 				else
 					instruction = INSTRUCTION_OR;
@@ -906,9 +911,9 @@ static Instruction DecodeOpcode(unsigned int opcode)
 			break;
 
 		case 0x9:
-			if (opcode_bits_6_and_7 == 3)
+			if (opcode->bits_6_and_7 == 3)
 				instruction = INSTRUCTION_SUBA;
-			else if ((opcode & 0x0170) == 0x0100)
+			else if ((opcode->raw & 0x0170) == 0x0100)
 				instruction = INSTRUCTION_SUBX;
 			else
 				instruction = INSTRUCTION_SUB;
@@ -920,11 +925,11 @@ static Instruction DecodeOpcode(unsigned int opcode)
 			break;
 
 		case 0xB:
-			if (opcode_bits_6_and_7 == 3)
+			if (opcode->bits_6_and_7 == 3)
 				instruction = INSTRUCTION_CMPA;
-			else if (!opcode_bit_8)
+			else if (!opcode->bit_8)
 				instruction = INSTRUCTION_CMP;
-			else if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+			else if (opcode->primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 				instruction = INSTRUCTION_CMPM;
 			else
 				instruction = INSTRUCTION_EOR;
@@ -932,16 +937,16 @@ static Instruction DecodeOpcode(unsigned int opcode)
 			break;
 
 		case 0xC:
-			if (opcode_bits_6_and_7 == 3)
+			if (opcode->bits_6_and_7 == 3)
 			{
-				if (opcode_bit_8)
+				if (opcode->bit_8)
 					instruction = INSTRUCTION_MULS;
 				else
 					instruction = INSTRUCTION_MULU;
 			}
-			else if ((opcode & 0x0130) == 0x0100)
+			else if ((opcode->raw & 0x0130) == 0x0100)
 			{
-				if (opcode_bits_6_and_7 == 0)
+				if (opcode->bits_6_and_7 == 0)
 					instruction = INSTRUCTION_ABCD;
 				else
 					instruction = INSTRUCTION_EXG;
@@ -954,9 +959,9 @@ static Instruction DecodeOpcode(unsigned int opcode)
 			break;
 
 		case 0xD:
-			if (opcode_bits_6_and_7 == 3)
+			if (opcode->bits_6_and_7 == 3)
 				instruction = INSTRUCTION_ADDA;
-			else if ((opcode & 0x0170) == 0x0100)
+			else if ((opcode->raw & 0x0170) == 0x0100)
 				instruction = INSTRUCTION_ADDX;
 			else
 				instruction = INSTRUCTION_ADD;
@@ -964,9 +969,9 @@ static Instruction DecodeOpcode(unsigned int opcode)
 			break;
 
 		case 0xE:
-			if (opcode_bits_6_and_7 == 3)
+			if (opcode->bits_6_and_7 == 3)
 			{
-				switch (opcode_secondary_register)
+				switch (opcode->secondary_register)
 				{
 					case 0:
 						instruction = INSTRUCTION_ASD_MEMORY;
@@ -987,7 +992,7 @@ static Instruction DecodeOpcode(unsigned int opcode)
 			}
 			else
 			{
-				switch (opcode & 0x0018)
+				switch (opcode->raw & 0x0018)
 				{
 					case 0x0000:
 						instruction = INSTRUCTION_ASD_REGISTER;
@@ -1060,26 +1065,31 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 	else
 	{
 		/* Process new instruction */
-		const unsigned int opcode = ReadWord(state, callbacks, state->program_counter);
-
-		const unsigned int opcode_bits_6_and_7 = (opcode >> 6) & 3;
-		const cc_bool opcode_bit_8 = (opcode & 0x100) != 0;
-
-		const unsigned int opcode_primary_register = (opcode >> 0) & 7;
-		const AddressMode opcode_primary_address_mode = (AddressMode)((opcode >> 3) & 7);
-		const AddressMode opcode_secondary_address_mode = (AddressMode)((opcode >> 6) & 7);
-		const unsigned int opcode_secondary_register = (opcode >> 9) & 7;
-
-		unsigned int operation_size = 1; /* Set to 1 by default to prevent an invalid shift later on */
+		Opcode opcode;
+		unsigned int operation_size;
 		DecodedAddressMode source_decoded_address_mode, destination_decoded_address_mode;
-		unsigned long source_value = 0, destination_value = 0, result_value = 0;
-		Instruction instruction = INSTRUCTION_ILLEGAL;
+		unsigned long source_value, destination_value, result_value;
+		Instruction instruction;
 
-		state->instruction_register = opcode;
+		operation_size = 1; /* Set to 1 by default to prevent an invalid shift later on */
+		source_value = destination_value = result_value = 0;
+		instruction = INSTRUCTION_ILLEGAL;
+
+		opcode.raw = ReadWord(state, callbacks, state->program_counter);
+
+		opcode.bits_6_and_7 = (opcode.raw >> 6) & 3;
+		opcode.bit_8 = (opcode.raw & 0x100) != 0;
+
+		opcode.primary_register = (opcode.raw >> 0) & 7;
+		opcode.primary_address_mode = (AddressMode)((opcode.raw >> 3) & 7);
+		opcode.secondary_address_mode = (AddressMode)((opcode.raw >> 6) & 7);
+		opcode.secondary_register = (opcode.raw >> 9) & 7;
+
+		state->instruction_register = opcode.raw;
 		state->program_counter += 2;
 
 		/* Figure out which instruction this is */
-		instruction = DecodeOpcode(opcode);
+		instruction = DecodeOpcode(&opcode);
 
 		/* Determine operation sizes */
 		switch (instruction)
@@ -1135,13 +1145,13 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_BCLR_DYNAMIC:
 			case INSTRUCTION_BSET_DYNAMIC:
 				/* 4 if register - 1 if memory */
-				operation_size = opcode_primary_address_mode == ADDRESS_MODE_DATA_REGISTER ? 4 : 1;
+				operation_size = opcode.primary_address_mode == ADDRESS_MODE_DATA_REGISTER ? 4 : 1;
 				break;
 
 			case INSTRUCTION_MOVEA:
 			case INSTRUCTION_MOVE:
 				/* Derived from an odd bitfield */
-				switch (opcode & 0x3000)
+				switch (opcode.raw & 0x3000)
 				{
 					case 0x1000:
 						operation_size = 1;
@@ -1159,15 +1169,15 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_EXT:
-				operation_size = opcode & 0x0040 ? 4 : 2;
+				operation_size = opcode.raw & 0x0040 ? 4 : 2;
 				break;
 
 			case INSTRUCTION_ADDQ:
 			case INSTRUCTION_SUBQ:
-				if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+				if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 					operation_size = 4;
 				else
-					operation_size = 1 << opcode_bits_6_and_7;
+					operation_size = 1 << opcode.bits_6_and_7;
 
 				break;
 
@@ -1175,7 +1185,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_CMPA:
 			case INSTRUCTION_ADDA:
 				/* Word or longword based on bit 8 */
-				operation_size = opcode_bit_8 ? 4 : 2;
+				operation_size = opcode.bit_8 ? 4 : 2;
 				break;
 
 			case INSTRUCTION_ORI:
@@ -1203,7 +1213,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ROXD_REGISTER:
 			case INSTRUCTION_ROD_REGISTER:
 				/* Standard */
-				operation_size = 1 << opcode_bits_6_and_7;
+				operation_size = 1 << opcode.bits_6_and_7;
 				break;
 
 			case INSTRUCTION_MOVEP:
@@ -1260,7 +1270,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_BSET_DYNAMIC:
 			case INSTRUCTION_EOR:
 				/* Secondary data register */
-				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode_secondary_register);
+				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);
 				source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
 				break;
 
@@ -1283,13 +1293,13 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_JMP:
 			case INSTRUCTION_LEA:
 				/* Effective address */
-				source_value = DecodeMemoryAddressMode(state, callbacks, 0, opcode_primary_address_mode, opcode_primary_register);
+				source_value = DecodeMemoryAddressMode(state, callbacks, 0, opcode.primary_address_mode, opcode.primary_register);
 				break;
 
 			case INSTRUCTION_BRA:
 			case INSTRUCTION_BSR:
 			case INSTRUCTION_BCC:
-				if ((opcode & 0x00FF) == 0)
+				if ((opcode.raw & 0x00FF) == 0)
 				{
 					DecodeAddressMode(state, callbacks, &source_decoded_address_mode, 2, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);
 					source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
@@ -1301,7 +1311,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ABCD:
 			case INSTRUCTION_SUBX:
 			case INSTRUCTION_ADDX:
-				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode & 0x0008 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode_primary_register);
+				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode.raw & 0x0008 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode.primary_register);
 				source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
 				break;
 
@@ -1310,23 +1320,23 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_AND:
 			case INSTRUCTION_ADD:
 				/* Primary address mode or secondary data register, based on direction bit */
-				if (opcode_bit_8)
-					DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode_secondary_register);
+				if (opcode.bit_8)
+					DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);
 				else
-					DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode_primary_address_mode, opcode_primary_register);
+					DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);
 
 				source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
 
 				break;
 
 			case INSTRUCTION_CMPM:
-				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT, opcode_primary_register);
+				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT, opcode.primary_register);
 				source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
 				break;
 
 			case INSTRUCTION_ADDQ:
 			case INSTRUCTION_SUBQ:
-				source_value = ((opcode_secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8 */
+				source_value = ((opcode.secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8 */
 				break;
 
 			case INSTRUCTION_MOVEA:
@@ -1344,12 +1354,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ADDA:
 			case INSTRUCTION_TST:
 				/* Primary address mode */
-				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode_primary_address_mode, opcode_primary_register);
+				DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);
 				source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);
 				break;
 
 			case INSTRUCTION_TRAP:
-				source_value = opcode & 0xF;
+				source_value = opcode.raw & 0xF;
 				break;
 
 			case INSTRUCTION_MOVEP:
@@ -1397,30 +1407,30 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ROXD_REGISTER:
 			case INSTRUCTION_ROD_REGISTER:
 				/* Data register (primary) */
-				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode_primary_register);
+				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.primary_register);
 				break;
 
 			case INSTRUCTION_MOVEQ:
 			case INSTRUCTION_CMP:
 				/* Data register (secondary) */
-				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode_secondary_register);
+				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);
 				break;
 
 			case INSTRUCTION_LEA:
 				/* Address register (secondary) */
-				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER, opcode_secondary_register);
+				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER, opcode.secondary_register);
 				break;
 
 			case INSTRUCTION_MOVE:
 				/* Secondary address mode */
-				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode_secondary_address_mode, opcode_secondary_register);
+				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode.secondary_address_mode, opcode.secondary_register);
 				break;
 
 			case INSTRUCTION_SBCD:
 			case INSTRUCTION_SUBX:
 			case INSTRUCTION_ABCD:
 			case INSTRUCTION_ADDX:
-				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode & 0x0008 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode_secondary_register);
+				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode.raw & 0x0008 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);
 				break;
 
 			case INSTRUCTION_OR:
@@ -1428,10 +1438,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_AND:
 			case INSTRUCTION_ADD:
 				/* Primary address mode or secondary data register, based on direction bit */
-				if (opcode_bit_8)
-					DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode_primary_address_mode, opcode_primary_register);
+				if (opcode.bit_8)
+					DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);
 				else
-					DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode_secondary_register);
+					DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);
 
 				break;
 
@@ -1440,11 +1450,11 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ADDA:
 			case INSTRUCTION_MOVEA:
 				/* Full secondary address register */
-				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, 4, ADDRESS_MODE_ADDRESS_REGISTER, opcode_secondary_register);
+				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, 4, ADDRESS_MODE_ADDRESS_REGISTER, opcode.secondary_register);
 				break;
 
 			case INSTRUCTION_CMPM:
-				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT, opcode_secondary_register);
+				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT, opcode.secondary_register);
 				break;
 
 			case INSTRUCTION_ORI:
@@ -1477,7 +1487,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_ROXD_MEMORY:
 			case INSTRUCTION_ROD_MEMORY:
 				/* Using primary address mode */
-				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode_primary_address_mode, opcode_primary_register);
+				DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);
 				break;
 
 			case INSTRUCTION_ORI_TO_CCR:
@@ -1646,7 +1656,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_CMPA:
 			case INSTRUCTION_SUBA:
-				if (!opcode_bit_8)
+				if (!opcode.bit_8)
 					source_value = CC_SIGN_EXTEND_ULONG(15, source_value);
 				/* Fallthrough */
 			case INSTRUCTION_CMP:
@@ -1659,7 +1669,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_ADDA:
-				if (!opcode_bit_8)
+				if (!opcode.bit_8)
 					source_value = CC_SIGN_EXTEND_ULONG(15, source_value);
 				/* Fallthrough */
 			case INSTRUCTION_ADD:
@@ -1721,38 +1731,38 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			case INSTRUCTION_MOVEP:
 			{
-				unsigned long memory_address = DecodeMemoryAddressMode(state, callbacks, 0, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT, opcode_primary_register);
+				unsigned long memory_address = DecodeMemoryAddressMode(state, callbacks, 0, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT, opcode.primary_register);
 
-				switch (opcode_bits_6_and_7)
+				switch (opcode.bits_6_and_7)
 				{
 					case 0:
 						/* Memory to register (word) */
-						state->data_registers[opcode_secondary_register] &= ~0xFFFFul;
-						state->data_registers[opcode_secondary_register] |= ReadByte(callbacks, memory_address + 2 * 0) << 8 * 1;
-						state->data_registers[opcode_secondary_register] |= ReadByte(callbacks, memory_address + 2 * 1) << 8 * 0;
+						state->data_registers[opcode.secondary_register] &= ~0xFFFFul;
+						state->data_registers[opcode.secondary_register] |= ReadByte(callbacks, memory_address + 2 * 0) << 8 * 1;
+						state->data_registers[opcode.secondary_register] |= ReadByte(callbacks, memory_address + 2 * 1) << 8 * 0;
 						break;
 
 					case 1:
 						/* Memory to register (longword) */
-						state->data_registers[opcode_secondary_register] = 0;
-						state->data_registers[opcode_secondary_register] |= ReadByte(callbacks, memory_address + 2 * 0) << 8 * 3;
-						state->data_registers[opcode_secondary_register] |= ReadByte(callbacks, memory_address + 2 * 1) << 8 * 2;
-						state->data_registers[opcode_secondary_register] |= ReadByte(callbacks, memory_address + 2 * 2) << 8 * 1;
-						state->data_registers[opcode_secondary_register] |= ReadByte(callbacks, memory_address + 2 * 3) << 8 * 0;
+						state->data_registers[opcode.secondary_register] = 0;
+						state->data_registers[opcode.secondary_register] |= ReadByte(callbacks, memory_address + 2 * 0) << 8 * 3;
+						state->data_registers[opcode.secondary_register] |= ReadByte(callbacks, memory_address + 2 * 1) << 8 * 2;
+						state->data_registers[opcode.secondary_register] |= ReadByte(callbacks, memory_address + 2 * 2) << 8 * 1;
+						state->data_registers[opcode.secondary_register] |= ReadByte(callbacks, memory_address + 2 * 3) << 8 * 0;
 						break;
 
 					case 2:
 						/* Register to memory (word) */
-						WriteByte(callbacks, memory_address + 2 * 0, (state->data_registers[opcode_secondary_register] >> 8 * 1) & 0xFF);
-						WriteByte(callbacks, memory_address + 2 * 1, (state->data_registers[opcode_secondary_register] >> 8 * 0) & 0xFF);
+						WriteByte(callbacks, memory_address + 2 * 0, (state->data_registers[opcode.secondary_register] >> 8 * 1) & 0xFF);
+						WriteByte(callbacks, memory_address + 2 * 1, (state->data_registers[opcode.secondary_register] >> 8 * 0) & 0xFF);
 						break;
 
 					case 3:
 						/* Register to memory (longword) */
-						WriteByte(callbacks, memory_address + 2 * 0, (state->data_registers[opcode_secondary_register] >> 8 * 3) & 0xFF);
-						WriteByte(callbacks, memory_address + 2 * 1, (state->data_registers[opcode_secondary_register] >> 8 * 2) & 0xFF);
-						WriteByte(callbacks, memory_address + 2 * 2, (state->data_registers[opcode_secondary_register] >> 8 * 1) & 0xFF);
-						WriteByte(callbacks, memory_address + 2 * 3, (state->data_registers[opcode_secondary_register] >> 8 * 0) & 0xFF);
+						WriteByte(callbacks, memory_address + 2 * 0, (state->data_registers[opcode.secondary_register] >> 8 * 3) & 0xFF);
+						WriteByte(callbacks, memory_address + 2 * 1, (state->data_registers[opcode.secondary_register] >> 8 * 2) & 0xFF);
+						WriteByte(callbacks, memory_address + 2 * 2, (state->data_registers[opcode.secondary_register] >> 8 * 1) & 0xFF);
+						WriteByte(callbacks, memory_address + 2 * 3, (state->data_registers[opcode.secondary_register] >> 8 * 0) & 0xFF);
 						break;
 				}
 
@@ -1775,10 +1785,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_LINK:
 				/* Push address register to stack */
 				state->address_registers[7] -= 4;
-				WriteLongWord(state, callbacks, state->address_registers[7], state->address_registers[opcode_primary_register]);
+				WriteLongWord(state, callbacks, state->address_registers[7], state->address_registers[opcode.primary_register]);
 
 				/* Copy stack pointer to address register */
-				state->address_registers[opcode_primary_register] = state->address_registers[7];
+				state->address_registers[opcode.primary_register] = state->address_registers[7];
 
 				/* Offset the stack pointer by the immediate value */
 				state->address_registers[7] += CC_SIGN_EXTEND_ULONG(15, source_value);
@@ -1786,8 +1796,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_UNLK:
-				state->address_registers[7] = state->address_registers[opcode_primary_register];
-				state->address_registers[opcode_primary_register] = ReadLongWord(state, callbacks, state->address_registers[7]);
+				state->address_registers[7] = state->address_registers[opcode.primary_register];
+				state->address_registers[opcode.primary_register] = ReadLongWord(state, callbacks, state->address_registers[7]);
 				state->address_registers[7] += 4;
 				break;
 
@@ -1809,7 +1819,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_EXT:
-				result_value = CC_SIGN_EXTEND_ULONG((opcode & 0x0040) != 0 ? 15 : 7, destination_value);
+				result_value = CC_SIGN_EXTEND_ULONG((opcode.raw & 0x0040) != 0 ? 15 : 7, destination_value);
 				break;
 
 			case INSTRUCTION_NBCD:
@@ -1845,10 +1855,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_MOVE_USP:
-				if (opcode & 8)
-					state->address_registers[opcode_primary_register] = state->user_stack_pointer;
+				if (opcode.raw & 8)
+					state->address_registers[opcode.primary_register] = state->user_stack_pointer;
 				else
-					state->user_stack_pointer = state->address_registers[opcode_primary_register];
+					state->user_stack_pointer = state->address_registers[opcode.primary_register];
 
 				break;
 
@@ -1904,14 +1914,14 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MOVEM:
 			{
 				/* Hot damn is this a mess */
-				unsigned long memory_address = DecodeMemoryAddressMode(state, callbacks, 0, opcode_primary_address_mode, opcode_primary_register);
+				unsigned long memory_address = DecodeMemoryAddressMode(state, callbacks, 0, opcode.primary_address_mode, opcode.primary_register);
 				unsigned int i;
 				unsigned int bitfield;
 
 				int delta;
 				void (*write_function)(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value);
 
-				if (opcode & 0x0040)
+				if (opcode.raw & 0x0040)
 				{
 					delta = 4;
 					write_function = WriteLongWord;
@@ -1922,7 +1932,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					write_function = WriteWord;
 				}
 
-				if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
+				if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
 					delta = -delta;
 
 				bitfield = source_value;
@@ -1932,10 +1942,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				{
 					if (bitfield & 1)
 					{
-						if (opcode & 0x0400)
+						if (opcode.raw & 0x0400)
 						{
 							/* Memory to register */
-							if (opcode & 0x0040)
+							if (opcode.raw & 0x0040)
 								state->data_registers[i] = ReadLongWord(state, callbacks, memory_address);
 							else
 								state->data_registers[i] = CC_SIGN_EXTEND_ULONG(15, ReadWord(state, callbacks, memory_address));
@@ -1943,7 +1953,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						else
 						{
 							/* Register to memory */
-							if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
+							if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
 								write_function(state, callbacks, memory_address + delta, state->address_registers[7 - i]);
 							else
 								write_function(state, callbacks, memory_address, state->data_registers[i]);
@@ -1960,10 +1970,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				{
 					if (bitfield & 1)
 					{
-						if (opcode & 0x0400)
+						if (opcode.raw & 0x0400)
 						{
 							/* Memory to register */
-							if (opcode & 0x0040)
+							if (opcode.raw & 0x0040)
 								state->address_registers[i] = ReadLongWord(state, callbacks, memory_address);
 							else
 								state->address_registers[i] = CC_SIGN_EXTEND_ULONG(15, ReadWord(state, callbacks, memory_address));
@@ -1971,7 +1981,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						else
 						{
 							/* Register to memory */
-							if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
+							if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
 								write_function(state, callbacks, memory_address + delta, state->data_registers[7 - i]);
 							else
 								write_function(state, callbacks, memory_address, state->address_registers[i]);
@@ -1983,15 +1993,15 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					bitfield >>= 1;
 				}
 
-				if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT || opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT)
-					state->address_registers[opcode_primary_register] = memory_address;
+				if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT || opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT)
+					state->address_registers[opcode.primary_register] = memory_address;
 
 				break;
 			}
 
 			case INSTRUCTION_CHK:
 			{
-				const unsigned long value = state->data_registers[opcode_secondary_register];
+				const unsigned long value = state->data_registers[opcode.secondary_register];
 
 				if (value & 0x8000)
 				{
@@ -2010,13 +2020,13 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			}
 
 			case INSTRUCTION_SCC:
-				result_value = IsOpcodeConditionTrue(state, opcode) ? 0xFF : 0;
+				result_value = IsOpcodeConditionTrue(state, opcode.raw) ? 0xFF : 0;
 				break;
 
 			case INSTRUCTION_DBCC:
-				if (!IsOpcodeConditionTrue(state, opcode))
+				if (!IsOpcodeConditionTrue(state, opcode.raw))
 				{
-					unsigned int loop_counter = state->data_registers[opcode_primary_register] & 0xFFFF;
+					unsigned int loop_counter = state->data_registers[opcode.primary_register] & 0xFFFF;
 
 					if (loop_counter-- != 0)
 					{
@@ -2024,8 +2034,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						state->program_counter += CC_SIGN_EXTEND_ULONG(15, source_value);
 					}
 
-					state->data_registers[opcode_primary_register] &= ~0xFFFFul;
-					state->data_registers[opcode_primary_register] |= loop_counter & 0xFFFF;
+					state->data_registers[opcode.primary_register] &= ~0xFFFFul;
+					state->data_registers[opcode.primary_register] |= loop_counter & 0xFFFF;
 				}
 
 				break;
@@ -2035,7 +2045,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_BSR:
 				if (instruction == INSTRUCTION_BCC)
 				{
-					if (!IsOpcodeConditionTrue(state, opcode))
+					if (!IsOpcodeConditionTrue(state, opcode.raw))
 						break;
 				}
 				else if (instruction == INSTRUCTION_BSR)
@@ -2044,9 +2054,9 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					WriteLongWord(state, callbacks, state->address_registers[7], state->program_counter);
 				}
 
-				if ((opcode & 0x00FF) != 0)
+				if ((opcode.raw & 0x00FF) != 0)
 				{
-					state->program_counter += CC_SIGN_EXTEND_ULONG(7, opcode);
+					state->program_counter += CC_SIGN_EXTEND_ULONG(7, opcode.raw);
 				}
 				else
 				{
@@ -2057,18 +2067,18 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 
 			case INSTRUCTION_MOVEQ:
-				result_value = CC_SIGN_EXTEND_ULONG(7, opcode);
+				result_value = CC_SIGN_EXTEND_ULONG(7, opcode.raw);
 				break;
 
 			case INSTRUCTION_DIVS:
 			case INSTRUCTION_DIVU:
 			{
 				const cc_bool source_is_negative = instruction == INSTRUCTION_DIVS && source_value & 0x8000;
-				const cc_bool destination_is_negative = instruction == INSTRUCTION_DIVS && state->data_registers[opcode_secondary_register] & 0x80000000;
+				const cc_bool destination_is_negative = instruction == INSTRUCTION_DIVS && state->data_registers[opcode.secondary_register] & 0x80000000;
 				const cc_bool result_is_negative = source_is_negative != destination_is_negative;
 
 				const unsigned int absolute_source_value = source_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;
-				const unsigned long absolute_destination_value = destination_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(31, state->data_registers[opcode_secondary_register]) : state->data_registers[opcode_secondary_register] & 0xFFFFFFFF;
+				const unsigned long absolute_destination_value = destination_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(31, state->data_registers[opcode.secondary_register]) : state->data_registers[opcode.secondary_register] & 0xFFFFFFFF;
 
 				if (source_value == 0)
 				{
@@ -2091,7 +2101,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 						const unsigned int absolute_remainder = absolute_destination_value % absolute_source_value;
 						const unsigned int remainder = destination_is_negative ? 0 - absolute_remainder : absolute_remainder;
 
-						state->data_registers[opcode_secondary_register] = (unsigned long)(quotient & 0xFFFF) | ((unsigned long)(remainder & 0xFFFF) << 16);
+						state->data_registers[opcode.secondary_register] = (unsigned long)(quotient & 0xFFFF) | ((unsigned long)(remainder & 0xFFFF) << 16);
 					}
 
 					state->status_register |= CONDITION_CODE_NEGATIVE * ((quotient & 0x8000) != 0);
@@ -2115,16 +2125,16 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MULU:
 			{
 				const cc_bool multiplier_is_negative = instruction == INSTRUCTION_MULS && source_value & 0x8000;
-				const cc_bool multiplicand_is_negative = instruction == INSTRUCTION_MULS && state->data_registers[opcode_secondary_register] & 0x8000;
+				const cc_bool multiplicand_is_negative = instruction == INSTRUCTION_MULS && state->data_registers[opcode.secondary_register] & 0x8000;
 				const cc_bool result_is_negative = multiplier_is_negative != multiplicand_is_negative;
 
 				const unsigned int multiplier = multiplier_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;
-				const unsigned int multiplicand = multiplicand_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, state->data_registers[opcode_secondary_register]) : state->data_registers[opcode_secondary_register] & 0xFFFF;
+				const unsigned int multiplicand = multiplicand_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, state->data_registers[opcode.secondary_register]) : state->data_registers[opcode.secondary_register] & 0xFFFF;
 
 				const unsigned long absolute_result = (unsigned long)multiplicand * multiplier;
 				const unsigned long result = result_is_negative ? 0 - absolute_result : absolute_result;
 
-				state->data_registers[opcode_secondary_register] = result;
+				state->data_registers[opcode.secondary_register] = result;
 
 				state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO);
 				state->status_register |= CONDITION_CODE_NEGATIVE * ((result & 0x80000000) != 0);
@@ -2142,24 +2152,24 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			{
 				unsigned long temp;
 
-				switch (opcode & 0x00F8)
+				switch (opcode.raw & 0x00F8)
 				{
 					case 0x0040:
-						temp = state->data_registers[opcode_secondary_register];
-						state->data_registers[opcode_secondary_register] = state->data_registers[opcode_primary_register];
-						state->data_registers[opcode_primary_register] = temp;
+						temp = state->data_registers[opcode.secondary_register];
+						state->data_registers[opcode.secondary_register] = state->data_registers[opcode.primary_register];
+						state->data_registers[opcode.primary_register] = temp;
 						break;
 
 					case 0x0048:
-						temp = state->address_registers[opcode_secondary_register];
-						state->address_registers[opcode_secondary_register] = state->address_registers[opcode_primary_register];
-						state->address_registers[opcode_primary_register] = temp;
+						temp = state->address_registers[opcode.secondary_register];
+						state->address_registers[opcode.secondary_register] = state->address_registers[opcode.primary_register];
+						state->address_registers[opcode.primary_register] = temp;
 						break;
 
 					case 0x0088:
-						temp = state->data_registers[opcode_secondary_register];
-						state->data_registers[opcode_secondary_register] = state->address_registers[opcode_primary_register];
-						state->address_registers[opcode_primary_register] = temp;
+						temp = state->data_registers[opcode.secondary_register];
+						state->data_registers[opcode.secondary_register] = state->address_registers[opcode.primary_register];
+						state->address_registers[opcode.primary_register] = temp;
 						break;
 				}
 
@@ -2200,7 +2210,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					case INSTRUCTION_LSD_REGISTER:
 					case INSTRUCTION_ROD_REGISTER:
 					case INSTRUCTION_ROXD_REGISTER:
-						count = opcode & 0x0020 ? state->data_registers[opcode_secondary_register] % 64 : ((opcode_secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8 */
+						count = opcode.raw & 0x0020 ? state->data_registers[opcode.secondary_register] % 64 : ((opcode.secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8 */
 						break;
 
 					default:
@@ -2211,7 +2221,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				state->status_register &= ~(CONDITION_CODE_OVERFLOW | CONDITION_CODE_CARRY);
 
-				if (opcode_bit_8)
+				if (opcode.bit_8)
 				{
 					/* Left */
 					for (i = 0; i < count; ++i)
@@ -2338,7 +2348,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				case INSTRUCTION_ADDQ:
 					/* Condition codes are not affected when the destination is an address register */
-					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+					if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 						break;
 					/* Fallthrough */
 				case INSTRUCTION_ADD:
@@ -2350,7 +2360,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				case INSTRUCTION_SUBQ:
 					/* Condition codes are not affected when the destination is an address register */
-					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+					if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 						break;
 					/* Fallthrough */
 				case INSTRUCTION_CMP:
@@ -2462,7 +2472,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			{
 				case INSTRUCTION_ADDQ:
 					/* Condition codes are not affected when the destination is an address register */
-					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+					if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 						break;
 					/* Fallthrough */
 				case INSTRUCTION_ADD:
@@ -2474,7 +2484,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 				case INSTRUCTION_SUBQ:
 					/* Condition codes are not affected when the destination is an address register */
-					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+					if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 						break;
 					/* Fallthrough */
 				case INSTRUCTION_CMP:
@@ -2599,7 +2609,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_ADDQ:
 				case INSTRUCTION_SUBQ:
 					/* Condition codes are not affected when the destination is an address register */
-					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+					if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 						break;
 					/* Fallthrough */
 				case INSTRUCTION_ADD:
@@ -2714,7 +2724,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_ADDQ:
 				case INSTRUCTION_SUBQ:
 					/* Condition codes are not affected when the destination is an address register */
-					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+					if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 						break;
 					/* Fallthrough */
 				case INSTRUCTION_ADD:
@@ -2832,7 +2842,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_ADDQ:
 				case INSTRUCTION_SUBQ:
 					/* Condition codes are not affected when the destination is an address register */
-					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+					if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
 						break;
 					/* Fallthrough */
 				case INSTRUCTION_ABCD:
