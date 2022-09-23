@@ -149,7 +149,8 @@ typedef enum Instruction
 	INSTRUCTION_TST,
 	INSTRUCTION_UNLK,
 
-	INSTRUCTION_UNIMPLEMENTED
+	INSTRUCTION_UNIMPLEMENTED_1,
+	INSTRUCTION_UNIMPLEMENTED_2
 } Instruction;
 
 /* Exception forward-declarations. */
@@ -548,6 +549,474 @@ static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned int opcode)
 	}
 }
 
+static Instruction DecodeOpcode(unsigned int opcode)
+{
+	const unsigned int opcode_bits_6_and_7 = (opcode >> 6) & 3;
+	const cc_bool opcode_bit_8 = (opcode & 0x100) != 0;
+
+	const unsigned int opcode_primary_register = (opcode >> 0) & 7;
+	const AddressMode opcode_primary_address_mode = (AddressMode)((opcode >> 3) & 7);
+	const AddressMode opcode_secondary_address_mode = (AddressMode)((opcode >> 6) & 7);
+	const unsigned int opcode_secondary_register = (opcode >> 9) & 7;
+
+	Instruction instruction;
+
+	switch ((opcode >> 12) & 0xF)
+	{
+		case 0x0:
+			if (opcode_bit_8)
+			{
+				if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+				{
+					instruction = INSTRUCTION_MOVEP;
+				}
+				else
+				{
+					switch (opcode_bits_6_and_7)
+					{
+						case 0:
+							instruction = INSTRUCTION_BTST_DYNAMIC;
+							break;
+
+						case 1:
+							instruction = INSTRUCTION_BCHG_DYNAMIC;
+							break;
+
+						case 2:
+							instruction = INSTRUCTION_BCLR_DYNAMIC;
+							break;
+
+						case 3:
+							instruction = INSTRUCTION_BSET_DYNAMIC;
+							break;
+					}
+				}
+			}
+			else
+			{
+				switch (opcode_secondary_register)
+				{
+					case 0:
+						if (opcode_primary_address_mode == ADDRESS_MODE_SPECIAL && opcode_primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
+						{
+							switch (opcode_bits_6_and_7)
+							{
+								case 0:
+									instruction = INSTRUCTION_ORI_TO_CCR;
+									break;
+
+								case 1:
+									instruction = INSTRUCTION_ORI_TO_SR;
+									break;
+							}
+						}
+						else
+						{
+							instruction = INSTRUCTION_ORI;
+						}
+
+						break;
+
+					case 1:
+						if (opcode_primary_address_mode == ADDRESS_MODE_SPECIAL && opcode_primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
+						{
+							switch (opcode_bits_6_and_7)
+							{
+								case 0:
+									instruction = INSTRUCTION_ANDI_TO_CCR;
+									break;
+
+								case 1:
+									instruction = INSTRUCTION_ANDI_TO_SR;
+									break;
+							}
+						}
+						else
+						{
+							instruction = INSTRUCTION_ANDI;
+						}
+
+						break;
+
+					case 2:
+						instruction = INSTRUCTION_SUBI;
+						break;
+
+					case 3:
+						instruction = INSTRUCTION_ADDI;
+						break;
+
+					case 4:
+						switch (opcode_bits_6_and_7)
+						{
+							case 0:
+								instruction = INSTRUCTION_BTST_STATIC;
+								break;
+
+							case 1:
+								instruction = INSTRUCTION_BCHG_STATIC;
+								break;
+
+							case 2:
+								instruction = INSTRUCTION_BCLR_STATIC;
+								break;
+
+							case 3:
+								instruction = INSTRUCTION_BSET_STATIC;
+								break;
+						}
+
+						break;
+
+					case 5:
+						if (opcode_primary_address_mode == ADDRESS_MODE_SPECIAL && opcode_primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
+						{
+							switch (opcode_bits_6_and_7)
+							{
+								case 0:
+									instruction = INSTRUCTION_EORI_TO_CCR;
+									break;
+
+								case 1:
+									instruction = INSTRUCTION_EORI_TO_SR;
+									break;
+							}
+						}
+						else
+						{
+							instruction = INSTRUCTION_EORI;
+						}
+
+						break;
+
+					case 6:
+						instruction = INSTRUCTION_CMPI;
+						break;
+				}
+			}
+
+			break;
+
+		case 0x1:
+		case 0x2:
+		case 0x3:
+			if ((opcode & 0x01C0) == 0x0040)
+				instruction = INSTRUCTION_MOVEA;
+			else
+				instruction = INSTRUCTION_MOVE;
+
+			break;
+
+		case 0x4:
+			if (opcode_bit_8)
+			{
+				switch (opcode_bits_6_and_7)
+				{
+					case 3:
+						instruction = INSTRUCTION_LEA;
+						break;
+
+					case 2:
+						instruction = INSTRUCTION_CHK;
+						break;
+
+					default:
+						break;
+				}
+			}
+			else if ((opcode & 0x0800) == 0)
+			{
+				if (opcode_bits_6_and_7 == 3)
+				{
+					switch (opcode_secondary_register)
+					{
+						case 0:
+							instruction = INSTRUCTION_MOVE_FROM_SR;
+							break;
+
+						case 2:
+							instruction = INSTRUCTION_MOVE_TO_CCR;
+							break;
+
+						case 3:
+							instruction = INSTRUCTION_MOVE_TO_SR;
+							break;
+					}
+				}
+				else
+				{
+					switch (opcode_secondary_register)
+					{
+						case 0:
+							instruction = INSTRUCTION_NEGX;
+							break;
+
+						case 1:
+							instruction = INSTRUCTION_CLR;
+							break;
+
+						case 2:
+							instruction = INSTRUCTION_NEG;
+							break;
+
+						case 3:
+							instruction = INSTRUCTION_NOT;
+							break;
+					}
+				}
+			}
+			else if ((opcode & 0x0200) == 0)
+			{
+				if ((opcode & 0x01B8) == 0x0080)
+					instruction = INSTRUCTION_EXT;
+				else if ((opcode & 0x01C0) == 0x0000)
+					instruction = INSTRUCTION_NBCD;
+				else if ((opcode & 0x01F8) == 0x0040)
+					instruction = INSTRUCTION_SWAP;
+				else if ((opcode & 0x01C0) == 0x0040)
+					instruction = INSTRUCTION_PEA;
+				else if ((opcode & 0x0B80) == 0x0880)
+					instruction = INSTRUCTION_MOVEM;
+			}
+			else if (opcode == 0x4AFA || opcode == 0x4AFB || opcode == 0x4AFC)
+			{
+				instruction = INSTRUCTION_ILLEGAL;
+			}
+			else if ((opcode & 0x0FC0) == 0x0AC0)
+			{
+				instruction = INSTRUCTION_TAS;
+			}
+			else if ((opcode & 0x0F00) == 0x0A00)
+			{
+				instruction = INSTRUCTION_TST;
+			}
+			else if ((opcode & 0x0FF0) == 0x0E40)
+			{
+				instruction = INSTRUCTION_TRAP;
+			}
+			else if ((opcode & 0x0FF8) == 0x0E50)
+			{
+				instruction = INSTRUCTION_LINK;
+			}
+			else if ((opcode & 0x0FF8) == 0x0E58)
+			{
+				instruction = INSTRUCTION_UNLK;
+			}
+			else if ((opcode & 0x0FF0) == 0x0E60)
+			{
+				instruction = INSTRUCTION_MOVE_USP;
+			}
+			else if ((opcode & 0x0FF8) == 0x0E70)
+			{
+				switch (opcode_primary_register)
+				{
+					case 0:
+						instruction = INSTRUCTION_RESET;
+						break;
+
+					case 1:
+						instruction = INSTRUCTION_NOP;
+						break;
+
+					case 2:
+						instruction = INSTRUCTION_STOP;
+						break;
+
+					case 3:
+						instruction = INSTRUCTION_RTE;
+						break;
+
+					case 5:
+						instruction = INSTRUCTION_RTS;
+						break;
+
+					case 6:
+						instruction = INSTRUCTION_TRAPV;
+						break;
+
+					case 7:
+						instruction = INSTRUCTION_RTR;
+						break;
+				}
+			}
+			else if ((opcode & 0x0FC0) == 0x0E80)
+			{
+				instruction = INSTRUCTION_JSR;
+			}
+			else if ((opcode & 0x0FC0) == 0x0EC0)
+			{
+				instruction = INSTRUCTION_JMP;
+			}
+
+			break;
+
+		case 0x5:
+			if (opcode_bits_6_and_7 == 3)
+			{
+				if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+					instruction = INSTRUCTION_DBCC;
+				else
+					instruction = INSTRUCTION_SCC;
+			}
+			else
+			{
+				if (opcode_bit_8)
+					instruction = INSTRUCTION_SUBQ;
+				else
+					instruction = INSTRUCTION_ADDQ;
+			}
+
+			break;
+
+		case 0x6:
+			if (opcode_secondary_register == 0)
+			{
+				if (opcode_bit_8)
+					instruction = INSTRUCTION_BSR;
+				else
+					instruction = INSTRUCTION_BRA;
+			}
+			else
+			{
+				instruction = INSTRUCTION_BCC;
+			}
+
+			break;
+
+		case 0x7:
+			instruction = INSTRUCTION_MOVEQ;
+			break;
+
+		case 0x8:
+			if (opcode_bits_6_and_7 == 3)
+			{
+				if (opcode_bit_8)
+					instruction = INSTRUCTION_DIVS;
+				else
+					instruction = INSTRUCTION_DIVU;
+			}
+			else
+			{
+				if ((opcode & 0x0170) == 0x0100)
+					instruction = INSTRUCTION_SBCD;
+				else
+					instruction = INSTRUCTION_OR;
+			}
+
+			break;
+
+		case 0x9:
+			if (opcode_bits_6_and_7 == 3)
+				instruction = INSTRUCTION_SUBA;
+			else if ((opcode & 0x0170) == 0x0100)
+				instruction = INSTRUCTION_SUBX;
+			else
+				instruction = INSTRUCTION_SUB;
+
+			break;
+
+		case 0xA:
+			instruction = INSTRUCTION_UNIMPLEMENTED_1;
+			break;
+
+		case 0xB:
+			if (opcode_bits_6_and_7 == 3)
+				instruction = INSTRUCTION_CMPA;
+			else if (!opcode_bit_8)
+				instruction = INSTRUCTION_CMP;
+			else if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+				instruction = INSTRUCTION_CMPM;
+			else
+				instruction = INSTRUCTION_EOR;
+
+			break;
+
+		case 0xC:
+			if (opcode_bits_6_and_7 == 3)
+			{
+				if (opcode_bit_8)
+					instruction = INSTRUCTION_MULS;
+				else
+					instruction = INSTRUCTION_MULU;
+			}
+			else if ((opcode & 0x0130) == 0x0100)
+			{
+				if (opcode_bits_6_and_7 == 0)
+					instruction = INSTRUCTION_ABCD;
+				else
+					instruction = INSTRUCTION_EXG;
+			}
+			else
+			{
+				instruction = INSTRUCTION_AND;
+			}
+
+			break;
+
+		case 0xD:
+			if (opcode_bits_6_and_7 == 3)
+				instruction = INSTRUCTION_ADDA;
+			else if ((opcode & 0x0170) == 0x0100)
+				instruction = INSTRUCTION_ADDX;
+			else
+				instruction = INSTRUCTION_ADD;
+
+			break;
+
+		case 0xE:
+			if (opcode_bits_6_and_7 == 3)
+			{
+				switch (opcode_secondary_register)
+				{
+					case 0:
+						instruction = INSTRUCTION_ASD_MEMORY;
+						break;
+
+					case 1:
+						instruction = INSTRUCTION_LSD_MEMORY;
+						break;
+
+					case 2:
+						instruction = INSTRUCTION_ROXD_MEMORY;
+						break;
+
+					case 3:
+						instruction = INSTRUCTION_ROD_MEMORY;
+						break;
+				}
+			}
+			else
+			{
+				switch (opcode & 0x0018)
+				{
+					case 0x0000:
+						instruction = INSTRUCTION_ASD_REGISTER;
+						break;
+
+					case 0x0008:
+						instruction = INSTRUCTION_LSD_REGISTER;
+						break;
+
+					case 0x0010:
+						instruction = INSTRUCTION_ROXD_REGISTER;
+						break;
+
+					case 0x0018:
+						instruction = INSTRUCTION_ROD_REGISTER;
+						break;
+				}
+			}
+
+			break;
+
+		case 0xF:
+			instruction = INSTRUCTION_UNIMPLEMENTED_2;
+			break;
+	}
+
+	return instruction;
+}
+
 /* API */
 
 void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
@@ -610,460 +1079,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 		state->program_counter += 2;
 
 		/* Figure out which instruction this is */
-		switch ((opcode >> 12) & 0xF)
-		{
-			case 0x0:
-				if (opcode_bit_8)
-				{
-					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
-					{
-						instruction = INSTRUCTION_MOVEP;
-					}
-					else
-					{
-						switch (opcode_bits_6_and_7)
-						{
-							case 0:
-								instruction = INSTRUCTION_BTST_DYNAMIC;
-								break;
-
-							case 1:
-								instruction = INSTRUCTION_BCHG_DYNAMIC;
-								break;
-
-							case 2:
-								instruction = INSTRUCTION_BCLR_DYNAMIC;
-								break;
-
-							case 3:
-								instruction = INSTRUCTION_BSET_DYNAMIC;
-								break;
-						}
-					}
-				}
-				else
-				{
-					switch (opcode_secondary_register)
-					{
-						case 0:
-							if (opcode_primary_address_mode == ADDRESS_MODE_SPECIAL && opcode_primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
-							{
-								switch (opcode_bits_6_and_7)
-								{
-									case 0:
-										instruction = INSTRUCTION_ORI_TO_CCR;
-										break;
-
-									case 1:
-										instruction = INSTRUCTION_ORI_TO_SR;
-										break;
-								}
-							}
-							else
-							{
-								instruction = INSTRUCTION_ORI;
-							}
-
-							break;
-
-						case 1:
-							if (opcode_primary_address_mode == ADDRESS_MODE_SPECIAL && opcode_primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
-							{
-								switch (opcode_bits_6_and_7)
-								{
-									case 0:
-										instruction = INSTRUCTION_ANDI_TO_CCR;
-										break;
-
-									case 1:
-										instruction = INSTRUCTION_ANDI_TO_SR;
-										break;
-								}
-							}
-							else
-							{
-								instruction = INSTRUCTION_ANDI;
-							}
-
-							break;
-
-						case 2:
-							instruction = INSTRUCTION_SUBI;
-							break;
-
-						case 3:
-							instruction = INSTRUCTION_ADDI;
-							break;
-
-						case 4:
-							switch (opcode_bits_6_and_7)
-							{
-								case 0:
-									instruction = INSTRUCTION_BTST_STATIC;
-									break;
-
-								case 1:
-									instruction = INSTRUCTION_BCHG_STATIC;
-									break;
-
-								case 2:
-									instruction = INSTRUCTION_BCLR_STATIC;
-									break;
-
-								case 3:
-									instruction = INSTRUCTION_BSET_STATIC;
-									break;
-							}
-
-							break;
-
-						case 5:
-							if (opcode_primary_address_mode == ADDRESS_MODE_SPECIAL && opcode_primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
-							{
-								switch (opcode_bits_6_and_7)
-								{
-									case 0:
-										instruction = INSTRUCTION_EORI_TO_CCR;
-										break;
-
-									case 1:
-										instruction = INSTRUCTION_EORI_TO_SR;
-										break;
-								}
-							}
-							else
-							{
-								instruction = INSTRUCTION_EORI;
-							}
-
-							break;
-
-						case 6:
-							instruction = INSTRUCTION_CMPI;
-							break;
-					}
-				}
-
-				break;
-
-			case 0x1:
-			case 0x2:
-			case 0x3:
-				if ((opcode & 0x01C0) == 0x0040)
-					instruction = INSTRUCTION_MOVEA;
-				else
-					instruction = INSTRUCTION_MOVE;
-
-				break;
-
-			case 0x4:
-				if (opcode_bit_8)
-				{
-					switch (opcode_bits_6_and_7)
-					{
-						case 3:
-							instruction = INSTRUCTION_LEA;
-							break;
-
-						case 2:
-							instruction = INSTRUCTION_CHK;
-							break;
-
-						default:
-							break;
-					}
-				}
-				else if ((opcode & 0x0800) == 0)
-				{
-					if (opcode_bits_6_and_7 == 3)
-					{
-						switch (opcode_secondary_register)
-						{
-							case 0:
-								instruction = INSTRUCTION_MOVE_FROM_SR;
-								break;
-
-							case 2:
-								instruction = INSTRUCTION_MOVE_TO_CCR;
-								break;
-
-							case 3:
-								instruction = INSTRUCTION_MOVE_TO_SR;
-								break;
-						}
-					}
-					else
-					{
-						switch (opcode_secondary_register)
-						{
-							case 0:
-								instruction = INSTRUCTION_NEGX;
-								break;
-
-							case 1:
-								instruction = INSTRUCTION_CLR;
-								break;
-
-							case 2:
-								instruction = INSTRUCTION_NEG;
-								break;
-
-							case 3:
-								instruction = INSTRUCTION_NOT;
-								break;
-						}
-					}
-				}
-				else if ((opcode & 0x0200) == 0)
-				{
-					if ((opcode & 0x01B8) == 0x0080)
-						instruction = INSTRUCTION_EXT;
-					else if ((opcode & 0x01C0) == 0x0000)
-						instruction = INSTRUCTION_NBCD;
-					else if ((opcode & 0x01F8) == 0x0040)
-						instruction = INSTRUCTION_SWAP;
-					else if ((opcode & 0x01C0) == 0x0040)
-						instruction = INSTRUCTION_PEA;
-					else if ((opcode & 0x0B80) == 0x0880)
-						instruction = INSTRUCTION_MOVEM;
-				}
-				else if (opcode == 0x4AFA || opcode == 0x4AFB || opcode == 0x4AFC)
-				{
-					instruction = INSTRUCTION_ILLEGAL;
-				}
-				else if ((opcode & 0x0FC0) == 0x0AC0)
-				{
-					instruction = INSTRUCTION_TAS;
-				}
-				else if ((opcode & 0x0F00) == 0x0A00)
-				{
-					instruction = INSTRUCTION_TST;
-				}
-				else if ((opcode & 0x0FF0) == 0x0E40)
-				{
-					instruction = INSTRUCTION_TRAP;
-				}
-				else if ((opcode & 0x0FF8) == 0x0E50)
-				{
-					instruction = INSTRUCTION_LINK;
-				}
-				else if ((opcode & 0x0FF8) == 0x0E58)
-				{
-					instruction = INSTRUCTION_UNLK;
-				}
-				else if ((opcode & 0x0FF0) == 0x0E60)
-				{
-					instruction = INSTRUCTION_MOVE_USP;
-				}
-				else if ((opcode & 0x0FF8) == 0x0E70)
-				{
-					switch (opcode_primary_register)
-					{
-						case 0:
-							instruction = INSTRUCTION_RESET;
-							break;
-
-						case 1:
-							instruction = INSTRUCTION_NOP;
-							break;
-
-						case 2:
-							instruction = INSTRUCTION_STOP;
-							break;
-
-						case 3:
-							instruction = INSTRUCTION_RTE;
-							break;
-
-						case 5:
-							instruction = INSTRUCTION_RTS;
-							break;
-
-						case 6:
-							instruction = INSTRUCTION_TRAPV;
-							break;
-
-						case 7:
-							instruction = INSTRUCTION_RTR;
-							break;
-					}
-				}
-				else if ((opcode & 0x0FC0) == 0x0E80)
-				{
-					instruction = INSTRUCTION_JSR;
-				}
-				else if ((opcode & 0x0FC0) == 0x0EC0)
-				{
-					instruction = INSTRUCTION_JMP;
-				}
-
-				break;
-
-			case 0x5:
-				if (opcode_bits_6_and_7 == 3)
-				{
-					if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
-						instruction = INSTRUCTION_DBCC;
-					else
-						instruction = INSTRUCTION_SCC;
-				}
-				else
-				{
-					if (opcode_bit_8)
-						instruction = INSTRUCTION_SUBQ;
-					else
-						instruction = INSTRUCTION_ADDQ;
-				}
-
-				break;
-
-			case 0x6:
-				if (opcode_secondary_register == 0)
-				{
-					if (opcode_bit_8)
-						instruction = INSTRUCTION_BSR;
-					else
-						instruction = INSTRUCTION_BRA;
-				}
-				else
-				{
-					instruction = INSTRUCTION_BCC;
-				}
-
-				break;
-
-			case 0x7:
-				instruction = INSTRUCTION_MOVEQ;
-				break;
-
-			case 0x8:
-				if (opcode_bits_6_and_7 == 3)
-				{
-					if (opcode_bit_8)
-						instruction = INSTRUCTION_DIVS;
-					else
-						instruction = INSTRUCTION_DIVU;
-				}
-				else
-				{
-					if ((opcode & 0x0170) == 0x0100)
-						instruction = INSTRUCTION_SBCD;
-					else
-						instruction = INSTRUCTION_OR;
-				}
-
-				break;
-
-			case 0x9:
-				if (opcode_bits_6_and_7 == 3)
-					instruction = INSTRUCTION_SUBA;
-				else if ((opcode & 0x0170) == 0x0100)
-					instruction = INSTRUCTION_SUBX;
-				else
-					instruction = INSTRUCTION_SUB;
-
-				break;
-
-			case 0xA:
-				instruction = INSTRUCTION_UNIMPLEMENTED;
-				Group1Or2Exception(state, callbacks, 10);
-				break;
-
-			case 0xB:
-				if (opcode_bits_6_and_7 == 3)
-					instruction = INSTRUCTION_CMPA;
-				else if (!opcode_bit_8)
-					instruction = INSTRUCTION_CMP;
-				else if (opcode_primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
-					instruction = INSTRUCTION_CMPM;
-				else
-					instruction = INSTRUCTION_EOR;
-
-				break;
-
-			case 0xC:
-				if (opcode_bits_6_and_7 == 3)
-				{
-					if (opcode_bit_8)
-						instruction = INSTRUCTION_MULS;
-					else
-						instruction = INSTRUCTION_MULU;
-				}
-				else if ((opcode & 0x0130) == 0x0100)
-				{
-					if (opcode_bits_6_and_7 == 0)
-						instruction = INSTRUCTION_ABCD;
-					else
-						instruction = INSTRUCTION_EXG;
-				}
-				else
-				{
-					instruction = INSTRUCTION_AND;
-				}
-
-				break;
-
-			case 0xD:
-				if (opcode_bits_6_and_7 == 3)
-					instruction = INSTRUCTION_ADDA;
-				else if ((opcode & 0x0170) == 0x0100)
-					instruction = INSTRUCTION_ADDX;
-				else
-					instruction = INSTRUCTION_ADD;
-
-				break;
-
-			case 0xE:
-				if (opcode_bits_6_and_7 == 3)
-				{
-					switch (opcode_secondary_register)
-					{
-						case 0:
-							instruction = INSTRUCTION_ASD_MEMORY;
-							break;
-
-						case 1:
-							instruction = INSTRUCTION_LSD_MEMORY;
-							break;
-
-						case 2:
-							instruction = INSTRUCTION_ROXD_MEMORY;
-							break;
-
-						case 3:
-							instruction = INSTRUCTION_ROD_MEMORY;
-							break;
-					}
-				}
-				else
-				{
-					switch (opcode & 0x0018)
-					{
-						case 0x0000:
-							instruction = INSTRUCTION_ASD_REGISTER;
-							break;
-
-						case 0x0008:
-							instruction = INSTRUCTION_LSD_REGISTER;
-							break;
-
-						case 0x0010:
-							instruction = INSTRUCTION_ROXD_REGISTER;
-							break;
-
-						case 0x0018:
-							instruction = INSTRUCTION_ROD_REGISTER;
-							break;
-					}
-				}
-
-				break;
-
-			case 0xF:
-				instruction = INSTRUCTION_UNIMPLEMENTED;
-				Group1Or2Exception(state, callbacks, 11);
-				break;
-		}
+		instruction = DecodeOpcode(opcode);
 
 		/* Determine operation sizes */
 		switch (instruction)
@@ -1208,7 +1224,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_BSR:
 			case INSTRUCTION_BCC:
 			case INSTRUCTION_EXG:
-			case INSTRUCTION_UNIMPLEMENTED:
+			case INSTRUCTION_UNIMPLEMENTED_1:
+			case INSTRUCTION_UNIMPLEMENTED_2:
 				/* Doesn't have any sizes */
 				break;
 		}
@@ -1364,7 +1381,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_LSD_REGISTER:
 			case INSTRUCTION_ROXD_REGISTER:
 			case INSTRUCTION_ROD_REGISTER:
-			case INSTRUCTION_UNIMPLEMENTED:
+			case INSTRUCTION_UNIMPLEMENTED_1:
+			case INSTRUCTION_UNIMPLEMENTED_2:
 				/* Doesn't have a source value */
 				break;
 		}
@@ -1498,7 +1516,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_MULS:
 			case INSTRUCTION_EXG:
 			case INSTRUCTION_TST:
-			case INSTRUCTION_UNIMPLEMENTED:
+			case INSTRUCTION_UNIMPLEMENTED_1:
+			case INSTRUCTION_UNIMPLEMENTED_2:
 				/* Doesn't have a destination address mode to decode */
 				break;
 		}
@@ -1602,7 +1621,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_TRAPV:
 			case INSTRUCTION_TST:
 			case INSTRUCTION_UNLK:
-			case INSTRUCTION_UNIMPLEMENTED:
+			case INSTRUCTION_UNIMPLEMENTED_1:
+			case INSTRUCTION_UNIMPLEMENTED_2:
 				/* Doesn't read its destination (if it even has one) */
 				break;
 		}
@@ -2283,8 +2303,15 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				break;
 			}
 
+			case INSTRUCTION_UNIMPLEMENTED_1:
+				Group1Or2Exception(state, callbacks, 10);
+				break;
+
+			case INSTRUCTION_UNIMPLEMENTED_2:
+				Group1Or2Exception(state, callbacks, 11);
+				break;
+
 			case INSTRUCTION_NOP:
-			case INSTRUCTION_UNIMPLEMENTED:
 				/* Doesn't do anything */
 				break;
 		}
@@ -2424,7 +2451,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TRAP:
 				case INSTRUCTION_TRAPV:
 				case INSTRUCTION_UNLK:
-				case INSTRUCTION_UNIMPLEMENTED:
+				case INSTRUCTION_UNIMPLEMENTED_1:
+				case INSTRUCTION_UNIMPLEMENTED_2:
 					/* These instructions don't affect condition codes (unless they write to them directly) */
 					break;
 			}
@@ -2550,7 +2578,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TRAP:
 				case INSTRUCTION_TRAPV:
 				case INSTRUCTION_UNLK:
-				case INSTRUCTION_UNIMPLEMENTED:
+				case INSTRUCTION_UNIMPLEMENTED_1:
+				case INSTRUCTION_UNIMPLEMENTED_2:
 					/* These instructions don't affect condition codes (unless they write to them directly) */
 					break;
 			}
@@ -2664,7 +2693,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TRAP:
 				case INSTRUCTION_TRAPV:
 				case INSTRUCTION_UNLK:
-				case INSTRUCTION_UNIMPLEMENTED:
+				case INSTRUCTION_UNIMPLEMENTED_1:
+				case INSTRUCTION_UNIMPLEMENTED_2:
 					/* These instructions don't affect condition codes (unless they write to them directly) */
 					break;
 			}
@@ -2775,7 +2805,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TRAP:
 				case INSTRUCTION_TRAPV:
 				case INSTRUCTION_UNLK:
-				case INSTRUCTION_UNIMPLEMENTED:
+				case INSTRUCTION_UNIMPLEMENTED_1:
+				case INSTRUCTION_UNIMPLEMENTED_2:
 					/* These instructions don't affect condition codes (unless they write to them directly) */
 					break;
 			}
@@ -2886,7 +2917,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				case INSTRUCTION_TRAP:
 				case INSTRUCTION_TRAPV:
 				case INSTRUCTION_UNLK:
-				case INSTRUCTION_UNIMPLEMENTED:
+				case INSTRUCTION_UNIMPLEMENTED_1:
+				case INSTRUCTION_UNIMPLEMENTED_2:
 					/* These instructions don't affect condition codes (unless they write to them directly) */
 					break;
 			}
@@ -2995,7 +3027,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			case INSTRUCTION_TRAPV:
 			case INSTRUCTION_TST:
 			case INSTRUCTION_UNLK:
-			case INSTRUCTION_UNIMPLEMENTED:
+			case INSTRUCTION_UNIMPLEMENTED_1:
+			case INSTRUCTION_UNIMPLEMENTED_2:
 				/* Doesn't write anything */
 				break;
 		}
@@ -3092,7 +3125,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				"INSTRUCTION_TST",
 				"INSTRUCTION_UNLK",
 
-				"INSTRUCTION_UNIMPLEMENTED"
+				"INSTRUCTION_UNIMPLEMENTED_1",
+				"INSTRUCTION_UNIMPLEMENTED_2"
 			};
 
 			fprintf(stderr, "0x%.8lX - %s\n", state->program_counter, instruction_strings[instruction]);
