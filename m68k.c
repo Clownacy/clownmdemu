@@ -181,13 +181,14 @@ typedef struct Opcode
 {
 	unsigned int raw;
 
-	unsigned int bits_6_and_7;
-	cc_bool bit_8;
-
 	unsigned int primary_register;
+	unsigned int secondary_register;
+	unsigned int bits_6_and_7;
+
 	AddressMode primary_address_mode;
 	AddressMode secondary_address_mode;
-	unsigned int secondary_register;
+
+	cc_bool bit_8;
 } Opcode;
 
 /* Exception forward-declarations. */
