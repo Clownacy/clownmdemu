@@ -862,7 +862,6 @@ void EmitInstructionAction(const Instruction instruction)
 			Emit("/* Set the zero flag to the specified bit */");
 			Emit("state->status_register &= ~CONDITION_CODE_ZERO;");
 			Emit("state->status_register |= CONDITION_CODE_ZERO * ((destination_value & (1ul << source_value)) == 0);");
-			Emit("");
 
 			switch (instruction)
 			{
@@ -872,16 +871,19 @@ void EmitInstructionAction(const Instruction instruction)
 
 				case INSTRUCTION_BCHG_DYNAMIC:
 				case INSTRUCTION_BCHG_STATIC:
+					Emit("");
 					Emit("result_value = destination_value ^ (1ul << source_value);");
 					break;
 
 				case INSTRUCTION_BCLR_DYNAMIC:
 				case INSTRUCTION_BCLR_STATIC:
+					Emit("");
 					Emit("result_value = destination_value & ~(1ul << source_value);");
 					break;
 
 				case INSTRUCTION_BSET_DYNAMIC:
 				case INSTRUCTION_BSET_STATIC:
+					Emit("");
 					Emit("result_value = destination_value | (1ul << source_value);");
 					break;
 
@@ -1373,27 +1375,28 @@ void EmitInstructionAction(const Instruction instruction)
 			Emit("");
 			Emit("result_value = destination_value;");
 			Emit("");
-			Emit("switch (instruction)");
-			Emit("{");
-			Emit("	case INSTRUCTION_ASD_MEMORY:");
-			Emit("	case INSTRUCTION_LSD_MEMORY:");
-			Emit("	case INSTRUCTION_ROD_MEMORY:");
-			Emit("	case INSTRUCTION_ROXD_MEMORY:");
-			Emit("		count = 1;");
-			Emit("		break;");
-			Emit("");
-			Emit("	case INSTRUCTION_ASD_REGISTER:");
-			Emit("	case INSTRUCTION_LSD_REGISTER:");
-			Emit("	case INSTRUCTION_ROD_REGISTER:");
-			Emit("	case INSTRUCTION_ROXD_REGISTER:");
-			Emit("		count = opcode.raw & 0x0020 ? state->data_registers[opcode.secondary_register] % 64 : ((opcode.secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8 */");
-			Emit("		break;");
-			Emit("");
-			Emit("	default:");
-			Emit("		/* Shut up dumbass compiler warnings */");
-			Emit("		count = 0;");
-			Emit("		break;");
-			Emit("}");
+
+			switch (instruction)
+			{
+				case INSTRUCTION_ASD_MEMORY:
+				case INSTRUCTION_LSD_MEMORY:
+				case INSTRUCTION_ROD_MEMORY:
+				case INSTRUCTION_ROXD_MEMORY:
+					Emit("count = 1;");
+					break;
+
+				case INSTRUCTION_ASD_REGISTER:
+				case INSTRUCTION_LSD_REGISTER:
+				case INSTRUCTION_ROD_REGISTER:
+				case INSTRUCTION_ROXD_REGISTER:
+					Emit("count = opcode.raw & 0x0020 ? state->data_registers[opcode.secondary_register] % 64 : ((opcode.secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8 */");
+					break;
+
+				default:
+					/* Shut up dumbass compiler warnings */
+					break;
+			}
+
 			Emit("");
 			Emit("state->status_register &= ~(CONDITION_CODE_OVERFLOW | CONDITION_CODE_CARRY);");
 			Emit("");
@@ -1405,40 +1408,43 @@ void EmitInstructionAction(const Instruction instruction)
 			Emit("		state->status_register &= ~CONDITION_CODE_CARRY;");
 			Emit("		state->status_register |= CONDITION_CODE_CARRY * ((result_value & sign_bit_bitmask) != 0);");
 			Emit("");
-			Emit("		switch (instruction)");
-			Emit("		{");
-			Emit("			case INSTRUCTION_ASD_MEMORY:");
-			Emit("			case INSTRUCTION_ASD_REGISTER:");
-			Emit("				state->status_register |= CONDITION_CODE_OVERFLOW * ((result_value & sign_bit_bitmask) != original_sign_bit);");
-			Emit("				result_value <<= 1;");
-			Emit("				break;");
-			Emit("");
-			Emit("			case INSTRUCTION_LSD_MEMORY:");
-			Emit("			case INSTRUCTION_LSD_REGISTER:");
-			Emit("				result_value <<= 1;");
-			Emit("				break;");
-			Emit("");
-			Emit("			case INSTRUCTION_ROXD_MEMORY:");
-			Emit("			case INSTRUCTION_ROXD_REGISTER:");
-			Emit("				result_value <<= 1;");
-			Emit("				result_value |= 1 * ((state->status_register & CONDITION_CODE_EXTEND) != 0);");
-			Emit("				break;");
-			Emit("");
-			Emit("			case INSTRUCTION_ROD_MEMORY:");
-			Emit("			case INSTRUCTION_ROD_REGISTER:");
-			Emit("				result_value = (result_value << 1) | (1 * ((result_value & sign_bit_bitmask) != 0));");
-			Emit("				break;");
-			Emit("");
-			Emit("			default:");
-			Emit("				/* Shut up dumbass compiler warnings */");
-			Emit("				break;");
-			Emit("		}");
-			Emit("");
-			Emit("		if (instruction != INSTRUCTION_ROD_MEMORY && instruction != INSTRUCTION_ROD_REGISTER)");
-			Emit("		{");
-			Emit("			state->status_register &= ~CONDITION_CODE_EXTEND;");
-			Emit("			state->status_register |= CONDITION_CODE_EXTEND * ((state->status_register & CONDITION_CODE_CARRY) != 0);");
-			Emit("		}");
+
+			switch (instruction)
+			{
+				case INSTRUCTION_ASD_MEMORY:
+				case INSTRUCTION_ASD_REGISTER:
+					Emit("		state->status_register |= CONDITION_CODE_OVERFLOW * ((result_value & sign_bit_bitmask) != original_sign_bit);");
+					Emit("		result_value <<= 1;");
+					break;
+
+				case INSTRUCTION_LSD_MEMORY:
+				case INSTRUCTION_LSD_REGISTER:
+					Emit("		result_value <<= 1;");
+					break;
+
+				case INSTRUCTION_ROXD_MEMORY:
+				case INSTRUCTION_ROXD_REGISTER:
+					Emit("		result_value <<= 1;");
+					Emit("		result_value |= 1 * ((state->status_register & CONDITION_CODE_EXTEND) != 0);");
+					break;
+
+				case INSTRUCTION_ROD_MEMORY:
+				case INSTRUCTION_ROD_REGISTER:
+					Emit("		result_value = (result_value << 1) | (1 * ((result_value & sign_bit_bitmask) != 0));");
+					break;
+
+				default:
+					/* Shut up dumbass compiler warnings */
+					break;
+			}
+
+			if (instruction != INSTRUCTION_ROD_MEMORY && instruction != INSTRUCTION_ROD_REGISTER)
+			{
+				Emit("");
+				Emit("		state->status_register &= ~CONDITION_CODE_EXTEND;");
+				Emit("		state->status_register |= CONDITION_CODE_EXTEND * ((state->status_register & CONDITION_CODE_CARRY) != 0);");
+			}
+
 			Emit("	}");
 			Emit("}");
 			Emit("else");
@@ -1449,40 +1455,43 @@ void EmitInstructionAction(const Instruction instruction)
 			Emit("		state->status_register &= ~CONDITION_CODE_CARRY;");
 			Emit("		state->status_register |= CONDITION_CODE_CARRY * ((result_value & 1) != 0);");
 			Emit("");
-			Emit("		switch (instruction)");
-			Emit("		{");
-			Emit("			case INSTRUCTION_ASD_MEMORY:");
-			Emit("			case INSTRUCTION_ASD_REGISTER:");
-			Emit("				result_value >>= 1;");
-			Emit("				result_value |= original_sign_bit;");
-			Emit("				break;");
-			Emit("");
-			Emit("			case INSTRUCTION_LSD_MEMORY:");
-			Emit("			case INSTRUCTION_LSD_REGISTER:");
-			Emit("				result_value >>= 1;");
-			Emit("				break;");
-			Emit("");
-			Emit("			case INSTRUCTION_ROXD_MEMORY:");
-			Emit("			case INSTRUCTION_ROXD_REGISTER:");
-			Emit("				result_value >>= 1;");
-			Emit("				result_value |= sign_bit_bitmask * ((state->status_register & CONDITION_CODE_EXTEND) != 0);");
-			Emit("				break;");
-			Emit("");
-			Emit("			case INSTRUCTION_ROD_MEMORY:");
-			Emit("			case INSTRUCTION_ROD_REGISTER:");
-			Emit("				result_value = (result_value >> 1) | (sign_bit_bitmask * ((result_value & 1) != 0));");
-			Emit("				break;");
-			Emit("");
-			Emit("			default:");
-			Emit("				/* Shut up dumbass compiler warnings */");
-			Emit("				break;");
-			Emit("		}");
-			Emit("");
-			Emit("		if (instruction != INSTRUCTION_ROD_MEMORY && instruction != INSTRUCTION_ROD_REGISTER)");
-			Emit("		{");
-			Emit("			state->status_register &= ~CONDITION_CODE_EXTEND;");
-			Emit("			state->status_register |= CONDITION_CODE_EXTEND * ((state->status_register & CONDITION_CODE_CARRY) != 0);");
-			Emit("		}");
+
+			switch (instruction)
+			{
+				case INSTRUCTION_ASD_MEMORY:
+				case INSTRUCTION_ASD_REGISTER:
+					Emit("		result_value >>= 1;");
+					Emit("		result_value |= original_sign_bit;");
+					break;
+
+				case INSTRUCTION_LSD_MEMORY:
+				case INSTRUCTION_LSD_REGISTER:
+					Emit("		result_value >>= 1;");
+					break;
+
+				case INSTRUCTION_ROXD_MEMORY:
+				case INSTRUCTION_ROXD_REGISTER:
+					Emit("		result_value >>= 1;");
+					Emit("		result_value |= sign_bit_bitmask * ((state->status_register & CONDITION_CODE_EXTEND) != 0);");
+					break;
+
+				case INSTRUCTION_ROD_MEMORY:
+				case INSTRUCTION_ROD_REGISTER:
+					Emit("		result_value = (result_value >> 1) | (sign_bit_bitmask * ((result_value & 1) != 0));");
+					break;
+
+				default:
+					/* Shut up dumbass compiler warnings */
+					break;
+			}
+
+			if (instruction != INSTRUCTION_ROD_MEMORY && instruction != INSTRUCTION_ROD_REGISTER)
+			{
+				Emit("");
+				Emit("		state->status_register &= ~CONDITION_CODE_EXTEND;");
+				Emit("		state->status_register |= CONDITION_CODE_EXTEND * ((state->status_register & CONDITION_CODE_CARRY) != 0);");
+			}
+
 			Emit("	}");
 			Emit("}");
 			Emit("}");
