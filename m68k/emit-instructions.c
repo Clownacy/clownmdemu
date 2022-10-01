@@ -863,31 +863,32 @@ void EmitInstructionAction(const Instruction instruction)
 			Emit("state->status_register &= ~CONDITION_CODE_ZERO;");
 			Emit("state->status_register |= CONDITION_CODE_ZERO * ((destination_value & (1ul << source_value)) == 0);");
 			Emit("");
-			Emit("switch (instruction)");
-			Emit("{");
-			Emit("	case INSTRUCTION_BTST_DYNAMIC:");
-			Emit("	case INSTRUCTION_BTST_STATIC:");
-			Emit("		break;");
-			Emit("");
-			Emit("	case INSTRUCTION_BCHG_DYNAMIC:");
-			Emit("	case INSTRUCTION_BCHG_STATIC:");
-			Emit("		result_value = destination_value ^ (1ul << source_value);");
-			Emit("		break;");
-			Emit("");
-			Emit("	case INSTRUCTION_BCLR_DYNAMIC:");
-			Emit("	case INSTRUCTION_BCLR_STATIC:");
-			Emit("		result_value = destination_value & ~(1ul << source_value);");
-			Emit("		break;");
-			Emit("");
-			Emit("	case INSTRUCTION_BSET_DYNAMIC:");
-			Emit("	case INSTRUCTION_BSET_STATIC:");
-			Emit("		result_value = destination_value | (1ul << source_value);");
-			Emit("		break;");
-			Emit("");
-			Emit("	default:");
-			Emit("		/* Shut up stupid compiler warnings */");
-			Emit("		break;");
-			Emit("}");
+
+			switch (instruction)
+			{
+				case INSTRUCTION_BTST_DYNAMIC:
+				case INSTRUCTION_BTST_STATIC:
+					break;
+
+				case INSTRUCTION_BCHG_DYNAMIC:
+				case INSTRUCTION_BCHG_STATIC:
+					Emit("result_value = destination_value ^ (1ul << source_value);");
+					break;
+
+				case INSTRUCTION_BCLR_DYNAMIC:
+				case INSTRUCTION_BCLR_STATIC:
+					Emit("result_value = destination_value & ~(1ul << source_value);");
+					break;
+
+				case INSTRUCTION_BSET_DYNAMIC:
+				case INSTRUCTION_BSET_STATIC:
+					Emit("result_value = destination_value | (1ul << source_value);");
+					break;
+
+				default:
+					/* Shut up stupid compiler warnings */
+					break;
+			}
 
 			break;
 
