@@ -772,10 +772,10 @@ static Instruction DecodeOpcode(const Opcode *opcode)
 			}
 			else
 			{
-				if (opcode->bit_8)
-					instruction = INSTRUCTION_SUBQ;
+				if (opcode->primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
+					instruction = opcode->bit_8 ? INSTRUCTION_SUBAQ : INSTRUCTION_ADDAQ;
 				else
-					instruction = INSTRUCTION_ADDQ;
+					instruction = opcode->bit_8 ? INSTRUCTION_SUBQ : INSTRUCTION_ADDQ;
 			}
 
 			break;
@@ -1011,6 +1011,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				"INSTRUCTION_ABCD",
 				"INSTRUCTION_ADD",
 				"INSTRUCTION_ADDA",
+				"INSTRUCTION_ADDAQ",
 				"INSTRUCTION_ADDI",
 				"INSTRUCTION_ADDQ",
 				"INSTRUCTION_ADDX",
@@ -1087,6 +1088,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				"INSTRUCTION_STOP",
 				"INSTRUCTION_SUB",
 				"INSTRUCTION_SUBA",
+				"INSTRUCTION_SUBAQ",
 				"INSTRUCTION_SUBI",
 				"INSTRUCTION_SUBQ",
 				"INSTRUCTION_SUBX",

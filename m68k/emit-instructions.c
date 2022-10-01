@@ -44,6 +44,8 @@ void EmitInstructionSize(const Instruction instruction)
 			Emit("operation_size = 2;");
 			break;
 
+		case INSTRUCTION_ADDAQ:
+		case INSTRUCTION_SUBAQ:
 		case INSTRUCTION_SWAP:
 		case INSTRUCTION_LEA:
 		case INSTRUCTION_MOVEQ:
@@ -87,15 +89,6 @@ void EmitInstructionSize(const Instruction instruction)
 			Emit("operation_size = opcode.raw & 0x0040 ? 4 : 2;");
 			break;
 
-		case INSTRUCTION_ADDQ:
-		case INSTRUCTION_SUBQ:
-			Emit("if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)");
-			Emit("	operation_size = 4;");
-			Emit("else");
-			Emit("	operation_size = 1 << opcode.bits_6_and_7;");
-
-			break;
-
 		case INSTRUCTION_SUBA:
 		case INSTRUCTION_CMPA:
 		case INSTRUCTION_ADDA:
@@ -122,6 +115,8 @@ void EmitInstructionSize(const Instruction instruction)
 		case INSTRUCTION_CMP:
 		case INSTRUCTION_AND:
 		case INSTRUCTION_ADD:
+		case INSTRUCTION_ADDQ:
+		case INSTRUCTION_SUBQ:
 		case INSTRUCTION_ADDX:
 		case INSTRUCTION_ASD_REGISTER:
 		case INSTRUCTION_LSD_REGISTER:
@@ -203,6 +198,8 @@ void EmitInstructionSourceAddressMode(const Instruction instruction)
 		case INSTRUCTION_JSR:
 		case INSTRUCTION_JMP:
 		case INSTRUCTION_LEA:
+		case INSTRUCTION_ADDAQ:
+		case INSTRUCTION_SUBAQ:
 		case INSTRUCTION_ADDQ:
 		case INSTRUCTION_SUBQ:
 		case INSTRUCTION_TRAP:
@@ -378,6 +375,8 @@ void EmitInstructionDestinationAddressMode(const Instruction instruction)
 		case INSTRUCTION_TAS:
 		case INSTRUCTION_MOVE_FROM_SR:
 		case INSTRUCTION_CLR:
+		case INSTRUCTION_ADDAQ:
+		case INSTRUCTION_SUBAQ:
 		case INSTRUCTION_ADDQ:
 		case INSTRUCTION_SUBQ:
 		case INSTRUCTION_SCC:
@@ -512,6 +511,8 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 
 			break;
 
+		case INSTRUCTION_ADDAQ:
+		case INSTRUCTION_SUBAQ:
 		case INSTRUCTION_ADDQ:
 		case INSTRUCTION_SUBQ:
 			Emit("source_value = ((opcode.secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8. */");
@@ -597,6 +598,8 @@ void EmitInstructionReadDestinationOperand(const Instruction instruction)
 		case INSTRUCTION_TAS:
 		case INSTRUCTION_EXT:
 		case INSTRUCTION_SWAP:
+		case INSTRUCTION_ADDAQ:
+		case INSTRUCTION_SUBAQ:
 		case INSTRUCTION_ADDQ:
 		case INSTRUCTION_SUBQ:
 		case INSTRUCTION_SBCD:
@@ -691,6 +694,7 @@ void EmitInstructionWriteDestinationOperand(const Instruction instruction)
 		case INSTRUCTION_ABCD:
 		case INSTRUCTION_ADD:
 		case INSTRUCTION_ADDA:
+		case INSTRUCTION_ADDAQ:
 		case INSTRUCTION_ADDI:
 		case INSTRUCTION_ADDQ:
 		case INSTRUCTION_ADDX:
@@ -729,6 +733,7 @@ void EmitInstructionWriteDestinationOperand(const Instruction instruction)
 		case INSTRUCTION_SCC:
 		case INSTRUCTION_SUB:
 		case INSTRUCTION_SUBA:
+		case INSTRUCTION_SUBAQ:
 		case INSTRUCTION_SUBI:
 		case INSTRUCTION_SUBQ:
 		case INSTRUCTION_SUBX:
@@ -808,6 +813,7 @@ void EmitInstructionAction(const Instruction instruction)
 		case INSTRUCTION_CMPI:
 		case INSTRUCTION_CMPM:
 		case INSTRUCTION_SUB:
+		case INSTRUCTION_SUBAQ:
 		case INSTRUCTION_SUBI:
 		case INSTRUCTION_SUBQ:
 			Emit("result_value = destination_value - source_value;");
@@ -819,6 +825,7 @@ void EmitInstructionAction(const Instruction instruction)
 			Emit("");
 			/* Fallthrough */
 		case INSTRUCTION_ADD:
+		case INSTRUCTION_ADDAQ:
 		case INSTRUCTION_ADDI:
 		case INSTRUCTION_ADDQ:
 			Emit("result_value = destination_value + source_value;");
@@ -1508,23 +1515,8 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_ADD:
 		case INSTRUCTION_ADDI:
 		case INSTRUCTION_ADDX:
-			if (instruction == INSTRUCTION_ADDQ)
-			{
-				/* Condition codes are not affected when the destination is an address register */
-				Emit("if (opcode.primary_address_mode != ADDRESS_MODE_ADDRESS_REGISTER)");
-				Emit("{");
-				++emit_indentation;
-			}
-
 			Emit("state->status_register &= ~CONDITION_CODE_CARRY;");
 			Emit("state->status_register |= CONDITION_CODE_CARRY * ((sm && dm) || (!rm && dm) || (sm && !rm));");
-
-			if (instruction == INSTRUCTION_ADDQ)
-			{
-				--emit_indentation;
-				Emit("}");
-			}
-
 			break;
 
 		case INSTRUCTION_SUBQ:
@@ -1535,23 +1527,8 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_SUB:
 		case INSTRUCTION_SUBI:
 		case INSTRUCTION_SUBX:
-			if (instruction == INSTRUCTION_SUBQ)
-			{
-				/* Condition codes are not affected when the destination is an address register */
-				Emit("if (opcode.primary_address_mode != ADDRESS_MODE_ADDRESS_REGISTER)");
-				Emit("{");
-				++emit_indentation;
-			}
-
 			Emit("state->status_register &= ~CONDITION_CODE_CARRY;");
 			Emit("state->status_register |= CONDITION_CODE_CARRY * ((sm && !dm) || (rm && !dm) || (sm && rm));");
-
-			if (instruction == INSTRUCTION_SUBQ)
-			{
-				--emit_indentation;
-				Emit("}");
-			}
-
 			break;
 
 		case INSTRUCTION_NEG:
@@ -1598,6 +1575,7 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 			break;
 
 		case INSTRUCTION_ADDA:
+		case INSTRUCTION_ADDAQ:
 		case INSTRUCTION_ANDI_TO_CCR:
 		case INSTRUCTION_ANDI_TO_SR:
 		case INSTRUCTION_BCC:
@@ -1638,6 +1616,7 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_SCC:
 		case INSTRUCTION_STOP:
 		case INSTRUCTION_SUBA:
+		case INSTRUCTION_SUBAQ:
 		case INSTRUCTION_TRAP:
 		case INSTRUCTION_TRAPV:
 		case INSTRUCTION_UNLK:
@@ -1654,23 +1633,8 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_ADD:
 		case INSTRUCTION_ADDI:
 		case INSTRUCTION_ADDX:
-			if (instruction == INSTRUCTION_ADDQ)
-			{
-				/* Condition codes are not affected when the destination is an address register */
-				Emit("if (opcode.primary_address_mode != ADDRESS_MODE_ADDRESS_REGISTER)");
-				Emit("{");
-				++emit_indentation;
-			}
-
 			Emit("state->status_register &= ~CONDITION_CODE_OVERFLOW;");
 			Emit("state->status_register |= CONDITION_CODE_OVERFLOW * ((sm && dm && !rm) || (!sm && !dm && rm));");
-
-			if (instruction == INSTRUCTION_ADDQ)
-			{
-				--emit_indentation;
-				Emit("}");
-			}
-
 			break;
 
 		case INSTRUCTION_SUBQ:
@@ -1681,23 +1645,8 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_SUB:
 		case INSTRUCTION_SUBI:
 		case INSTRUCTION_SUBX:
-			if (instruction == INSTRUCTION_SUBQ)
-			{
-				/* Condition codes are not affected when the destination is an address register */
-				Emit("if (opcode.primary_address_mode != ADDRESS_MODE_ADDRESS_REGISTER)");
-				Emit("{");
-				++emit_indentation;
-			}
-
 			Emit("state->status_register &= ~CONDITION_CODE_OVERFLOW;");
 			Emit("state->status_register |= CONDITION_CODE_OVERFLOW * ((!sm && dm && !rm) || (sm && !dm && rm));");
-
-			if (instruction == INSTRUCTION_SUBQ)
-			{
-				--emit_indentation;
-				Emit("}");
-			}
-
 			break;
 
 		case INSTRUCTION_NEG:
@@ -1747,6 +1696,7 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 			break;
 
 		case INSTRUCTION_ADDA:
+		case INSTRUCTION_ADDAQ:
 		case INSTRUCTION_ANDI_TO_CCR:
 		case INSTRUCTION_ANDI_TO_SR:
 		case INSTRUCTION_BCC:
@@ -1787,6 +1737,7 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_SCC:
 		case INSTRUCTION_STOP:
 		case INSTRUCTION_SUBA:
+		case INSTRUCTION_SUBAQ:
 		case INSTRUCTION_TRAP:
 		case INSTRUCTION_TRAPV:
 		case INSTRUCTION_UNLK:
@@ -1840,24 +1791,9 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_SUBI:
 		case INSTRUCTION_SWAP:
 		case INSTRUCTION_TST:
-			if (instruction == INSTRUCTION_ADDQ || instruction == INSTRUCTION_SUBQ)
-			{
-				/* Condition codes are not affected when the destination is an address register */
-				Emit("if (opcode.primary_address_mode != ADDRESS_MODE_ADDRESS_REGISTER)");
-				Emit("{");
-				++emit_indentation;
-			}
-
 			/* Standard behaviour: set if result is zero; clear otherwise */
 			Emit("state->status_register &= ~CONDITION_CODE_ZERO;");
 			Emit("state->status_register |= CONDITION_CODE_ZERO * ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0);");
-
-			if (instruction == INSTRUCTION_ADDQ || instruction == INSTRUCTION_SUBQ)
-			{
-				--emit_indentation;
-				Emit("}");
-			}
-
 			break;
 
 		case INSTRUCTION_DIVS:
@@ -1873,6 +1809,7 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 			break;
 
 		case INSTRUCTION_ADDA:
+		case INSTRUCTION_ADDAQ:
 		case INSTRUCTION_ANDI_TO_CCR:
 		case INSTRUCTION_ANDI_TO_SR:
 		case INSTRUCTION_BCC:
@@ -1913,6 +1850,7 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_SCC:
 		case INSTRUCTION_STOP:
 		case INSTRUCTION_SUBA:
+		case INSTRUCTION_SUBAQ:
 		case INSTRUCTION_TRAP:
 		case INSTRUCTION_TRAPV:
 		case INSTRUCTION_UNLK:
@@ -1969,24 +1907,9 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_SUBX:
 		case INSTRUCTION_SWAP:
 		case INSTRUCTION_TST:
-			if (instruction == INSTRUCTION_ADDQ || instruction == INSTRUCTION_SUBQ)
-			{
-				/* Condition codes are not affected when the destination is an address register */
-				Emit("if (opcode.primary_address_mode != ADDRESS_MODE_ADDRESS_REGISTER)");
-				Emit("{");
-				++emit_indentation;
-			}
-
 			/* Standard behaviour: set if result value is negative; clear otherwise */
 			Emit("state->status_register &= ~CONDITION_CODE_NEGATIVE;");
 			Emit("state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);");
-
-			if (instruction == INSTRUCTION_ADDQ || instruction == INSTRUCTION_SUBQ)
-			{
-				--emit_indentation;
-				Emit("}");
-			}
-
 			break;
 
 		case INSTRUCTION_ABCD:
@@ -1996,6 +1919,7 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 			break;
 
 		case INSTRUCTION_ADDA:
+		case INSTRUCTION_ADDAQ:
 		case INSTRUCTION_ANDI_TO_CCR:
 		case INSTRUCTION_ANDI_TO_SR:
 		case INSTRUCTION_BCC:
@@ -2036,6 +1960,7 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_SCC:
 		case INSTRUCTION_STOP:
 		case INSTRUCTION_SUBA:
+		case INSTRUCTION_SUBAQ:
 		case INSTRUCTION_TRAP:
 		case INSTRUCTION_TRAPV:
 		case INSTRUCTION_UNLK:
@@ -2076,24 +2001,9 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_SUB:
 		case INSTRUCTION_SUBI:
 		case INSTRUCTION_SUBX:
-			if (instruction == INSTRUCTION_ADDQ || instruction == INSTRUCTION_SUBQ)
-			{
-				/* Condition codes are not affected when the destination is an address register */
-				Emit("if (opcode.primary_address_mode != ADDRESS_MODE_ADDRESS_REGISTER)");
-				Emit("{");
-				++emit_indentation;
-			}
-
 			/* Standard behaviour: set to CARRY */
 			Emit("state->status_register &= ~CONDITION_CODE_EXTEND;");
 			Emit("state->status_register |= CONDITION_CODE_EXTEND * ((state->status_register & CONDITION_CODE_CARRY) != 0);");
-
-			if (instruction == INSTRUCTION_ADDQ || instruction == INSTRUCTION_SUBQ)
-			{
-				--emit_indentation;
-				Emit("}");
-			}
-
 			break;
 
 		case INSTRUCTION_AND:
@@ -2119,6 +2029,7 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 			break;
 
 		case INSTRUCTION_ADDA:
+		case INSTRUCTION_ADDAQ:
 		case INSTRUCTION_ANDI_TO_CCR:
 		case INSTRUCTION_ANDI_TO_SR:
 		case INSTRUCTION_BCC:
@@ -2159,6 +2070,7 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_SCC:
 		case INSTRUCTION_STOP:
 		case INSTRUCTION_SUBA:
+		case INSTRUCTION_SUBAQ:
 		case INSTRUCTION_TRAP:
 		case INSTRUCTION_TRAPV:
 		case INSTRUCTION_UNLK:
