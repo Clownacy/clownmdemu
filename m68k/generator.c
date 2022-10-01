@@ -111,6 +111,12 @@ int main(int argc, char **argv)
 		Emit("/* Obtain instruction size. */");
 		EmitInstructionSize(i);
 		Emit("");
+		Emit("/* Decode source address mode. */");
+		EmitInstructionSourceAddressMode(i);
+		Emit("");
+		Emit("/* Decode destination address mode. */");
+		EmitInstructionDestinationAddressMode(i);
+		Emit("");
 		Emit("/* Read source operand. */");
 		EmitInstructionReadSourceOperand(i);
 		Emit("");

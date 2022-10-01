@@ -156,7 +156,7 @@ void EmitInstructionSize(const Instruction instruction)
 	}
 }
 
-void EmitInstructionReadSourceOperand(const Instruction instruction)
+void EmitInstructionSourceAddressMode(const Instruction instruction)
 {
 	/* Obtain source value. */
 	switch (instruction)
@@ -179,7 +179,6 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 		case INSTRUCTION_STOP:
 			Emit("/* Immediate value (any size). */");
 			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);");
-			Emit("source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);");
 			break;
 
 		case INSTRUCTION_BTST_DYNAMIC:
@@ -189,7 +188,6 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 		case INSTRUCTION_EOR:
 			Emit("/* Secondary data register. */");
 			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);");
-			Emit("source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);");
 			break;
 
 		case INSTRUCTION_BTST_STATIC:
@@ -198,20 +196,17 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 		case INSTRUCTION_BSET_STATIC:
 			Emit("/* Immediate value (byte). */");
 			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, 1, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);");
-			Emit("source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);");
 			break;
 
 		case INSTRUCTION_MOVE_FROM_SR:
-			Emit("/* Status register. */");
-			Emit("source_value = state->status_register;");
-			break;
-
 		case INSTRUCTION_PEA:
 		case INSTRUCTION_JSR:
 		case INSTRUCTION_JMP:
 		case INSTRUCTION_LEA:
-			Emit("/* Effective address. */");
-			Emit("source_value = DecodeMemoryAddressMode(state, callbacks, 0, opcode.primary_address_mode, opcode.primary_register);");
+		case INSTRUCTION_ADDQ:
+		case INSTRUCTION_SUBQ:
+		case INSTRUCTION_TRAP:
+			Emit("/* Doesn't need an address mode for its source. */");
 			break;
 
 		case INSTRUCTION_BRA:
@@ -219,10 +214,7 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 		case INSTRUCTION_BCC:
 			/* TODO: Split into byte- and word-sized instructions. */
 			Emit("if ((opcode.raw & 0x00FF) == 0)");
-			Emit("{");
 			Emit("	DecodeAddressMode(state, callbacks, &source_decoded_address_mode, 2, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);");
-			Emit("	source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);");
-			Emit("}");
 
 			break;
 
@@ -231,7 +223,6 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 		case INSTRUCTION_SUBX:
 		case INSTRUCTION_ADDX:
 			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode.raw & 0x0008 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode.primary_register);");
-			Emit("source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);");
 			break;
 
 		case INSTRUCTION_OR:
@@ -243,19 +234,11 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 			Emit("	DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);");
 			Emit("else");
 			Emit("	DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);");
-			Emit("");
-			Emit("source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);");
 
 			break;
 
 		case INSTRUCTION_CMPM:
 			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT, opcode.primary_register);");
-			Emit("source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);");
-			break;
-
-		case INSTRUCTION_ADDQ:
-		case INSTRUCTION_SUBQ:
-			Emit("source_value = ((opcode.secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8. */");
 			break;
 
 		case INSTRUCTION_MOVEA:
@@ -274,11 +257,6 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 		case INSTRUCTION_TST:
 			Emit("/* Primary address mode. */");
 			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);");
-			Emit("source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);");
-			break;
-
-		case INSTRUCTION_TRAP:
-			Emit("source_value = opcode.raw & 0xF;");
 			break;
 
 		case INSTRUCTION_MOVEP:
@@ -317,7 +295,7 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 	}
 }
 
-void EmitInstructionReadDestinationOperand(const Instruction instruction)
+void EmitInstructionDestinationAddressMode(const Instruction instruction)
 {
 	/* Decode destination address mode */
 	switch (instruction)
@@ -453,7 +431,134 @@ void EmitInstructionReadDestinationOperand(const Instruction instruction)
 			Emit("/* Doesn't have a destination address mode to decode */");
 			break;
 	}
+}
 
+void EmitInstructionReadSourceOperand(const Instruction instruction)
+{
+	/* Obtain source value. */
+	switch (instruction)
+	{
+		case INSTRUCTION_ORI_TO_CCR:
+		case INSTRUCTION_ORI_TO_SR:
+		case INSTRUCTION_ORI:
+		case INSTRUCTION_ANDI_TO_CCR:
+		case INSTRUCTION_ANDI_TO_SR:
+		case INSTRUCTION_ANDI:
+		case INSTRUCTION_SUBI:
+		case INSTRUCTION_ADDI:
+		case INSTRUCTION_EORI_TO_CCR:
+		case INSTRUCTION_EORI_TO_SR:
+		case INSTRUCTION_EORI:
+		case INSTRUCTION_CMPI:
+		case INSTRUCTION_LINK:
+		case INSTRUCTION_MOVEM:
+		case INSTRUCTION_DBCC:
+		case INSTRUCTION_STOP:
+		case INSTRUCTION_BTST_DYNAMIC:
+		case INSTRUCTION_BCHG_DYNAMIC:
+		case INSTRUCTION_BCLR_DYNAMIC:
+		case INSTRUCTION_BSET_DYNAMIC:
+		case INSTRUCTION_EOR:
+		case INSTRUCTION_BTST_STATIC:
+		case INSTRUCTION_BCHG_STATIC:
+		case INSTRUCTION_BCLR_STATIC:
+		case INSTRUCTION_BSET_STATIC:
+		case INSTRUCTION_SBCD:
+		case INSTRUCTION_ABCD:
+		case INSTRUCTION_SUBX:
+		case INSTRUCTION_ADDX:
+		case INSTRUCTION_OR:
+		case INSTRUCTION_SUB:
+		case INSTRUCTION_AND:
+		case INSTRUCTION_ADD:
+		case INSTRUCTION_CMPM:
+		case INSTRUCTION_MOVEA:
+		case INSTRUCTION_MOVE:
+		case INSTRUCTION_MOVE_TO_CCR:
+		case INSTRUCTION_MOVE_TO_SR:
+		case INSTRUCTION_CHK:
+		case INSTRUCTION_DIVU:
+		case INSTRUCTION_DIVS:
+		case INSTRUCTION_SUBA:
+		case INSTRUCTION_CMP:
+		case INSTRUCTION_CMPA:
+		case INSTRUCTION_MULU:
+		case INSTRUCTION_MULS:
+		case INSTRUCTION_ADDA:
+		case INSTRUCTION_TST:
+			/* Read destination from decoded address mode */
+			Emit("source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);");
+			break;
+
+		case INSTRUCTION_MOVE_FROM_SR:
+			/* Status register. */
+			Emit("source_value = state->status_register;");
+			break;
+
+		case INSTRUCTION_PEA:
+		case INSTRUCTION_JSR:
+		case INSTRUCTION_JMP:
+		case INSTRUCTION_LEA:
+			/* Effective address. */
+			Emit("source_value = DecodeMemoryAddressMode(state, callbacks, 0, opcode.primary_address_mode, opcode.primary_register);");
+			break;
+
+		case INSTRUCTION_BRA:
+		case INSTRUCTION_BSR:
+		case INSTRUCTION_BCC:
+			/* TODO: Split into byte- and word-sized instructions. */
+			Emit("if ((opcode.raw & 0x00FF) == 0)");
+			Emit("	source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);");
+
+			break;
+
+		case INSTRUCTION_ADDQ:
+		case INSTRUCTION_SUBQ:
+			Emit("source_value = ((opcode.secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8. */");
+			break;
+
+		case INSTRUCTION_TRAP:
+			Emit("source_value = opcode.raw & 0xF;");
+			break;
+
+		case INSTRUCTION_MOVEP:
+		case INSTRUCTION_NEGX:
+		case INSTRUCTION_CLR:
+		case INSTRUCTION_NEG:
+		case INSTRUCTION_NOT:
+		case INSTRUCTION_EXT:
+		case INSTRUCTION_NBCD:
+		case INSTRUCTION_SWAP:
+		case INSTRUCTION_ILLEGAL:
+		case INSTRUCTION_TAS:
+		case INSTRUCTION_UNLK:
+		case INSTRUCTION_MOVE_USP:
+		case INSTRUCTION_RESET:
+		case INSTRUCTION_NOP:
+		case INSTRUCTION_RTE:
+		case INSTRUCTION_RTS:
+		case INSTRUCTION_TRAPV:
+		case INSTRUCTION_RTR:
+		case INSTRUCTION_SCC:
+		case INSTRUCTION_MOVEQ:
+		case INSTRUCTION_EXG:
+		case INSTRUCTION_ASD_MEMORY:
+		case INSTRUCTION_LSD_MEMORY:
+		case INSTRUCTION_ROXD_MEMORY:
+		case INSTRUCTION_ROD_MEMORY:
+		case INSTRUCTION_ASD_REGISTER:
+		case INSTRUCTION_LSD_REGISTER:
+		case INSTRUCTION_ROXD_REGISTER:
+		case INSTRUCTION_ROD_REGISTER:
+		case INSTRUCTION_UNIMPLEMENTED_1:
+		case INSTRUCTION_UNIMPLEMENTED_2:
+			Emit("/* Doesn't read its source value. */");
+			break;
+	}
+}
+
+void EmitInstructionReadDestinationOperand(const Instruction instruction)
+{
 	/* Obtain destination value */
 	switch (instruction)
 	{
@@ -467,6 +572,10 @@ void EmitInstructionReadDestinationOperand(const Instruction instruction)
 			Emit("destination_value = state->status_register;");
 			break;
 
+		case INSTRUCTION_CLR:
+		case INSTRUCTION_SCC:
+			Emit("/* For some reason, this instruction reads from its destination even though it doesn't use it. */");
+			/* Fallthrough */
 		case INSTRUCTION_ORI:
 		case INSTRUCTION_ANDI:
 		case INSTRUCTION_SUBI:
@@ -504,8 +613,6 @@ void EmitInstructionReadDestinationOperand(const Instruction instruction)
 		case INSTRUCTION_ADD:
 		case INSTRUCTION_ADDX:
 		case INSTRUCTION_ADDA:
-		case INSTRUCTION_CLR: /* For some reason CLR reads from its destination even though it doesn't use it */
-		case INSTRUCTION_SCC: /* For some reason SCC reads from its destination even though it doesn't use it */
 		case INSTRUCTION_ASD_MEMORY:
 		case INSTRUCTION_LSD_MEMORY:
 		case INSTRUCTION_ROXD_MEMORY:

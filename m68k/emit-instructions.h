@@ -4,6 +4,8 @@
 #include "instructions.h"
 
 void EmitInstructionSize(const Instruction instruction);
+void EmitInstructionSourceAddressMode(const Instruction instruction);
+void EmitInstructionDestinationAddressMode(const Instruction instruction);
 void EmitInstructionReadSourceOperand(const Instruction instruction);
 void EmitInstructionReadDestinationOperand(const Instruction instruction);
 void EmitInstructionWriteDestinationOperand(const Instruction instruction);
