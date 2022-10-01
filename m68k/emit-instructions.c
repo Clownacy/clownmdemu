@@ -140,9 +140,12 @@ void EmitInstructionSize(const Instruction instruction)
 		case INSTRUCTION_RTR:
 		case INSTRUCTION_JSR:
 		case INSTRUCTION_JMP:
-		case INSTRUCTION_BRA:
-		case INSTRUCTION_BSR:
-		case INSTRUCTION_BCC:
+		case INSTRUCTION_BRA_SHORT:
+		case INSTRUCTION_BRA_WORD:
+		case INSTRUCTION_BSR_SHORT:
+		case INSTRUCTION_BSR_WORD:
+		case INSTRUCTION_BCC_SHORT:
+		case INSTRUCTION_BCC_WORD:
 		case INSTRUCTION_EXG:
 		case INSTRUCTION_UNIMPLEMENTED_1:
 		case INSTRUCTION_UNIMPLEMENTED_2:
@@ -206,13 +209,11 @@ void EmitInstructionSourceAddressMode(const Instruction instruction)
 			Emit("/* Doesn't need an address mode for its source. */");
 			break;
 
-		case INSTRUCTION_BRA:
-		case INSTRUCTION_BSR:
-		case INSTRUCTION_BCC:
-			/* TODO: Split into byte- and word-sized instructions. */
-			Emit("if ((opcode.raw & 0x00FF) == 0)");
-			Emit("	DecodeAddressMode(state, callbacks, &source_decoded_address_mode, 2, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);");
-
+		case INSTRUCTION_BRA_WORD:
+		case INSTRUCTION_BSR_WORD:
+		case INSTRUCTION_BCC_WORD:
+			Emit("/* Immediate value (word). */");
+			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, 2, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);");
 			break;
 
 		case INSTRUCTION_SBCD:
@@ -256,6 +257,9 @@ void EmitInstructionSourceAddressMode(const Instruction instruction)
 			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);");
 			break;
 
+		case INSTRUCTION_BRA_SHORT:
+		case INSTRUCTION_BSR_SHORT:
+		case INSTRUCTION_BCC_SHORT:
 		case INSTRUCTION_MOVEP:
 		case INSTRUCTION_NEGX:
 		case INSTRUCTION_CLR:
@@ -287,7 +291,7 @@ void EmitInstructionSourceAddressMode(const Instruction instruction)
 		case INSTRUCTION_ROD_REGISTER:
 		case INSTRUCTION_UNIMPLEMENTED_1:
 		case INSTRUCTION_UNIMPLEMENTED_2:
-			Emit("/* Doesn't have a source value. */");
+			Emit("/* Doesn't have a source address mode to decode. */");
 			break;
 	}
 }
@@ -416,9 +420,12 @@ void EmitInstructionDestinationAddressMode(const Instruction instruction)
 		case INSTRUCTION_MOVEP:
 		case INSTRUCTION_CHK:
 		case INSTRUCTION_DBCC:
-		case INSTRUCTION_BRA:
-		case INSTRUCTION_BSR:
-		case INSTRUCTION_BCC:
+		case INSTRUCTION_BRA_SHORT:
+		case INSTRUCTION_BRA_WORD:
+		case INSTRUCTION_BSR_SHORT:
+		case INSTRUCTION_BSR_WORD:
+		case INSTRUCTION_BCC_SHORT:
+		case INSTRUCTION_BCC_WORD:
 		case INSTRUCTION_DIVU:
 		case INSTRUCTION_DIVS:
 		case INSTRUCTION_MULU:
@@ -427,7 +434,7 @@ void EmitInstructionDestinationAddressMode(const Instruction instruction)
 		case INSTRUCTION_TST:
 		case INSTRUCTION_UNIMPLEMENTED_1:
 		case INSTRUCTION_UNIMPLEMENTED_2:
-			Emit("/* Doesn't have a destination address mode to decode */");
+			Emit("/* Doesn't have a destination address mode to decode. */");
 			break;
 	}
 }
@@ -485,7 +492,10 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 		case INSTRUCTION_MULS:
 		case INSTRUCTION_ADDA:
 		case INSTRUCTION_TST:
-			/* Read destination from decoded address mode */
+		case INSTRUCTION_BRA_WORD:
+		case INSTRUCTION_BSR_WORD:
+		case INSTRUCTION_BCC_WORD:
+			/* Read source from decoded address mode */
 			Emit("source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);");
 			break;
 
@@ -502,15 +512,6 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 			Emit("source_value = DecodeMemoryAddressMode(state, callbacks, 0, opcode.primary_address_mode, opcode.primary_register);");
 			break;
 
-		case INSTRUCTION_BRA:
-		case INSTRUCTION_BSR:
-		case INSTRUCTION_BCC:
-			/* TODO: Split into byte- and word-sized instructions. */
-			Emit("if ((opcode.raw & 0x00FF) == 0)");
-			Emit("	source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);");
-
-			break;
-
 		case INSTRUCTION_ADDAQ:
 		case INSTRUCTION_SUBAQ:
 		case INSTRUCTION_ADDQ:
@@ -522,6 +523,9 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 			Emit("source_value = opcode.raw & 0xF;");
 			break;
 
+		case INSTRUCTION_BRA_SHORT:
+		case INSTRUCTION_BSR_SHORT:
+		case INSTRUCTION_BCC_SHORT:
 		case INSTRUCTION_MOVEP:
 		case INSTRUCTION_NEGX:
 		case INSTRUCTION_CLR:
@@ -553,7 +557,7 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 		case INSTRUCTION_ROD_REGISTER:
 		case INSTRUCTION_UNIMPLEMENTED_1:
 		case INSTRUCTION_UNIMPLEMENTED_2:
-			Emit("/* Doesn't read its source value. */");
+			Emit("/* Doesn't have a source value. */");
 			break;
 	}
 }
@@ -628,9 +632,12 @@ void EmitInstructionReadDestinationOperand(const Instruction instruction)
 			Emit("destination_value = GetValueUsingDecodedAddressMode(state, callbacks, &destination_decoded_address_mode);");
 			break;
 
-		case INSTRUCTION_BCC:
-		case INSTRUCTION_BRA:
-		case INSTRUCTION_BSR:
+		case INSTRUCTION_BRA_SHORT:
+		case INSTRUCTION_BRA_WORD:
+		case INSTRUCTION_BSR_SHORT:
+		case INSTRUCTION_BSR_WORD:
+		case INSTRUCTION_BCC_SHORT:
+		case INSTRUCTION_BCC_WORD:
 		case INSTRUCTION_CHK:
 		case INSTRUCTION_DBCC:
 		case INSTRUCTION_DIVS:
@@ -743,9 +750,12 @@ void EmitInstructionWriteDestinationOperand(const Instruction instruction)
 			Emit("SetValueUsingDecodedAddressMode(state, callbacks, &destination_decoded_address_mode, result_value);");
 			break;
 
-		case INSTRUCTION_BCC:
-		case INSTRUCTION_BRA:
-		case INSTRUCTION_BSR:
+		case INSTRUCTION_BRA_SHORT:
+		case INSTRUCTION_BRA_WORD:
+		case INSTRUCTION_BSR_SHORT:
+		case INSTRUCTION_BSR_WORD:
+		case INSTRUCTION_BCC_SHORT:
+		case INSTRUCTION_BCC_WORD:
 		case INSTRUCTION_BTST_STATIC:
 		case INSTRUCTION_BTST_DYNAMIC:
 		case INSTRUCTION_CHK:
@@ -1194,33 +1204,36 @@ void EmitInstructionAction(const Instruction instruction)
 
 			break;
 
-		case INSTRUCTION_BCC:
-		case INSTRUCTION_BRA:
-		case INSTRUCTION_BSR:
-			if (instruction == INSTRUCTION_BCC)
+		case INSTRUCTION_BRA_SHORT:
+		case INSTRUCTION_BRA_WORD:
+		case INSTRUCTION_BSR_SHORT:
+		case INSTRUCTION_BSR_WORD:
+		case INSTRUCTION_BCC_SHORT:
+		case INSTRUCTION_BCC_WORD:
+			if (instruction == INSTRUCTION_BCC_SHORT || instruction == INSTRUCTION_BCC_WORD)
 			{
 				Emit("if (IsOpcodeConditionTrue(state, opcode.raw))");
 				Emit("{");
 				++emit_indentation;
 			}
-			else if (instruction == INSTRUCTION_BSR)
+			else if (instruction == INSTRUCTION_BSR_SHORT || instruction == INSTRUCTION_BSR_WORD)
 			{
 				Emit("state->address_registers[7] -= 4;");
 				Emit("WriteLongWord(state, callbacks, state->address_registers[7], state->program_counter);");
 				Emit("");
 			}
 
-			Emit("if ((opcode.raw & 0x00FF) != 0)");
-			Emit("{");
-			Emit("	state->program_counter += CC_SIGN_EXTEND_ULONG(7, opcode.raw);");
-			Emit("}");
-			Emit("else");
-			Emit("{");
-			Emit("	state->program_counter -= 2;");
-			Emit("	state->program_counter += CC_SIGN_EXTEND_ULONG(15, source_value);");
-			Emit("}");
+			if (instruction == INSTRUCTION_BRA_SHORT || instruction == INSTRUCTION_BSR_SHORT || instruction == INSTRUCTION_BCC_SHORT)
+			{
+				Emit("state->program_counter += CC_SIGN_EXTEND_ULONG(7, opcode.raw);");
+			}
+			else
+			{
+				Emit("state->program_counter -= 2;");
+				Emit("state->program_counter += CC_SIGN_EXTEND_ULONG(15, source_value);");
+			}
 
-			if (instruction == INSTRUCTION_BCC)
+			if (instruction == INSTRUCTION_BCC_SHORT || instruction == INSTRUCTION_BCC_WORD)
 			{
 				--emit_indentation;
 				Emit("}");
@@ -1578,15 +1591,18 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_ADDAQ:
 		case INSTRUCTION_ANDI_TO_CCR:
 		case INSTRUCTION_ANDI_TO_SR:
-		case INSTRUCTION_BCC:
+		case INSTRUCTION_BCC_SHORT:
+		case INSTRUCTION_BCC_WORD:
 		case INSTRUCTION_BCHG_DYNAMIC:
 		case INSTRUCTION_BCHG_STATIC:
 		case INSTRUCTION_BCLR_DYNAMIC:
 		case INSTRUCTION_BCLR_STATIC:
-		case INSTRUCTION_BRA:
+		case INSTRUCTION_BRA_SHORT:
+		case INSTRUCTION_BRA_WORD:
 		case INSTRUCTION_BSET_DYNAMIC:
 		case INSTRUCTION_BSET_STATIC:
-		case INSTRUCTION_BSR:
+		case INSTRUCTION_BSR_SHORT:
+		case INSTRUCTION_BSR_WORD:
 		case INSTRUCTION_BTST_DYNAMIC:
 		case INSTRUCTION_BTST_STATIC:
 		case INSTRUCTION_DBCC:
@@ -1699,15 +1715,18 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_ADDAQ:
 		case INSTRUCTION_ANDI_TO_CCR:
 		case INSTRUCTION_ANDI_TO_SR:
-		case INSTRUCTION_BCC:
+		case INSTRUCTION_BCC_SHORT:
+		case INSTRUCTION_BCC_WORD:
 		case INSTRUCTION_BCHG_DYNAMIC:
 		case INSTRUCTION_BCHG_STATIC:
 		case INSTRUCTION_BCLR_DYNAMIC:
 		case INSTRUCTION_BCLR_STATIC:
-		case INSTRUCTION_BRA:
+		case INSTRUCTION_BRA_SHORT:
+		case INSTRUCTION_BRA_WORD:
 		case INSTRUCTION_BSET_DYNAMIC:
 		case INSTRUCTION_BSET_STATIC:
-		case INSTRUCTION_BSR:
+		case INSTRUCTION_BSR_SHORT:
+		case INSTRUCTION_BSR_WORD:
 		case INSTRUCTION_BTST_DYNAMIC:
 		case INSTRUCTION_BTST_STATIC:
 		case INSTRUCTION_DBCC:
@@ -1812,15 +1831,18 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_ADDAQ:
 		case INSTRUCTION_ANDI_TO_CCR:
 		case INSTRUCTION_ANDI_TO_SR:
-		case INSTRUCTION_BCC:
+		case INSTRUCTION_BCC_SHORT:
+		case INSTRUCTION_BCC_WORD:
 		case INSTRUCTION_BCHG_DYNAMIC:
 		case INSTRUCTION_BCHG_STATIC:
 		case INSTRUCTION_BCLR_DYNAMIC:
 		case INSTRUCTION_BCLR_STATIC:
-		case INSTRUCTION_BRA:
+		case INSTRUCTION_BRA_SHORT:
+		case INSTRUCTION_BRA_WORD:
 		case INSTRUCTION_BSET_DYNAMIC:
 		case INSTRUCTION_BSET_STATIC:
-		case INSTRUCTION_BSR:
+		case INSTRUCTION_BSR_SHORT:
+		case INSTRUCTION_BSR_WORD:
 		case INSTRUCTION_BTST_DYNAMIC:
 		case INSTRUCTION_BTST_STATIC:
 		case INSTRUCTION_DBCC:
@@ -1922,15 +1944,18 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_ADDAQ:
 		case INSTRUCTION_ANDI_TO_CCR:
 		case INSTRUCTION_ANDI_TO_SR:
-		case INSTRUCTION_BCC:
+		case INSTRUCTION_BCC_SHORT:
+		case INSTRUCTION_BCC_WORD:
 		case INSTRUCTION_BCHG_DYNAMIC:
 		case INSTRUCTION_BCHG_STATIC:
 		case INSTRUCTION_BCLR_DYNAMIC:
 		case INSTRUCTION_BCLR_STATIC:
-		case INSTRUCTION_BRA:
+		case INSTRUCTION_BRA_SHORT:
+		case INSTRUCTION_BRA_WORD:
 		case INSTRUCTION_BSET_DYNAMIC:
 		case INSTRUCTION_BSET_STATIC:
-		case INSTRUCTION_BSR:
+		case INSTRUCTION_BSR_SHORT:
+		case INSTRUCTION_BSR_WORD:
 		case INSTRUCTION_BTST_DYNAMIC:
 		case INSTRUCTION_BTST_STATIC:
 		case INSTRUCTION_DBCC:
@@ -2032,15 +2057,18 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_ADDAQ:
 		case INSTRUCTION_ANDI_TO_CCR:
 		case INSTRUCTION_ANDI_TO_SR:
-		case INSTRUCTION_BCC:
+		case INSTRUCTION_BCC_SHORT:
+		case INSTRUCTION_BCC_WORD:
 		case INSTRUCTION_BCHG_DYNAMIC:
 		case INSTRUCTION_BCHG_STATIC:
 		case INSTRUCTION_BCLR_DYNAMIC:
 		case INSTRUCTION_BCLR_STATIC:
-		case INSTRUCTION_BRA:
+		case INSTRUCTION_BRA_SHORT:
+		case INSTRUCTION_BRA_WORD:
 		case INSTRUCTION_BSET_DYNAMIC:
 		case INSTRUCTION_BSET_STATIC:
-		case INSTRUCTION_BSR:
+		case INSTRUCTION_BSR_SHORT:
+		case INSTRUCTION_BSR_WORD:
 		case INSTRUCTION_BTST_DYNAMIC:
 		case INSTRUCTION_BTST_STATIC:
 		case INSTRUCTION_DBCC:

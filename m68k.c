@@ -781,17 +781,12 @@ static Instruction DecodeOpcode(const Opcode *opcode)
 			break;
 
 		case 0x6:
-			if (opcode->secondary_register == 0)
-			{
-				if (opcode->bit_8)
-					instruction = INSTRUCTION_BSR;
-				else
-					instruction = INSTRUCTION_BRA;
-			}
+			if (opcode->secondary_register != 0)
+				instruction = (opcode->raw & 0x00FF) == 0 ? INSTRUCTION_BCC_WORD : INSTRUCTION_BCC_SHORT;
+			else if (opcode->bit_8)
+				instruction = (opcode->raw & 0x00FF) == 0 ? INSTRUCTION_BSR_WORD : INSTRUCTION_BSR_SHORT;
 			else
-			{
-				instruction = INSTRUCTION_BCC;
-			}
+				instruction = (opcode->raw & 0x00FF) == 0 ? INSTRUCTION_BRA_WORD : INSTRUCTION_BRA_SHORT;
 
 			break;
 
@@ -1021,15 +1016,18 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				"INSTRUCTION_ANDI_TO_SR",
 				"INSTRUCTION_ASD_MEMORY",
 				"INSTRUCTION_ASD_REGISTER",
-				"INSTRUCTION_BCC",
+				"INSTRUCTION_BCC_SHORT",
+				"INSTRUCTION_BCC_WORD",
 				"INSTRUCTION_BCHG_DYNAMIC",
 				"INSTRUCTION_BCHG_STATIC",
 				"INSTRUCTION_BCLR_DYNAMIC",
 				"INSTRUCTION_BCLR_STATIC",
-				"INSTRUCTION_BRA",
+				"INSTRUCTION_BRA_SHORT",
+				"INSTRUCTION_BRA_WORD",
 				"INSTRUCTION_BSET_DYNAMIC",
 				"INSTRUCTION_BSET_STATIC",
-				"INSTRUCTION_BSR",
+				"INSTRUCTION_BSR_SHORT",
+				"INSTRUCTION_BSR_WORD",
 				"INSTRUCTION_BTST_DYNAMIC",
 				"INSTRUCTION_BTST_STATIC",
 				"INSTRUCTION_CHK",
