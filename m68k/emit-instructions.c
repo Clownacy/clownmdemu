@@ -677,123 +677,6 @@ void EmitInstructionReadDestinationOperand(const Instruction instruction)
 	}
 }
 
-void EmitInstructionWriteDestinationOperand(const Instruction instruction)
-{
-	/* Write output to destination */
-	switch (instruction)
-	{
-		case INSTRUCTION_ANDI_TO_CCR:
-		case INSTRUCTION_EORI_TO_CCR:
-		case INSTRUCTION_MOVE_TO_CCR:
-		case INSTRUCTION_ORI_TO_CCR:
-			Emit("/* Write to condition code register */");
-			Emit("state->status_register = (result_value & 0xFF) | (state->status_register & 0xFF00);");
-			break;
-
-		case INSTRUCTION_ANDI_TO_SR:
-		case INSTRUCTION_EORI_TO_SR:
-		case INSTRUCTION_MOVE_TO_SR:
-		case INSTRUCTION_ORI_TO_SR:
-			Emit("/* Write to status register */");
-			Emit("state->status_register = (unsigned short)result_value;");
-			break;
-
-		case INSTRUCTION_ABCD:
-		case INSTRUCTION_ADD:
-		case INSTRUCTION_ADDA:
-		case INSTRUCTION_ADDAQ:
-		case INSTRUCTION_ADDI:
-		case INSTRUCTION_ADDQ:
-		case INSTRUCTION_ADDX:
-		case INSTRUCTION_AND:
-		case INSTRUCTION_ANDI:
-		case INSTRUCTION_ASD_MEMORY:
-		case INSTRUCTION_ASD_REGISTER:
-		case INSTRUCTION_BCHG_DYNAMIC:
-		case INSTRUCTION_BCHG_STATIC:
-		case INSTRUCTION_BCLR_DYNAMIC:
-		case INSTRUCTION_BCLR_STATIC:
-		case INSTRUCTION_BSET_DYNAMIC:
-		case INSTRUCTION_BSET_STATIC:
-		case INSTRUCTION_CLR:
-		case INSTRUCTION_EOR:
-		case INSTRUCTION_EORI:
-		case INSTRUCTION_EXT:
-		case INSTRUCTION_OR:
-		case INSTRUCTION_ORI:
-		case INSTRUCTION_LEA:
-		case INSTRUCTION_LSD_MEMORY:
-		case INSTRUCTION_LSD_REGISTER:
-		case INSTRUCTION_MOVE:
-		case INSTRUCTION_MOVE_FROM_SR:
-		case INSTRUCTION_MOVEA:
-		case INSTRUCTION_MOVEQ:
-		case INSTRUCTION_NBCD:
-		case INSTRUCTION_NEG:
-		case INSTRUCTION_NEGX:
-		case INSTRUCTION_NOT:
-		case INSTRUCTION_ROD_MEMORY:
-		case INSTRUCTION_ROD_REGISTER:
-		case INSTRUCTION_ROXD_MEMORY:
-		case INSTRUCTION_ROXD_REGISTER:
-		case INSTRUCTION_SBCD:
-		case INSTRUCTION_SCC:
-		case INSTRUCTION_SUB:
-		case INSTRUCTION_SUBA:
-		case INSTRUCTION_SUBAQ:
-		case INSTRUCTION_SUBI:
-		case INSTRUCTION_SUBQ:
-		case INSTRUCTION_SUBX:
-		case INSTRUCTION_SWAP:
-		case INSTRUCTION_TAS:
-			Emit("/* Write to destination */");
-			Emit("SetValueUsingDecodedAddressMode(state, callbacks, &destination_decoded_address_mode, result_value);");
-			break;
-
-		case INSTRUCTION_BRA_SHORT:
-		case INSTRUCTION_BRA_WORD:
-		case INSTRUCTION_BSR_SHORT:
-		case INSTRUCTION_BSR_WORD:
-		case INSTRUCTION_BCC_SHORT:
-		case INSTRUCTION_BCC_WORD:
-		case INSTRUCTION_BTST_STATIC:
-		case INSTRUCTION_BTST_DYNAMIC:
-		case INSTRUCTION_CHK:
-		case INSTRUCTION_CMP:
-		case INSTRUCTION_CMPA:
-		case INSTRUCTION_CMPI:
-		case INSTRUCTION_CMPM:
-		case INSTRUCTION_DBCC:
-		case INSTRUCTION_DIVS:
-		case INSTRUCTION_DIVU:
-		case INSTRUCTION_EXG:
-		case INSTRUCTION_ILLEGAL:
-		case INSTRUCTION_JMP:
-		case INSTRUCTION_JSR:
-		case INSTRUCTION_LINK:
-		case INSTRUCTION_MOVE_USP:
-		case INSTRUCTION_MOVEM:
-		case INSTRUCTION_MOVEP:
-		case INSTRUCTION_MULS:
-		case INSTRUCTION_MULU:
-		case INSTRUCTION_NOP:
-		case INSTRUCTION_PEA:
-		case INSTRUCTION_RESET:
-		case INSTRUCTION_RTE:
-		case INSTRUCTION_RTR:
-		case INSTRUCTION_RTS:
-		case INSTRUCTION_STOP:
-		case INSTRUCTION_TRAP:
-		case INSTRUCTION_TRAPV:
-		case INSTRUCTION_TST:
-		case INSTRUCTION_UNLK:
-		case INSTRUCTION_UNIMPLEMENTED_1:
-		case INSTRUCTION_UNIMPLEMENTED_2:
-			Emit("/* Doesn't write anything */");
-			break;
-	}
-}
-
 void EmitInstructionAction(const Instruction instruction)
 {
 	/* Do the actual instruction */
@@ -1508,6 +1391,123 @@ void EmitInstructionAction(const Instruction instruction)
 
 		case INSTRUCTION_NOP:
 			Emit("/* Doesn't do anything */");
+			break;
+	}
+}
+
+void EmitInstructionWriteDestinationOperand(const Instruction instruction)
+{
+	/* Write output to destination */
+	switch (instruction)
+	{
+		case INSTRUCTION_ANDI_TO_CCR:
+		case INSTRUCTION_EORI_TO_CCR:
+		case INSTRUCTION_MOVE_TO_CCR:
+		case INSTRUCTION_ORI_TO_CCR:
+			Emit("/* Write to condition code register */");
+			Emit("state->status_register = (result_value & 0xFF) | (state->status_register & 0xFF00);");
+			break;
+
+		case INSTRUCTION_ANDI_TO_SR:
+		case INSTRUCTION_EORI_TO_SR:
+		case INSTRUCTION_MOVE_TO_SR:
+		case INSTRUCTION_ORI_TO_SR:
+			Emit("/* Write to status register */");
+			Emit("state->status_register = (unsigned short)result_value;");
+			break;
+
+		case INSTRUCTION_ABCD:
+		case INSTRUCTION_ADD:
+		case INSTRUCTION_ADDA:
+		case INSTRUCTION_ADDAQ:
+		case INSTRUCTION_ADDI:
+		case INSTRUCTION_ADDQ:
+		case INSTRUCTION_ADDX:
+		case INSTRUCTION_AND:
+		case INSTRUCTION_ANDI:
+		case INSTRUCTION_ASD_MEMORY:
+		case INSTRUCTION_ASD_REGISTER:
+		case INSTRUCTION_BCHG_DYNAMIC:
+		case INSTRUCTION_BCHG_STATIC:
+		case INSTRUCTION_BCLR_DYNAMIC:
+		case INSTRUCTION_BCLR_STATIC:
+		case INSTRUCTION_BSET_DYNAMIC:
+		case INSTRUCTION_BSET_STATIC:
+		case INSTRUCTION_CLR:
+		case INSTRUCTION_EOR:
+		case INSTRUCTION_EORI:
+		case INSTRUCTION_EXT:
+		case INSTRUCTION_OR:
+		case INSTRUCTION_ORI:
+		case INSTRUCTION_LEA:
+		case INSTRUCTION_LSD_MEMORY:
+		case INSTRUCTION_LSD_REGISTER:
+		case INSTRUCTION_MOVE:
+		case INSTRUCTION_MOVE_FROM_SR:
+		case INSTRUCTION_MOVEA:
+		case INSTRUCTION_MOVEQ:
+		case INSTRUCTION_NBCD:
+		case INSTRUCTION_NEG:
+		case INSTRUCTION_NEGX:
+		case INSTRUCTION_NOT:
+		case INSTRUCTION_ROD_MEMORY:
+		case INSTRUCTION_ROD_REGISTER:
+		case INSTRUCTION_ROXD_MEMORY:
+		case INSTRUCTION_ROXD_REGISTER:
+		case INSTRUCTION_SBCD:
+		case INSTRUCTION_SCC:
+		case INSTRUCTION_SUB:
+		case INSTRUCTION_SUBA:
+		case INSTRUCTION_SUBAQ:
+		case INSTRUCTION_SUBI:
+		case INSTRUCTION_SUBQ:
+		case INSTRUCTION_SUBX:
+		case INSTRUCTION_SWAP:
+		case INSTRUCTION_TAS:
+			Emit("/* Write to destination */");
+			Emit("SetValueUsingDecodedAddressMode(state, callbacks, &destination_decoded_address_mode, result_value);");
+			break;
+
+		case INSTRUCTION_BRA_SHORT:
+		case INSTRUCTION_BRA_WORD:
+		case INSTRUCTION_BSR_SHORT:
+		case INSTRUCTION_BSR_WORD:
+		case INSTRUCTION_BCC_SHORT:
+		case INSTRUCTION_BCC_WORD:
+		case INSTRUCTION_BTST_STATIC:
+		case INSTRUCTION_BTST_DYNAMIC:
+		case INSTRUCTION_CHK:
+		case INSTRUCTION_CMP:
+		case INSTRUCTION_CMPA:
+		case INSTRUCTION_CMPI:
+		case INSTRUCTION_CMPM:
+		case INSTRUCTION_DBCC:
+		case INSTRUCTION_DIVS:
+		case INSTRUCTION_DIVU:
+		case INSTRUCTION_EXG:
+		case INSTRUCTION_ILLEGAL:
+		case INSTRUCTION_JMP:
+		case INSTRUCTION_JSR:
+		case INSTRUCTION_LINK:
+		case INSTRUCTION_MOVE_USP:
+		case INSTRUCTION_MOVEM:
+		case INSTRUCTION_MOVEP:
+		case INSTRUCTION_MULS:
+		case INSTRUCTION_MULU:
+		case INSTRUCTION_NOP:
+		case INSTRUCTION_PEA:
+		case INSTRUCTION_RESET:
+		case INSTRUCTION_RTE:
+		case INSTRUCTION_RTR:
+		case INSTRUCTION_RTS:
+		case INSTRUCTION_STOP:
+		case INSTRUCTION_TRAP:
+		case INSTRUCTION_TRAPV:
+		case INSTRUCTION_TST:
+		case INSTRUCTION_UNLK:
+		case INSTRUCTION_UNIMPLEMENTED_1:
+		case INSTRUCTION_UNIMPLEMENTED_2:
+			Emit("/* Doesn't write anything */");
 			break;
 	}
 }
