@@ -10,7 +10,17 @@ unsigned int emit_indentation;
 
 void Emit(const char* const line)
 {
-	EmitFormatted("%s", line);
+	if (line[0] != '\0')
+	{
+		unsigned int i;
+
+		for (i = 0; i < emit_indentation; ++i)
+			fputc('\t', emit_file);
+
+		fputs(line, emit_file);
+	}
+
+	fputc('\n', emit_file);
 }
 
 CC_ATTRIBUTE_PRINTF(1, 2) void EmitFormatted(const char* const line, ...)
