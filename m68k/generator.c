@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "emit.h"
+#include "emit-instructions.h"
 #include "instructions.h"
 
 int main(int argc, char **argv)
@@ -106,6 +107,9 @@ int main(int argc, char **argv)
 	};
 
 	size_t i;
+
+	(void)argc;
+	(void)argv;
 
 	emit_file = stdout;
 

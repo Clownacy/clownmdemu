@@ -1252,7 +1252,10 @@ void EmitInstructionAction(const Instruction instruction)
 		case INSTRUCTION_ROXD_REGISTER:
 			Emit("{");
 			Emit("const unsigned long sign_bit_bitmask = 1ul << (operation_size * 8 - 1);");
-			Emit("const unsigned long original_sign_bit = destination_value & sign_bit_bitmask;");
+
+			if (instruction == INSTRUCTION_ASD_MEMORY || instruction == INSTRUCTION_ASD_REGISTER)
+				Emit("const unsigned long original_sign_bit = destination_value & sign_bit_bitmask;");
+
 			Emit("unsigned int i;");
 			Emit("unsigned int count;");
 			Emit("");
