@@ -546,7 +546,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
-	unsigned int scanline, i;
+	unsigned int scanline;
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	Z80_ReadAndWriteCallbacks z80_read_write_callbacks;
 	CPUCallbackUserData cpu_callback_user_data;
@@ -578,8 +578,12 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	for (scanline = 0; scanline < television_vertical_resolution; ++scanline)
 	{
 		/* Run the 68k and Z80 for a scanline's worth of cycles */
-		for (i = 0; i < cycles_per_scanline; ++i)
+		unsigned int remaining_cycles, cycles_to_do;
+
+		for (remaining_cycles = cycles_per_scanline; remaining_cycles != 0; remaining_cycles -= cycles_to_do)
 		{
+			cycles_to_do = CC_MIN(remaining_cycles, CC_MIN(clownmdemu->state->countdowns.m68k, clownmdemu->state->countdowns.z80));
+
 			/* 68k */
 			if (clownmdemu->state->countdowns.m68k == 0)
 			{
@@ -588,7 +592,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 				M68k_DoCycle(&clownmdemu->state->m68k, &m68k_read_write_callbacks);
 			}
 
-			--clownmdemu->state->countdowns.m68k;
+			clownmdemu->state->countdowns.m68k -= cycles_to_do;
 
 			/* Z80 */
 			if (clownmdemu->state->countdowns.z80 == 0)
@@ -599,9 +603,9 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 					Z80_DoCycle(&z80, &z80_read_write_callbacks);
 			}
 
-			--clownmdemu->state->countdowns.z80;
+			clownmdemu->state->countdowns.z80 -= cycles_to_do;
 
-			++cpu_callback_user_data.current_cycle;
+			cpu_callback_user_data.current_cycle += cycles_to_do;
 		}
 
 		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
