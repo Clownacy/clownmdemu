@@ -176,7 +176,7 @@ void EmitInstructionSourceAddressMode(const Instruction instruction)
 		case INSTRUCTION_DBCC:
 		case INSTRUCTION_STOP:
 			Emit("/* Immediate value (any size). */");
-			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);");
+			Emit("DecodeAddressMode(&stuff, &source_decoded_address_mode, operation_size, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);");
 			break;
 
 		case INSTRUCTION_BTST_DYNAMIC:
@@ -185,7 +185,7 @@ void EmitInstructionSourceAddressMode(const Instruction instruction)
 		case INSTRUCTION_BSET_DYNAMIC:
 		case INSTRUCTION_EOR:
 			Emit("/* Secondary data register. */");
-			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);");
+			Emit("DecodeAddressMode(&stuff, &source_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);");
 			break;
 
 		case INSTRUCTION_BTST_STATIC:
@@ -193,7 +193,7 @@ void EmitInstructionSourceAddressMode(const Instruction instruction)
 		case INSTRUCTION_BCLR_STATIC:
 		case INSTRUCTION_BSET_STATIC:
 			Emit("/* Immediate value (byte). */");
-			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, 1, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);");
+			Emit("DecodeAddressMode(&stuff, &source_decoded_address_mode, 1, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);");
 			break;
 
 		case INSTRUCTION_MOVE_FROM_SR:
@@ -213,14 +213,14 @@ void EmitInstructionSourceAddressMode(const Instruction instruction)
 		case INSTRUCTION_BSR_WORD:
 		case INSTRUCTION_BCC_WORD:
 			Emit("/* Immediate value (word). */");
-			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, 2, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);");
+			Emit("DecodeAddressMode(&stuff, &source_decoded_address_mode, 2, ADDRESS_MODE_SPECIAL, ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE);");
 			break;
 
 		case INSTRUCTION_SBCD:
 		case INSTRUCTION_ABCD:
 		case INSTRUCTION_SUBX:
 		case INSTRUCTION_ADDX:
-			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode.raw & 0x0008 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode.primary_register);");
+			Emit("DecodeAddressMode(&stuff, &source_decoded_address_mode, operation_size, opcode.raw & 0x0008 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode.primary_register);");
 			break;
 
 		case INSTRUCTION_OR:
@@ -229,14 +229,14 @@ void EmitInstructionSourceAddressMode(const Instruction instruction)
 		case INSTRUCTION_ADD:
 			Emit("/* Primary address mode or secondary data register, based on direction bit. */");
 			Emit("if (opcode.bit_8)");
-			Emit("	DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);");
+			Emit("	DecodeAddressMode(&stuff, &source_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);");
 			Emit("else");
-			Emit("	DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);");
+			Emit("	DecodeAddressMode(&stuff, &source_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);");
 
 			break;
 
 		case INSTRUCTION_CMPM:
-			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT, opcode.primary_register);");
+			Emit("DecodeAddressMode(&stuff, &source_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT, opcode.primary_register);");
 			break;
 
 		case INSTRUCTION_MOVEA:
@@ -254,7 +254,7 @@ void EmitInstructionSourceAddressMode(const Instruction instruction)
 		case INSTRUCTION_ADDA:
 		case INSTRUCTION_TST:
 			Emit("/* Primary address mode. */");
-			Emit("DecodeAddressMode(state, callbacks, &source_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);");
+			Emit("DecodeAddressMode(&stuff, &source_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);");
 			break;
 
 		case INSTRUCTION_BRA_SHORT:
@@ -308,30 +308,30 @@ void EmitInstructionDestinationAddressMode(const Instruction instruction)
 		case INSTRUCTION_ROXD_REGISTER:
 		case INSTRUCTION_ROD_REGISTER:
 			Emit("/* Data register (primary) */");
-			Emit("DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.primary_register);");
+			Emit("DecodeAddressMode(&stuff, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.primary_register);");
 			break;
 
 		case INSTRUCTION_MOVEQ:
 		case INSTRUCTION_CMP:
 			Emit("/* Data register (secondary) */");
-			Emit("DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);");
+			Emit("DecodeAddressMode(&stuff, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);");
 			break;
 
 		case INSTRUCTION_LEA:
 			Emit("/* Address register (secondary) */");
-			Emit("DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER, opcode.secondary_register);");
+			Emit("DecodeAddressMode(&stuff, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER, opcode.secondary_register);");
 			break;
 
 		case INSTRUCTION_MOVE:
 			Emit("/* Secondary address mode */");
-			Emit("DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode.secondary_address_mode, opcode.secondary_register);");
+			Emit("DecodeAddressMode(&stuff, &destination_decoded_address_mode, operation_size, opcode.secondary_address_mode, opcode.secondary_register);");
 			break;
 
 		case INSTRUCTION_SBCD:
 		case INSTRUCTION_SUBX:
 		case INSTRUCTION_ABCD:
 		case INSTRUCTION_ADDX:
-			Emit("DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode.raw & 0x0008 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);");
+			Emit("DecodeAddressMode(&stuff, &destination_decoded_address_mode, operation_size, opcode.raw & 0x0008 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);");
 			break;
 
 		case INSTRUCTION_OR:
@@ -340,9 +340,9 @@ void EmitInstructionDestinationAddressMode(const Instruction instruction)
 		case INSTRUCTION_ADD:
 			Emit("/* Primary address mode or secondary data register, based on direction bit */");
 			Emit("if (opcode.bit_8)");
-			Emit("	DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);");
+			Emit("	DecodeAddressMode(&stuff, &destination_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);");
 			Emit("else");
-			Emit("	DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);");
+			Emit("	DecodeAddressMode(&stuff, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_DATA_REGISTER, opcode.secondary_register);");
 
 			break;
 
@@ -351,11 +351,11 @@ void EmitInstructionDestinationAddressMode(const Instruction instruction)
 		case INSTRUCTION_ADDA:
 		case INSTRUCTION_MOVEA:
 			Emit("/* Full secondary address register */");
-			Emit("DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, 4, ADDRESS_MODE_ADDRESS_REGISTER, opcode.secondary_register);");
+			Emit("DecodeAddressMode(&stuff, &destination_decoded_address_mode, 4, ADDRESS_MODE_ADDRESS_REGISTER, opcode.secondary_register);");
 			break;
 
 		case INSTRUCTION_CMPM:
-			Emit("DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT, opcode.secondary_register);");
+			Emit("DecodeAddressMode(&stuff, &destination_decoded_address_mode, operation_size, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT, opcode.secondary_register);");
 			break;
 
 		case INSTRUCTION_ORI:
@@ -390,7 +390,7 @@ void EmitInstructionDestinationAddressMode(const Instruction instruction)
 		case INSTRUCTION_ROXD_MEMORY:
 		case INSTRUCTION_ROD_MEMORY:
 			Emit("/* Using primary address mode */");
-			Emit("DecodeAddressMode(state, callbacks, &destination_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);");
+			Emit("DecodeAddressMode(&stuff, &destination_decoded_address_mode, operation_size, opcode.primary_address_mode, opcode.primary_register);");
 			break;
 
 		case INSTRUCTION_ORI_TO_CCR:
@@ -496,7 +496,7 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 		case INSTRUCTION_BSR_WORD:
 		case INSTRUCTION_BCC_WORD:
 			/* Read source from decoded address mode */
-			Emit("source_value = GetValueUsingDecodedAddressMode(state, callbacks, &source_decoded_address_mode);");
+			Emit("source_value = GetValueUsingDecodedAddressMode(&stuff, &source_decoded_address_mode);");
 			break;
 
 		case INSTRUCTION_MOVE_FROM_SR:
@@ -509,7 +509,7 @@ void EmitInstructionReadSourceOperand(const Instruction instruction)
 		case INSTRUCTION_JMP:
 		case INSTRUCTION_LEA:
 			/* Effective address. */
-			Emit("source_value = DecodeMemoryAddressMode(state, callbacks, 0, opcode.primary_address_mode, opcode.primary_register);");
+			Emit("source_value = DecodeMemoryAddressMode(&stuff, 0, opcode.primary_address_mode, opcode.primary_register);");
 			break;
 
 		case INSTRUCTION_ADDAQ:
@@ -629,7 +629,7 @@ void EmitInstructionReadDestinationOperand(const Instruction instruction)
 		case INSTRUCTION_ROXD_REGISTER:
 		case INSTRUCTION_ROD_REGISTER:
 			/* Read destination from decoded address mode */
-			Emit("destination_value = GetValueUsingDecodedAddressMode(state, callbacks, &destination_decoded_address_mode);");
+			Emit("destination_value = GetValueUsingDecodedAddressMode(&stuff, &destination_decoded_address_mode);");
 			break;
 
 		case INSTRUCTION_BRA_SHORT:
@@ -780,38 +780,38 @@ void EmitInstructionAction(const Instruction instruction)
 
 		case INSTRUCTION_MOVEP:
 			Emit("{");
-			Emit("unsigned long memory_address = DecodeMemoryAddressMode(state, callbacks, 0, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT, opcode.primary_register);");
+			Emit("unsigned long memory_address = DecodeMemoryAddressMode(&stuff, 0, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT, opcode.primary_register);");
 			Emit("");
 			Emit("switch (opcode.bits_6_and_7)");
 			Emit("{");
 			Emit("	case 0:");
 			Emit("		/* Memory to register (word) */");
 			Emit("		state->data_registers[opcode.secondary_register] &= ~0xFFFFul;");
-			Emit("		state->data_registers[opcode.secondary_register] |= ReadByte(callbacks, memory_address + 2 * 0) << 8 * 1;");
-			Emit("		state->data_registers[opcode.secondary_register] |= ReadByte(callbacks, memory_address + 2 * 1) << 8 * 0;");
+			Emit("		state->data_registers[opcode.secondary_register] |= ReadByte(&stuff, memory_address + 2 * 0) << 8 * 1;");
+			Emit("		state->data_registers[opcode.secondary_register] |= ReadByte(&stuff, memory_address + 2 * 1) << 8 * 0;");
 			Emit("		break;");
 			Emit("");
 			Emit("	case 1:");
 			Emit("		/* Memory to register (longword) */");
 			Emit("		state->data_registers[opcode.secondary_register] = 0;");
-			Emit("		state->data_registers[opcode.secondary_register] |= ReadByte(callbacks, memory_address + 2 * 0) << 8 * 3;");
-			Emit("		state->data_registers[opcode.secondary_register] |= ReadByte(callbacks, memory_address + 2 * 1) << 8 * 2;");
-			Emit("		state->data_registers[opcode.secondary_register] |= ReadByte(callbacks, memory_address + 2 * 2) << 8 * 1;");
-			Emit("		state->data_registers[opcode.secondary_register] |= ReadByte(callbacks, memory_address + 2 * 3) << 8 * 0;");
+			Emit("		state->data_registers[opcode.secondary_register] |= ReadByte(&stuff, memory_address + 2 * 0) << 8 * 3;");
+			Emit("		state->data_registers[opcode.secondary_register] |= ReadByte(&stuff, memory_address + 2 * 1) << 8 * 2;");
+			Emit("		state->data_registers[opcode.secondary_register] |= ReadByte(&stuff, memory_address + 2 * 2) << 8 * 1;");
+			Emit("		state->data_registers[opcode.secondary_register] |= ReadByte(&stuff, memory_address + 2 * 3) << 8 * 0;");
 			Emit("		break;");
 			Emit("");
 			Emit("	case 2:");
 			Emit("		/* Register to memory (word) */");
-			Emit("		WriteByte(callbacks, memory_address + 2 * 0, (state->data_registers[opcode.secondary_register] >> 8 * 1) & 0xFF);");
-			Emit("		WriteByte(callbacks, memory_address + 2 * 1, (state->data_registers[opcode.secondary_register] >> 8 * 0) & 0xFF);");
+			Emit("		WriteByte(&stuff, memory_address + 2 * 0, (state->data_registers[opcode.secondary_register] >> 8 * 1) & 0xFF);");
+			Emit("		WriteByte(&stuff, memory_address + 2 * 1, (state->data_registers[opcode.secondary_register] >> 8 * 0) & 0xFF);");
 			Emit("		break;");
 			Emit("");
 			Emit("	case 3:");
 			Emit("		/* Register to memory (longword) */");
-			Emit("		WriteByte(callbacks, memory_address + 2 * 0, (state->data_registers[opcode.secondary_register] >> 8 * 3) & 0xFF);");
-			Emit("		WriteByte(callbacks, memory_address + 2 * 1, (state->data_registers[opcode.secondary_register] >> 8 * 2) & 0xFF);");
-			Emit("		WriteByte(callbacks, memory_address + 2 * 2, (state->data_registers[opcode.secondary_register] >> 8 * 1) & 0xFF);");
-			Emit("		WriteByte(callbacks, memory_address + 2 * 3, (state->data_registers[opcode.secondary_register] >> 8 * 0) & 0xFF);");
+			Emit("		WriteByte(&stuff, memory_address + 2 * 0, (state->data_registers[opcode.secondary_register] >> 8 * 3) & 0xFF);");
+			Emit("		WriteByte(&stuff, memory_address + 2 * 1, (state->data_registers[opcode.secondary_register] >> 8 * 2) & 0xFF);");
+			Emit("		WriteByte(&stuff, memory_address + 2 * 2, (state->data_registers[opcode.secondary_register] >> 8 * 1) & 0xFF);");
+			Emit("		WriteByte(&stuff, memory_address + 2 * 3, (state->data_registers[opcode.secondary_register] >> 8 * 0) & 0xFF);");
 			Emit("		break;");
 			Emit("}");
 			Emit("}");
@@ -834,7 +834,7 @@ void EmitInstructionAction(const Instruction instruction)
 		case INSTRUCTION_LINK:
 			Emit("/* Push address register to stack */");
 			Emit("state->address_registers[7] -= 4;");
-			Emit("WriteLongWord(state, callbacks, state->address_registers[7], state->address_registers[opcode.primary_register]);");
+			Emit("WriteLongWord(&stuff, state->address_registers[7], state->address_registers[opcode.primary_register]);");
 			Emit("");
 			Emit("/* Copy stack pointer to address register */");
 			Emit("state->address_registers[opcode.primary_register] = state->address_registers[7];");
@@ -846,7 +846,7 @@ void EmitInstructionAction(const Instruction instruction)
 
 		case INSTRUCTION_UNLK:
 			Emit("state->address_registers[7] = state->address_registers[opcode.primary_register];");
-			Emit("state->address_registers[opcode.primary_register] = ReadLongWord(state, callbacks, state->address_registers[7]);");
+			Emit("state->address_registers[opcode.primary_register] = ReadLongWord(&stuff, state->address_registers[7]);");
 			Emit("state->address_registers[7] += 4;");
 			break;
 
@@ -882,12 +882,12 @@ void EmitInstructionAction(const Instruction instruction)
 
 		case INSTRUCTION_PEA:
 			Emit("state->address_registers[7] -= 4;");
-			Emit("WriteLongWord(state, callbacks, state->address_registers[7], source_value);");
+			Emit("WriteLongWord(&stuff, state->address_registers[7], source_value);");
 			break;
 
 		case INSTRUCTION_ILLEGAL:
 			/* Illegal instruction. */
-			Emit("Group1Or2Exception(state, callbacks, 4);");
+			Emit("Group1Or2Exception(&stuff, 4);");
 			break;
 
 		case INSTRUCTION_TAS:
@@ -900,7 +900,7 @@ void EmitInstructionAction(const Instruction instruction)
 			break;
 
 		case INSTRUCTION_TRAP:
-			Emit("Group1Or2Exception(state, callbacks, 32 + source_value);");
+			Emit("Group1Or2Exception(&stuff, 32 + source_value);");
 			break;
 
 		case INSTRUCTION_MOVE_USP:
@@ -927,34 +927,34 @@ void EmitInstructionAction(const Instruction instruction)
 			break;
 
 		case INSTRUCTION_RTE:
-			Emit("state->status_register = (unsigned short)ReadWord(state, callbacks, state->address_registers[7]);");
+			Emit("state->status_register = (unsigned short)ReadWord(&stuff, state->address_registers[7]);");
 			Emit("state->address_registers[7] += 2;");
-			Emit("state->program_counter = ReadLongWord(state, callbacks, state->address_registers[7]);");
+			Emit("state->program_counter = ReadLongWord(&stuff, state->address_registers[7]);");
 			Emit("state->address_registers[7] += 4;");
 			break;
 
 		case INSTRUCTION_RTS:
-			Emit("state->program_counter = ReadLongWord(state, callbacks, state->address_registers[7]);");
+			Emit("state->program_counter = ReadLongWord(&stuff, state->address_registers[7]);");
 			Emit("state->address_registers[7] += 4;");
 			break;
 
 		case INSTRUCTION_TRAPV:
 			Emit("if (state->status_register & CONDITION_CODE_OVERFLOW)");
-			Emit("	Group1Or2Exception(state, callbacks, 32 + 7);");
+			Emit("	Group1Or2Exception(&stuff, 32 + 7);");
 
 			break;
 
 		case INSTRUCTION_RTR:
 			Emit("state->status_register &= 0xFF00;");
-			Emit("state->status_register |= ReadByte(callbacks, state->address_registers[7] + 1);");
+			Emit("state->status_register |= ReadByte(&stuff, state->address_registers[7] + 1);");
 			Emit("state->address_registers[7] += 2;");
-			Emit("state->program_counter = ReadLongWord(state, callbacks, state->address_registers[7]);");
+			Emit("state->program_counter = ReadLongWord(&stuff, state->address_registers[7]);");
 			Emit("state->address_registers[7] += 4;");
 			break;
 
 		case INSTRUCTION_JSR:
 			Emit("state->address_registers[7] -= 4;");
-			Emit("WriteLongWord(state, callbacks, state->address_registers[7], state->program_counter);");
+			Emit("WriteLongWord(&stuff, state->address_registers[7], state->program_counter);");
 			Emit("");
 			/* Fallthrough */
 		case INSTRUCTION_JMP:
@@ -964,12 +964,12 @@ void EmitInstructionAction(const Instruction instruction)
 		case INSTRUCTION_MOVEM:
 			Emit("{");
 			Emit("/* Hot damn is this a mess */");
-			Emit("unsigned long memory_address = DecodeMemoryAddressMode(state, callbacks, 0, opcode.primary_address_mode, opcode.primary_register);");
+			Emit("unsigned long memory_address = DecodeMemoryAddressMode(&stuff, 0, opcode.primary_address_mode, opcode.primary_register);");
 			Emit("unsigned int i;");
 			Emit("unsigned int bitfield;");
 			Emit("");
 			Emit("int delta;");
-			Emit("void (*write_function)(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value);");
+			Emit("void (*write_function)(const Stuff *stuff, unsigned long address, unsigned long value);");
 			Emit("");
 			Emit("if (opcode.raw & 0x0040)");
 			Emit("{");
@@ -996,17 +996,17 @@ void EmitInstructionAction(const Instruction instruction)
 			Emit("		{");
 			Emit("			/* Memory to register */");
 			Emit("			if (opcode.raw & 0x0040)");
-			Emit("				state->data_registers[i] = ReadLongWord(state, callbacks, memory_address);");
+			Emit("				state->data_registers[i] = ReadLongWord(&stuff, memory_address);");
 			Emit("			else");
-			Emit("				state->data_registers[i] = CC_SIGN_EXTEND_ULONG(15, ReadWord(state, callbacks, memory_address));");
+			Emit("				state->data_registers[i] = CC_SIGN_EXTEND_ULONG(15, ReadWord(&stuff, memory_address));");
 			Emit("		}");
 			Emit("		else");
 			Emit("		{");
 			Emit("			/* Register to memory */");
 			Emit("			if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)");
-			Emit("				write_function(state, callbacks, memory_address + delta, state->address_registers[7 - i]);");
+			Emit("				write_function(&stuff, memory_address + delta, state->address_registers[7 - i]);");
 			Emit("			else");
-			Emit("				write_function(state, callbacks, memory_address, state->data_registers[i]);");
+			Emit("				write_function(&stuff, memory_address, state->data_registers[i]);");
 			Emit("		}");
 			Emit("");
 			Emit("		memory_address += delta;");
@@ -1024,17 +1024,17 @@ void EmitInstructionAction(const Instruction instruction)
 			Emit("		{");
 			Emit("			/* Memory to register */");
 			Emit("			if (opcode.raw & 0x0040)");
-			Emit("				state->address_registers[i] = ReadLongWord(state, callbacks, memory_address);");
+			Emit("				state->address_registers[i] = ReadLongWord(&stuff, memory_address);");
 			Emit("			else");
-			Emit("				state->address_registers[i] = CC_SIGN_EXTEND_ULONG(15, ReadWord(state, callbacks, memory_address));");
+			Emit("				state->address_registers[i] = CC_SIGN_EXTEND_ULONG(15, ReadWord(&stuff, memory_address));");
 			Emit("		}");
 			Emit("		else");
 			Emit("		{");
 			Emit("			/* Register to memory */");
 			Emit("			if (opcode.primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)");
-			Emit("				write_function(state, callbacks, memory_address + delta, state->data_registers[7 - i]);");
+			Emit("				write_function(&stuff, memory_address + delta, state->data_registers[7 - i]);");
 			Emit("			else");
-			Emit("				write_function(state, callbacks, memory_address, state->address_registers[i]);");
+			Emit("				write_function(&stuff, memory_address, state->address_registers[i]);");
 			Emit("		}");
 			Emit("");
 			Emit("		memory_address += delta;");
@@ -1057,13 +1057,13 @@ void EmitInstructionAction(const Instruction instruction)
 			Emit("{");
 			Emit("	/* Value is smaller than 0. */");
 			Emit("	state->status_register |= CONDITION_CODE_NEGATIVE;");
-			Emit("	Group1Or2Exception(state, callbacks, 6);");
+			Emit("	Group1Or2Exception(&stuff, 6);");
 			Emit("}");
 			Emit("else if (value > source_value)");
 			Emit("{");
 			Emit("	/* Value is greater than upper bound. */");
 			Emit("	state->status_register &= ~CONDITION_CODE_NEGATIVE;");
-			Emit("	Group1Or2Exception(state, callbacks, 6);");
+			Emit("	Group1Or2Exception(&stuff, 6);");
 			Emit("}");
 			Emit("}");
 
@@ -1105,7 +1105,7 @@ void EmitInstructionAction(const Instruction instruction)
 			else if (instruction == INSTRUCTION_BSR_SHORT || instruction == INSTRUCTION_BSR_WORD)
 			{
 				Emit("state->address_registers[7] -= 4;");
-				Emit("WriteLongWord(state, callbacks, state->address_registers[7], state->program_counter);");
+				Emit("WriteLongWord(&stuff, state->address_registers[7], state->program_counter);");
 				Emit("");
 			}
 
@@ -1143,7 +1143,7 @@ void EmitInstructionAction(const Instruction instruction)
 			Emit("");
 			Emit("if (source_value == 0)");
 			Emit("{");
-			Emit("	Group1Or2Exception(state, callbacks, 5);");
+			Emit("	Group1Or2Exception(&stuff, 5);");
 			Emit("}");
 			Emit("else");
 			Emit("{");
@@ -1385,11 +1385,11 @@ void EmitInstructionAction(const Instruction instruction)
 			break;
 
 		case INSTRUCTION_UNIMPLEMENTED_1:
-			Emit("Group1Or2Exception(state, callbacks, 10);");
+			Emit("Group1Or2Exception(&stuff, 10);");
 			break;
 
 		case INSTRUCTION_UNIMPLEMENTED_2:
-			Emit("Group1Or2Exception(state, callbacks, 11);");
+			Emit("Group1Or2Exception(&stuff, 11);");
 			break;
 
 		case INSTRUCTION_NOP:
@@ -1468,7 +1468,7 @@ void EmitInstructionWriteDestinationOperand(const Instruction instruction)
 		case INSTRUCTION_SWAP:
 		case INSTRUCTION_TAS:
 			Emit("/* Write to destination */");
-			Emit("SetValueUsingDecodedAddressMode(state, callbacks, &destination_decoded_address_mode, result_value);");
+			Emit("SetValueUsingDecodedAddressMode(&stuff, &destination_decoded_address_mode, result_value);");
 			break;
 
 		case INSTRUCTION_BRA_SHORT:

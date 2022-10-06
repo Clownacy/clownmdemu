@@ -14,6 +14,7 @@ https://gendev.spritesmind.net/forum/viewtopic.php?p=36118#p36118
 #include "m68k.h"
 
 #include <assert.h>
+#include <setjmp.h>
 #include <stddef.h>
 
 #include "clowncommon.h"
@@ -97,34 +98,53 @@ typedef struct Opcode
 	cc_bool bit_8;
 } Opcode;
 
+typedef struct Stuff
+{
+	M68k_State *state;
+	const M68k_ReadWriteCallbacks *callbacks;
+	struct
+	{
+		unsigned long program_counter;
+		unsigned short status_register;
+		jmp_buf context;
+	} exception;
+} Stuff;
+
 /* Exception forward-declarations. */
 
-static void Group1Or2Exception(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, size_t vector_offset);
-static void Group0Exception(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, size_t vector_offset, unsigned long access_address, cc_bool is_a_read);
+static void Group1Or2Exception(const Stuff *stuff, size_t vector_offset);
+static void Group0Exception(const Stuff *stuff, size_t vector_offset, unsigned long access_address, cc_bool is_a_read);
 
 /* Memory reads */
 
-static unsigned long ReadByte(const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
+static unsigned long ReadByte(const Stuff *stuff, unsigned long address)
 {
+	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 	const cc_bool odd = (address & 1) != 0;
 
 	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, (cc_bool)!odd, odd) >> (odd ? 0 : 8);
 }
 
-static unsigned long ReadWord(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
+static unsigned long ReadWord(const Stuff *stuff, unsigned long address)
 {
+	M68k_State* const state = stuff->state;
+	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
+
 	if ((address & 1) != 0)
-		Group0Exception(state, callbacks, 3, address, cc_true);
+		Group0Exception(stuff, 3, address, cc_true);
 
 	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, cc_true, cc_true);
 }
 
-static unsigned long ReadLongWord(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned long address)
+static unsigned long ReadLongWord(const Stuff *stuff, unsigned long address)
 {
 	unsigned long value;
 
+	M68k_State* const state = stuff->state;
+	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
+
 	if ((address & 1) != 0)
-		Group0Exception(state, callbacks, 3, address, cc_true);
+		Group0Exception(stuff, 3, address, cc_true);
 
 	value = 0;
 	value |= (unsigned long)callbacks->read_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true) << 16;
@@ -135,25 +155,32 @@ static unsigned long ReadLongWord(M68k_State *state, const M68k_ReadWriteCallbac
 
 /* Memory writes */
 
-static void WriteByte(const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
+static void WriteByte(const Stuff *stuff, unsigned long address, unsigned long value)
 {
+	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 	const cc_bool odd = (address & 1) != 0;
 
 	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, (cc_bool)!odd, odd, value << (odd ? 0 : 8));
 }
 
-static void WriteWord(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
+static void WriteWord(const Stuff *stuff, unsigned long address, unsigned long value)
 {
+	M68k_State* const state = stuff->state;
+	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
+
 	if ((address & 1) != 0)
-		Group0Exception(state, callbacks, 3, address, cc_false);
+		Group0Exception(stuff, 3, address, cc_false);
 
 	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, cc_true, cc_true, value);
 }
 
-static void WriteLongWord(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned long address, unsigned long value)
+static void WriteLongWord(const Stuff *stuff, unsigned long address, unsigned long value)
 {
+	M68k_State* const state = stuff->state;
+	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
+
 	if ((address & 1) != 0)
-		Group0Exception(state, callbacks, 3, address, cc_false);
+		Group0Exception(stuff, 3, address, cc_false);
 
 	callbacks->write_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true, (value >> 16) & 0xFFFF);
 	callbacks->write_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true, (value >>  0) & 0xFFFF);
@@ -161,22 +188,30 @@ static void WriteLongWord(M68k_State *state, const M68k_ReadWriteCallbacks *call
 
 /* Exceptions */
 
-static void Group1Or2Exception(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, size_t vector_offset)
+static void Group1Or2Exception(const Stuff *stuff, size_t vector_offset)
 {
+	M68k_State* const state = stuff->state;
+	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
+
 	state->address_registers[7] -= 4;
-	WriteLongWord(state, callbacks, state->address_registers[7], state->program_counter);
+	WriteLongWord(stuff, state->address_registers[7], stuff->exception.program_counter);
 	state->address_registers[7] -= 2;
-	WriteWord(state, callbacks, state->address_registers[7], state->status_register);
+	WriteWord(stuff, state->address_registers[7], stuff->exception.status_register);
 
 	state->status_register &= 0x00FF;
 	/* Set supervisor bit */
 	state->status_register |= 0x2000;
 
-	state->program_counter = ReadLongWord(state, callbacks, vector_offset * 4);
+	state->program_counter = ReadLongWord(stuff, vector_offset * 4);
+
+	longjmp(stuff->exception.context, 1);
 }
 
-static void Group0Exception(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, size_t vector_offset, unsigned long access_address, cc_bool is_a_read)
+static void Group0Exception(const Stuff *stuff, size_t vector_offset, unsigned long access_address, cc_bool is_a_read)
 {
+	M68k_State* const state = stuff->state;
+	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
+
 	/* If a data or address error occurs during group 0 exception processing, then the CPU halts. */
 	if ((state->address_registers[7] & 1) != 0)
 	{
@@ -184,23 +219,27 @@ static void Group0Exception(M68k_State *state, const M68k_ReadWriteCallbacks *ca
 	}
 	else
 	{
-		Group1Or2Exception(state, callbacks, vector_offset);
+		Group1Or2Exception(stuff, vector_offset);
 
 		/* Push extra information to the stack. */
 		state->address_registers[7] -= 2;
-		WriteWord(state, callbacks, state->address_registers[7], state->instruction_register);
+		WriteWord(stuff, state->address_registers[7], state->instruction_register);
 		state->address_registers[7] -= 4;
-		WriteLongWord(state, callbacks, state->address_registers[7], access_address);
+		WriteLongWord(stuff, state->address_registers[7], access_address);
 		state->address_registers[7] -= 2;
 		/* TODO - Function code and 'Instruction/Not' bit. */
-		WriteWord(state, callbacks, state->address_registers[7], is_a_read << 4);
+		WriteWord(stuff, state->address_registers[7], is_a_read << 4);
 	}
+
+	longjmp(stuff->exception.context, 1);
 }
 
 /* Misc. utility */
 
-static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned int operation_size_in_bytes, AddressMode address_mode, unsigned int reg)
+static unsigned long DecodeMemoryAddressMode(const Stuff *stuff, unsigned int operation_size_in_bytes, AddressMode address_mode, unsigned int reg)
 {
+	M68k_State* const state = stuff->state;
+	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 	/* The stack pointer moves two bytes instead of one byte, for alignment purposes */
 	const unsigned int increment_decrement_size = (reg == 7 && operation_size_in_bytes == 1) ? 2 : operation_size_in_bytes;
 
@@ -209,7 +248,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 	if (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_SHORT)
 	{
 		/* Absolute short */
-		const unsigned int short_address = ReadWord(state, callbacks, state->program_counter);
+		const unsigned int short_address = ReadWord(stuff, state->program_counter);
 
 		address = CC_SIGN_EXTEND_ULONG(15, short_address);
 		state->program_counter += 2;
@@ -217,7 +256,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 	else if (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_LONG)
 	{
 		/* Absolute long */
-		address = ReadLongWord(state, callbacks, state->program_counter);
+		address = ReadLongWord(stuff, state->program_counter);
 		state->program_counter += 4;
 	}
 	else if (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
@@ -268,7 +307,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 		if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT || (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_DISPLACEMENT))
 		{
 			/* Add displacement */
-			const unsigned int displacement = ReadWord(state, callbacks, state->program_counter);
+			const unsigned int displacement = ReadWord(stuff, state->program_counter);
 
 			address += CC_SIGN_EXTEND_ULONG(15, displacement);
 			state->program_counter += 2;
@@ -276,7 +315,7 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 		else if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_INDEX || (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_INDEX))
 		{
 			/* Add index register and index literal */
-			const unsigned int extension_word = ReadWord(state, callbacks, state->program_counter);
+			const unsigned int extension_word = ReadWord(stuff, state->program_counter);
 			const cc_bool is_address_register = (extension_word & 0x8000) != 0;
 			const unsigned int displacement_reg = (extension_word >> 12) & 7;
 			const cc_bool is_longword = (extension_word & 0x0800) != 0;
@@ -293,8 +332,11 @@ static unsigned long DecodeMemoryAddressMode(M68k_State *state, const M68k_ReadW
 	return address;
 }
 
-static void DecodeAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, DecodedAddressMode *decoded_address_mode, unsigned int operation_size_in_bytes, AddressMode address_mode, unsigned int reg)
+static void DecodeAddressMode(const Stuff *stuff, DecodedAddressMode *decoded_address_mode, unsigned int operation_size_in_bytes, AddressMode address_mode, unsigned int reg)
 {
+	M68k_State* const state = stuff->state;
+	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
+
 	switch (address_mode)
 	{
 		case ADDRESS_MODE_DATA_REGISTER:
@@ -313,15 +355,18 @@ static void DecodeAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *
 		case ADDRESS_MODE_SPECIAL:
 			/* Memory access */
 			decoded_address_mode->type = DECODED_ADDRESS_MODE_TYPE_MEMORY;
-			decoded_address_mode->data.memory.address = DecodeMemoryAddressMode(state, callbacks, operation_size_in_bytes, address_mode, reg);
+			decoded_address_mode->data.memory.address = DecodeMemoryAddressMode(stuff, operation_size_in_bytes, address_mode, reg);
 			decoded_address_mode->data.memory.operation_size_in_bytes = (unsigned char)operation_size_in_bytes;
 			break;
 	}
 }
 
-static unsigned long GetValueUsingDecodedAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, DecodedAddressMode *decoded_address_mode)
+static unsigned long GetValueUsingDecodedAddressMode(const Stuff *stuff, DecodedAddressMode *decoded_address_mode)
 {
 	unsigned long value = 0;
+
+	M68k_State* const state = stuff->state;
+	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	switch (decoded_address_mode->type)
 	{
@@ -336,15 +381,15 @@ static unsigned long GetValueUsingDecodedAddressMode(M68k_State *state, const M6
 			switch (decoded_address_mode->data.memory.operation_size_in_bytes)
 			{
 				case 1:
-					value = ReadByte(callbacks, address);
+					value = ReadByte(stuff, address);
 					break;
 
 				case 2:
-					value = ReadWord(state, callbacks, address);
+					value = ReadWord(stuff, address);
 					break;
 
 				case 4:
-					value = ReadLongWord(state, callbacks, address);
+					value = ReadLongWord(stuff, address);
 					break;
 			}
 
@@ -355,8 +400,11 @@ static unsigned long GetValueUsingDecodedAddressMode(M68k_State *state, const M6
 	return value;
 }
 
-static void SetValueUsingDecodedAddressMode(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, DecodedAddressMode *decoded_address_mode, unsigned long value)
+static void SetValueUsingDecodedAddressMode(const Stuff *stuff, DecodedAddressMode *decoded_address_mode, unsigned long value)
 {
+	M68k_State* const state = stuff->state;
+	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
+
 	switch (decoded_address_mode->type)
 	{
 		case DECODED_ADDRESS_MODE_TYPE_REGISTER:
@@ -374,15 +422,15 @@ static void SetValueUsingDecodedAddressMode(M68k_State *state, const M68k_ReadWr
 			switch (decoded_address_mode->data.memory.operation_size_in_bytes)
 			{
 				case 1:
-					WriteByte(callbacks, address, value);
+					WriteByte(stuff, address, value);
 					break;
 
 				case 2:
-					WriteWord(state, callbacks, address, value);
+					WriteWord(stuff, address, value);
 					break;
 
 				case 4:
-					WriteLongWord(state, callbacks, address, value);
+					WriteLongWord(stuff, address, value);
 					break;
 			}
 
@@ -928,28 +976,48 @@ static Instruction DecodeOpcode(const Opcode *opcode)
 
 void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 {
-	state->halted = cc_false;
+	Stuff stuff;
 
-	state->address_registers[7] = ReadLongWord(state, callbacks, 0);
-	state->program_counter = ReadLongWord(state, callbacks, 4);
+	stuff.state = state;
+	stuff.callbacks = callbacks;
+	stuff.exception.program_counter = state->program_counter;
+	stuff.exception.status_register = state->status_register;
 
-	state->status_register &= 0x00FF;
-	/* Set supervisor bit */
-	state->status_register |= 0x2000;
-	/* Set interrupt mask set to 7 */
-	state->status_register |= 0x0700;
+	if (!setjmp(stuff.exception.context))
+	{
+		state->halted = cc_false;
+
+		state->address_registers[7] = ReadLongWord(&stuff, 0);
+		state->program_counter = ReadLongWord(&stuff, 4);
+
+		state->status_register &= 0x00FF;
+		/* Set supervisor bit */
+		state->status_register |= 0x2000;
+		/* Set interrupt mask set to 7 */
+		state->status_register |= 0x0700;
+	}
 }
 
 void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned int level)
 {
-	assert(level >= 1 && level <= 7);
+	Stuff stuff;
 
-	if (level == 7 || level > (((unsigned int)state->status_register >> 8) & 7))
+	stuff.state = state;
+	stuff.callbacks = callbacks;
+	stuff.exception.program_counter = state->program_counter;
+	stuff.exception.status_register = state->status_register;
+
+	if (!setjmp(stuff.exception.context))
 	{
-		Group1Or2Exception(state, callbacks, 24 + level);
+		assert(level >= 1 && level <= 7);
 
-		/* Set interrupt mask set to current level */
-		state->status_register |= level << 8;
+		if (level == 7 || level > (((unsigned int)state->status_register >> 8) & 7))
+		{
+			Group1Or2Exception(&stuff, 24 + level);
+
+			/* Set interrupt mask set to current level */
+			state->status_register |= level << 8;
+		}
 	}
 }
 
@@ -961,149 +1029,160 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 	}
 	else if (state->cycles_left_in_instruction != 0)
 	{
-		/* Wait for current instruction to finish */
+		/* Wait for current instruction to finish. */
 		--state->cycles_left_in_instruction;
 	}
 	else
 	{
-		/* Process new instruction */
-		Opcode opcode;
-		unsigned int operation_size;
-		DecodedAddressMode source_decoded_address_mode, destination_decoded_address_mode;
-		unsigned long source_value, destination_value, result_value;
-		Instruction instruction;
-		unsigned long msb_mask;
-		cc_bool sm, dm, rm;
+		/* Initialise closure and exception stuff. */
+		Stuff stuff;
 
-		operation_size = 1; /* Set to 1 by default to prevent an invalid shift later on */
-		source_value = destination_value = result_value = 0;
-		instruction = INSTRUCTION_ILLEGAL;
+		stuff.state = state;
+		stuff.callbacks = callbacks;
+		stuff.exception.program_counter = state->program_counter;
+		stuff.exception.status_register = state->status_register;
 
-		opcode.raw = ReadWord(state, callbacks, state->program_counter);
-
-		opcode.bits_6_and_7 = (opcode.raw >> 6) & 3;
-		opcode.bit_8 = (opcode.raw & 0x100) != 0;
-
-		opcode.primary_register = (opcode.raw >> 0) & 7;
-		opcode.primary_address_mode = (AddressMode)((opcode.raw >> 3) & 7);
-		opcode.secondary_address_mode = (AddressMode)((opcode.raw >> 6) & 7);
-		opcode.secondary_register = (opcode.raw >> 9) & 7;
-
-		state->instruction_register = opcode.raw;
-		state->program_counter += 2;
-
-		/* Figure out which instruction this is */
-		instruction = DecodeOpcode(&opcode);
-
-		switch (instruction)
+		if (!setjmp(stuff.exception.context))
 		{
-			#include "m68k/gen.c"
+			/* Process new instruction */
+			Opcode opcode;
+			unsigned int operation_size;
+			DecodedAddressMode source_decoded_address_mode, destination_decoded_address_mode;
+			unsigned long source_value, destination_value, result_value;
+			Instruction instruction;
+			unsigned long msb_mask;
+			cc_bool sm, dm, rm;
+
+			operation_size = 1; /* Set to 1 by default to prevent an invalid shift later on */
+			source_value = destination_value = result_value = 0;
+			instruction = INSTRUCTION_ILLEGAL;
+
+			opcode.raw = ReadWord(&stuff, state->program_counter);
+
+			opcode.bits_6_and_7 = (opcode.raw >> 6) & 3;
+			opcode.bit_8 = (opcode.raw & 0x100) != 0;
+
+			opcode.primary_register = (opcode.raw >> 0) & 7;
+			opcode.primary_address_mode = (AddressMode)((opcode.raw >> 3) & 7);
+			opcode.secondary_address_mode = (AddressMode)((opcode.raw >> 6) & 7);
+			opcode.secondary_register = (opcode.raw >> 9) & 7;
+
+			state->instruction_register = opcode.raw;
+			state->program_counter += 2;
+
+			/* Figure out which instruction this is */
+			instruction = DecodeOpcode(&opcode);
+
+			switch (instruction)
+			{
+				#include "m68k/gen.c"
+			}
+
+		#ifdef DEBUG_STUFF
+			{
+				static const char* const instruction_strings[] = {
+					"INSTRUCTION_ABCD",
+					"INSTRUCTION_ADD",
+					"INSTRUCTION_ADDA",
+					"INSTRUCTION_ADDAQ",
+					"INSTRUCTION_ADDI",
+					"INSTRUCTION_ADDQ",
+					"INSTRUCTION_ADDX",
+					"INSTRUCTION_AND",
+					"INSTRUCTION_ANDI",
+					"INSTRUCTION_ANDI_TO_CCR",
+					"INSTRUCTION_ANDI_TO_SR",
+					"INSTRUCTION_ASD_MEMORY",
+					"INSTRUCTION_ASD_REGISTER",
+					"INSTRUCTION_BCC_SHORT",
+					"INSTRUCTION_BCC_WORD",
+					"INSTRUCTION_BCHG_DYNAMIC",
+					"INSTRUCTION_BCHG_STATIC",
+					"INSTRUCTION_BCLR_DYNAMIC",
+					"INSTRUCTION_BCLR_STATIC",
+					"INSTRUCTION_BRA_SHORT",
+					"INSTRUCTION_BRA_WORD",
+					"INSTRUCTION_BSET_DYNAMIC",
+					"INSTRUCTION_BSET_STATIC",
+					"INSTRUCTION_BSR_SHORT",
+					"INSTRUCTION_BSR_WORD",
+					"INSTRUCTION_BTST_DYNAMIC",
+					"INSTRUCTION_BTST_STATIC",
+					"INSTRUCTION_CHK",
+					"INSTRUCTION_CLR",
+					"INSTRUCTION_CMP",
+					"INSTRUCTION_CMPA",
+					"INSTRUCTION_CMPI",
+					"INSTRUCTION_CMPM",
+					"INSTRUCTION_DBCC",
+					"INSTRUCTION_DIVS",
+					"INSTRUCTION_DIVU",
+					"INSTRUCTION_EOR",
+					"INSTRUCTION_EORI",
+					"INSTRUCTION_EORI_TO_CCR",
+					"INSTRUCTION_EORI_TO_SR",
+					"INSTRUCTION_EXG",
+					"INSTRUCTION_EXT",
+					"INSTRUCTION_ILLEGAL",
+					"INSTRUCTION_JMP",
+					"INSTRUCTION_JSR",
+					"INSTRUCTION_LEA",
+					"INSTRUCTION_LINK",
+					"INSTRUCTION_LSD_MEMORY",
+					"INSTRUCTION_LSD_REGISTER",
+					"INSTRUCTION_MOVE",
+					"INSTRUCTION_MOVE_FROM_SR",
+					"INSTRUCTION_MOVE_TO_CCR",
+					"INSTRUCTION_MOVE_TO_SR",
+					"INSTRUCTION_MOVE_USP",
+					"INSTRUCTION_MOVEA",
+					"INSTRUCTION_MOVEM",
+					"INSTRUCTION_MOVEP",
+					"INSTRUCTION_MOVEQ",
+					"INSTRUCTION_MULS",
+					"INSTRUCTION_MULU",
+					"INSTRUCTION_NBCD",
+					"INSTRUCTION_NEG",
+					"INSTRUCTION_NEGX",
+					"INSTRUCTION_NOP",
+					"INSTRUCTION_NOT",
+					"INSTRUCTION_OR",
+					"INSTRUCTION_ORI",
+					"INSTRUCTION_ORI_TO_CCR",
+					"INSTRUCTION_ORI_TO_SR",
+					"INSTRUCTION_PEA",
+					"INSTRUCTION_RESET",
+					"INSTRUCTION_ROD_MEMORY",
+					"INSTRUCTION_ROD_REGISTER",
+					"INSTRUCTION_ROXD_MEMORY",
+					"INSTRUCTION_ROXD_REGISTER",
+					"INSTRUCTION_RTE",
+					"INSTRUCTION_RTR",
+					"INSTRUCTION_RTS",
+					"INSTRUCTION_SBCD",
+					"INSTRUCTION_SCC",
+					"INSTRUCTION_STOP",
+					"INSTRUCTION_SUB",
+					"INSTRUCTION_SUBA",
+					"INSTRUCTION_SUBAQ",
+					"INSTRUCTION_SUBI",
+					"INSTRUCTION_SUBQ",
+					"INSTRUCTION_SUBX",
+					"INSTRUCTION_SWAP",
+					"INSTRUCTION_TAS",
+					"INSTRUCTION_TRAP",
+					"INSTRUCTION_TRAPV",
+					"INSTRUCTION_TST",
+					"INSTRUCTION_UNLK",
+
+					"INSTRUCTION_UNIMPLEMENTED_1",
+					"INSTRUCTION_UNIMPLEMENTED_2"
+				};
+
+				fprintf(stderr, "0x%.8lX - %s\n", state->program_counter, instruction_strings[instruction]);
+				state->program_counter |= 0; /* Something to latch a breakpoint onto */
+			}
+		#endif
 		}
-
-	#ifdef DEBUG_STUFF
-		{
-			static const char* const instruction_strings[] = {
-				"INSTRUCTION_ABCD",
-				"INSTRUCTION_ADD",
-				"INSTRUCTION_ADDA",
-				"INSTRUCTION_ADDAQ",
-				"INSTRUCTION_ADDI",
-				"INSTRUCTION_ADDQ",
-				"INSTRUCTION_ADDX",
-				"INSTRUCTION_AND",
-				"INSTRUCTION_ANDI",
-				"INSTRUCTION_ANDI_TO_CCR",
-				"INSTRUCTION_ANDI_TO_SR",
-				"INSTRUCTION_ASD_MEMORY",
-				"INSTRUCTION_ASD_REGISTER",
-				"INSTRUCTION_BCC_SHORT",
-				"INSTRUCTION_BCC_WORD",
-				"INSTRUCTION_BCHG_DYNAMIC",
-				"INSTRUCTION_BCHG_STATIC",
-				"INSTRUCTION_BCLR_DYNAMIC",
-				"INSTRUCTION_BCLR_STATIC",
-				"INSTRUCTION_BRA_SHORT",
-				"INSTRUCTION_BRA_WORD",
-				"INSTRUCTION_BSET_DYNAMIC",
-				"INSTRUCTION_BSET_STATIC",
-				"INSTRUCTION_BSR_SHORT",
-				"INSTRUCTION_BSR_WORD",
-				"INSTRUCTION_BTST_DYNAMIC",
-				"INSTRUCTION_BTST_STATIC",
-				"INSTRUCTION_CHK",
-				"INSTRUCTION_CLR",
-				"INSTRUCTION_CMP",
-				"INSTRUCTION_CMPA",
-				"INSTRUCTION_CMPI",
-				"INSTRUCTION_CMPM",
-				"INSTRUCTION_DBCC",
-				"INSTRUCTION_DIVS",
-				"INSTRUCTION_DIVU",
-				"INSTRUCTION_EOR",
-				"INSTRUCTION_EORI",
-				"INSTRUCTION_EORI_TO_CCR",
-				"INSTRUCTION_EORI_TO_SR",
-				"INSTRUCTION_EXG",
-				"INSTRUCTION_EXT",
-				"INSTRUCTION_ILLEGAL",
-				"INSTRUCTION_JMP",
-				"INSTRUCTION_JSR",
-				"INSTRUCTION_LEA",
-				"INSTRUCTION_LINK",
-				"INSTRUCTION_LSD_MEMORY",
-				"INSTRUCTION_LSD_REGISTER",
-				"INSTRUCTION_MOVE",
-				"INSTRUCTION_MOVE_FROM_SR",
-				"INSTRUCTION_MOVE_TO_CCR",
-				"INSTRUCTION_MOVE_TO_SR",
-				"INSTRUCTION_MOVE_USP",
-				"INSTRUCTION_MOVEA",
-				"INSTRUCTION_MOVEM",
-				"INSTRUCTION_MOVEP",
-				"INSTRUCTION_MOVEQ",
-				"INSTRUCTION_MULS",
-				"INSTRUCTION_MULU",
-				"INSTRUCTION_NBCD",
-				"INSTRUCTION_NEG",
-				"INSTRUCTION_NEGX",
-				"INSTRUCTION_NOP",
-				"INSTRUCTION_NOT",
-				"INSTRUCTION_OR",
-				"INSTRUCTION_ORI",
-				"INSTRUCTION_ORI_TO_CCR",
-				"INSTRUCTION_ORI_TO_SR",
-				"INSTRUCTION_PEA",
-				"INSTRUCTION_RESET",
-				"INSTRUCTION_ROD_MEMORY",
-				"INSTRUCTION_ROD_REGISTER",
-				"INSTRUCTION_ROXD_MEMORY",
-				"INSTRUCTION_ROXD_REGISTER",
-				"INSTRUCTION_RTE",
-				"INSTRUCTION_RTR",
-				"INSTRUCTION_RTS",
-				"INSTRUCTION_SBCD",
-				"INSTRUCTION_SCC",
-				"INSTRUCTION_STOP",
-				"INSTRUCTION_SUB",
-				"INSTRUCTION_SUBA",
-				"INSTRUCTION_SUBAQ",
-				"INSTRUCTION_SUBI",
-				"INSTRUCTION_SUBQ",
-				"INSTRUCTION_SUBX",
-				"INSTRUCTION_SWAP",
-				"INSTRUCTION_TAS",
-				"INSTRUCTION_TRAP",
-				"INSTRUCTION_TRAPV",
-				"INSTRUCTION_TST",
-				"INSTRUCTION_UNLK",
-
-				"INSTRUCTION_UNIMPLEMENTED_1",
-				"INSTRUCTION_UNIMPLEMENTED_2"
-			};
-
-			fprintf(stderr, "0x%.8lX - %s\n", state->program_counter, instruction_strings[instruction]);
-			state->program_counter |= 0; /* Something to latch a breakpoint onto */
-		}
-	#endif
 	}
 }
