@@ -550,11 +550,13 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	Z80_ReadAndWriteCallbacks z80_read_write_callbacks;
 	CPUCallbackUserData cpu_callback_user_data;
+	unsigned int m68k_countdown, z80_countdown;
 
 	const unsigned int television_vertical_resolution = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
 	const unsigned int console_vertical_resolution = (clownmdemu->state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
 	const unsigned int cycles_per_scanline = (clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / television_vertical_resolution;
 	const Z80 z80 = {&clownmdemu->constant->z80, &clownmdemu->state->z80};
+	const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->constant->vdp, &clownmdemu->state->vdp};
 
 	cpu_callback_user_data.data_and_callbacks.data = clownmdemu;
 	cpu_callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
@@ -570,6 +572,10 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	z80_read_write_callbacks.write = Z80WriteCallback;
 	z80_read_write_callbacks.user_data = &cpu_callback_user_data;
 
+	/* Store these in local variables to make the upcoming code faster. */
+	m68k_countdown = clownmdemu->state->countdowns.m68k;
+	z80_countdown = clownmdemu->state->countdowns.z80;
+
 	/* Reload H-Int counter at the top of the screen, just like real hardware does */
 	clownmdemu->state->h_int_counter = clownmdemu->state->vdp.h_int_interval;
 
@@ -582,28 +588,28 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 
 		for (remaining_cycles = cycles_per_scanline; remaining_cycles != 0; remaining_cycles -= cycles_to_do)
 		{
-			cycles_to_do = CC_MIN(remaining_cycles, CC_MIN(clownmdemu->state->countdowns.m68k, clownmdemu->state->countdowns.z80));
+			cycles_to_do = CC_MIN(remaining_cycles, CC_MIN(m68k_countdown, z80_countdown));
 
 			/* 68k */
-			if (clownmdemu->state->countdowns.m68k == 0)
+			if (m68k_countdown == 0)
 			{
-				clownmdemu->state->countdowns.m68k = CLOWNMDEMU_M68K_CLOCK_DIVIDER * 10; /* TODO - The x10 is a temporary hack to get the 68k to run roughly at the correct speed until instruction cycle durations are added */
+				m68k_countdown = CLOWNMDEMU_M68K_CLOCK_DIVIDER * 10; /* TODO - The x10 is a temporary hack to get the 68k to run roughly at the correct speed until instruction cycle durations are added */
 
 				M68k_DoCycle(&clownmdemu->state->m68k, &m68k_read_write_callbacks);
 			}
 
-			clownmdemu->state->countdowns.m68k -= cycles_to_do;
+			m68k_countdown -= cycles_to_do;
 
 			/* Z80 */
-			if (clownmdemu->state->countdowns.z80 == 0)
+			if (z80_countdown == 0)
 			{
-				clownmdemu->state->countdowns.z80 = CLOWNMDEMU_Z80_CLOCK_DIVIDER;
+				z80_countdown = CLOWNMDEMU_Z80_CLOCK_DIVIDER;
 
 				if (!clownmdemu->state->m68k_has_z80_bus)
 					Z80_DoCycle(&z80, &z80_read_write_callbacks);
 			}
 
-			clownmdemu->state->countdowns.z80 -= cycles_to_do;
+			z80_countdown -= cycles_to_do;
 
 			cpu_callback_user_data.current_cycle += cycles_to_do;
 		}
@@ -611,8 +617,6 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
 		if (scanline < console_vertical_resolution)
 		{
-			const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->constant->vdp, &clownmdemu->state->vdp};
-
 			if (clownmdemu->state->vdp.double_resolution_enabled)
 			{
 				VDP_RenderScanline(&vdp, scanline * 2, callbacks->scanline_rendered, callbacks->user_data);
@@ -648,6 +652,10 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 			clownmdemu->state->vdp.currently_in_vblank = cc_true;
 		}
 	}
+
+	/* Store these back in memory for later. */
+	clownmdemu->state->countdowns.m68k = m68k_countdown;
+	clownmdemu->state->countdowns.z80 = z80_countdown;
 
 	/* Update the FM for the rest of this frame */
 	GenerateAndPlayFMSamples(&cpu_callback_user_data);
