@@ -157,10 +157,10 @@ typedef enum Z80_RegisterMode
 
 typedef struct Z80_InstructionMetadata
 {
-	/* TODO: Maybe pack these into `unsigned char`s. */
-	Z80_Opcode opcode;
-	Z80_Operand operands[2];
-	Z80_Condition condition;
+	/* These three are actually enums packed into chars to save RAM. */
+	unsigned char opcode;      /* Z80_Opcode */
+	unsigned char operands[2]; /* Z80_Operand */
+	unsigned char condition;   /* Z80_Condition */
 	unsigned char embedded_literal;
 	cc_bool has_displacement;
 } Z80_InstructionMetadata;

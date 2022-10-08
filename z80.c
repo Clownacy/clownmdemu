@@ -427,7 +427,7 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 								case 7:
 									metadata->opcode = Z80_OPCODE_JR_CONDITIONAL;
 									metadata->operands[0] = Z80_OPERAND_LITERAL_8BIT;
-									metadata->condition = (Z80_Condition)(y - 4);
+									metadata->condition = y - 4;
 									break;
 							}
 
@@ -531,7 +531,7 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 					{
 						case 0:
 							metadata->opcode = Z80_OPCODE_RET_CONDITIONAL;
-							metadata->condition = (Z80_Condition)y;
+							metadata->condition = y;
 							break;
 
 						case 1:
@@ -568,7 +568,7 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 
 						case 2:
 							metadata->opcode = Z80_OPCODE_JP_CONDITIONAL;
-							metadata->condition = (Z80_Condition)y;
+							metadata->condition = y;
 							metadata->operands[0] = Z80_OPERAND_LITERAL_16BIT;
 							break;
 
@@ -620,7 +620,7 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 
 						case 4:
 							metadata->opcode = Z80_OPCODE_CALL_CONDITIONAL;
-							metadata->condition = (Z80_Condition)y;
+							metadata->condition = y;
 							metadata->operands[0] = Z80_OPERAND_LITERAL_16BIT;
 							break;
 
@@ -917,7 +917,7 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 	instruction->double_prefix_mode = cc_false;
 
 	/* Handle prefix instructions. */
-	switch (instruction->metadata->opcode)
+	switch ((Z80_Opcode)instruction->metadata->opcode)
 	{
 		default:
 			/* Nothing to do here. */
@@ -962,7 +962,7 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 	}
 
 	/* Obtain literal data. */
-	switch (instruction->metadata->operands[0])
+	switch ((Z80_Operand)instruction->metadata->operands[0])
 	{
 		default:
 			/* Nothing to do here. */
@@ -988,7 +988,7 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 	/* Pre-calculate the address of indirect memory operands. */
 	for (i = 0; i < 2; ++i)
 	{
-		switch (instruction->metadata->operands[i])
+		switch ((Z80_Operand)instruction->metadata->operands[i])
 		{
 			default:
 				break;
@@ -1041,10 +1041,10 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 #define CONDITION_PARITY z80->state->f |= z80->constant->parity_lookup[result_value]
 #define CONDITION_CARRY CONDITION_CARRY_BASE(result_value_with_carry, 8)
 
-#define READ_SOURCE source_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[0])
-#define READ_DESTINATION destination_value = ReadOperand(z80, callbacks, instruction, instruction->metadata->operands[1])
+#define READ_SOURCE source_value = ReadOperand(z80, callbacks, instruction, (Z80_Operand)instruction->metadata->operands[0])
+#define READ_DESTINATION destination_value = ReadOperand(z80, callbacks, instruction, (Z80_Operand)instruction->metadata->operands[1])
 
-#define WRITE_DESTINATION WriteOperand(z80, callbacks, instruction, instruction->metadata->operands[1], result_value)
+#define WRITE_DESTINATION WriteOperand(z80, callbacks, instruction, (Z80_Operand)instruction->metadata->operands[1], result_value)
 
 static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Instruction *instruction)
 {
@@ -1058,7 +1058,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 	z80->state->register_mode = Z80_REGISTER_MODE_HL;
 
-	switch (instruction->metadata->opcode)
+	switch ((Z80_Opcode)instruction->metadata->opcode)
 	{
 		case Z80_OPCODE_NOP:
 			/* Does nothing, naturally. */
@@ -1087,7 +1087,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_JR_CONDITIONAL:
-			if (!EvaluateCondition(z80->state->f, instruction->metadata->condition))
+			if (!EvaluateCondition(z80->state->f, (Z80_Condition)instruction->metadata->condition))
 				break;
 			/* Fallthrough */
 		case Z80_OPCODE_JR_UNCONDITIONAL:
@@ -1439,7 +1439,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			/* This instruction requires an extra cycle. */
 			z80->state->cycles += 1;
 
-			if (!EvaluateCondition(z80->state->f, instruction->metadata->condition))
+			if (!EvaluateCondition(z80->state->f, (Z80_Condition)instruction->metadata->condition))
 				break;
 			/* Fallthrough */
 		case Z80_OPCODE_RET_UNCONDITIONAL:
@@ -1468,7 +1468,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_JP_CONDITIONAL:
-			if (!EvaluateCondition(z80->state->f, instruction->metadata->condition))
+			if (!EvaluateCondition(z80->state->f, (Z80_Condition)instruction->metadata->condition))
 				break;
 			/* Fallthrough */
 		case Z80_OPCODE_JP_UNCONDITIONAL:
@@ -1543,7 +1543,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_CALL_CONDITIONAL:
-			if (!EvaluateCondition(z80->state->f, instruction->metadata->condition))
+			if (!EvaluateCondition(z80->state->f, (Z80_Condition)instruction->metadata->condition))
 				break;
 			/* Fallthrough */
 		case Z80_OPCODE_CALL_UNCONDITIONAL:
