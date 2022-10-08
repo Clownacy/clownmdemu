@@ -177,7 +177,7 @@ typedef struct Z80_Constant
 
 typedef struct Z80_State
 {
-	Z80_RegisterMode register_mode;
+	unsigned char register_mode; /* Z80_RegisterMode */
 	unsigned int cycles;
 	unsigned short program_counter;
 	unsigned short stack_pointer;

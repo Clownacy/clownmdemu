@@ -901,7 +901,7 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 #ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 	instruction->metadata = &z80->constant->instruction_metadata_lookup_normal[z80->state->register_mode][opcode];
 #else
-	DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_NORMAL, z80->state->register_mode, opcode);
+	DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_NORMAL, (Z80_RegisterMode)z80->state->register_mode, opcode);
 #endif
 
 	/* Obtain displacement byte if one exists. */
@@ -944,7 +944,7 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 		#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 			instruction->metadata = &z80->constant->instruction_metadata_lookup_bits[z80->state->register_mode][opcode];
 		#else
-			DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_BITS, z80->state->register_mode, opcode);
+			DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_BITS, (Z80_RegisterMode)z80->state->register_mode, opcode);
 		#endif
 
 			break;
