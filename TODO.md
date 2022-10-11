@@ -51,6 +51,7 @@
   - DMA transfer durations
   - HV counter
   - Mode 4
+  - FIFO, and related 68k delays
 - Z80
   - The DAA, HALT, OUT, IN, RETN, RETI, IM, RRD, RLD, CPI, CPD, CPIR, CPDR,
     INI, IND, INIR, INDR, OTDI, OUTD, OTIR, and OTDR instructions.
