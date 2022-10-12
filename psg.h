@@ -18,35 +18,35 @@ typedef enum PSG_NoiseType
 typedef struct PSG_ToneState
 {
 	/* Countdown until the phase changes */
-	unsigned int countdown;
+	cc_u16f countdown;
 	/* Value to reset the countdown to when it expires */
-	unsigned int countdown_master;
+	cc_u16f countdown_master;
 	/* The volume attenuation level of the channel */
-	unsigned int attenuation;
+	cc_u8f attenuation;
 	/* The current phase of the channel - 0 for high phase, and 1 for low phase */
-	unsigned int output_bit;
+	cc_u8f output_bit;
 } PSG_ToneState;
 
 typedef struct PSG_NoiseState
 {
 	/* Countdown until the fake output bit alternates */
-	unsigned int countdown;
+	cc_u16f countdown;
 	/* The volume attenuation level of the channel */
-	unsigned int attenuation;
+	cc_u8f attenuation;
 	/* The shift register is rotated when this bit goes from low to high */
-	unsigned int fake_output_bit;
+	cc_u8f fake_output_bit;
 	/* The current phase of the channel - 0 for high phase, and 1 for low phase */
-	unsigned int real_output_bit;
+	cc_u8f real_output_bit;
 	/* Determines what the countdown is reset to when it expires:
 	   0 - 0x10
 	   1 - 0x20
 	   2 - 0x40
 	   3 - the same as the last tone channel */
-	unsigned int frequency_mode;
+	cc_u8f frequency_mode;
 	/* The type of noise output by the channel */
-	PSG_NoiseType type;
+	cc_u8l type; /* PSG_NoiseType */
 	/* Rotating bitfield which is used to produce noise */
-	unsigned int shift_register;
+	cc_u16f shift_register;
 } PSG_NoiseState;
 
 typedef struct PSG_LatchedCommand
@@ -56,14 +56,14 @@ typedef struct PSG_LatchedCommand
 	   1 = Tone channel 2
 	   2 = Tone channel 3
 	   3 = Noise channel */
-	unsigned int channel;
+	cc_u8f channel;
 	/* Whether the latched command sets the volume attenuation or not */
 	cc_bool is_volume_command;
 } PSG_LatchedCommand;
 
 typedef struct PSG_Constant
 {
-	short volumes[0x10][2];
+	cc_s16l volumes[0x10][2];
 } PSG_Constant;
 
 typedef struct PSG_State
@@ -92,11 +92,11 @@ void PSG_State_Initialise(PSG_State *state);
 
 /* Processes a command. */
 /* See https://www.smspower.org/Development/SN76489 for an explanation of the various commands. */
-void PSG_DoCommand(const PSG *psg, unsigned int command);
+void PSG_DoCommand(const PSG *psg, cc_u8f command);
 
 /* Updates the PSG's internal state and outputs samples. */
 /* The samples are mono and in signed 16-bit PCM format. */
-void PSG_Update(const PSG *psg, short *sample_buffer, size_t total_samples);
+void PSG_Update(const PSG *psg, cc_s16l *sample_buffer, size_t total_samples);
 
 #ifdef __cplusplus
 }

@@ -13,7 +13,7 @@ https://www.smspower.org/Development/SN76489
 
 void PSG_Constant_Initialise(PSG_Constant *constant)
 {
-	unsigned int i;
+	cc_u8f i;
 
 	/* Generate the volume lookup table. */
 	for (i = 0; i < 0xF; ++i)
@@ -21,7 +21,7 @@ void PSG_Constant_Initialise(PSG_Constant *constant)
 		/* Each volume level is 2 decibels lower than the last. */
 		/* The division by 4 is because there are 4 channels, so we want to prevent audio clipping. */
 		/* The division by 8 is to reduce the PSG's volume to the level of a single FM channel. */
-		const short volume = (short)(((double)0x7FFF / (4.0 * 8.0)) * pow(10.0, -2.0 * (double)i / 20.0));
+		const cc_s16l volume = (cc_s16l)(((double)0x7FFF / (4.0 * 8.0)) * pow(10.0, -2.0 * (double)i / 20.0));
 
 		constant->volumes[i][0] = volume; /* Positive phase. */
 		constant->volumes[i][1] = -volume; /* Negative phase. */
@@ -34,7 +34,7 @@ void PSG_Constant_Initialise(PSG_Constant *constant)
 
 void PSG_State_Initialise(PSG_State *state)
 {
-	unsigned int i;
+	size_t i;
 
 	/* Reset tone channels. */
 	for (i = 0; i < CC_COUNT_OF(state->tones); ++i)
@@ -59,7 +59,7 @@ void PSG_State_Initialise(PSG_State *state)
 	state->latched_command.is_volume_command = cc_false;
 }
 
-void PSG_DoCommand(const PSG *psg, unsigned int command)
+void PSG_DoCommand(const PSG *psg, cc_u8f command)
 {
 	const cc_bool latch = (command & 0x80) != 0;
 
@@ -127,11 +127,11 @@ void PSG_DoCommand(const PSG *psg, unsigned int command)
 	}
 }
 
-void PSG_Update(const PSG *psg, short *sample_buffer, size_t total_samples)
+void PSG_Update(const PSG *psg, cc_s16l *sample_buffer, size_t total_samples)
 {
-	unsigned int i;
+	size_t i;
 	size_t j;
-	short *sample_buffer_pointer;
+	cc_s16l *sample_buffer_pointer;
 
 	/* Do the tone channels. */
 	for (i = 0; i < CC_COUNT_OF(psg->state->tones); ++i)

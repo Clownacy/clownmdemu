@@ -29,7 +29,7 @@ typedef struct CPUCallbackUserData
 	unsigned int psg_previous_cycle;
 } CPUCallbackUserData;
 
-static void GenerateFMAudio(const ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames)
+static void GenerateFMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames)
 {
 	const FM fm = {&clownmdemu->constant->fm, &clownmdemu->state->fm};
 
@@ -50,7 +50,7 @@ static void GenerateAndPlayFMSamples(CPUCallbackUserData *m68k_callback_user_dat
 	}
 }
 
-static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples)
+static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples)
 {
 	const PSG psg = {&clownmdemu->constant->psg, &clownmdemu->state->psg};
 

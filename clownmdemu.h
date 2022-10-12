@@ -131,8 +131,8 @@ typedef struct ClownMDEmu_Callbacks
 	void (*colour_updated)(const void *user_data, unsigned int index, unsigned int colour);
 	void (*scanline_rendered)(const void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height);
 	cc_bool (*input_requested)(const void *user_data, unsigned int player_id, ClownMDEmu_Button button_id);
-	void (*fm_audio_to_be_generated)(const void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames));
-	void (*psg_audio_to_be_generated)(const void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples));
+	void (*fm_audio_to_be_generated)(const void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
+	void (*psg_audio_to_be_generated)(const void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples));
 } ClownMDEmu_Callbacks;
 
 void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant);
