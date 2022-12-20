@@ -293,9 +293,17 @@ void FM_DoData(const FM *fm, unsigned int data)
 	}
 }
 
-void FM_Update(const FM *fm, short *sample_buffer, size_t total_frames)
+/* This is used to bit-mask signed types portably. */
+/* TODO: Stop doing this: using a union this way is undefined in C89! */
+typedef union SignedAndUnsignedInt
 {
-	const short* const sample_buffer_end = &sample_buffer[total_frames * 2];
+	signed int s;
+	unsigned int u;
+} SignedAndUnsignedInt;
+
+void FM_Update(const FM *fm, cc_s16l *sample_buffer, size_t total_frames)
+{
+	const cc_s16l* const sample_buffer_end = &sample_buffer[total_frames * 2];
 
 	FM_ChannelMetadata *channel_metadata;
 
@@ -306,24 +314,32 @@ void FM_Update(const FM *fm, short *sample_buffer, size_t total_frames)
 		/* These will be used in later boolean algebra, to avoid branches. */
 		const unsigned int left_mask = channel_metadata->pan_left ? -1 : 0;
 		const unsigned int right_mask = channel_metadata->pan_right ? -1 : 0;
-		const unsigned int dac_mask = (channel_metadata == &fm->state->channels[5] && fm->state->dac_enabled) ? -1 : 0;
+		const unsigned int fm_mask = (channel_metadata != &fm->state->channels[5] || !fm->state->dac_enabled) ? -1 : 0;
 
-		short *sample_buffer_pointer;
+		const int dac_sample = fm_mask == 0 ? fm->state->dac_sample : 0;
+
+		cc_s16l *sample_buffer_pointer;
 
 		sample_buffer_pointer = sample_buffer;
 
 		while (sample_buffer_pointer != sample_buffer_end)
 		{
+			SignedAndUnsignedInt fm_sample, sample, left_sample, right_sample;
+
 			/* The FM sample is 14-bit, so convert it to 16-bit and then divide it so that it
 			   can be mixed with the other five FM channels and the PSG without clipping. */
-			const int fm_sample = FM_Channel_GetSample(&channel) * 4 / FM_VOLUME_DIVIDER;
+			fm_sample.s = FM_Channel_GetSample(&channel) * 4 / FM_VOLUME_DIVIDER;
 
 			/* Do some boolean algebra to select the FM sample or the DAC sample. */
-			const int sample = (fm_sample & ~dac_mask) | (fm->state->dac_sample & dac_mask);
+			sample.u = (fm_sample.u & fm_mask) | dac_sample;
+
+			/* Apply panning. */
+			left_sample.u = sample.u & left_mask;
+			right_sample.u = sample.u & right_mask;
 
 			/* Output sample. */
-			*sample_buffer_pointer++ += sample & left_mask;
-			*sample_buffer_pointer++ += sample & right_mask;
+			*sample_buffer_pointer++ += left_sample.s;
+			*sample_buffer_pointer++ += right_sample.s;
 		}
 	}
 }

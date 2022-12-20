@@ -8,7 +8,8 @@
 
 #include "../clownmdemu.h"
 
-#include "../frontend/mixer.h"
+#define MIXER_FORMAT int16_t
+#include "../frontend/mixer.c"
 
 #define FRAMEBUFFER_WIDTH 320
 #define FRAMEBUFFER_HEIGHT 480
@@ -276,14 +277,14 @@ static cc_bool InputRequestedCallback(const void *user_data, unsigned int player
 	return libretro_callbacks.input_state(player_id, RETRO_DEVICE_JOYPAD, 0, libretro_button_id);
 }
 
-static void FMAudioToBeGeneratedCallback(const void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_frames))
+static void FMAudioToBeGeneratedCallback(const void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, int16_t *sample_buffer, size_t total_frames))
 {
 	(void)user_data;
 
 	generate_fm_audio(&clownmdemu, Mixer_AllocateFMSamples(&mixer, total_frames), total_frames);
 }
 
-static void PSGAudioToBeGeneratedCallback(const void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, short *sample_buffer, size_t total_samples))
+static void PSGAudioToBeGeneratedCallback(const void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, int16_t *sample_buffer, size_t total_samples))
 {
 	(void)user_data;
 
@@ -570,7 +571,7 @@ void retro_reset(void)
 	ClownMDEmu_Reset(&clownmdemu, &clownmdemu_callbacks);
 }
 
-static void MixerCompleteCallback(const void *user_data, short *audio_samples, size_t total_frames)
+static void MixerCompleteCallback(const void *user_data, int16_t *audio_samples, size_t total_frames)
 {
 	(void)user_data;
 

@@ -49,6 +49,6 @@ void FM_DoData(const FM *fm, unsigned int data);
 
 /* Updates the FM's internal state and outputs samples. */
 /* The samples are stereo and in signed 16-bit PCM format. */
-void FM_Update(const FM *fm, short *sample_buffer, size_t total_frames);
+void FM_Update(const FM *fm, cc_s16l *sample_buffer, size_t total_frames);
 
 #endif /* FM_H */
