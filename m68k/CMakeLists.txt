@@ -7,6 +7,10 @@ add_executable(generator
 	"emit.h"
 	"emit-instructions.c"
 	"emit-instructions.h"
+	"instruction.h"
+	"instruction-properties.c"
+	"instruction-properties.h"
+	"instruction-actions.h"
 	"generator.c"
 )
 

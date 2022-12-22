@@ -22,6 +22,8 @@ add_library(clownmdemu STATIC
 	"fm_phase.h"
 	"m68k.c"
 	"m68k.h"
+	"m68k/opcode.c"
+	"m68k/opcode.h"
 	"psg.c"
 	"psg.h"
 	"vdp.c"

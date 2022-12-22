@@ -3,7 +3,6 @@
 
 #include "emit.h"
 #include "emit-instructions.h"
-#include "instructions.h"
 
 int main(int argc, char **argv)
 {

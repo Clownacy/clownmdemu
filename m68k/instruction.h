@@ -1,5 +1,7 @@
-#ifndef M68K_INSTRUCTIONS
-#define M68K_INSTRUCTIONS
+#ifndef M68K_INSTRUCTION_H
+#define M68K_INSTRUCTION_H
+
+#include "../clowncommon.h"
 
 typedef enum Instruction
 {
@@ -101,4 +103,4 @@ typedef enum Instruction
 	INSTRUCTION_UNIMPLEMENTED_2
 } Instruction;
 
-#endif /* M68K_INSTRUCTIONS */
+#endif /* M68K_INSTRUCTION_H */

@@ -20,36 +20,15 @@ https://gendev.spritesmind.net/forum/viewtopic.php?p=36118#p36118
 #include "clowncommon.h"
 
 #include "error.h"
-#include "m68k/instructions.h"
+#include "m68k/instruction-actions.h"
+#include "m68k/instruction.h"
+#include "m68k/opcode.h"
 
 /*#define DEBUG_STUFF*/
 
 #ifdef DEBUG_STUFF
 #include <stdio.h>
 #endif
-
-#define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%lX", state->program_counter)
-
-typedef enum AddressMode
-{
-	ADDRESS_MODE_DATA_REGISTER                                = 0,
-	ADDRESS_MODE_ADDRESS_REGISTER                             = 1,
-	ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT                    = 2,
-	ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT = 3,
-	ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT  = 4,
-	ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT  = 5,
-	ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_INDEX         = 6,
-	ADDRESS_MODE_SPECIAL                                      = 7
-} AddressMode;
-
-enum
-{
-	ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_SHORT                    = 0,
-	ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_LONG                     = 1,
-	ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_DISPLACEMENT = 2,
-	ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_INDEX        = 3,
-	ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE                         = 4
-};
 
 enum
 {
@@ -63,7 +42,9 @@ enum
 typedef	enum DecodedAddressModeType
 {
 	DECODED_ADDRESS_MODE_TYPE_REGISTER,
-	DECODED_ADDRESS_MODE_TYPE_MEMORY
+	DECODED_ADDRESS_MODE_TYPE_MEMORY,
+	DECODED_ADDRESS_MODE_TYPE_STATUS_REGISTER,
+	DECODED_ADDRESS_MODE_TYPE_CONDITION_CODE_REGISTER
 } DecodedAddressModeType;
 
 typedef struct DecodedAddressMode
@@ -83,20 +64,6 @@ typedef struct DecodedAddressMode
 		} memory;
 	} data;
 } DecodedAddressMode;
-
-typedef struct Opcode
-{
-	unsigned int raw;
-
-	unsigned int primary_register;
-	unsigned int secondary_register;
-	unsigned int bits_6_and_7;
-
-	AddressMode primary_address_mode;
-	AddressMode secondary_address_mode;
-
-	cc_bool bit_8;
-} Opcode;
 
 typedef struct Stuff
 {
@@ -236,16 +203,14 @@ static void Group0Exception(const Stuff *stuff, size_t vector_offset, unsigned l
 
 /* Misc. utility */
 
-static unsigned long DecodeMemoryAddressMode(const Stuff *stuff, unsigned int operation_size_in_bytes, AddressMode address_mode, unsigned int reg)
+static unsigned long DecodeMemoryAddressMode(const Stuff *stuff, const Operand *decoded_operand)
 {
 	M68k_State* const state = stuff->state;
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
-	/* The stack pointer moves two bytes instead of one byte, for alignment purposes */
-	const unsigned int increment_decrement_size = (reg == 7 && operation_size_in_bytes == 1) ? 2 : operation_size_in_bytes;
 
 	unsigned long address;
 
-	if (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_SHORT)
+	if (decoded_operand->address_mode == ADDRESS_MODE_SPECIAL && decoded_operand->address_mode_register == ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_SHORT)
 	{
 		/* Absolute short */
 		const unsigned int short_address = ReadWord(stuff, state->program_counter);
@@ -253,16 +218,16 @@ static unsigned long DecodeMemoryAddressMode(const Stuff *stuff, unsigned int op
 		address = CC_SIGN_EXTEND_ULONG(15, short_address);
 		state->program_counter += 2;
 	}
-	else if (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_LONG)
+	else if (decoded_operand->address_mode == ADDRESS_MODE_SPECIAL && decoded_operand->address_mode_register == ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_LONG)
 	{
 		/* Absolute long */
 		address = ReadLongWord(stuff, state->program_counter);
 		state->program_counter += 4;
 	}
-	else if (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
+	else if (decoded_operand->address_mode == ADDRESS_MODE_SPECIAL && decoded_operand->address_mode_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
 	{
 		/* Immediate value */
-		if (operation_size_in_bytes == 1)
+		if (decoded_operand->operation_size_in_bytes == 1)
 		{
 			/* A byte-sized immediate value occupies two bytes of space */
 			address = state->program_counter + 1;
@@ -271,29 +236,37 @@ static unsigned long DecodeMemoryAddressMode(const Stuff *stuff, unsigned int op
 		else
 		{
 			address = state->program_counter;
-			state->program_counter += operation_size_in_bytes;
+			state->program_counter += decoded_operand->operation_size_in_bytes;
 		}
 	}
-	else if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT)
+	else if (decoded_operand->address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT)
 	{
 		/* Address register indirect */
-		address = state->address_registers[reg];
+		address = state->address_registers[decoded_operand->address_mode_register];
 	}
-	else if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
+	else if (decoded_operand->address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT)
 	{
 		/* Address register indirect with predecrement */
-		state->address_registers[reg] -= increment_decrement_size;
-		address = state->address_registers[reg];
+
+		/* The stack pointer moves two bytes instead of one byte, for alignment purposes */
+		const unsigned int increment_decrement_size = (decoded_operand->address_mode_register == 7 && decoded_operand->operation_size_in_bytes == 1) ? 2 : decoded_operand->operation_size_in_bytes;
+
+		state->address_registers[decoded_operand->address_mode_register] -= increment_decrement_size;
+		address = state->address_registers[decoded_operand->address_mode_register];
 	}
-	else if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT)
+	else if (decoded_operand->address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT)
 	{
 		/* Address register indirect with postincrement */
-		address = state->address_registers[reg];
-		state->address_registers[reg] += increment_decrement_size;
+
+		/* The stack pointer moves two bytes instead of one byte, for alignment purposes */
+		const unsigned int increment_decrement_size = (decoded_operand->address_mode_register == 7 && decoded_operand->operation_size_in_bytes == 1) ? 2 : decoded_operand->operation_size_in_bytes;
+
+		address = state->address_registers[decoded_operand->address_mode_register];
+		state->address_registers[decoded_operand->address_mode_register] += increment_decrement_size;
 	}
 	else
 	{
-		if (address_mode == ADDRESS_MODE_SPECIAL && (reg == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_DISPLACEMENT || reg == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_INDEX))
+		if (decoded_operand->address_mode == ADDRESS_MODE_SPECIAL && (decoded_operand->address_mode_register == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_DISPLACEMENT || decoded_operand->address_mode_register == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_INDEX))
 		{
 			/* Program counter used as base address */
 			address = state->program_counter;
@@ -301,10 +274,10 @@ static unsigned long DecodeMemoryAddressMode(const Stuff *stuff, unsigned int op
 		else
 		{
 			/* Address register used as base address */
-			address = state->address_registers[reg];
+			address = state->address_registers[decoded_operand->address_mode_register];
 		}
 
-		if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT || (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_DISPLACEMENT))
+		if (decoded_operand->address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT || (decoded_operand->address_mode == ADDRESS_MODE_SPECIAL && decoded_operand->address_mode_register == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_DISPLACEMENT))
 		{
 			/* Add displacement */
 			const unsigned int displacement = ReadWord(stuff, state->program_counter);
@@ -312,7 +285,7 @@ static unsigned long DecodeMemoryAddressMode(const Stuff *stuff, unsigned int op
 			address += CC_SIGN_EXTEND_ULONG(15, displacement);
 			state->program_counter += 2;
 		}
-		else if (address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_INDEX || (address_mode == ADDRESS_MODE_SPECIAL && reg == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_INDEX))
+		else if (decoded_operand->address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_INDEX || (decoded_operand->address_mode == ADDRESS_MODE_SPECIAL && decoded_operand->address_mode_register == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_INDEX))
 		{
 			/* Add index register and index literal */
 			const unsigned int extension_word = ReadWord(stuff, state->program_counter);
@@ -332,19 +305,19 @@ static unsigned long DecodeMemoryAddressMode(const Stuff *stuff, unsigned int op
 	return address;
 }
 
-static void DecodeAddressMode(const Stuff *stuff, DecodedAddressMode *decoded_address_mode, unsigned int operation_size_in_bytes, AddressMode address_mode, unsigned int reg)
+static void DecodeAddressMode(const Stuff *stuff, DecodedAddressMode *decoded_address_mode, const Operand *decoded_operand)
 {
 	M68k_State* const state = stuff->state;
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
-	switch (address_mode)
+	switch (decoded_operand->address_mode)
 	{
 		case ADDRESS_MODE_DATA_REGISTER:
 		case ADDRESS_MODE_ADDRESS_REGISTER:
 			/* Register */
 			decoded_address_mode->type = DECODED_ADDRESS_MODE_TYPE_REGISTER;
-			decoded_address_mode->data.reg.address = &(address_mode == ADDRESS_MODE_ADDRESS_REGISTER ? state->address_registers : state->data_registers)[reg];
-			decoded_address_mode->data.reg.operation_size_bitmask = (0xFFFFFFFF >> (32 - operation_size_in_bytes * 8));
+			decoded_address_mode->data.reg.address = &(decoded_operand->address_mode == ADDRESS_MODE_ADDRESS_REGISTER ? state->address_registers : state->data_registers)[decoded_operand->address_mode_register];
+			decoded_address_mode->data.reg.operation_size_bitmask = (0xFFFFFFFF >> (32 - decoded_operand->operation_size_in_bytes * 8));
 			break;
 
 		case ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT:
@@ -355,8 +328,16 @@ static void DecodeAddressMode(const Stuff *stuff, DecodedAddressMode *decoded_ad
 		case ADDRESS_MODE_SPECIAL:
 			/* Memory access */
 			decoded_address_mode->type = DECODED_ADDRESS_MODE_TYPE_MEMORY;
-			decoded_address_mode->data.memory.address = DecodeMemoryAddressMode(stuff, operation_size_in_bytes, address_mode, reg);
-			decoded_address_mode->data.memory.operation_size_in_bytes = (unsigned char)operation_size_in_bytes;
+			decoded_address_mode->data.memory.address = DecodeMemoryAddressMode(stuff, decoded_operand);
+			decoded_address_mode->data.memory.operation_size_in_bytes = (unsigned char)decoded_operand->operation_size_in_bytes;
+			break;
+
+		case ADDRESS_MODE_STATUS_REGISTER:
+			decoded_address_mode->type = DECODED_ADDRESS_MODE_TYPE_STATUS_REGISTER;
+			break;
+
+		case ADDRESS_MODE_CONDITION_CODE_REGISTER:
+			decoded_address_mode->type = DECODED_ADDRESS_MODE_TYPE_CONDITION_CODE_REGISTER;
 			break;
 	}
 }
@@ -380,6 +361,10 @@ static unsigned long GetValueUsingDecodedAddressMode(const Stuff *stuff, Decoded
 
 			switch (decoded_address_mode->data.memory.operation_size_in_bytes)
 			{
+				case 0:
+					value = address;
+					break;
+
 				case 1:
 					value = ReadByte(stuff, address);
 					break;
@@ -395,6 +380,14 @@ static unsigned long GetValueUsingDecodedAddressMode(const Stuff *stuff, Decoded
 
 			break;
 		}
+
+		case DECODED_ADDRESS_MODE_TYPE_STATUS_REGISTER:
+			value = state->status_register;
+			break;
+
+		case DECODED_ADDRESS_MODE_TYPE_CONDITION_CODE_REGISTER:
+			value = state->status_register & 0xFF;
+			break;
 	}
 
 	return value;
@@ -421,6 +414,11 @@ static void SetValueUsingDecodedAddressMode(const Stuff *stuff, DecodedAddressMo
 
 			switch (decoded_address_mode->data.memory.operation_size_in_bytes)
 			{
+				case 0:
+					/* This should never happen. */
+					assert(cc_false);
+					break;
+
 				case 1:
 					WriteByte(stuff, address, value);
 					break;
@@ -436,6 +434,14 @@ static void SetValueUsingDecodedAddressMode(const Stuff *stuff, DecodedAddressMo
 
 			break;
 		}
+
+		case DECODED_ADDRESS_MODE_TYPE_STATUS_REGISTER:
+			state->status_register = (unsigned short)value;
+			break;
+
+		case DECODED_ADDRESS_MODE_TYPE_CONDITION_CODE_REGISTER:
+			state->status_register = (value & 0xFF) | (state->status_register & 0xFF00);
+			break;
 	}
 }
 
@@ -517,460 +523,6 @@ static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned int opcode)
 	}
 }
 
-static Instruction DecodeOpcode(const Opcode *opcode)
-{
-	Instruction instruction;
-
-	switch ((opcode->raw >> 12) & 0xF)
-	{
-		case 0x0:
-			if (opcode->bit_8)
-			{
-				if (opcode->primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
-				{
-					instruction = INSTRUCTION_MOVEP;
-				}
-				else
-				{
-					switch (opcode->bits_6_and_7)
-					{
-						case 0:
-							instruction = INSTRUCTION_BTST_DYNAMIC;
-							break;
-
-						case 1:
-							instruction = INSTRUCTION_BCHG_DYNAMIC;
-							break;
-
-						case 2:
-							instruction = INSTRUCTION_BCLR_DYNAMIC;
-							break;
-
-						case 3:
-							instruction = INSTRUCTION_BSET_DYNAMIC;
-							break;
-					}
-				}
-			}
-			else
-			{
-				switch (opcode->secondary_register)
-				{
-					case 0:
-						if (opcode->primary_address_mode == ADDRESS_MODE_SPECIAL && opcode->primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
-						{
-							switch (opcode->bits_6_and_7)
-							{
-								case 0:
-									instruction = INSTRUCTION_ORI_TO_CCR;
-									break;
-
-								case 1:
-									instruction = INSTRUCTION_ORI_TO_SR;
-									break;
-							}
-						}
-						else
-						{
-							instruction = INSTRUCTION_ORI;
-						}
-
-						break;
-
-					case 1:
-						if (opcode->primary_address_mode == ADDRESS_MODE_SPECIAL && opcode->primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
-						{
-							switch (opcode->bits_6_and_7)
-							{
-								case 0:
-									instruction = INSTRUCTION_ANDI_TO_CCR;
-									break;
-
-								case 1:
-									instruction = INSTRUCTION_ANDI_TO_SR;
-									break;
-							}
-						}
-						else
-						{
-							instruction = INSTRUCTION_ANDI;
-						}
-
-						break;
-
-					case 2:
-						instruction = INSTRUCTION_SUBI;
-						break;
-
-					case 3:
-						instruction = INSTRUCTION_ADDI;
-						break;
-
-					case 4:
-						switch (opcode->bits_6_and_7)
-						{
-							case 0:
-								instruction = INSTRUCTION_BTST_STATIC;
-								break;
-
-							case 1:
-								instruction = INSTRUCTION_BCHG_STATIC;
-								break;
-
-							case 2:
-								instruction = INSTRUCTION_BCLR_STATIC;
-								break;
-
-							case 3:
-								instruction = INSTRUCTION_BSET_STATIC;
-								break;
-						}
-
-						break;
-
-					case 5:
-						if (opcode->primary_address_mode == ADDRESS_MODE_SPECIAL && opcode->primary_register == ADDRESS_MODE_REGISTER_SPECIAL_IMMEDIATE)
-						{
-							switch (opcode->bits_6_and_7)
-							{
-								case 0:
-									instruction = INSTRUCTION_EORI_TO_CCR;
-									break;
-
-								case 1:
-									instruction = INSTRUCTION_EORI_TO_SR;
-									break;
-							}
-						}
-						else
-						{
-							instruction = INSTRUCTION_EORI;
-						}
-
-						break;
-
-					case 6:
-						instruction = INSTRUCTION_CMPI;
-						break;
-				}
-			}
-
-			break;
-
-		case 0x1:
-		case 0x2:
-		case 0x3:
-			if ((opcode->raw & 0x01C0) == 0x0040)
-				instruction = INSTRUCTION_MOVEA;
-			else
-				instruction = INSTRUCTION_MOVE;
-
-			break;
-
-		case 0x4:
-			if (opcode->bit_8)
-			{
-				switch (opcode->bits_6_and_7)
-				{
-					case 3:
-						instruction = INSTRUCTION_LEA;
-						break;
-
-					case 2:
-						instruction = INSTRUCTION_CHK;
-						break;
-
-					default:
-						break;
-				}
-			}
-			else if ((opcode->raw & 0x0800) == 0)
-			{
-				if (opcode->bits_6_and_7 == 3)
-				{
-					switch (opcode->secondary_register)
-					{
-						case 0:
-							instruction = INSTRUCTION_MOVE_FROM_SR;
-							break;
-
-						case 2:
-							instruction = INSTRUCTION_MOVE_TO_CCR;
-							break;
-
-						case 3:
-							instruction = INSTRUCTION_MOVE_TO_SR;
-							break;
-					}
-				}
-				else
-				{
-					switch (opcode->secondary_register)
-					{
-						case 0:
-							instruction = INSTRUCTION_NEGX;
-							break;
-
-						case 1:
-							instruction = INSTRUCTION_CLR;
-							break;
-
-						case 2:
-							instruction = INSTRUCTION_NEG;
-							break;
-
-						case 3:
-							instruction = INSTRUCTION_NOT;
-							break;
-					}
-				}
-			}
-			else if ((opcode->raw & 0x0200) == 0)
-			{
-				if ((opcode->raw & 0x01B8) == 0x0080)
-					instruction = INSTRUCTION_EXT;
-				else if ((opcode->raw & 0x01C0) == 0x0000)
-					instruction = INSTRUCTION_NBCD;
-				else if ((opcode->raw & 0x01F8) == 0x0040)
-					instruction = INSTRUCTION_SWAP;
-				else if ((opcode->raw & 0x01C0) == 0x0040)
-					instruction = INSTRUCTION_PEA;
-				else if ((opcode->raw & 0x0B80) == 0x0880)
-					instruction = INSTRUCTION_MOVEM;
-			}
-			else if (opcode->raw == 0x4AFA || opcode->raw == 0x4AFB || opcode->raw == 0x4AFC)
-			{
-				instruction = INSTRUCTION_ILLEGAL;
-			}
-			else if ((opcode->raw & 0x0FC0) == 0x0AC0)
-			{
-				instruction = INSTRUCTION_TAS;
-			}
-			else if ((opcode->raw & 0x0F00) == 0x0A00)
-			{
-				instruction = INSTRUCTION_TST;
-			}
-			else if ((opcode->raw & 0x0FF0) == 0x0E40)
-			{
-				instruction = INSTRUCTION_TRAP;
-			}
-			else if ((opcode->raw & 0x0FF8) == 0x0E50)
-			{
-				instruction = INSTRUCTION_LINK;
-			}
-			else if ((opcode->raw & 0x0FF8) == 0x0E58)
-			{
-				instruction = INSTRUCTION_UNLK;
-			}
-			else if ((opcode->raw & 0x0FF0) == 0x0E60)
-			{
-				instruction = INSTRUCTION_MOVE_USP;
-			}
-			else if ((opcode->raw & 0x0FF8) == 0x0E70)
-			{
-				switch (opcode->primary_register)
-				{
-					case 0:
-						instruction = INSTRUCTION_RESET;
-						break;
-
-					case 1:
-						instruction = INSTRUCTION_NOP;
-						break;
-
-					case 2:
-						instruction = INSTRUCTION_STOP;
-						break;
-
-					case 3:
-						instruction = INSTRUCTION_RTE;
-						break;
-
-					case 5:
-						instruction = INSTRUCTION_RTS;
-						break;
-
-					case 6:
-						instruction = INSTRUCTION_TRAPV;
-						break;
-
-					case 7:
-						instruction = INSTRUCTION_RTR;
-						break;
-				}
-			}
-			else if ((opcode->raw & 0x0FC0) == 0x0E80)
-			{
-				instruction = INSTRUCTION_JSR;
-			}
-			else if ((opcode->raw & 0x0FC0) == 0x0EC0)
-			{
-				instruction = INSTRUCTION_JMP;
-			}
-
-			break;
-
-		case 0x5:
-			if (opcode->bits_6_and_7 == 3)
-			{
-				if (opcode->primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
-					instruction = INSTRUCTION_DBCC;
-				else
-					instruction = INSTRUCTION_SCC;
-			}
-			else
-			{
-				if (opcode->primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
-					instruction = opcode->bit_8 ? INSTRUCTION_SUBAQ : INSTRUCTION_ADDAQ;
-				else
-					instruction = opcode->bit_8 ? INSTRUCTION_SUBQ : INSTRUCTION_ADDQ;
-			}
-
-			break;
-
-		case 0x6:
-			if (opcode->secondary_register != 0)
-				instruction = (opcode->raw & 0x00FF) == 0 ? INSTRUCTION_BCC_WORD : INSTRUCTION_BCC_SHORT;
-			else if (opcode->bit_8)
-				instruction = (opcode->raw & 0x00FF) == 0 ? INSTRUCTION_BSR_WORD : INSTRUCTION_BSR_SHORT;
-			else
-				instruction = (opcode->raw & 0x00FF) == 0 ? INSTRUCTION_BRA_WORD : INSTRUCTION_BRA_SHORT;
-
-			break;
-
-		case 0x7:
-			instruction = INSTRUCTION_MOVEQ;
-			break;
-
-		case 0x8:
-			if (opcode->bits_6_and_7 == 3)
-			{
-				if (opcode->bit_8)
-					instruction = INSTRUCTION_DIVS;
-				else
-					instruction = INSTRUCTION_DIVU;
-			}
-			else
-			{
-				if ((opcode->raw & 0x0170) == 0x0100)
-					instruction = INSTRUCTION_SBCD;
-				else
-					instruction = INSTRUCTION_OR;
-			}
-
-			break;
-
-		case 0x9:
-			if (opcode->bits_6_and_7 == 3)
-				instruction = INSTRUCTION_SUBA;
-			else if ((opcode->raw & 0x0170) == 0x0100)
-				instruction = INSTRUCTION_SUBX;
-			else
-				instruction = INSTRUCTION_SUB;
-
-			break;
-
-		case 0xA:
-			instruction = INSTRUCTION_UNIMPLEMENTED_1;
-			break;
-
-		case 0xB:
-			if (opcode->bits_6_and_7 == 3)
-				instruction = INSTRUCTION_CMPA;
-			else if (!opcode->bit_8)
-				instruction = INSTRUCTION_CMP;
-			else if (opcode->primary_address_mode == ADDRESS_MODE_ADDRESS_REGISTER)
-				instruction = INSTRUCTION_CMPM;
-			else
-				instruction = INSTRUCTION_EOR;
-
-			break;
-
-		case 0xC:
-			if (opcode->bits_6_and_7 == 3)
-			{
-				if (opcode->bit_8)
-					instruction = INSTRUCTION_MULS;
-				else
-					instruction = INSTRUCTION_MULU;
-			}
-			else if ((opcode->raw & 0x0130) == 0x0100)
-			{
-				if (opcode->bits_6_and_7 == 0)
-					instruction = INSTRUCTION_ABCD;
-				else
-					instruction = INSTRUCTION_EXG;
-			}
-			else
-			{
-				instruction = INSTRUCTION_AND;
-			}
-
-			break;
-
-		case 0xD:
-			if (opcode->bits_6_and_7 == 3)
-				instruction = INSTRUCTION_ADDA;
-			else if ((opcode->raw & 0x0170) == 0x0100)
-				instruction = INSTRUCTION_ADDX;
-			else
-				instruction = INSTRUCTION_ADD;
-
-			break;
-
-		case 0xE:
-			if (opcode->bits_6_and_7 == 3)
-			{
-				switch (opcode->secondary_register)
-				{
-					case 0:
-						instruction = INSTRUCTION_ASD_MEMORY;
-						break;
-
-					case 1:
-						instruction = INSTRUCTION_LSD_MEMORY;
-						break;
-
-					case 2:
-						instruction = INSTRUCTION_ROXD_MEMORY;
-						break;
-
-					case 3:
-						instruction = INSTRUCTION_ROD_MEMORY;
-						break;
-				}
-			}
-			else
-			{
-				switch (opcode->raw & 0x0018)
-				{
-					case 0x0000:
-						instruction = INSTRUCTION_ASD_REGISTER;
-						break;
-
-					case 0x0008:
-						instruction = INSTRUCTION_LSD_REGISTER;
-						break;
-
-					case 0x0010:
-						instruction = INSTRUCTION_ROXD_REGISTER;
-						break;
-
-					case 0x0018:
-						instruction = INSTRUCTION_ROD_REGISTER;
-						break;
-				}
-			}
-
-			break;
-
-		case 0xF:
-			instruction = INSTRUCTION_UNIMPLEMENTED_2;
-			break;
-	}
-
-	return instruction;
-}
 
 /* API */
 
@@ -1049,13 +601,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			unsigned int operation_size;
 			DecodedAddressMode source_decoded_address_mode, destination_decoded_address_mode;
 			unsigned long source_value, destination_value, result_value;
-			Instruction instruction;
+			DecodedOpcode decoded_opcode;
 			unsigned long msb_mask;
 			cc_bool sm, dm, rm;
 
 			operation_size = 1; /* Set to 1 by default to prevent an invalid shift later on */
 			source_value = destination_value = result_value = 0;
-			instruction = INSTRUCTION_ILLEGAL;
 
 			opcode.raw = ReadWord(&stuff, state->program_counter);
 
@@ -1071,9 +622,9 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			state->program_counter += 2;
 
 			/* Figure out which instruction this is */
-			instruction = DecodeOpcode(&opcode);
+			DecodeOpcode(&decoded_opcode, &opcode);
 
-			switch (instruction)
+			switch (decoded_opcode.instruction)
 			{
 				#include "m68k/gen.c"
 			}

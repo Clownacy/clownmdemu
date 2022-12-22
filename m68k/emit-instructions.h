@@ -1,7 +1,7 @@
-#ifndef M68K_EMIT_INSTRUCTIONS
-#define M68K_EMIT_INSTRUCTIONS
+#ifndef M68K_EMIT_INSTRUCTIONS_H
+#define M68K_EMIT_INSTRUCTIONS_H
 
-#include "instructions.h"
+#include "instruction.h"
 
 void EmitInstructionSize(const Instruction instruction);
 void EmitInstructionSourceAddressMode(const Instruction instruction);
@@ -12,4 +12,4 @@ void EmitInstructionAction(const Instruction instruction);
 void EmitInstructionWriteDestinationOperand(const Instruction instruction);
 void EmitInstructionConditionCodes(const Instruction instruction);
 
-#endif /* M68K_EMIT_INSTRUCTIONS */
+#endif /* M68K_EMIT_INSTRUCTIONS_H */
