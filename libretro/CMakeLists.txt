@@ -5,8 +5,6 @@ project(clownmdemu_libretro LANGUAGES C)
 # Sources.
 add_library(clownmdemu_libretro
 	"libretro.c"
-	"../frontend/mixer.c"
-	"../frontend/mixer.h"
 )
 
 # Only require C90.

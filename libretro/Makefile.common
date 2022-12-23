@@ -7,6 +7,7 @@ SOURCES_C   := $(CORE_DIR)/libretro.c \
                $(CORE_DIR)/../fm_operator.c \
                $(CORE_DIR)/../fm_phase.c \
                $(CORE_DIR)/../m68k.c \
+               $(CORE_DIR)/../m68k/opcode.c \
                $(CORE_DIR)/../psg.c \
                $(CORE_DIR)/../vdp.c \
                $(CORE_DIR)/../z80.c
