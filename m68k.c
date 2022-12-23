@@ -598,14 +598,12 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 		{
 			/* Process new instruction */
 			Opcode opcode;
-			unsigned int operation_size;
 			DecodedAddressMode source_decoded_address_mode, destination_decoded_address_mode;
 			unsigned long source_value, destination_value, result_value;
 			DecodedOpcode decoded_opcode;
 			unsigned long msb_mask;
 			cc_bool sm, dm, rm;
 
-			operation_size = 1; /* Set to 1 by default to prevent an invalid shift later on */
 			source_value = destination_value = result_value = 0;
 
 			opcode.raw = ReadWord(&stuff, state->program_counter);
@@ -623,6 +621,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			/* Figure out which instruction this is */
 			DecodeOpcode(&decoded_opcode, &opcode);
+
+			#define operation_size decoded_opcode.size /* TODO: Get rid of this ugly thing. */
 
 			switch (decoded_opcode.instruction)
 			{
