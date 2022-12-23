@@ -459,11 +459,11 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 	if (uses_sm || uses_dm || uses_rm)
 		Emit("msb_mask = 1ul << (operation_size * 8 - 1);");
 	if (uses_sm)
-		Emit("sm = (source_value & msb_mask) != 0;");
+		Emit("sm = 0 - ((source_value & msb_mask) != 0);");
 	if (uses_dm)
-		Emit("dm = (destination_value & msb_mask) != 0;");
+		Emit("dm = 0 - ((destination_value & msb_mask) != 0);");
 	if (uses_rm)
-		Emit("rm = (result_value & msb_mask) != 0;");
+		Emit("rm = 0 - ((result_value & msb_mask) != 0);");
 	Emit("");
 
 	Emit("/* Update CARRY condition code */");
@@ -479,17 +479,17 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 
 		case INSTRUCTION_CARRY_STANDARD_CARRY:
 			Emit("state->status_register &= ~CONDITION_CODE_CARRY;");
-			Emit("state->status_register |= ((sm && dm) || (!rm && dm) || (sm && !rm)) ? CONDITION_CODE_CARRY : 0;");
+			Emit("state->status_register |= CONDITION_CODE_CARRY & ((sm & dm) | (~rm & dm) | (sm & ~rm));");
 			break;
 
 		case INSTRUCTION_CARRY_STANDARD_BORROW:
 			Emit("state->status_register &= ~CONDITION_CODE_CARRY;");
-			Emit("state->status_register |= ((sm && !dm) || (rm && !dm) || (sm && rm)) ? CONDITION_CODE_CARRY : 0;");
+			Emit("state->status_register |= CONDITION_CODE_CARRY & ((sm & ~dm) | (rm & ~dm) | (sm & rm));");
 			break;
 
 		case INSTRUCTION_CARRY_NEG:
 			Emit("state->status_register &= ~CONDITION_CODE_CARRY;");
-			Emit("state->status_register |= (dm || rm) ? CONDITION_CODE_CARRY : 0;");
+			Emit("state->status_register |= CONDITION_CODE_CARRY & (dm | rm);");
 			break;
 
 		case INSTRUCTION_CARRY_CLEAR:
@@ -510,17 +510,17 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 	{
 		case INSTRUCTION_OVERFLOW_ADD:
 			Emit("state->status_register &= ~CONDITION_CODE_OVERFLOW;");
-			Emit("state->status_register |= ((sm && dm && !rm) || (!sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;");
+			Emit("state->status_register |= CONDITION_CODE_OVERFLOW & ((sm & dm & ~rm) | (~sm & ~dm & rm));");
 			break;
 
 		case INSTRUCTION_OVERFLOW_SUB:
 			Emit("state->status_register &= ~CONDITION_CODE_OVERFLOW;");
-			Emit("state->status_register |= ((!sm && dm && !rm) || (sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;");
+			Emit("state->status_register |= CONDITION_CODE_OVERFLOW & ((~sm & dm & ~rm) | (sm & ~dm & rm));");
 			break;
 
 		case INSTRUCTION_OVERFLOW_NEG:
 			Emit("state->status_register &= ~CONDITION_CODE_OVERFLOW;");
-			Emit("state->status_register |= (dm && rm) ? CONDITION_CODE_OVERFLOW : 0;");
+			Emit("state->status_register |= CONDITION_CODE_OVERFLOW & (dm & rm);");
 			break;
 
 		case INSTRUCTION_OVERFLOW_CLEARED:
@@ -546,7 +546,7 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_ZERO_SET_IF_ZERO_CLEAR_OTHERWISE:
 			Emit("/* Standard behaviour: set if result is zero; clear otherwise */");
 			Emit("state->status_register &= ~CONDITION_CODE_ZERO;");
-			Emit("state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;");
+			Emit("state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));");
 			break;
 
 		case INSTRUCTION_ZERO_UNDEFINED:
@@ -564,7 +564,7 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_NEGATIVE_SET_IF_NEGATIVE_CLEAR_OTHERWISE:
 			Emit("/* Standard behaviour: set if result value is negative; clear otherwise */");
 			Emit("state->status_register &= ~CONDITION_CODE_NEGATIVE;");
-			Emit("state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;");
+			Emit("state->status_register |= CONDITION_CODE_NEGATIVE & rm;");
 			break;
 
 		case INSTRUCTION_NEGATIVE_UNDEFINED:
@@ -582,7 +582,7 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 		case INSTRUCTION_EXTEND_SET_TO_CARRY:
 			Emit("/* Standard behaviour: set to CARRY */");
 			Emit("state->status_register &= ~CONDITION_CODE_EXTEND;");
-			Emit("state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;");
+			Emit("state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));");
 			break;
 
 		case INSTRUCTION_EXTEND_UNAFFECTED:

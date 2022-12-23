@@ -602,7 +602,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			unsigned long source_value, destination_value, result_value;
 			DecodedOpcode decoded_opcode;
 			unsigned long msb_mask;
-			cc_bool sm, dm, rm;
+			unsigned int sm, dm, rm;
 
 			source_value = destination_value = result_value = 0;
 

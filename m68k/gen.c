@@ -31,7 +31,7 @@ case INSTRUCTION_ABCD:
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
-	state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 	break;
 
@@ -57,28 +57,28 @@ case INSTRUCTION_ADD:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	sm = 0 - ((source_value & msb_mask) != 0);
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= ((sm && dm) || (!rm && dm) || (sm && !rm)) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & ((sm & dm) | (~rm & dm) | (sm & ~rm));
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= ((sm && dm && !rm) || (!sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & ((sm & dm & ~rm) | (~sm & ~dm & rm));
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
-	state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 	break;
 
@@ -168,28 +168,28 @@ case INSTRUCTION_ADDI:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	sm = 0 - ((source_value & msb_mask) != 0);
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= ((sm && dm) || (!rm && dm) || (sm && !rm)) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & ((sm & dm) | (~rm & dm) | (sm & ~rm));
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= ((sm && dm && !rm) || (!sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & ((sm & dm & ~rm) | (~sm & ~dm & rm));
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
-	state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 	break;
 
@@ -209,28 +209,28 @@ case INSTRUCTION_ADDQ:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	sm = 0 - ((source_value & msb_mask) != 0);
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= ((sm && dm) || (!rm && dm) || (sm && !rm)) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & ((sm & dm) | (~rm & dm) | (sm & ~rm));
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= ((sm && dm && !rm) || (!sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & ((sm & dm & ~rm) | (~sm & ~dm & rm));
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
-	state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 	break;
 
@@ -256,26 +256,26 @@ case INSTRUCTION_ADDX:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	sm = 0 - ((source_value & msb_mask) != 0);
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= ((sm && dm) || (!rm && dm) || (sm && !rm)) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & ((sm & dm) | (~rm & dm) | (sm & ~rm));
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= ((sm && dm && !rm) || (!sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & ((sm & dm & ~rm) | (~sm & ~dm & rm));
 	/* Update ZERO condition code */
 	/* TODO - "Cleared if the result is nonzero; unchanged otherwise" */
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
-	state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 	break;
 
@@ -301,7 +301,7 @@ case INSTRUCTION_AND:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -310,11 +310,11 @@ case INSTRUCTION_AND:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -342,7 +342,7 @@ case INSTRUCTION_ANDI:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -351,11 +351,11 @@ case INSTRUCTION_ANDI:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -447,7 +447,7 @@ case INSTRUCTION_ASD_MEMORY:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -456,11 +456,11 @@ case INSTRUCTION_ASD_MEMORY:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -482,7 +482,7 @@ case INSTRUCTION_ASD_REGISTER:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -491,11 +491,11 @@ case INSTRUCTION_ASD_REGISTER:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -955,7 +955,7 @@ case INSTRUCTION_CLR:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -964,11 +964,11 @@ case INSTRUCTION_CLR:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -993,24 +993,24 @@ case INSTRUCTION_CMP:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	sm = 0 - ((source_value & msb_mask) != 0);
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= ((sm && !dm) || (rm && !dm) || (sm && rm)) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & ((sm & ~dm) | (rm & ~dm) | (sm & rm));
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= ((!sm && dm && !rm) || (sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & ((~sm & dm & ~rm) | (sm & ~dm & rm));
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1035,24 +1035,24 @@ case INSTRUCTION_CMPA:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	sm = 0 - ((source_value & msb_mask) != 0);
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= ((sm && !dm) || (rm && !dm) || (sm && rm)) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & ((sm & ~dm) | (rm & ~dm) | (sm & rm));
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= ((!sm && dm && !rm) || (sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & ((~sm & dm & ~rm) | (sm & ~dm & rm));
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1077,24 +1077,24 @@ case INSTRUCTION_CMPI:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	sm = 0 - ((source_value & msb_mask) != 0);
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= ((sm && !dm) || (rm && !dm) || (sm && rm)) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & ((sm & ~dm) | (rm & ~dm) | (sm & rm));
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= ((!sm && dm && !rm) || (sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & ((~sm & dm & ~rm) | (sm & ~dm & rm));
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1119,24 +1119,24 @@ case INSTRUCTION_CMPM:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	sm = 0 - ((source_value & msb_mask) != 0);
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= ((sm && !dm) || (rm && !dm) || (sm && rm)) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & ((sm & ~dm) | (rm & ~dm) | (sm & rm));
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= ((!sm && dm && !rm) || (sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & ((~sm & dm & ~rm) | (sm & ~dm & rm));
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1242,7 +1242,7 @@ case INSTRUCTION_EOR:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -1251,11 +1251,11 @@ case INSTRUCTION_EOR:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1283,7 +1283,7 @@ case INSTRUCTION_EORI:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -1292,11 +1292,11 @@ case INSTRUCTION_EORI:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1408,7 +1408,7 @@ case INSTRUCTION_EXT:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -1417,11 +1417,11 @@ case INSTRUCTION_EXT:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1573,7 +1573,7 @@ case INSTRUCTION_LSD_MEMORY:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1582,11 +1582,11 @@ case INSTRUCTION_LSD_MEMORY:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1608,7 +1608,7 @@ case INSTRUCTION_LSD_REGISTER:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1617,11 +1617,11 @@ case INSTRUCTION_LSD_REGISTER:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1646,7 +1646,7 @@ case INSTRUCTION_MOVE:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -1655,11 +1655,11 @@ case INSTRUCTION_MOVE:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1884,7 +1884,7 @@ case INSTRUCTION_MOVEQ:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -1893,11 +1893,11 @@ case INSTRUCTION_MOVEQ:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1982,7 +1982,7 @@ case INSTRUCTION_NBCD:
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
-	state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 	break;
 
@@ -2002,27 +2002,27 @@ case INSTRUCTION_NEG:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= (dm || rm) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & (dm | rm);
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= (dm && rm) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & (dm & rm);
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
-	state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 	break;
 
@@ -2042,25 +2042,25 @@ case INSTRUCTION_NEGX:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= (dm || rm) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & (dm | rm);
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= (dm && rm) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & (dm & rm);
 	/* Update ZERO condition code */
 	/* TODO - "Cleared if the result is nonzero; unchanged otherwise" */
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
-	state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 	break;
 
@@ -2100,7 +2100,7 @@ case INSTRUCTION_NOT:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -2109,11 +2109,11 @@ case INSTRUCTION_NOT:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2141,7 +2141,7 @@ case INSTRUCTION_OR:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -2150,11 +2150,11 @@ case INSTRUCTION_OR:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2182,7 +2182,7 @@ case INSTRUCTION_ORI:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -2191,11 +2191,11 @@ case INSTRUCTION_ORI:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2333,7 +2333,7 @@ case INSTRUCTION_ROD_MEMORY:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2342,11 +2342,11 @@ case INSTRUCTION_ROD_MEMORY:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2368,7 +2368,7 @@ case INSTRUCTION_ROD_REGISTER:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2377,11 +2377,11 @@ case INSTRUCTION_ROD_REGISTER:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2403,7 +2403,7 @@ case INSTRUCTION_ROXD_MEMORY:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2412,11 +2412,11 @@ case INSTRUCTION_ROXD_MEMORY:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2438,7 +2438,7 @@ case INSTRUCTION_ROXD_REGISTER:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2447,11 +2447,11 @@ case INSTRUCTION_ROXD_REGISTER:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2550,7 +2550,7 @@ case INSTRUCTION_SBCD:
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
-	state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 	break;
 
@@ -2631,28 +2631,28 @@ case INSTRUCTION_SUB:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	sm = 0 - ((source_value & msb_mask) != 0);
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= ((sm && !dm) || (rm && !dm) || (sm && rm)) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & ((sm & ~dm) | (rm & ~dm) | (sm & rm));
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= ((!sm && dm && !rm) || (sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & ((~sm & dm & ~rm) | (sm & ~dm & rm));
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
-	state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 	break;
 
@@ -2742,28 +2742,28 @@ case INSTRUCTION_SUBI:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	sm = 0 - ((source_value & msb_mask) != 0);
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= ((sm && !dm) || (rm && !dm) || (sm && rm)) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & ((sm & ~dm) | (rm & ~dm) | (sm & rm));
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= ((!sm && dm && !rm) || (sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & ((~sm & dm & ~rm) | (sm & ~dm & rm));
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
-	state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 	break;
 
@@ -2783,28 +2783,28 @@ case INSTRUCTION_SUBQ:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	sm = 0 - ((source_value & msb_mask) != 0);
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= ((sm && !dm) || (rm && !dm) || (sm && rm)) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & ((sm & ~dm) | (rm & ~dm) | (sm & rm));
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= ((!sm && dm && !rm) || (sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & ((~sm & dm & ~rm) | (sm & ~dm & rm));
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
-	state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 	break;
 
@@ -2830,26 +2830,26 @@ case INSTRUCTION_SUBX:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
+	sm = 0 - ((source_value & msb_mask) != 0);
+	dm = 0 - ((destination_value & msb_mask) != 0);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
-	state->status_register |= ((sm && !dm) || (rm && !dm) || (sm && rm)) ? CONDITION_CODE_CARRY : 0;
+	state->status_register |= CONDITION_CODE_CARRY & ((sm & ~dm) | (rm & ~dm) | (sm & rm));
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
-	state->status_register |= ((!sm && dm && !rm) || (sm && !dm && rm)) ? CONDITION_CODE_OVERFLOW : 0;
+	state->status_register |= CONDITION_CODE_OVERFLOW & ((~sm & dm & ~rm) | (sm & ~dm & rm));
 	/* Update ZERO condition code */
 	/* TODO - "Cleared if the result is nonzero; unchanged otherwise" */
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
-	state->status_register |= ((state->status_register & CONDITION_CODE_CARRY) != 0) ? CONDITION_CODE_EXTEND : 0;
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 	break;
 
@@ -2869,7 +2869,7 @@ case INSTRUCTION_SWAP:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -2878,11 +2878,11 @@ case INSTRUCTION_SWAP:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2970,7 +2970,7 @@ case INSTRUCTION_TST:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	rm = (result_value & msb_mask) != 0;
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -2979,11 +2979,11 @@ case INSTRUCTION_TST:
 	/* Update ZERO condition code */
 	/* Standard behaviour: set if result is zero; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_ZERO;
-	state->status_register |= ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0) ? CONDITION_CODE_ZERO : 0;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= rm ? CONDITION_CODE_NEGATIVE : 0;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
