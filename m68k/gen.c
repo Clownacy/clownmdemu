@@ -23,10 +23,6 @@ case INSTRUCTION_ABCD:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* TODO - "Decimal carry" */
@@ -86,7 +82,7 @@ case INSTRUCTION_ADD:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
@@ -119,10 +115,6 @@ case INSTRUCTION_ADDA:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -161,10 +153,6 @@ case INSTRUCTION_ADDAQ:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -222,7 +210,7 @@ case INSTRUCTION_ADDI:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
@@ -272,7 +260,7 @@ case INSTRUCTION_ADDQ:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
@@ -321,7 +309,7 @@ case INSTRUCTION_ADDX:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
@@ -355,8 +343,6 @@ case INSTRUCTION_AND:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -370,7 +356,7 @@ case INSTRUCTION_AND:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -402,8 +388,6 @@ case INSTRUCTION_ANDI:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -417,7 +401,7 @@ case INSTRUCTION_ANDI:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -448,10 +432,6 @@ case INSTRUCTION_ANDI_TO_CCR:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -491,10 +471,6 @@ case INSTRUCTION_ANDI_TO_SR:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -534,8 +510,6 @@ case INSTRUCTION_ASD_MEMORY:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -549,7 +523,7 @@ case INSTRUCTION_ASD_MEMORY:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -580,8 +554,6 @@ case INSTRUCTION_ASD_REGISTER:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -595,7 +567,7 @@ case INSTRUCTION_ASD_REGISTER:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -624,10 +596,6 @@ case INSTRUCTION_BCC_SHORT:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -666,10 +634,6 @@ case INSTRUCTION_BCC_WORD:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -709,10 +673,6 @@ case INSTRUCTION_BCHG_DYNAMIC:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -752,10 +712,6 @@ case INSTRUCTION_BCHG_STATIC:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -795,10 +751,6 @@ case INSTRUCTION_BCLR_DYNAMIC:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -838,10 +790,6 @@ case INSTRUCTION_BCLR_STATIC:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -879,10 +827,6 @@ case INSTRUCTION_BRA_SHORT:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -921,10 +865,6 @@ case INSTRUCTION_BRA_WORD:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -964,10 +904,6 @@ case INSTRUCTION_BSET_DYNAMIC:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1007,10 +943,6 @@ case INSTRUCTION_BSET_STATIC:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1048,10 +980,6 @@ case INSTRUCTION_BSR_SHORT:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1090,10 +1018,6 @@ case INSTRUCTION_BSR_WORD:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1133,10 +1057,6 @@ case INSTRUCTION_BTST_DYNAMIC:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1176,10 +1096,6 @@ case INSTRUCTION_BTST_STATIC:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1218,10 +1134,6 @@ case INSTRUCTION_CHK:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Undefined */
@@ -1261,8 +1173,6 @@ case INSTRUCTION_CLR:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -1276,7 +1186,7 @@ case INSTRUCTION_CLR:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1325,7 +1235,7 @@ case INSTRUCTION_CMP:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1374,7 +1284,7 @@ case INSTRUCTION_CMPA:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1423,7 +1333,7 @@ case INSTRUCTION_CMPI:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1472,7 +1382,7 @@ case INSTRUCTION_CMPM:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1502,10 +1412,6 @@ case INSTRUCTION_DBCC:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1544,10 +1450,6 @@ case INSTRUCTION_DIVS:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -1586,10 +1488,6 @@ case INSTRUCTION_DIVU:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -1630,8 +1528,6 @@ case INSTRUCTION_EOR:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -1645,7 +1541,7 @@ case INSTRUCTION_EOR:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1677,8 +1573,6 @@ case INSTRUCTION_EORI:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -1692,7 +1586,7 @@ case INSTRUCTION_EORI:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1723,10 +1617,6 @@ case INSTRUCTION_EORI_TO_CCR:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1766,10 +1656,6 @@ case INSTRUCTION_EORI_TO_SR:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1807,10 +1693,6 @@ case INSTRUCTION_EXG:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1850,8 +1732,6 @@ case INSTRUCTION_EXT:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -1865,7 +1745,7 @@ case INSTRUCTION_EXT:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1894,10 +1774,6 @@ case INSTRUCTION_ILLEGAL:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1936,10 +1812,6 @@ case INSTRUCTION_JMP:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -1978,10 +1850,6 @@ case INSTRUCTION_JSR:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2021,10 +1889,6 @@ case INSTRUCTION_LEA:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2063,10 +1927,6 @@ case INSTRUCTION_LINK:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2106,8 +1966,6 @@ case INSTRUCTION_LSD_MEMORY:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -2121,7 +1979,7 @@ case INSTRUCTION_LSD_MEMORY:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2152,8 +2010,6 @@ case INSTRUCTION_LSD_REGISTER:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -2167,7 +2023,7 @@ case INSTRUCTION_LSD_REGISTER:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2199,8 +2055,6 @@ case INSTRUCTION_MOVE:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -2214,7 +2068,7 @@ case INSTRUCTION_MOVE:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2245,10 +2099,6 @@ case INSTRUCTION_MOVE_FROM_SR:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2288,10 +2138,6 @@ case INSTRUCTION_MOVE_TO_CCR:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2331,10 +2177,6 @@ case INSTRUCTION_MOVE_TO_SR:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2372,10 +2214,6 @@ case INSTRUCTION_MOVE_USP:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2415,10 +2253,6 @@ case INSTRUCTION_MOVEA:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2458,10 +2292,6 @@ case INSTRUCTION_MOVEM:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2500,10 +2330,6 @@ case INSTRUCTION_MOVEP:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2543,8 +2369,6 @@ case INSTRUCTION_MOVEQ:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -2558,7 +2382,7 @@ case INSTRUCTION_MOVEQ:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2588,10 +2412,6 @@ case INSTRUCTION_MULS:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -2630,10 +2450,6 @@ case INSTRUCTION_MULU:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -2672,10 +2488,6 @@ case INSTRUCTION_NBCD:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* TODO - "Decimal borrow" */
@@ -2717,7 +2529,6 @@ case INSTRUCTION_NEG:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
 	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
@@ -2734,7 +2545,7 @@ case INSTRUCTION_NEG:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
@@ -2767,7 +2578,6 @@ case INSTRUCTION_NEGX:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
 	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
@@ -2782,7 +2592,7 @@ case INSTRUCTION_NEGX:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
@@ -2813,10 +2623,6 @@ case INSTRUCTION_NOP:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -2856,8 +2662,6 @@ case INSTRUCTION_NOT:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -2871,7 +2675,7 @@ case INSTRUCTION_NOT:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2903,8 +2707,6 @@ case INSTRUCTION_OR:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -2918,7 +2720,7 @@ case INSTRUCTION_OR:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2950,8 +2752,6 @@ case INSTRUCTION_ORI:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -2965,7 +2765,7 @@ case INSTRUCTION_ORI:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -2996,10 +2796,6 @@ case INSTRUCTION_ORI_TO_CCR:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -3039,10 +2835,6 @@ case INSTRUCTION_ORI_TO_SR:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -3081,10 +2873,6 @@ case INSTRUCTION_PEA:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -3122,10 +2910,6 @@ case INSTRUCTION_RESET:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -3165,8 +2949,6 @@ case INSTRUCTION_ROD_MEMORY:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -3180,7 +2962,7 @@ case INSTRUCTION_ROD_MEMORY:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -3211,8 +2993,6 @@ case INSTRUCTION_ROD_REGISTER:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -3226,7 +3006,7 @@ case INSTRUCTION_ROD_REGISTER:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -3257,8 +3037,6 @@ case INSTRUCTION_ROXD_MEMORY:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -3272,7 +3050,7 @@ case INSTRUCTION_ROXD_MEMORY:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -3303,8 +3081,6 @@ case INSTRUCTION_ROXD_REGISTER:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -3318,7 +3094,7 @@ case INSTRUCTION_ROXD_REGISTER:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -3347,10 +3123,6 @@ case INSTRUCTION_RTE:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -3388,10 +3160,6 @@ case INSTRUCTION_RTR:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -3429,10 +3197,6 @@ case INSTRUCTION_RTS:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -3472,10 +3236,6 @@ case INSTRUCTION_SBCD:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* TODO - "Decimal borrow" */
@@ -3516,10 +3276,6 @@ case INSTRUCTION_SCC:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -3558,10 +3314,6 @@ case INSTRUCTION_STOP:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -3619,7 +3371,7 @@ case INSTRUCTION_SUB:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
@@ -3652,10 +3404,6 @@ case INSTRUCTION_SUBA:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -3694,10 +3442,6 @@ case INSTRUCTION_SUBAQ:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -3755,7 +3499,7 @@ case INSTRUCTION_SUBI:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
@@ -3805,7 +3549,7 @@ case INSTRUCTION_SUBQ:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
@@ -3854,7 +3598,7 @@ case INSTRUCTION_SUBX:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Standard behaviour: set to CARRY */
 	state->status_register &= ~CONDITION_CODE_EXTEND;
@@ -3887,8 +3631,6 @@ case INSTRUCTION_SWAP:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -3902,7 +3644,7 @@ case INSTRUCTION_SWAP:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -3932,10 +3674,6 @@ case INSTRUCTION_TAS:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
@@ -3973,10 +3711,6 @@ case INSTRUCTION_TRAP:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -4014,10 +3748,6 @@ case INSTRUCTION_TRAPV:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -4057,8 +3787,6 @@ case INSTRUCTION_TST:
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
 	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
 	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
@@ -4072,7 +3800,7 @@ case INSTRUCTION_TST:
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result_value & msb_mask) != 0);
+	state->status_register |= CONDITION_CODE_NEGATIVE * rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -4101,10 +3829,6 @@ case INSTRUCTION_UNLK:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -4142,10 +3866,6 @@ case INSTRUCTION_UNIMPLEMENTED_1:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
@@ -4183,10 +3903,6 @@ case INSTRUCTION_UNIMPLEMENTED_2:
 	/* Update condition codes. */
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
-	msb_mask = 1ul << (operation_size * 8 - 1);
-	sm = (source_value & msb_mask) != 0;
-	dm = (destination_value & msb_mask) != 0;
-	rm = (result_value & msb_mask) != 0;
 
 	/* Update CARRY condition code */
 	/* Unaffected */
