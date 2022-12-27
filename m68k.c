@@ -79,8 +79,8 @@ typedef struct Stuff
 
 /* Exception forward-declarations. */
 
-static void Group1Or2Exception(const Stuff *stuff, size_t vector_offset);
-static void Group0Exception(const Stuff *stuff, size_t vector_offset, unsigned long access_address, cc_bool is_a_read);
+static void Group1Or2Exception(Stuff *stuff, size_t vector_offset);
+static void Group0Exception(Stuff *stuff, size_t vector_offset, unsigned long access_address, cc_bool is_a_read);
 
 /* Memory reads */
 
@@ -92,9 +92,8 @@ static unsigned long ReadByte(const Stuff *stuff, unsigned long address)
 	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, (cc_bool)!odd, odd) >> (odd ? 0 : 8);
 }
 
-static unsigned long ReadWord(const Stuff *stuff, unsigned long address)
+static unsigned long ReadWord(Stuff *stuff, unsigned long address)
 {
-	M68k_State* const state = stuff->state;
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	if ((address & 1) != 0)
@@ -103,11 +102,10 @@ static unsigned long ReadWord(const Stuff *stuff, unsigned long address)
 	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, cc_true, cc_true);
 }
 
-static unsigned long ReadLongWord(const Stuff *stuff, unsigned long address)
+static unsigned long ReadLongWord(Stuff *stuff, unsigned long address)
 {
 	unsigned long value;
 
-	M68k_State* const state = stuff->state;
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	if ((address & 1) != 0)
@@ -130,9 +128,8 @@ static void WriteByte(const Stuff *stuff, unsigned long address, unsigned long v
 	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, (cc_bool)!odd, odd, value << (odd ? 0 : 8));
 }
 
-static void WriteWord(const Stuff *stuff, unsigned long address, unsigned long value)
+static void WriteWord(Stuff *stuff, unsigned long address, unsigned long value)
 {
-	M68k_State* const state = stuff->state;
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	if ((address & 1) != 0)
@@ -141,9 +138,8 @@ static void WriteWord(const Stuff *stuff, unsigned long address, unsigned long v
 	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, cc_true, cc_true, value);
 }
 
-static void WriteLongWord(const Stuff *stuff, unsigned long address, unsigned long value)
+static void WriteLongWord(Stuff *stuff, unsigned long address, unsigned long value)
 {
-	M68k_State* const state = stuff->state;
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	if ((address & 1) != 0)
@@ -155,10 +151,9 @@ static void WriteLongWord(const Stuff *stuff, unsigned long address, unsigned lo
 
 /* Exceptions */
 
-static void Group1Or2Exception(const Stuff *stuff, size_t vector_offset)
+static void Group1Or2Exception(Stuff *stuff, size_t vector_offset)
 {
 	M68k_State* const state = stuff->state;
-	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	state->address_registers[7] -= 4;
 	WriteLongWord(stuff, state->address_registers[7], stuff->exception.program_counter);
@@ -174,10 +169,9 @@ static void Group1Or2Exception(const Stuff *stuff, size_t vector_offset)
 	longjmp(stuff->exception.context, 1);
 }
 
-static void Group0Exception(const Stuff *stuff, size_t vector_offset, unsigned long access_address, cc_bool is_a_read)
+static void Group0Exception(Stuff *stuff, size_t vector_offset, unsigned long access_address, cc_bool is_a_read)
 {
 	M68k_State* const state = stuff->state;
-	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	/* If a data or address error occurs during group 0 exception processing, then the CPU halts. */
 	if ((state->address_registers[7] & 1) != 0)
@@ -203,10 +197,9 @@ static void Group0Exception(const Stuff *stuff, size_t vector_offset, unsigned l
 
 /* Misc. utility */
 
-static unsigned long DecodeMemoryAddressMode(const Stuff *stuff, const Operand *decoded_operand)
+static unsigned long DecodeMemoryAddressMode(Stuff *stuff, const Operand *decoded_operand)
 {
 	M68k_State* const state = stuff->state;
-	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	unsigned long address;
 
@@ -305,10 +298,9 @@ static unsigned long DecodeMemoryAddressMode(const Stuff *stuff, const Operand *
 	return address;
 }
 
-static void DecodeAddressMode(const Stuff *stuff, DecodedAddressMode *decoded_address_mode, const Operand *decoded_operand)
+static void DecodeAddressMode(Stuff *stuff, DecodedAddressMode *decoded_address_mode, const Operand *decoded_operand)
 {
 	M68k_State* const state = stuff->state;
-	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	switch (decoded_operand->address_mode)
 	{
@@ -342,12 +334,11 @@ static void DecodeAddressMode(const Stuff *stuff, DecodedAddressMode *decoded_ad
 	}
 }
 
-static unsigned long GetValueUsingDecodedAddressMode(const Stuff *stuff, DecodedAddressMode *decoded_address_mode)
+static unsigned long GetValueUsingDecodedAddressMode(Stuff *stuff, DecodedAddressMode *decoded_address_mode)
 {
 	unsigned long value = 0;
 
 	M68k_State* const state = stuff->state;
-	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	switch (decoded_address_mode->type)
 	{
@@ -393,10 +384,9 @@ static unsigned long GetValueUsingDecodedAddressMode(const Stuff *stuff, Decoded
 	return value;
 }
 
-static void SetValueUsingDecodedAddressMode(const Stuff *stuff, DecodedAddressMode *decoded_address_mode, unsigned long value)
+static void SetValueUsingDecodedAddressMode(Stuff *stuff, DecodedAddressMode *decoded_address_mode, unsigned long value)
 {
 	M68k_State* const state = stuff->state;
-	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	switch (decoded_address_mode->type)
 	{
@@ -436,7 +426,7 @@ static void SetValueUsingDecodedAddressMode(const Stuff *stuff, DecodedAddressMo
 		}
 
 		case DECODED_ADDRESS_MODE_TYPE_STATUS_REGISTER:
-			state->status_register = (unsigned short)value;
+			state->status_register = value;
 			break;
 
 		case DECODED_ADDRESS_MODE_TYPE_CONDITION_CODE_REGISTER:

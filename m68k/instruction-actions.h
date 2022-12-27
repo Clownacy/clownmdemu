@@ -260,7 +260,7 @@
 \
 	/* Set the zero flag to the specified bit */\
 	state->status_register &= ~CONDITION_CODE_ZERO;\
-	state->status_register |= CONDITION_CODE_ZERO * ((destination_value & (1ul << source_value)) == 0)
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((destination_value & (1ul << source_value)) == 0))
 
 #define DO_INSTRUCTION_ACTION_BCHG\
 	DO_INSTRUCTION_ACTION_BTST;\
@@ -372,8 +372,8 @@
 #define DO_INSTRUCTION_ACTION_TAS\
 	/* TODO - This instruction doesn't work properly on memory on the Mega Drive */\
 	state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO);\
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((destination_value & 0x80) != 0);\
-	state->status_register |= CONDITION_CODE_ZERO * (destination_value == 0);\
+	state->status_register |= CONDITION_CODE_NEGATIVE & (0 - ((destination_value & 0x80) != 0));\
+	state->status_register |= CONDITION_CODE_ZERO & (0 - (destination_value == 0));\
 \
 	result_value = destination_value | 0x80
 
@@ -436,7 +436,7 @@
 	unsigned int bitfield;\
 	\
 	int delta;\
-	void (*write_function)(const Stuff *stuff, unsigned long address, unsigned long value);\
+	void (*write_function)(Stuff *stuff, unsigned long address, unsigned long value);\
 	\
 	if (opcode.raw & 0x0040)\
 	{\
@@ -616,8 +616,8 @@
 			state->data_registers[opcode.secondary_register] = (unsigned long)(quotient & 0xFFFF) | ((unsigned long)(remainder & 0xFFFF) << 16);\
 		}\
 \
-		state->status_register |= CONDITION_CODE_NEGATIVE * ((quotient & 0x8000) != 0);\
-		state->status_register |= CONDITION_CODE_ZERO * (quotient == 0);\
+		state->status_register |= CONDITION_CODE_NEGATIVE & (0 - ((quotient & 0x8000) != 0));\
+		state->status_register |= CONDITION_CODE_ZERO & (0 - (quotient == 0));\
 	}\
 	}
 
@@ -644,8 +644,8 @@
 	state->data_registers[opcode.secondary_register] = result;\
 \
 	state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO);\
-	state->status_register |= CONDITION_CODE_NEGATIVE * ((result & 0x80000000) != 0);\
-	state->status_register |= CONDITION_CODE_ZERO * (result == 0);\
+	state->status_register |= CONDITION_CODE_NEGATIVE & (0 - ((result & 0x80000000) != 0));\
+	state->status_register |= CONDITION_CODE_ZERO & (0 - (result == 0));\
 	}
 
 #define DO_INSTRUCTION_ACTION_ABCD\
@@ -683,33 +683,33 @@
 	UNIMPLEMENTED_INSTRUCTION("ADDX")
 
 #define DO_INSTRUCTION_ACTION_SHIFT_1_ASD\
-	const unsigned long original_sign_bit = destination_value & sign_bit_bitmask
+	const unsigned long original_sign_bit = destination_value & sign_bit_bitmask;
 
 #define DO_INSTRUCTION_ACTION_SHIFT_1_NOT_ASD
 
 #define DO_INSTRUCTION_ACTION_SHIFT_2_MEMORY\
-	count = 1
+	count = 1;
 
 #define DO_INSTRUCTION_ACTION_SHIFT_2_REGISTER\
 	count = opcode.raw & 0x0020 ? state->data_registers[opcode.secondary_register] % 64 : ((opcode.secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8 */
 
 #define DO_INSTRUCTION_ACTION_SHIFT_3_ASD\
-	state->status_register |= CONDITION_CODE_OVERFLOW * ((result_value & sign_bit_bitmask) != original_sign_bit);\
-	result_value <<= 1
+	state->status_register |= CONDITION_CODE_OVERFLOW & (0 - ((result_value & sign_bit_bitmask) != original_sign_bit));\
+	result_value <<= 1;
 
 #define DO_INSTRUCTION_ACTION_SHIFT_3_LSD\
-	result_value <<= 1
+	result_value <<= 1;
 
 #define DO_INSTRUCTION_ACTION_SHIFT_3_ROXD\
 	result_value <<= 1;\
-	result_value |= 1 * ((state->status_register & CONDITION_CODE_EXTEND) != 0)
+	result_value |= (state->status_register & CONDITION_CODE_EXTEND) != 0;
 
 #define DO_INSTRUCTION_ACTION_SHIFT_3_ROD\
-	result_value = (result_value << 1) | (1 * ((result_value & sign_bit_bitmask) != 0))
+	result_value = (result_value << 1) | ((result_value & sign_bit_bitmask) != 0);
 
 #define DO_INSTRUCTION_ACTION_SHIFT_4_NOT_ROD\
 	state->status_register &= ~CONDITION_CODE_EXTEND;\
-	state->status_register |= CONDITION_CODE_EXTEND * ((state->status_register & CONDITION_CODE_CARRY) != 0)
+	state->status_register |= CONDITION_CODE_EXTEND & (0 - ((state->status_register & CONDITION_CODE_CARRY) != 0));
 
 #define DO_INSTRUCTION_ACTION_SHIFT_4_ROD
 
@@ -718,20 +718,20 @@
 	result_value |= original_sign_bit;
 
 #define DO_INSTRUCTION_ACTION_SHIFT_5_LSD\
-	result_value >>= 1
+	result_value >>= 1;
 
 #define DO_INSTRUCTION_ACTION_SHIFT_5_ROXD\
 	result_value >>= 1;\
-	result_value |= sign_bit_bitmask * ((state->status_register & CONDITION_CODE_EXTEND) != 0)
+	result_value |= sign_bit_bitmask & (0 - ((state->status_register & CONDITION_CODE_EXTEND) != 0));
 
 #define DO_INSTRUCTION_ACTION_SHIFT_5_ROD\
-	result_value = (result_value >> 1) | (sign_bit_bitmask * ((result_value & 1) != 0))
+	result_value = (result_value >> 1) | (sign_bit_bitmask & (0 - ((result_value & 1) != 0)));
 
 #define DO_INSTRUCTION_ACTION_SHIFT(SUB_ACTION_1, SUB_ACTION_2, SUB_ACTION_3, SUB_ACTION_4, SUB_ACTION_5)\
 	{\
 	const unsigned long sign_bit_bitmask = 1ul << (operation_size * 8 - 1);\
 \
-	SUB_ACTION_1;\
+	SUB_ACTION_1\
 \
 	unsigned int i;\
 	unsigned int count;\
@@ -748,7 +748,7 @@
 		for (i = 0; i < count; ++i)\
 		{\
 			state->status_register &= ~CONDITION_CODE_CARRY;\
-			state->status_register |= CONDITION_CODE_CARRY * ((result_value & sign_bit_bitmask) != 0);\
+			state->status_register |= CONDITION_CODE_CARRY & (0 - ((result_value & sign_bit_bitmask) != 0));\
 \
 			SUB_ACTION_3;\
 \
@@ -761,7 +761,7 @@
 		for (i = 0; i < count; ++i)\
 		{\
 			state->status_register &= ~CONDITION_CODE_CARRY;\
-			state->status_register |= CONDITION_CODE_CARRY * ((result_value & 1) != 0);\
+			state->status_register |= CONDITION_CODE_CARRY & (0 - ((result_value & 1) != 0));\
 \
 			SUB_ACTION_5;\
 \
