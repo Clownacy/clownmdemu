@@ -86,9 +86,9 @@ static void CartridgeWriteCallback(const void *user_data, unsigned long address,
 static void ColourUpdatedCallback_0RGB1555(const void *user_data, unsigned int index, unsigned int colour)
 {
 	/* Convert from 0BGR4444 to 0RGB1555. */
-	const unsigned int red   = (colour >> 0) & 0xF;
-	const unsigned int green = (colour >> 4) & 0xF;
-	const unsigned int blue  = (colour >> 8) & 0xF;
+	const unsigned int red   = (colour >> (4 * 0)) & 0xF;
+	const unsigned int green = (colour >> (4 * 1)) & 0xF;
+	const unsigned int blue  = (colour >> (4 * 2)) & 0xF;
 
 	(void)user_data;
 
@@ -100,9 +100,9 @@ static void ColourUpdatedCallback_0RGB1555(const void *user_data, unsigned int i
 static void ColourUpdatedCallback_RGB565(const void *user_data, unsigned int index, unsigned int colour)
 {
 	/* Convert from 0BGR4444 to RGB565. */
-	const unsigned int red   = (colour >> 0) & 0xF;
-	const unsigned int green = (colour >> 4) & 0xF;
-	const unsigned int blue  = (colour >> 8) & 0xF;
+	const unsigned int red   = (colour >> (4 * 0)) & 0xF;
+	const unsigned int green = (colour >> (4 * 1)) & 0xF;
+	const unsigned int blue  = (colour >> (4 * 2)) & 0xF;
 
 	(void)user_data;
 
@@ -114,9 +114,9 @@ static void ColourUpdatedCallback_RGB565(const void *user_data, unsigned int ind
 static void ColourUpdatedCallback_XRGB8888(const void *user_data, unsigned int index, unsigned int colour)
 {
 	/* Convert from 0BGR4444 to XRGB8888. */
-	const unsigned int red   = (colour >> 0) & 0xF;
-	const unsigned int green = (colour >> 4) & 0xF;
-	const unsigned int blue  = (colour >> 8) & 0xF;
+	const unsigned int red   = (colour >> (4 * 0)) & 0xF;
+	const unsigned int green = (colour >> (4 * 1)) & 0xF;
+	const unsigned int blue  = (colour >> (4 * 2)) & 0xF;
 
 	(void)user_data;
 
