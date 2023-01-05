@@ -27,6 +27,7 @@ static ClownMDEmu_Configuration clownmdemu_configuration;
 static ClownMDEmu_Constant clownmdemu_constant;
 static ClownMDEmu_State clownmdemu_state;
 static const ClownMDEmu clownmdemu = CLOWNMDEMU_PARAMETERS_INITIALISE(&clownmdemu_configuration, &clownmdemu_constant, &clownmdemu_state);
+static ClownMDEmu_Callbacks clownmdemu_callbacks;
 
 /* Frontend data. */
 static union
@@ -150,9 +151,6 @@ static void ScanlineRenderedCallback_32Bit(const void *user_data, const unsigned
 	for (i = 0; i < screen_width; ++i)
 		*destination_pixel_pointer++ = colours.u32[*source_pixel_pointer++];
 }
-
-/* A forward-declaration needed by a circular-dependency. */
-static ClownMDEmu_Callbacks clownmdemu_callbacks;
 
 static void ScanlineRenderedCallback(const void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height)
 {
@@ -291,17 +289,6 @@ static void PSGAudioToBeGeneratedCallback(const void *user_data, size_t total_sa
 	generate_psg_audio(&clownmdemu, Mixer_AllocatePSGSamples(&mixer, total_samples), total_samples);
 }
 
-static ClownMDEmu_Callbacks clownmdemu_callbacks = {
-	NULL,
-	CartridgeReadCallback,
-	CartridgeWriteCallback,
-	ColourUpdatedCallback_0RGB1555,
-	ScanlineRenderedCallback,
-	InputRequestedCallback,
-	FMAudioToBeGeneratedCallback,
-	PSGAudioToBeGeneratedCallback
-};
-
 CC_ATTRIBUTE_PRINTF(2, 3) static void FallbackErrorLogCallback(enum retro_log_level level, const char *format, ...)
 {
 	va_list args;
@@ -390,6 +377,15 @@ void retro_init(void)
 	}
 
 	/* Initialise clownmdemu. */
+	clownmdemu_callbacks.user_data = NULL;
+	clownmdemu_callbacks.cartridge_read = CartridgeReadCallback;
+	clownmdemu_callbacks.cartridge_written = CartridgeWriteCallback;
+	clownmdemu_callbacks.colour_updated = ColourUpdatedCallback_0RGB1555;
+	clownmdemu_callbacks.scanline_rendered = ScanlineRenderedCallback;
+	clownmdemu_callbacks.input_requested = InputRequestedCallback;
+	clownmdemu_callbacks.fm_audio_to_be_generated = FMAudioToBeGeneratedCallback;
+	clownmdemu_callbacks.psg_audio_to_be_generated = PSGAudioToBeGeneratedCallback;
+
 	UpdateOptions(cc_true);
 
 	ClownMDEmu_SetErrorCallback(ClownMDEmuErrorLog);
