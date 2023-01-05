@@ -595,6 +595,7 @@
 	if (source_value == 0)\
 	{\
 		Group1Or2Exception(&stuff, 5);\
+		longjmp(stuff.exception.context, 1);\
 	}\
 	else\
 	{\

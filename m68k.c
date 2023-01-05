@@ -97,7 +97,10 @@ static unsigned long ReadWord(Stuff *stuff, unsigned long address)
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	if ((address & 1) != 0)
+	{
 		Group0Exception(stuff, 3, address, cc_true);
+		longjmp(stuff->exception.context, 1);
+	}
 
 	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, cc_true, cc_true);
 }
@@ -109,7 +112,10 @@ static unsigned long ReadLongWord(Stuff *stuff, unsigned long address)
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	if ((address & 1) != 0)
+	{
 		Group0Exception(stuff, 3, address, cc_true);
+		longjmp(stuff->exception.context, 1);
+	}
 
 	value = 0;
 	value |= (unsigned long)callbacks->read_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true) << 16;
@@ -133,7 +139,10 @@ static void WriteWord(Stuff *stuff, unsigned long address, unsigned long value)
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	if ((address & 1) != 0)
+	{
 		Group0Exception(stuff, 3, address, cc_false);
+		longjmp(stuff->exception.context, 1);
+	}
 
 	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, cc_true, cc_true, value);
 }
@@ -143,7 +152,10 @@ static void WriteLongWord(Stuff *stuff, unsigned long address, unsigned long val
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
 	if ((address & 1) != 0)
+	{
 		Group0Exception(stuff, 3, address, cc_false);
+		longjmp(stuff->exception.context, 1);
+	}
 
 	callbacks->write_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true, (value >> 16) & 0xFFFF);
 	callbacks->write_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true, (value >>  0) & 0xFFFF);
@@ -165,8 +177,6 @@ static void Group1Or2Exception(Stuff *stuff, size_t vector_offset)
 	state->status_register |= 0x2000;
 
 	state->program_counter = ReadLongWord(stuff, vector_offset * 4);
-
-	longjmp(stuff->exception.context, 1);
 }
 
 static void Group0Exception(Stuff *stuff, size_t vector_offset, unsigned long access_address, cc_bool is_a_read)
@@ -191,8 +201,6 @@ static void Group0Exception(Stuff *stuff, size_t vector_offset, unsigned long ac
 		/* TODO - Function code and 'Instruction/Not' bit. */
 		WriteWord(stuff, state->address_registers[7], is_a_read << 4);
 	}
-
-	longjmp(stuff->exception.context, 1);
 }
 
 /* Misc. utility */
