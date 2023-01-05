@@ -5,6 +5,33 @@
 
 #include "fm_operator.h"
 
+#define FM_CHANNEL_PARAMETERS_INITIALISE(CONSTANT, STATE) { \
+		(CONSTANT), \
+		(STATE), \
+\
+		{ \
+			{ \
+				&(CONSTANT)->operators, \
+				&(STATE)->operators[0] \
+			}, \
+\
+			{ \
+				&(CONSTANT)->operators, \
+				&(STATE)->operators[1] \
+			}, \
+\
+			{ \
+				&(CONSTANT)->operators, \
+				&(STATE)->operators[2] \
+			}, \
+\
+			{ \
+				&(CONSTANT)->operators, \
+				&(STATE)->operators[3] \
+			} \
+		} \
+	}
+
 typedef struct FM_Channel_Constant
 {
 	FM_Operator_Constant operators;
@@ -22,10 +49,13 @@ typedef struct FM_Channel
 {
 	const FM_Channel_Constant *constant;
 	FM_Channel_State *state;
+
+	FM_Operator operators[4];
 } FM_Channel;
 
 void FM_Channel_Constant_Initialise(FM_Channel_Constant *constant);
 void FM_Channel_State_Initialise(FM_Channel_State *state);
+void FM_Channel_Parameters_Initialise(FM_Channel *channel, const FM_Channel_Constant *constant, FM_Channel_State *state);
 
 /* Per-channel. */
 void FM_Channel_SetFrequency(const FM_Channel *channel, unsigned int f_number_and_block);

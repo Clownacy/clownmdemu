@@ -13,6 +13,43 @@
    than dividing by 7, so that was opted for instead. */
 #define FM_VOLUME_DIVIDER 8
 
+#define FM_PARAMETERS_INITIALISE(CONSTANT, STATE) { \
+		(CONSTANT), \
+		(STATE), \
+\
+		{ \
+			FM_CHANNEL_PARAMETERS_INITIALISE( \
+				&(CONSTANT)->channels, \
+				&(STATE)->channels[0].state \
+			), \
+\
+			FM_CHANNEL_PARAMETERS_INITIALISE( \
+				&(CONSTANT)->channels, \
+				&(STATE)->channels[1].state \
+			), \
+\
+			FM_CHANNEL_PARAMETERS_INITIALISE( \
+				&(CONSTANT)->channels, \
+				&(STATE)->channels[2].state \
+			), \
+\
+			FM_CHANNEL_PARAMETERS_INITIALISE( \
+				&(CONSTANT)->channels, \
+				&(STATE)->channels[3].state \
+			), \
+\
+			FM_CHANNEL_PARAMETERS_INITIALISE( \
+				&(CONSTANT)->channels, \
+				&(STATE)->channels[4].state \
+			), \
+\
+			FM_CHANNEL_PARAMETERS_INITIALISE( \
+				&(CONSTANT)->channels, \
+				&(STATE)->channels[5].state \
+			) \
+		} \
+	}
+
 typedef struct FM_ChannelMetadata
 {
 	FM_Channel_State state;
@@ -39,10 +76,13 @@ typedef struct FM
 {
 	const FM_Constant *constant;
 	FM_State *state;
+
+	FM_Channel channels[6];
 } FM;
 
 void FM_Constant_Initialise(FM_Constant *constant);
 void FM_State_Initialise(FM_State *state);
+void FM_Parameters_Initialise(FM *fm, const FM_Constant *constant, FM_State *state);
 
 void FM_DoAddress(const FM *fm, unsigned int port, unsigned int address);
 void FM_DoData(const FM *fm, unsigned int data);

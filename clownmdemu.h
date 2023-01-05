@@ -18,32 +18,32 @@ extern "C" {
 
 /* TODO - Documentation */
 
-#define CLOWNMDEMU_PARAMETERS_INITIALISE(configuration, constant, state) { \
-		(configuration), \
-		(constant), \
-		(state), \
+#define CLOWNMDEMU_PARAMETERS_INITIALISE(CONFIGURATION, CONSTANT, STATE) { \
+		(CONFIGURATION), \
+		(CONSTANT), \
+		(STATE), \
 \
-		&(state)->m68k, \
+		&(STATE)->m68k, \
 \
 		{ \
-			&(constant)->z80, \
-			&(state)->z80, \
+			&(CONSTANT)->z80, \
+			&(STATE)->z80 \
 		}, \
 \
 		{ \
-			&(configuration)->vdp, \
-			&(constant)->vdp, \
-			&(state)->vdp, \
+			&(CONFIGURATION)->vdp, \
+			&(CONSTANT)->vdp, \
+			&(STATE)->vdp \
 		}, \
 \
-		{ \
-			&(constant)->fm, \
-			&(state)->fm, \
-		}, \
+		FM_PARAMETERS_INITIALISE( \
+			&(CONSTANT)->fm, \
+			&(STATE)->fm \
+		), \
 \
 		{ \
-			&(constant)->psg, \
-			&(state)->psg \
+			&(CONSTANT)->psg, \
+			&(STATE)->psg \
 		} \
 	}
 

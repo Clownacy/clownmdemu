@@ -142,6 +142,17 @@ void FM_State_Initialise(FM_State *state)
 	state->dac_enabled = cc_false;
 }
 
+void FM_Parameters_Initialise(FM *fm, const FM_Constant *constant, FM_State *state)
+{
+	unsigned int i;
+
+	fm->constant = constant;
+	fm->state = state;
+
+	for (i = 0; i < CC_COUNT_OF(fm->channels); ++i)
+		FM_Channel_Parameters_Initialise(&fm->channels[i], &constant->channels, &state->channels[i].state);
+}
+
 void FM_DoAddress(const FM *fm, unsigned int port, unsigned int address)
 {
 	fm->state->port = port * 3;
@@ -173,13 +184,12 @@ void FM_DoData(const FM *fm, unsigned int data)
 					/* There's a gap between channels 3 and 4. */
 					/* TODO - Check what happens if you try to access the 'gap' channels on real hardware. */
 					static const unsigned int table[] = {0, 1, 2, 0, 3, 4, 5, 0};
-					FM_ChannelMetadata* const channel_metadata = &fm->state->channels[table[data & 7]];
-					const FM_Channel channel = {&fm->constant->channels, &channel_metadata->state};
+					const FM_Channel* const channel = &fm->channels[table[data & 7]];
 
-					FM_Channel_SetKeyOn(&channel, 0, (data & (1 << 4)) != 0);
-					FM_Channel_SetKeyOn(&channel, 2, (data & (1 << 5)) != 0);
-					FM_Channel_SetKeyOn(&channel, 1, (data & (1 << 6)) != 0);
-					FM_Channel_SetKeyOn(&channel, 3, (data & (1 << 7)) != 0);
+					FM_Channel_SetKeyOn(channel, 0, (data & (1 << 4)) != 0);
+					FM_Channel_SetKeyOn(channel, 2, (data & (1 << 5)) != 0);
+					FM_Channel_SetKeyOn(channel, 1, (data & (1 << 6)) != 0);
+					FM_Channel_SetKeyOn(channel, 3, (data & (1 << 7)) != 0);
 
 					break;
 				}
@@ -201,7 +211,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 	{
 		const unsigned int channel_index = fm->state->address & 3;
 		FM_ChannelMetadata* const channel_metadata = &fm->state->channels[fm->state->port + channel_index];
-		const FM_Channel channel = {&fm->constant->channels, &channel_metadata->state};
+		const FM_Channel* const channel = &fm->channels[fm->state->port + channel_index];
 
 		/* There is no fourth channel per slot. */
 		/* TODO: See how real hardware handles this. */
@@ -220,33 +230,33 @@ void FM_DoData(const FM *fm, unsigned int data)
 
 					case 0x30 / 0x10:
 						/* Detune and multiplier. */
-						FM_Channel_SetDetuneAndMultiplier(&channel, operator_index, (data >> 4) & 7, data & 0xF);
+						FM_Channel_SetDetuneAndMultiplier(channel, operator_index, (data >> 4) & 7, data & 0xF);
 						break;
 
 					case 0x40 / 0x10:
 						/* Total level. */
-						FM_Channel_SetTotalLevel(&channel, operator_index, data & 0x7F);
+						FM_Channel_SetTotalLevel(channel, operator_index, data & 0x7F);
 						break;
 
 					case 0x50 / 0x10:
 						/* Key scale and attack rate. */
-						FM_Channel_SetKeyScaleAndAttackRate(&channel, operator_index, (data >> 6) & 3, data & 0x1F);
+						FM_Channel_SetKeyScaleAndAttackRate(channel, operator_index, (data >> 6) & 3, data & 0x1F);
 						break;
 
 					case 0x60 / 0x10:
 						/* Amplitude modulation on and decay rate. */
 						/* TODO: LFO. */
-						FM_Channel_DecayRate(&channel, operator_index, data & 0x1F);
+						FM_Channel_DecayRate(channel, operator_index, data & 0x1F);
 						break;
 
 					case 0x70 / 0x10:
 						/* Sustain rate. */
-						FM_Channel_SetSustainRate(&channel, operator_index, data & 0x1F);
+						FM_Channel_SetSustainRate(channel, operator_index, data & 0x1F);
 						break;
 
 					case 0x80 / 0x10:
 						/* Sustain level and release rate. */
-						FM_Channel_SetSustainLevelAndReleaseRate(&channel, operator_index, (data >> 4) & 0xF, data & 0xF);
+						FM_Channel_SetSustainLevelAndReleaseRate(channel, operator_index, (data >> 4) & 0xF, data & 0xF);
 						break;
 
 					case 0x90 / 0x10:
@@ -269,7 +279,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 
 					case 0xA0 / 4:
 						/* Frequency low bits. */
-						FM_Channel_SetFrequency(&channel, data | (channel_metadata->cached_upper_frequency_bits << 8));
+						FM_Channel_SetFrequency(channel, data | (channel_metadata->cached_upper_frequency_bits << 8));
 						break;
 
 					case 0xA4 / 4:
@@ -279,7 +289,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 						break;
 
 					case 0xB0 / 4:
-						FM_Channel_SetFeedbackAndAlgorithm(&channel, (data >> 3) & 7, data & 7);
+						FM_Channel_SetFeedbackAndAlgorithm(channel, (data >> 3) & 7, data & 7);
 						break;
 
 					case 0xB4 / 4:
@@ -297,11 +307,12 @@ void FM_Update(const FM *fm, cc_s16l *sample_buffer, size_t total_frames)
 {
 	const cc_s16l* const sample_buffer_end = &sample_buffer[total_frames * 2];
 
-	FM_ChannelMetadata *channel_metadata;
+	unsigned int i;
 
-	for (channel_metadata = &fm->state->channels[0]; channel_metadata < &fm->state->channels[CC_COUNT_OF(fm->state->channels)]; ++channel_metadata)
+	for (i = 0; i < CC_COUNT_OF(fm->state->channels); ++i)
 	{
-		const FM_Channel channel = {&fm->constant->channels, &channel_metadata->state};
+		FM_ChannelMetadata *channel_metadata = &fm->state->channels[i];
+		const FM_Channel* const channel = &fm->channels[i];
 
 		/* These will be used in later boolean algebra, to avoid branches. */
 		const cc_bool left_enabled = channel_metadata->pan_left;
@@ -318,7 +329,7 @@ void FM_Update(const FM *fm, cc_s16l *sample_buffer, size_t total_frames)
 		{
 			/* The FM sample is 14-bit, so convert it to 16-bit and then divide it so that it
 			   can be mixed with the other five FM channels and the PSG without clipping. */
-			const int fm_sample = FM_Channel_GetSample(&channel) * 4 / FM_VOLUME_DIVIDER;
+			const int fm_sample = FM_Channel_GetSample(channel) * 4 / FM_VOLUME_DIVIDER;
 
 			/* Do some boolean algebra to select the FM sample or the DAC sample. */
 			const int sample = (fm_enabled ? fm_sample : 0) | dac_sample;
