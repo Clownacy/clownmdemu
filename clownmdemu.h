@@ -18,6 +18,35 @@ extern "C" {
 
 /* TODO - Documentation */
 
+#define CLOWNMDEMU_PARAMETERS_INITIALISE(configuration, constant, state) { \
+		(configuration), \
+		(constant), \
+		(state), \
+\
+		&(state)->m68k, \
+\
+		{ \
+			&(constant)->z80, \
+			&(state)->z80, \
+		}, \
+\
+		{ \
+			&(configuration)->vdp, \
+			&(constant)->vdp, \
+			&(state)->vdp, \
+		}, \
+\
+		{ \
+			&(constant)->fm, \
+			&(state)->fm, \
+		}, \
+\
+		{ \
+			&(constant)->psg, \
+			&(state)->psg \
+		} \
+	}
+
 #define CLOWNMDEMU_MASTER_CLOCK_NTSC 53693175
 #define CLOWNMDEMU_MASTER_CLOCK_PAL  53203424
 
@@ -120,6 +149,11 @@ typedef struct ClownMDEmu
 	const ClownMDEmu_Configuration *configuration;
 	const ClownMDEmu_Constant *constant;
 	ClownMDEmu_State *state;
+	M68k_State *m68k;
+	Z80 z80;
+	VDP vdp;
+	FM fm;
+	PSG psg;
 } ClownMDEmu;
 
 typedef struct ClownMDEmu_Callbacks
@@ -137,6 +171,7 @@ typedef struct ClownMDEmu_Callbacks
 
 void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant);
 void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
+void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state);
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg));

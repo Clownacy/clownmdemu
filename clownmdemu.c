@@ -31,9 +31,7 @@ typedef struct CPUCallbackUserData
 
 static void GenerateFMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames)
 {
-	const FM fm = {&clownmdemu->constant->fm, &clownmdemu->state->fm};
-
-	FM_Update(&fm, sample_buffer, total_frames);
+	FM_Update(&clownmdemu->fm, sample_buffer, total_frames);
 }
 
 static void GenerateAndPlayFMSamples(CPUCallbackUserData *m68k_callback_user_data)
@@ -52,9 +50,7 @@ static void GenerateAndPlayFMSamples(CPUCallbackUserData *m68k_callback_user_dat
 
 static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples)
 {
-	const PSG psg = {&clownmdemu->constant->psg, &clownmdemu->state->psg};
-
-	PSG_Update(&psg, sample_buffer, total_samples);
+	PSG_Update(&clownmdemu->psg, sample_buffer, total_samples);
 }
 
 static void GenerateAndPlayPSGSamples(CPUCallbackUserData *m68k_callback_user_data)
@@ -223,18 +219,16 @@ static unsigned int M68kReadCallback(const void *user_data, unsigned long addres
 	}
 	else if (address == 0xC00000 || address == 0xC00002 || address == 0xC00004 || address == 0xC00006)
 	{
-		const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->constant->vdp, &clownmdemu->state->vdp};
-
 		if (address == 0xC00000 || address == 0xC00002)
 		{
 			/* VDP data port */
 			/* TODO - Reading from the data port causes real Mega Drives to crash (if the VDP isn't in read mode) */
-			value = VDP_ReadData(&vdp);
+			value = VDP_ReadData(&clownmdemu->vdp);
 		}
 		else /*if (address == 0xC00004 || address == 0xC00006)*/
 		{
 			/* VDP control port */
-			value = VDP_ReadControl(&vdp);
+			value = VDP_ReadControl(&clownmdemu->vdp);
 		}
 	}
 	else if (address == 0xC00008)
@@ -356,28 +350,22 @@ static void M68kWriteCallback(const void *user_data, unsigned long address, cc_b
 			const cc_bool new_z80_reset = (high_byte & 1) == 0;
 
 			if (clownmdemu->state->z80_reset && !new_z80_reset)
-			{
-				const Z80 z80 = {&clownmdemu->constant->z80, &clownmdemu->state->z80};
-
-				Z80_Reset(&z80);
-			}
+				Z80_Reset(&clownmdemu->z80);
 
 			clownmdemu->state->z80_reset = new_z80_reset;
 		}
 	}
 	else if (address == 0xC00000 || address == 0xC00002 || address == 0xC00004 || address == 0xC00006)
 	{
-		const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->constant->vdp, &clownmdemu->state->vdp};
-
 		if (address == 0xC00000 || address == 0xC00002)
 		{
 			/* VDP data port */
-			VDP_WriteData(&vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data);
+			VDP_WriteData(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data);
 		}
 		else /*if (address == 0xC00004 || address == 0xC00006)*/
 		{
 			/* VDP control port */
-			VDP_WriteControl(&vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, &callback_user_data->data_and_callbacks);
+			VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, &callback_user_data->data_and_callbacks);
 		}
 	}
 	else if (address == 0xC00008)
@@ -390,13 +378,11 @@ static void M68kWriteCallback(const void *user_data, unsigned long address, cc_b
 		/* PSG */
 		if (do_low_byte)
 		{
-			const PSG psg = {&clownmdemu->constant->psg, &clownmdemu->state->psg};
-
 			/* Update the PSG up until this point in time */
 			GenerateAndPlayPSGSamples(callback_user_data);
 
 			/* Alter the PSG's state */
-			PSG_DoCommand(&psg, low_byte);
+			PSG_DoCommand(&clownmdemu->psg, low_byte);
 		}
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
@@ -474,16 +460,15 @@ static void Z80WriteCallback(const void *user_data, unsigned int address, unsign
 	else if (address >= 0x4000 && address <= 0x4003)
 	{
 		/* YM2612 */
-		const FM fm = {&clownmdemu->constant->fm, &clownmdemu->state->fm};
 		const unsigned int port = (address & 2) != 0 ? 1 : 0;
 
 		/* Update the FM up until this point in time. */
 		GenerateAndPlayFMSamples(callback_user_data);
 
 		if ((address & 1) == 0)
-			FM_DoAddress(&fm, port, value);
+			FM_DoAddress(&clownmdemu->fm, port, value);
 		else
-			FM_DoData(&fm, value);
+			FM_DoData(&clownmdemu->fm, value);
 	}
 	else if (address == 0x6000 || address == 0x6001)
 	{
@@ -544,6 +529,28 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	PSG_State_Initialise(&state->psg);
 }
 
+void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state)
+{
+	clownmdemu->configuration = configuration;
+	clownmdemu->constant = constant;
+	clownmdemu->state = state;
+
+	clownmdemu->m68k = &state->m68k;
+
+	clownmdemu->z80.constant = &constant->z80;
+	clownmdemu->z80.state = &state->z80;
+
+	clownmdemu->vdp.configuration = &configuration->vdp;
+	clownmdemu->vdp.constant = &constant->vdp;
+	clownmdemu->vdp.state = &state->vdp;
+
+	clownmdemu->fm.constant = &constant->fm;
+	clownmdemu->fm.state = &state->fm;
+
+	clownmdemu->psg.constant = &constant->psg;
+	clownmdemu->psg.state = &state->psg;
+}
+
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
 	unsigned int scanline;
@@ -555,8 +562,6 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	const unsigned int television_vertical_resolution = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
 	const unsigned int console_vertical_resolution = (clownmdemu->state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
 	const unsigned int cycles_per_scanline = (clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / television_vertical_resolution;
-	const Z80 z80 = {&clownmdemu->constant->z80, &clownmdemu->state->z80};
-	const VDP vdp = {&clownmdemu->configuration->vdp, &clownmdemu->constant->vdp, &clownmdemu->state->vdp};
 
 	cpu_callback_user_data.data_and_callbacks.data = clownmdemu;
 	cpu_callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
@@ -595,7 +600,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 			{
 				m68k_countdown = CLOWNMDEMU_M68K_CLOCK_DIVIDER * 10; /* TODO - The x10 is a temporary hack to get the 68k to run roughly at the correct speed until instruction cycle durations are added */
 
-				M68k_DoCycle(&clownmdemu->state->m68k, &m68k_read_write_callbacks);
+				M68k_DoCycle(clownmdemu->m68k, &m68k_read_write_callbacks);
 			}
 
 			m68k_countdown -= cycles_to_do;
@@ -606,7 +611,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 				z80_countdown = CLOWNMDEMU_Z80_CLOCK_DIVIDER;
 
 				if (!clownmdemu->state->m68k_has_z80_bus)
-					Z80_DoCycle(&z80, &z80_read_write_callbacks);
+					Z80_DoCycle(&clownmdemu->z80, &z80_read_write_callbacks);
 			}
 
 			z80_countdown -= cycles_to_do;
@@ -619,12 +624,12 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 		{
 			if (clownmdemu->state->vdp.double_resolution_enabled)
 			{
-				VDP_RenderScanline(&vdp, scanline * 2, callbacks->scanline_rendered, callbacks->user_data);
-				VDP_RenderScanline(&vdp, scanline * 2 + 1, callbacks->scanline_rendered, callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2, callbacks->scanline_rendered, callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, callbacks->scanline_rendered, callbacks->user_data);
 			}
 			else
 			{
-				VDP_RenderScanline(&vdp, scanline, callbacks->scanline_rendered, callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->vdp, scanline, callbacks->scanline_rendered, callbacks->user_data);
 			}
 
 			/* Fire a H-Int if we've reached the requested line */
@@ -634,7 +639,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 
 				/* Do H-Int */
 				if (clownmdemu->state->vdp.h_int_enabled)
-					M68k_Interrupt(&clownmdemu->state->m68k, &m68k_read_write_callbacks, 4);
+					M68k_Interrupt(clownmdemu->m68k, &m68k_read_write_callbacks, 4);
 			}
 		}
 
@@ -644,8 +649,8 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 			/* Do V-Int */
 			if (clownmdemu->state->vdp.v_int_enabled)
 			{
-				M68k_Interrupt(&clownmdemu->state->m68k, &m68k_read_write_callbacks, 6);
-				Z80_Interrupt(&z80);
+				M68k_Interrupt(clownmdemu->m68k, &m68k_read_write_callbacks, 6);
+				Z80_Interrupt(&clownmdemu->z80);
 			}
 
 			/* Flag that we have entered the V-blank region */
@@ -666,8 +671,6 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 
 void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
-	const Z80 z80 = {&clownmdemu->constant->z80, &clownmdemu->state->z80};
-
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	CPUCallbackUserData callback_user_data;
 
@@ -678,8 +681,8 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
 	m68k_read_write_callbacks.user_data = &callback_user_data;
 
-	M68k_Reset(&clownmdemu->state->m68k, &m68k_read_write_callbacks);
-	Z80_Reset(&z80);
+	M68k_Reset(clownmdemu->m68k, &m68k_read_write_callbacks);
+	Z80_Reset(&clownmdemu->z80);
 }
 
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg))
