@@ -407,6 +407,8 @@ cc_bool Instruction_IsDestinationOperandRead(const Instruction instruction)
 		case INSTRUCTION_ADDA:
 		case INSTRUCTION_MOVEM:
 		case INSTRUCTION_MOVEP:
+		case INSTRUCTION_MULS:
+		case INSTRUCTION_MULU:
 		case INSTRUCTION_ASD_MEMORY:
 		case INSTRUCTION_LSD_MEMORY:
 		case INSTRUCTION_ROXD_MEMORY:
@@ -440,8 +442,6 @@ cc_bool Instruction_IsDestinationOperandRead(const Instruction instruction)
 		case INSTRUCTION_MOVE_USP:
 		case INSTRUCTION_MOVEA:
 		case INSTRUCTION_MOVEQ:
-		case INSTRUCTION_MULS:
-		case INSTRUCTION_MULU:
 		case INSTRUCTION_NOP:
 		case INSTRUCTION_PEA:
 		case INSTRUCTION_RESET:
@@ -506,6 +506,8 @@ cc_bool Instruction_IsDestinationOperandWritten(const Instruction instruction)
 		case INSTRUCTION_MOVE_FROM_SR:
 		case INSTRUCTION_MOVEA:
 		case INSTRUCTION_MOVEQ:
+		case INSTRUCTION_MULS:
+		case INSTRUCTION_MULU:
 		case INSTRUCTION_NBCD:
 		case INSTRUCTION_NEG:
 		case INSTRUCTION_NEGX:
@@ -550,8 +552,6 @@ cc_bool Instruction_IsDestinationOperandWritten(const Instruction instruction)
 		case INSTRUCTION_MOVE_USP:
 		case INSTRUCTION_MOVEM:
 		case INSTRUCTION_MOVEP:
-		case INSTRUCTION_MULS:
-		case INSTRUCTION_MULU:
 		case INSTRUCTION_NOP:
 		case INSTRUCTION_PEA:
 		case INSTRUCTION_RESET:
@@ -843,6 +843,8 @@ InstructionZero Instruction_GetZeroModifier(const Instruction instruction)
 		case INSTRUCTION_LSD_MEMORY:
 		case INSTRUCTION_MOVE:
 		case INSTRUCTION_MOVEQ:
+		case INSTRUCTION_MULS:
+		case INSTRUCTION_MULU:
 		case INSTRUCTION_NEG:
 		case INSTRUCTION_NOT:
 		case INSTRUCTION_OR:
@@ -862,8 +864,6 @@ InstructionZero Instruction_GetZeroModifier(const Instruction instruction)
 
 		case INSTRUCTION_DIVS:
 		case INSTRUCTION_DIVU:
-		case INSTRUCTION_MULS:
-		case INSTRUCTION_MULU:
 		case INSTRUCTION_TAS:
 		case INSTRUCTION_ADDA:
 		case INSTRUCTION_ADDAQ:
@@ -949,6 +949,8 @@ InstructionNegative Instruction_GetNegativeModifier(const Instruction instructio
 		case INSTRUCTION_LSD_MEMORY:
 		case INSTRUCTION_MOVE:
 		case INSTRUCTION_MOVEQ:
+		case INSTRUCTION_MULS:
+		case INSTRUCTION_MULU:
 		case INSTRUCTION_NEG:
 		case INSTRUCTION_NEGX:
 		case INSTRUCTION_NOT:
@@ -973,8 +975,6 @@ InstructionNegative Instruction_GetNegativeModifier(const Instruction instructio
 		case INSTRUCTION_CHK:
 		case INSTRUCTION_DIVS:
 		case INSTRUCTION_DIVU:
-		case INSTRUCTION_MULS:
-		case INSTRUCTION_MULU:
 		case INSTRUCTION_TAS:
 		case INSTRUCTION_ADDA:
 		case INSTRUCTION_ADDAQ:

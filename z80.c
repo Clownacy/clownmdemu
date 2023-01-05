@@ -2179,8 +2179,10 @@ void Z80_Constant_Initialise(Z80_Constant *constant)
 
 void Z80_State_Initialise(Z80_State *state)
 {
+	Z80 z80;
+
 	/* A disgusting hack. */
-	const Z80 z80 = {NULL, state};
+	z80.state = state;
 
 	Z80_Reset(&z80);
 

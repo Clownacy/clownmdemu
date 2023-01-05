@@ -1907,23 +1907,38 @@ case INSTRUCTION_MULS:
 	/* Decode source address mode. */
 	DecodeAddressMode(&stuff, &source_decoded_address_mode, &decoded_opcode.operands[0]);
 
+	/* Decode destination address mode. */
+	DecodeAddressMode(&stuff, &destination_decoded_address_mode, &decoded_opcode.operands[1]);
+
 	/* Read source operand. */
 	source_value = GetValueUsingDecodedAddressMode(&stuff, &source_decoded_address_mode);
+
+	/* Read destination operand. */
+	destination_value = GetValueUsingDecodedAddressMode(&stuff, &destination_decoded_address_mode);
 
 	/* Do the actual instruction. */
 	DO_INSTRUCTION_ACTION_MUL;
 
+	/* Write destination operand. */
+	SetValueUsingDecodedAddressMode(&stuff, &destination_decoded_address_mode, result_value);
+
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
+	msb_mask = 1ul << (operation_size * 8 - 1);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
 	/* Update ZERO condition code */
-	/* Unaffected */
+	/* Standard behaviour: set if result is zero; clear otherwise */
+	state->status_register &= ~CONDITION_CODE_ZERO;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
-	/* Unaffected */
+	/* Standard behaviour: set if result value is negative; clear otherwise */
+	state->status_register &= ~CONDITION_CODE_NEGATIVE;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 
@@ -1933,23 +1948,38 @@ case INSTRUCTION_MULU:
 	/* Decode source address mode. */
 	DecodeAddressMode(&stuff, &source_decoded_address_mode, &decoded_opcode.operands[0]);
 
+	/* Decode destination address mode. */
+	DecodeAddressMode(&stuff, &destination_decoded_address_mode, &decoded_opcode.operands[1]);
+
 	/* Read source operand. */
 	source_value = GetValueUsingDecodedAddressMode(&stuff, &source_decoded_address_mode);
+
+	/* Read destination operand. */
+	destination_value = GetValueUsingDecodedAddressMode(&stuff, &destination_decoded_address_mode);
 
 	/* Do the actual instruction. */
 	DO_INSTRUCTION_ACTION_MUL;
 
+	/* Write destination operand. */
+	SetValueUsingDecodedAddressMode(&stuff, &destination_decoded_address_mode, result_value);
+
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
+	msb_mask = 1ul << (operation_size * 8 - 1);
+	rm = 0 - ((result_value & msb_mask) != 0);
 
 	/* Update CARRY condition code */
 	state->status_register &= ~CONDITION_CODE_CARRY;
 	/* Update OVERFLOW condition code */
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
 	/* Update ZERO condition code */
-	/* Unaffected */
+	/* Standard behaviour: set if result is zero; clear otherwise */
+	state->status_register &= ~CONDITION_CODE_ZERO;
+	state->status_register |= CONDITION_CODE_ZERO & (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
-	/* Unaffected */
+	/* Standard behaviour: set if result value is negative; clear otherwise */
+	state->status_register &= ~CONDITION_CODE_NEGATIVE;
+	state->status_register |= CONDITION_CODE_NEGATIVE & rm;
 	/* Update EXTEND condition code */
 	/* Unaffected */
 

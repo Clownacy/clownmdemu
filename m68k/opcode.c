@@ -4,6 +4,8 @@ static Instruction GetInstruction(const Opcode *opcode)
 {
 	Instruction instruction;
 
+	instruction = INSTRUCTION_ILLEGAL;
+
 	switch ((opcode->raw >> 12) & 0xF)
 	{
 		case 0x0:
@@ -459,6 +461,8 @@ static unsigned int GetSize(const Instruction instruction, const Opcode* const o
 {
 	unsigned int operation_size;
 
+	operation_size = 0;
+
 	switch (instruction)
 	{
 		case INSTRUCTION_ORI_TO_CCR:
@@ -485,8 +489,6 @@ static unsigned int GetSize(const Instruction instruction, const Opcode* const o
 		case INSTRUCTION_DBCC:
 		case INSTRUCTION_DIVU:
 		case INSTRUCTION_DIVS:
-		case INSTRUCTION_MULU:
-		case INSTRUCTION_MULS:
 		case INSTRUCTION_ASD_MEMORY:
 		case INSTRUCTION_LSD_MEMORY:
 		case INSTRUCTION_ROXD_MEMORY:
@@ -501,6 +503,8 @@ static unsigned int GetSize(const Instruction instruction, const Opcode* const o
 		case INSTRUCTION_SWAP:
 		case INSTRUCTION_LEA:
 		case INSTRUCTION_MOVEQ:
+		case INSTRUCTION_MULU:
+		case INSTRUCTION_MULS:
 			/* Hardcoded to a longword. */
 			operation_size = 4;
 			break;
@@ -602,7 +606,6 @@ static unsigned int GetSize(const Instruction instruction, const Opcode* const o
 		case INSTRUCTION_UNIMPLEMENTED_1:
 		case INSTRUCTION_UNIMPLEMENTED_2:
 			/* Doesn't have a size. */
-			operation_size = 0;
 			break;
 	}
 
@@ -721,12 +724,16 @@ static cc_bool GetSourceOperand(DecodedOpcode* const decoded_opcode, const Opcod
 		case INSTRUCTION_SUBA:
 		case INSTRUCTION_CMP:
 		case INSTRUCTION_CMPA:
-		case INSTRUCTION_MULU:
-		case INSTRUCTION_MULS:
 		case INSTRUCTION_ADDA:
 		case INSTRUCTION_TST:
 			/* Primary address mode. */
 			SET_OPERAND(decoded_opcode->size, opcode->primary_address_mode, opcode->primary_register);
+			break;
+
+		case INSTRUCTION_MULU:
+		case INSTRUCTION_MULS:
+			/* Primary address mode, hardcoded to word-size. */
+			SET_OPERAND(2, opcode->primary_address_mode, opcode->primary_register);
 			break;
 
 		case INSTRUCTION_BRA_SHORT:
@@ -790,6 +797,8 @@ static cc_bool GetDestinationOperand(DecodedOpcode* const decoded_opcode, const 
 
 		case INSTRUCTION_MOVEQ:
 		case INSTRUCTION_CMP:
+		case INSTRUCTION_MULU:
+		case INSTRUCTION_MULS:
 			/* Data register (secondary) */
 			SET_OPERAND(decoded_opcode->size, ADDRESS_MODE_DATA_REGISTER, opcode->secondary_register);
 			break;
@@ -919,8 +928,6 @@ static cc_bool GetDestinationOperand(DecodedOpcode* const decoded_opcode, const 
 		case INSTRUCTION_BCC_WORD:
 		case INSTRUCTION_DIVU:
 		case INSTRUCTION_DIVS:
-		case INSTRUCTION_MULU:
-		case INSTRUCTION_MULS:
 		case INSTRUCTION_EXG:
 		case INSTRUCTION_TST:
 		case INSTRUCTION_UNIMPLEMENTED_1:

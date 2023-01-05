@@ -584,14 +584,6 @@
 	result_value = CC_SIGN_EXTEND_ULONG(7, opcode.raw)
 
 #define DO_INSTRUCTION_ACTION_DIV\
-	{\
-	const cc_bool source_is_negative = decoded_opcode.instruction == INSTRUCTION_DIVS && source_value & 0x8000;\
-	const cc_bool destination_is_negative = decoded_opcode.instruction == INSTRUCTION_DIVS && state->data_registers[opcode.secondary_register] & 0x80000000;\
-	const cc_bool result_is_negative = source_is_negative != destination_is_negative;\
-\
-	const unsigned int absolute_source_value = source_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;\
-	const unsigned long absolute_destination_value = destination_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(31, state->data_registers[opcode.secondary_register]) : state->data_registers[opcode.secondary_register] & 0xFFFFFFFF;\
-\
 	if (source_value == 0)\
 	{\
 		Group1Or2Exception(&stuff, 5);\
@@ -599,6 +591,13 @@
 	}\
 	else\
 	{\
+		const cc_bool source_is_negative = decoded_opcode.instruction == INSTRUCTION_DIVS && source_value & 0x8000;\
+		const cc_bool destination_is_negative = decoded_opcode.instruction == INSTRUCTION_DIVS && state->data_registers[opcode.secondary_register] & 0x80000000;\
+		const cc_bool result_is_negative = source_is_negative != destination_is_negative;\
+\
+		const unsigned int absolute_source_value = source_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;\
+		const unsigned long absolute_destination_value = destination_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(31, state->data_registers[opcode.secondary_register]) : state->data_registers[opcode.secondary_register] & 0xFFFFFFFF;\
+\
 		const unsigned long absolute_quotient = absolute_destination_value / absolute_source_value;\
 		const unsigned long quotient = result_is_negative ? 0 - absolute_quotient : absolute_quotient;\
 \
@@ -619,7 +618,6 @@
 \
 		state->status_register |= CONDITION_CODE_NEGATIVE & (0 - ((quotient & 0x8000) != 0));\
 		state->status_register |= CONDITION_CODE_ZERO & (0 - (quotient == 0));\
-	}\
 	}
 
 #define DO_INSTRUCTION_ACTION_SBCD\
@@ -632,21 +630,16 @@
 
 #define DO_INSTRUCTION_ACTION_MUL\
 	{\
-	const cc_bool multiplier_is_negative = decoded_opcode.instruction == INSTRUCTION_MULS && source_value & 0x8000;\
-	const cc_bool multiplicand_is_negative = decoded_opcode.instruction == INSTRUCTION_MULS && state->data_registers[opcode.secondary_register] & 0x8000;\
+	const cc_bool multiplier_is_negative = decoded_opcode.instruction == INSTRUCTION_MULS && (source_value & 0x8000) != 0;\
+	const cc_bool multiplicand_is_negative = decoded_opcode.instruction == INSTRUCTION_MULS && (destination_value & 0x8000) != 0;\
 	const cc_bool result_is_negative = multiplier_is_negative != multiplicand_is_negative;\
 \
-	const unsigned int multiplier = multiplier_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;\
-	const unsigned int multiplicand = multiplicand_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, state->data_registers[opcode.secondary_register]) : state->data_registers[opcode.secondary_register] & 0xFFFF;\
+	const unsigned long multiplier = multiplier_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value & 0xFFFF;\
+	const unsigned long multiplicand = multiplicand_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, destination_value) : destination_value & 0xFFFF;\
 \
-	const unsigned long absolute_result = (unsigned long)multiplicand * multiplier;\
-	const unsigned long result = result_is_negative ? 0 - absolute_result : absolute_result;\
+	const unsigned long absolute_result = multiplicand * multiplier;\
 \
-	state->data_registers[opcode.secondary_register] = result;\
-\
-	state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO);\
-	state->status_register |= CONDITION_CODE_NEGATIVE & (0 - ((result & 0x80000000) != 0));\
-	state->status_register |= CONDITION_CODE_ZERO & (0 - (result == 0));\
+	result_value = result_is_negative ? 0 - absolute_result : absolute_result;\
 	}
 
 #define DO_INSTRUCTION_ACTION_ABCD\
