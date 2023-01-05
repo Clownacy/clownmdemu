@@ -591,12 +591,12 @@
 	}\
 	else\
 	{\
-		const cc_bool source_is_negative = decoded_opcode.instruction == INSTRUCTION_DIVS && source_value & 0x8000;\
-		const cc_bool destination_is_negative = decoded_opcode.instruction == INSTRUCTION_DIVS && state->data_registers[opcode.secondary_register] & 0x80000000;\
+		const cc_bool source_is_negative = decoded_opcode.instruction == INSTRUCTION_DIVS && (source_value & 0x8000) != 0;\
+		const cc_bool destination_is_negative = decoded_opcode.instruction == INSTRUCTION_DIVS && (destination_value & 0x80000000) != 0;\
 		const cc_bool result_is_negative = source_is_negative != destination_is_negative;\
 \
-		const unsigned int absolute_source_value = source_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;\
-		const unsigned long absolute_destination_value = destination_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(31, state->data_registers[opcode.secondary_register]) : state->data_registers[opcode.secondary_register] & 0xFFFFFFFF;\
+		const unsigned long absolute_source_value = source_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;\
+		const unsigned long absolute_destination_value = destination_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(31, destination_value) : destination_value;\
 \
 		const unsigned long absolute_quotient = absolute_destination_value / absolute_source_value;\
 		const unsigned long quotient = result_is_negative ? 0 - absolute_quotient : absolute_quotient;\
@@ -607,13 +607,15 @@
 		if (absolute_quotient > (decoded_opcode.instruction == INSTRUCTION_DIVU ? 0xFFFFul : (result_is_negative ? 0x8000ul : 0x7FFFul)))\
 		{\
 			state->status_register |= CONDITION_CODE_OVERFLOW;\
+\
+			result_value = destination_value;\
 		}\
 		else\
 		{\
-			const unsigned int absolute_remainder = absolute_destination_value % absolute_source_value;\
-			const unsigned int remainder = destination_is_negative ? 0 - absolute_remainder : absolute_remainder;\
+			const unsigned long absolute_remainder = absolute_destination_value % absolute_source_value;\
+			const unsigned long remainder = destination_is_negative ? 0 - absolute_remainder : absolute_remainder;\
 \
-			state->data_registers[opcode.secondary_register] = (unsigned long)(quotient & 0xFFFF) | ((unsigned long)(remainder & 0xFFFF) << 16);\
+			result_value = (quotient & 0xFFFF) | ((remainder & 0xFFFF) << 16);\
 		}\
 \
 		state->status_register |= CONDITION_CODE_NEGATIVE & (0 - ((quotient & 0x8000) != 0));\
@@ -634,7 +636,7 @@
 	const cc_bool multiplicand_is_negative = decoded_opcode.instruction == INSTRUCTION_MULS && (destination_value & 0x8000) != 0;\
 	const cc_bool result_is_negative = multiplier_is_negative != multiplicand_is_negative;\
 \
-	const unsigned long multiplier = multiplier_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value & 0xFFFF;\
+	const unsigned long multiplier = multiplier_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;\
 	const unsigned long multiplicand = multiplicand_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, destination_value) : destination_value & 0xFFFF;\
 \
 	const unsigned long absolute_result = multiplicand * multiplier;\

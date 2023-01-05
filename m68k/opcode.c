@@ -487,8 +487,6 @@ static unsigned int GetSize(const Instruction instruction, const Opcode* const o
 		case INSTRUCTION_MOVEM:
 		case INSTRUCTION_CHK:
 		case INSTRUCTION_DBCC:
-		case INSTRUCTION_DIVU:
-		case INSTRUCTION_DIVS:
 		case INSTRUCTION_ASD_MEMORY:
 		case INSTRUCTION_LSD_MEMORY:
 		case INSTRUCTION_ROXD_MEMORY:
@@ -503,6 +501,8 @@ static unsigned int GetSize(const Instruction instruction, const Opcode* const o
 		case INSTRUCTION_SWAP:
 		case INSTRUCTION_LEA:
 		case INSTRUCTION_MOVEQ:
+		case INSTRUCTION_DIVU:
+		case INSTRUCTION_DIVS:
 		case INSTRUCTION_MULU:
 		case INSTRUCTION_MULS:
 			/* Hardcoded to a longword. */
@@ -719,8 +719,6 @@ static cc_bool GetSourceOperand(DecodedOpcode* const decoded_opcode, const Opcod
 		case INSTRUCTION_MOVE_TO_CCR:
 		case INSTRUCTION_MOVE_TO_SR:
 		case INSTRUCTION_CHK:
-		case INSTRUCTION_DIVU:
-		case INSTRUCTION_DIVS:
 		case INSTRUCTION_SUBA:
 		case INSTRUCTION_CMP:
 		case INSTRUCTION_CMPA:
@@ -730,6 +728,8 @@ static cc_bool GetSourceOperand(DecodedOpcode* const decoded_opcode, const Opcod
 			SET_OPERAND(decoded_opcode->size, opcode->primary_address_mode, opcode->primary_register);
 			break;
 
+		case INSTRUCTION_DIVU:
+		case INSTRUCTION_DIVS:
 		case INSTRUCTION_MULU:
 		case INSTRUCTION_MULS:
 			/* Primary address mode, hardcoded to word-size. */
@@ -797,6 +797,8 @@ static cc_bool GetDestinationOperand(DecodedOpcode* const decoded_opcode, const 
 
 		case INSTRUCTION_MOVEQ:
 		case INSTRUCTION_CMP:
+		case INSTRUCTION_DIVU:
+		case INSTRUCTION_DIVS:
 		case INSTRUCTION_MULU:
 		case INSTRUCTION_MULS:
 			/* Data register (secondary) */
@@ -926,8 +928,6 @@ static cc_bool GetDestinationOperand(DecodedOpcode* const decoded_opcode, const 
 		case INSTRUCTION_BSR_WORD:
 		case INSTRUCTION_BCC_SHORT:
 		case INSTRUCTION_BCC_WORD:
-		case INSTRUCTION_DIVU:
-		case INSTRUCTION_DIVS:
 		case INSTRUCTION_EXG:
 		case INSTRUCTION_TST:
 		case INSTRUCTION_UNIMPLEMENTED_1:

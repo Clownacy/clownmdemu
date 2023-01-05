@@ -407,6 +407,8 @@ cc_bool Instruction_IsDestinationOperandRead(const Instruction instruction)
 		case INSTRUCTION_ADDA:
 		case INSTRUCTION_MOVEM:
 		case INSTRUCTION_MOVEP:
+		case INSTRUCTION_DIVS:
+		case INSTRUCTION_DIVU:
 		case INSTRUCTION_MULS:
 		case INSTRUCTION_MULU:
 		case INSTRUCTION_ASD_MEMORY:
@@ -427,8 +429,6 @@ cc_bool Instruction_IsDestinationOperandRead(const Instruction instruction)
 		case INSTRUCTION_BCC_WORD:
 		case INSTRUCTION_CHK:
 		case INSTRUCTION_DBCC:
-		case INSTRUCTION_DIVS:
-		case INSTRUCTION_DIVU:
 		case INSTRUCTION_EXG:
 		case INSTRUCTION_ILLEGAL:
 		case INSTRUCTION_JMP:
@@ -494,6 +494,8 @@ cc_bool Instruction_IsDestinationOperandWritten(const Instruction instruction)
 		case INSTRUCTION_BSET_DYNAMIC:
 		case INSTRUCTION_BSET_STATIC:
 		case INSTRUCTION_CLR:
+		case INSTRUCTION_DIVS:
+		case INSTRUCTION_DIVU:
 		case INSTRUCTION_EOR:
 		case INSTRUCTION_EORI:
 		case INSTRUCTION_EXT:
@@ -542,8 +544,6 @@ cc_bool Instruction_IsDestinationOperandWritten(const Instruction instruction)
 		case INSTRUCTION_CMPI:
 		case INSTRUCTION_CMPM:
 		case INSTRUCTION_DBCC:
-		case INSTRUCTION_DIVS:
-		case INSTRUCTION_DIVU:
 		case INSTRUCTION_EXG:
 		case INSTRUCTION_ILLEGAL:
 		case INSTRUCTION_JMP:

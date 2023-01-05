@@ -1172,11 +1172,20 @@ case INSTRUCTION_DIVS:
 	/* Decode source address mode. */
 	DecodeAddressMode(&stuff, &source_decoded_address_mode, &decoded_opcode.operands[0]);
 
+	/* Decode destination address mode. */
+	DecodeAddressMode(&stuff, &destination_decoded_address_mode, &decoded_opcode.operands[1]);
+
 	/* Read source operand. */
 	source_value = GetValueUsingDecodedAddressMode(&stuff, &source_decoded_address_mode);
 
+	/* Read destination operand. */
+	destination_value = GetValueUsingDecodedAddressMode(&stuff, &destination_decoded_address_mode);
+
 	/* Do the actual instruction. */
 	DO_INSTRUCTION_ACTION_DIV;
+
+	/* Write destination operand. */
+	SetValueUsingDecodedAddressMode(&stuff, &destination_decoded_address_mode, result_value);
 
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
@@ -1198,11 +1207,20 @@ case INSTRUCTION_DIVU:
 	/* Decode source address mode. */
 	DecodeAddressMode(&stuff, &source_decoded_address_mode, &decoded_opcode.operands[0]);
 
+	/* Decode destination address mode. */
+	DecodeAddressMode(&stuff, &destination_decoded_address_mode, &decoded_opcode.operands[1]);
+
 	/* Read source operand. */
 	source_value = GetValueUsingDecodedAddressMode(&stuff, &source_decoded_address_mode);
 
+	/* Read destination operand. */
+	destination_value = GetValueUsingDecodedAddressMode(&stuff, &destination_decoded_address_mode);
+
 	/* Do the actual instruction. */
 	DO_INSTRUCTION_ACTION_DIV;
+
+	/* Write destination operand. */
+	SetValueUsingDecodedAddressMode(&stuff, &destination_decoded_address_mode, result_value);
 
 	/* Update the condition codes in the following order: */
 	/* CARRY, OVERFLOW, ZERO, NEGATIVE, EXTEND */
