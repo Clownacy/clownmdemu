@@ -24,9 +24,9 @@ typedef struct DataAndCallbacks
 typedef struct CPUCallbackUserData
 {
 	DataAndCallbacks data_and_callbacks;
-	cc_u16f current_cycle;
-	cc_u16f fm_previous_cycle;
-	cc_u16f psg_previous_cycle;
+	cc_u32f current_cycle;
+	cc_u32f fm_previous_cycle;
+	cc_u32f psg_previous_cycle;
 } CPUCallbackUserData;
 
 static void GenerateFMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames)
@@ -36,7 +36,7 @@ static void GenerateFMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer
 
 static void GenerateAndPlayFMSamples(CPUCallbackUserData *m68k_callback_user_data)
 {
-	const cc_u16f fm_current_cycle = m68k_callback_user_data->current_cycle / (CLOWNMDEMU_M68K_CLOCK_DIVIDER * CLOWNMDEMU_FM_SAMPLE_RATE_DIVIDER);
+	const cc_u32f fm_current_cycle = m68k_callback_user_data->current_cycle / (CLOWNMDEMU_M68K_CLOCK_DIVIDER * CLOWNMDEMU_FM_SAMPLE_RATE_DIVIDER);
 
 	const size_t samples_to_generate = fm_current_cycle - m68k_callback_user_data->fm_previous_cycle;
 
@@ -55,7 +55,7 @@ static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffe
 
 static void GenerateAndPlayPSGSamples(CPUCallbackUserData *m68k_callback_user_data)
 {
-	const cc_u16f psg_current_cycle = m68k_callback_user_data->current_cycle / (CLOWNMDEMU_Z80_CLOCK_DIVIDER * CLOWNMDEMU_PSG_SAMPLE_RATE_DIVIDER);
+	const cc_u32f psg_current_cycle = m68k_callback_user_data->current_cycle / (CLOWNMDEMU_Z80_CLOCK_DIVIDER * CLOWNMDEMU_PSG_SAMPLE_RATE_DIVIDER);
 
 	const size_t samples_to_generate = psg_current_cycle - m68k_callback_user_data->psg_previous_cycle;
 

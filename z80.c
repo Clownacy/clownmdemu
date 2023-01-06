@@ -1783,10 +1783,9 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 		case Z80_OPCODE_SBC_HL:
 			READ_SOURCE;
-			source_value = ~source_value;
 			READ_DESTINATION;
 
-			result_value_with_carry_16bit = (cc_u32f)source_value + (cc_u32f)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 0 : 1);
+			result_value_with_carry_16bit = ~(cc_u32f)source_value + (cc_u32f)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 0 : 1);
 			result_value = result_value_with_carry_16bit & 0xFFFF;
 
 			z80->state->f = 0;
