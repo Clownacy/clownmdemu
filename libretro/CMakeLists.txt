@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.18)
 project(clownmdemu_libretro LANGUAGES C)
 
 # Sources.
-add_library(clownmdemu_libretro
+add_library(clownmdemu_libretro SHARED
 	"libretro.c"
 )
 
