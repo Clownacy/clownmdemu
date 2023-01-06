@@ -7,6 +7,7 @@
 
 #if defined(CC_USE_C99_INTEGERS)
  /* Use C99's/C++11's better integer types if available. */
+#include <inttypes.h>
 #include <stdint.h>
 
 typedef int_least8_t cc_s8l;
