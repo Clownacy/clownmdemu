@@ -406,7 +406,7 @@ static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address)
 	const CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
 
-	/* I suppose, on read hardware, in an open-bus situation, this would actually
+	/* I suppose, on real hardware, in an open-bus situation, this would actually
 	   be a static variable that retains its value from the last call. */
 	cc_u16f value;
 
