@@ -123,23 +123,23 @@ typedef struct ClownMDEmu_State
 {
 	struct
 	{
-		unsigned int m68k;
-		unsigned int z80;
+		cc_u16f m68k;
+		cc_u16f z80;
 	} countdowns;
 	M68k_State m68k;
 	Z80_State z80;
-	unsigned char m68k_ram[0x10000];
-	unsigned char z80_ram[0x2000];
+	cc_u8l m68k_ram[0x10000];
+	cc_u8l z80_ram[0x2000];
 	VDP_State vdp;
-	unsigned char h_int_counter;
+	cc_u8l h_int_counter;
 	FM_State fm;
 	PSG_State psg;
 	struct
 	{
-		unsigned char control;
-		unsigned char data;
+		cc_u8l control;
+		cc_u8l data;
 	} joypads[3];
-	unsigned int z80_bank;
+	cc_u16f z80_bank;
 	cc_bool m68k_has_z80_bus;
 	cc_bool z80_reset;
 } ClownMDEmu_State;
@@ -160,11 +160,11 @@ typedef struct ClownMDEmu_Callbacks
 {
 	const void *user_data;
 
-	unsigned int (*cartridge_read)(const void *user_data, unsigned long address);
-	void (*cartridge_written)(const void *user_data, unsigned long address, unsigned int value);
+	cc_u16f (*cartridge_read)(const void *user_data, cc_u32f address);
+	void (*cartridge_written)(const void *user_data, cc_u32f address, cc_u16f value);
 	void (*colour_updated)(const void *user_data, cc_u16f index, cc_u16f colour);
 	void (*scanline_rendered)(const void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height);
-	cc_bool (*input_requested)(const void *user_data, unsigned int player_id, ClownMDEmu_Button button_id);
+	cc_bool (*input_requested)(const void *user_data, cc_u16f player_id, ClownMDEmu_Button button_id);
 	void (*fm_audio_to_be_generated)(const void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*psg_audio_to_be_generated)(const void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples));
 } ClownMDEmu_Callbacks;

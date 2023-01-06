@@ -24,9 +24,9 @@ typedef struct DataAndCallbacks
 typedef struct CPUCallbackUserData
 {
 	DataAndCallbacks data_and_callbacks;
-	unsigned int current_cycle;
-	unsigned int fm_previous_cycle;
-	unsigned int psg_previous_cycle;
+	cc_u16f current_cycle;
+	cc_u16f fm_previous_cycle;
+	cc_u16f psg_previous_cycle;
 } CPUCallbackUserData;
 
 static void GenerateFMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames)
@@ -36,7 +36,7 @@ static void GenerateFMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer
 
 static void GenerateAndPlayFMSamples(CPUCallbackUserData *m68k_callback_user_data)
 {
-	const unsigned int fm_current_cycle = m68k_callback_user_data->current_cycle / (CLOWNMDEMU_M68K_CLOCK_DIVIDER * CLOWNMDEMU_FM_SAMPLE_RATE_DIVIDER);
+	const cc_u16f fm_current_cycle = m68k_callback_user_data->current_cycle / (CLOWNMDEMU_M68K_CLOCK_DIVIDER * CLOWNMDEMU_FM_SAMPLE_RATE_DIVIDER);
 
 	const size_t samples_to_generate = fm_current_cycle - m68k_callback_user_data->fm_previous_cycle;
 
@@ -55,7 +55,7 @@ static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffe
 
 static void GenerateAndPlayPSGSamples(CPUCallbackUserData *m68k_callback_user_data)
 {
-	const unsigned int psg_current_cycle = m68k_callback_user_data->current_cycle / (CLOWNMDEMU_Z80_CLOCK_DIVIDER * CLOWNMDEMU_PSG_SAMPLE_RATE_DIVIDER);
+	const cc_u16f psg_current_cycle = m68k_callback_user_data->current_cycle / (CLOWNMDEMU_Z80_CLOCK_DIVIDER * CLOWNMDEMU_PSG_SAMPLE_RATE_DIVIDER);
 
 	const size_t samples_to_generate = psg_current_cycle - m68k_callback_user_data->psg_previous_cycle;
 
@@ -311,7 +311,7 @@ static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do
 			case 0xA10006:
 				if (do_low_byte)
 				{
-					const unsigned int joypad_index = (address - 0xA10002) / 2;
+					const cc_u16f joypad_index = (address - 0xA10002) / 2;
 
 					clownmdemu->state->joypads[joypad_index].data = low_byte & clownmdemu->state->joypads[joypad_index].control;
 				}
@@ -323,7 +323,7 @@ static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do
 			case 0xA1000C:
 				if (do_low_byte)
 				{
-					const unsigned int joypad_index = (address - 0xA10008) / 2;
+					const cc_u16f joypad_index = (address - 0xA10008) / 2;
 
 					clownmdemu->state->joypads[joypad_index].control = low_byte;
 				}
@@ -511,7 +511,7 @@ void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant)
 
 void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 {
-	unsigned int i;
+	cc_u16f i;
 
 	state->countdowns.m68k = 0;
 	state->countdowns.z80 = 0;
@@ -552,15 +552,15 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
-	unsigned int scanline;
+	cc_u16f scanline;
 	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
 	Z80_ReadAndWriteCallbacks z80_read_write_callbacks;
 	CPUCallbackUserData cpu_callback_user_data;
-	unsigned int m68k_countdown, z80_countdown;
+	cc_u16f m68k_countdown, z80_countdown;
 
-	const unsigned int television_vertical_resolution = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
-	const unsigned int console_vertical_resolution = (clownmdemu->state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
-	const unsigned int cycles_per_scanline = (clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / television_vertical_resolution;
+	const cc_u16f television_vertical_resolution = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
+	const cc_u16f console_vertical_resolution = (clownmdemu->state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
+	const cc_u16f cycles_per_scanline = (clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / television_vertical_resolution;
 
 	cpu_callback_user_data.data_and_callbacks.data = clownmdemu;
 	cpu_callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
@@ -588,7 +588,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	for (scanline = 0; scanline < television_vertical_resolution; ++scanline)
 	{
 		/* Run the 68k and Z80 for a scanline's worth of cycles */
-		unsigned int remaining_cycles, cycles_to_do;
+		cc_u16f remaining_cycles, cycles_to_do;
 
 		for (remaining_cycles = cycles_per_scanline; remaining_cycles != 0; remaining_cycles -= cycles_to_do)
 		{
