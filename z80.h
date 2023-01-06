@@ -158,10 +158,10 @@ typedef enum Z80_RegisterMode
 typedef struct Z80_InstructionMetadata
 {
 	/* These three are actually enums packed into chars to save RAM. */
-	unsigned char opcode;      /* Z80_Opcode */
-	unsigned char operands[2]; /* Z80_Operand */
-	unsigned char condition;   /* Z80_Condition */
-	unsigned char embedded_literal;
+	cc_u8l opcode;      /* Z80_Opcode */
+	cc_u8l operands[2]; /* Z80_Operand */
+	cc_u8l condition;   /* Z80_Condition */
+	cc_u8l embedded_literal;
 	cc_bool has_displacement;
 } Z80_InstructionMetadata;
 
@@ -172,27 +172,27 @@ typedef struct Z80_Constant
 	Z80_InstructionMetadata instruction_metadata_lookup_bits[3][0x100];
 	Z80_InstructionMetadata instruction_metadata_lookup_misc[0x100];
 #endif
-	unsigned char parity_lookup[0x100];
+	cc_u8l parity_lookup[0x100];
 } Z80_Constant;
 
 typedef struct Z80_State
 {
-	unsigned char register_mode; /* Z80_RegisterMode */
-	unsigned int cycles;
-	unsigned short program_counter;
-	unsigned short stack_pointer;
-	unsigned char a, f, b, c, d, e, h, l;
-	unsigned char a_, f_, b_, c_, d_, e_, h_, l_; /* Backup registers. */
-	unsigned char ixh, ixl, iyh, iyl;
-	unsigned char r, i;
+	cc_u8l register_mode; /* Z80_RegisterMode */
+	cc_u16f cycles;
+	cc_u16l program_counter;
+	cc_u16l stack_pointer;
+	cc_u8l a, f, b, c, d, e, h, l;
+	cc_u8l a_, f_, b_, c_, d_, e_, h_, l_; /* Backup registers. */
+	cc_u8l ixh, ixl, iyh, iyl;
+	cc_u8l r, i;
 	cc_bool interrupts_enabled;
 	cc_bool interrupt_pending;
 } Z80_State;
 
 typedef struct Z80_ReadAndWriteCallbacks
 {
-	unsigned int (*read)(const void *user_data, unsigned int address);
-	void (*write)(const void *user_data, unsigned int address, unsigned int value);
+	cc_u16f (*read)(const void *user_data, cc_u16f address);
+	void (*write)(const void *user_data, cc_u16f address, cc_u16f value);
 	const void *user_data;
 } Z80_ReadAndWriteCallbacks;
 

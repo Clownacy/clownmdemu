@@ -98,8 +98,8 @@ static cc_u16f VDPReadCallback(const void *user_data, cc_u32f address)
 
 /* 68k memory access callbacks */
 
-static unsigned int Z80ReadCallback(const void *user_data, unsigned int address);
-static void Z80WriteCallback(const void *user_data, unsigned int address, unsigned int value);
+static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address);
+static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f value);
 
 static unsigned int M68kReadCallback(const void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte)
 {
@@ -401,14 +401,14 @@ static void M68kWriteCallback(const void *user_data, unsigned long address, cc_b
 
 /* Z80 memory access callbacks */
 
-static unsigned int Z80ReadCallback(const void *user_data, unsigned int address)
+static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address)
 {
 	const CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
 
 	/* I suppose, on read hardware, in an open-bus situation, this would actually
 	   be a static variable that retains its value from the last call. */
-	unsigned int value;
+	cc_u16f value;
 
 	value = 0;
 
@@ -433,7 +433,7 @@ static unsigned int Z80ReadCallback(const void *user_data, unsigned int address)
 	else if (address >= 0x8000)
 	{
 		/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
-		const unsigned long m68k_address = ((unsigned long)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE);
+		const cc_u32f m68k_address = ((cc_u32f)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE);
 
 		if ((address & 1) != 0)
 			value = M68kReadCallback(user_data, m68k_address, cc_false, cc_true);
@@ -442,13 +442,13 @@ static unsigned int Z80ReadCallback(const void *user_data, unsigned int address)
 	}
 	else
 	{
-		PrintError("Attempted to read invalid Z80 address 0x%X", address);
+		PrintError("Attempted to read invalid Z80 address 0x%" CC_PRIXFAST16, address);
 	}
 
 	return value;
 }
 
-static void Z80WriteCallback(const void *user_data, unsigned int address, unsigned int value)
+static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f value)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
@@ -460,7 +460,7 @@ static void Z80WriteCallback(const void *user_data, unsigned int address, unsign
 	else if (address >= 0x4000 && address <= 0x4003)
 	{
 		/* YM2612 */
-		const unsigned int port = (address & 2) != 0 ? 1 : 0;
+		const cc_u16f port = (address & 2) != 0 ? 1 : 0;
 
 		/* Update the FM up until this point in time. */
 		GenerateAndPlayFMSamples(callback_user_data);
@@ -488,7 +488,7 @@ static void Z80WriteCallback(const void *user_data, unsigned int address, unsign
 
 		/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
 		/* TODO: Apparently the Z80 can access the IO ports and send a bus request to itself. */
-		const unsigned long m68k_address = ((unsigned long)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE);
+		const cc_u32f m68k_address = ((cc_u32f)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE);
 
 		if ((address & 1) != 0)
 			M68kWriteCallback(user_data, m68k_address, cc_false, cc_true, value);
@@ -497,7 +497,7 @@ static void Z80WriteCallback(const void *user_data, unsigned int address, unsign
 	}
 	else
 	{
-		PrintError("Attempted to write invalid Z80 address 0x%X", address);
+		PrintError("Attempted to write invalid Z80 address 0x%" CC_PRIXFAST16, address);
 	}
 }
 

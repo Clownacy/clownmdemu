@@ -14,7 +14,7 @@ https://floooh.github.io/2021/12/06/z80-instruction-timing.html
 
 #include "error.h"
 
-#define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%X", z80->state->program_counter)
+#define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%" CC_PRIXLEAST16, z80->state->program_counter)
 
 typedef enum InstructionMode
 {
@@ -42,12 +42,12 @@ enum
 typedef struct Instruction
 {
 	const Z80_InstructionMetadata *metadata;
-	unsigned int literal;
-	unsigned int address;
+	cc_u16f literal;
+	cc_u16f address;
 	cc_bool double_prefix_mode;
 } Instruction;
 
-static cc_bool EvaluateCondition(unsigned char flags, Z80_Condition condition)
+static cc_bool EvaluateCondition(cc_u8l flags, Z80_Condition condition)
 {
 	switch (condition)
 	{
@@ -82,7 +82,7 @@ static cc_bool EvaluateCondition(unsigned char flags, Z80_Condition condition)
 	}
 }
 
-static unsigned int MemoryRead(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, unsigned int address)
+static cc_u16f MemoryRead(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, cc_u16f address)
 {
 	/* Memory accesses take 3 cycles. */
 	z80->state->cycles += 3;
@@ -90,7 +90,7 @@ static unsigned int MemoryRead(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 	return callbacks->read(callbacks->user_data, address);
 }
 
-static void MemoryWrite(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, unsigned int address, unsigned int data)
+static void MemoryWrite(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, cc_u16f address, cc_u16f data)
 {
 	/* Memory accesses take 3 cycles. */
 	z80->state->cycles += 3;
@@ -98,9 +98,9 @@ static void MemoryWrite(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbac
 	callbacks->write(callbacks->user_data, address, data);
 }
 
-static unsigned int InstructionMemoryRead(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
+static cc_u16f InstructionMemoryRead(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
 {
-	const unsigned int data = MemoryRead(z80, callbacks, z80->state->program_counter);
+	const cc_u16f data = MemoryRead(z80, callbacks, z80->state->program_counter);
 
 	++z80->state->program_counter;
 	z80->state->program_counter &= 0xFFFF;
@@ -108,7 +108,7 @@ static unsigned int InstructionMemoryRead(const Z80 *z80, const Z80_ReadAndWrite
 	return data;
 }
 
-static unsigned int OpcodeFetch(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
+static cc_u16f OpcodeFetch(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
 {
 	/* Opcode fetches take an extra cycle. */
 	++z80->state->cycles;
@@ -120,23 +120,23 @@ static unsigned int OpcodeFetch(const Z80 *z80, const Z80_ReadAndWriteCallbacks 
 }
 
 /* TODO: Should the bytes be written in reverse order? */
-static unsigned int MemoryRead16Bit(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, unsigned int address)
+static cc_u16f MemoryRead16Bit(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, cc_u16f address)
 {
-	unsigned int value;
+	cc_u16f value;
 	value = MemoryRead(z80, callbacks, address + 0);
 	value |= MemoryRead(z80, callbacks, address + 1) << 8;
 	return value;
 }
 
-static void MemoryWrite16Bit(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, unsigned int address, unsigned int value)
+static void MemoryWrite16Bit(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, cc_u16f address, cc_u16f value)
 {
 	MemoryWrite(z80, callbacks, address + 0, value & 0xFF);
 	MemoryWrite(z80, callbacks, address + 1, value >> 8);
 }
 
-static unsigned int ReadOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Instruction *instruction, Z80_Operand operand)
+static cc_u16f ReadOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Instruction *instruction, Z80_Operand operand)
 {
-	unsigned int value;
+	cc_u16f value;
 
 	/* Handle double-prefix instructions. */
 	/* Technically, this is only relevant to the destination operand and not the source operand,
@@ -196,27 +196,27 @@ static unsigned int ReadOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks 
 			break;
 
 		case Z80_OPERAND_AF:
-			value = ((unsigned int)z80->state->a << 8) | z80->state->f;
+			value = ((cc_u16f)z80->state->a << 8) | z80->state->f;
 			break;
 
 		case Z80_OPERAND_BC:
-			value = ((unsigned int)z80->state->b << 8) | z80->state->c;
+			value = ((cc_u16f)z80->state->b << 8) | z80->state->c;
 			break;
 
 		case Z80_OPERAND_DE:
-			value = ((unsigned int)z80->state->d << 8) | z80->state->e;
+			value = ((cc_u16f)z80->state->d << 8) | z80->state->e;
 			break;
 
 		case Z80_OPERAND_HL:
-			value = ((unsigned int)z80->state->h << 8) | z80->state->l;
+			value = ((cc_u16f)z80->state->h << 8) | z80->state->l;
 			break;
 
 		case Z80_OPERAND_IX:
-			value = ((unsigned int)z80->state->ixh << 8) | z80->state->ixl;
+			value = ((cc_u16f)z80->state->ixh << 8) | z80->state->ixl;
 			break;
 
 		case Z80_OPERAND_IY:
-			value = ((unsigned int)z80->state->iyh << 8) | z80->state->iyl;
+			value = ((cc_u16f)z80->state->iyh << 8) | z80->state->iyl;
 			break;
 
 		case Z80_OPERAND_PC:
@@ -249,7 +249,7 @@ static unsigned int ReadOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks 
 	return value;
 }
 
-static void WriteOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Instruction *instruction, Z80_Operand operand, unsigned int value)
+static void WriteOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Instruction *instruction, Z80_Operand operand, cc_u16f value)
 {
 	/* Handle double-prefix instructions. */
 	const Z80_Operand double_prefix_operand = z80->state->register_mode == Z80_REGISTER_MODE_IX ? Z80_OPERAND_IX_INDIRECT : Z80_OPERAND_IY_INDIRECT;
@@ -365,7 +365,7 @@ static void WriteOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callba
 	}
 }
 
-static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, InstructionMode instruction_mode, Z80_RegisterMode register_mode, unsigned char opcode)
+static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, InstructionMode instruction_mode, Z80_RegisterMode register_mode, cc_u8l opcode)
 {
 	static const Z80_Operand registers[8] = {Z80_OPERAND_B, Z80_OPERAND_C, Z80_OPERAND_D, Z80_OPERAND_E, Z80_OPERAND_H, Z80_OPERAND_L, Z80_OPERAND_HL_INDIRECT, Z80_OPERAND_A};
 	static const Z80_Operand register_pairs_1[4] = {Z80_OPERAND_BC, Z80_OPERAND_DE, Z80_OPERAND_HL, Z80_OPERAND_SP};
@@ -379,13 +379,13 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 		{Z80_OPCODE_OUTI, Z80_OPCODE_OUTD, Z80_OPCODE_OTIR, Z80_OPCODE_OTDR}
 	};
 
-	const unsigned int x = (opcode >> 6) & 3;
-	const unsigned int y = (opcode >> 3) & 7;
-	const unsigned int z = (opcode >> 0) & 7;
-	const unsigned int p = (y >> 1) & 3;
+	const cc_u16f x = (opcode >> 6) & 3;
+	const cc_u16f y = (opcode >> 3) & 7;
+	const cc_u16f z = (opcode >> 0) & 7;
+	const cc_u16f p = (y >> 1) & 3;
 	const cc_bool q = (y & 1) != 0;
 
-	unsigned int i;
+	cc_u16f i;
 
 	metadata->has_displacement = cc_false;
 
@@ -771,7 +771,7 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 
 						case 6:
 						{
-							static const unsigned int interrupt_modes[4] = {0, 0, 1, 2};
+							static const cc_u16f interrupt_modes[4] = {0, 0, 1, 2};
 
 							metadata->opcode = Z80_OPCODE_IM;
 							metadata->embedded_literal = interrupt_modes[y & 3];
@@ -889,9 +889,9 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 
 static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, Instruction *instruction)
 {
-	unsigned int opcode;
-	unsigned int displacement;
-	unsigned int i;
+	cc_u16f opcode;
+	cc_u16f displacement;
+	cc_u16f i;
 
 	opcode = OpcodeFetch(z80, callbacks);
 
@@ -994,23 +994,23 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 				break;
 
 			case Z80_OPERAND_BC_INDIRECT:
-				instruction->address = ((unsigned int)z80->state->b << 8) | z80->state->c;
+				instruction->address = ((cc_u16f)z80->state->b << 8) | z80->state->c;
 				break;
 
 			case Z80_OPERAND_DE_INDIRECT:
-				instruction->address = ((unsigned int)z80->state->d << 8) | z80->state->e;
+				instruction->address = ((cc_u16f)z80->state->d << 8) | z80->state->e;
 				break;
 
 			case Z80_OPERAND_HL_INDIRECT:
-				instruction->address = ((unsigned int)z80->state->h << 8) | z80->state->l;
+				instruction->address = ((cc_u16f)z80->state->h << 8) | z80->state->l;
 				break;
 
 			case Z80_OPERAND_IX_INDIRECT:
-				instruction->address = (((unsigned int)z80->state->ixh << 8) | z80->state->ixl) + displacement;
+				instruction->address = (((cc_u16f)z80->state->ixh << 8) | z80->state->ixl) + displacement;
 				break;
 
 			case Z80_OPERAND_IY_INDIRECT:
-				instruction->address = (((unsigned int)z80->state->iyh << 8) | z80->state->iyl) + displacement;
+				instruction->address = (((cc_u16f)z80->state->iyh << 8) | z80->state->iyl) + displacement;
 				break;
 
 			case Z80_OPERAND_ADDRESS:
@@ -1048,12 +1048,12 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 
 static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Instruction *instruction)
 {
-	unsigned int source_value;
-	unsigned int destination_value;
-	unsigned int result_value;
-	unsigned int result_value_with_carry;
-	unsigned long result_value_with_carry_16bit;
-	unsigned char swap_holder;
+	cc_u16f source_value;
+	cc_u16f destination_value;
+	cc_u16f result_value;
+	cc_u16f result_value_with_carry;
+	cc_u32f result_value_with_carry_16bit;
+	cc_u8l swap_holder;
 	cc_bool carry;
 
 	z80->state->register_mode = Z80_REGISTER_MODE_HL;
@@ -1112,7 +1112,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			READ_SOURCE;
 			READ_DESTINATION;
 
-			result_value_with_carry_16bit = (unsigned long)source_value + (unsigned long)destination_value;
+			result_value_with_carry_16bit = (cc_u32f)source_value + (cc_u32f)destination_value;
 			result_value = result_value_with_carry_16bit & 0xFFFF;
 
 			z80->state->f &= FLAG_MASK_SIGN | FLAG_MASK_ZERO | FLAG_MASK_PARITY_OVERFLOW;
@@ -1786,7 +1786,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			source_value = ~source_value;
 			READ_DESTINATION;
 
-			result_value_with_carry_16bit = (unsigned long)source_value + (unsigned long)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 0 : 1);
+			result_value_with_carry_16bit = (cc_u32f)source_value + (cc_u32f)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 0 : 1);
 			result_value = result_value_with_carry_16bit & 0xFFFF;
 
 			z80->state->f = 0;
@@ -1810,7 +1810,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			READ_SOURCE;
 			READ_DESTINATION;
 
-			result_value_with_carry_16bit = (unsigned long)source_value + (unsigned long)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 1 : 0);
+			result_value_with_carry_16bit = (cc_u32f)source_value + (cc_u32f)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 1 : 0);
 			result_value = result_value_with_carry_16bit & 0xFFFF;
 
 			z80->state->f = 0;
@@ -1911,8 +1911,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 		case Z80_OPCODE_LDI:
 		{
-			const unsigned int de = ((unsigned int)z80->state->d << 8) | z80->state->e;
-			const unsigned int hl = ((unsigned int)z80->state->h << 8) | z80->state->l;
+			const cc_u16f de = ((cc_u16f)z80->state->d << 8) | z80->state->e;
+			const cc_u16f hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
 
 			MemoryWrite(z80, callbacks, de, MemoryRead(z80, callbacks, hl));
 
@@ -1957,8 +1957,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 		case Z80_OPCODE_LDD:
 		{
-			const unsigned int de = ((unsigned int)z80->state->d << 8) | z80->state->e;
-			const unsigned int hl = ((unsigned int)z80->state->h << 8) | z80->state->l;
+			const cc_u16f de = ((cc_u16f)z80->state->d << 8) | z80->state->e;
+			const cc_u16f hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
 
 			MemoryWrite(z80, callbacks, de, MemoryRead(z80, callbacks, hl));
 
@@ -2003,13 +2003,13 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 		case Z80_OPCODE_LDIR:
 		{
-			unsigned int bc;
-			unsigned int de;
-			unsigned int hl;
+			cc_u16f bc;
+			cc_u16f de;
+			cc_u16f hl;
 
-			bc = ((unsigned int)z80->state->b << 8) | z80->state->c;
-			de = ((unsigned int)z80->state->d << 8) | z80->state->e;
-			hl = ((unsigned int)z80->state->h << 8) | z80->state->l;
+			bc = ((cc_u16f)z80->state->b << 8) | z80->state->c;
+			de = ((cc_u16f)z80->state->d << 8) | z80->state->e;
+			hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
 
 			for (;;)
 			{
@@ -2048,13 +2048,13 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 		case Z80_OPCODE_LDDR:
 		{
-			unsigned int bc;
-			unsigned int de;
-			unsigned int hl;
+			cc_u16f bc;
+			cc_u16f de;
+			cc_u16f hl;
 
-			bc = ((unsigned int)z80->state->b << 8) | z80->state->c;
-			de = ((unsigned int)z80->state->d << 8) | z80->state->e;
-			hl = ((unsigned int)z80->state->h << 8) | z80->state->l;
+			bc = ((cc_u16f)z80->state->b << 8) | z80->state->c;
+			de = ((cc_u16f)z80->state->d << 8) | z80->state->e;
+			hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
 
 			for (;;)
 			{
@@ -2143,7 +2143,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 void Z80_Constant_Initialise(Z80_Constant *constant)
 {
-	unsigned int i;
+	cc_u16f i;
 
 #ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 	/* Pre-compute instruction metadata, to speed up opcode decoding. */
@@ -2166,7 +2166,7 @@ void Z80_Constant_Initialise(Z80_Constant *constant)
 	{
 		/* http://graphics.stanford.edu/~seander/bithacks.html#ParityMultiply */
 		/* I have absolutely no idea how this works. */
-		unsigned int v;
+		cc_u16f v;
 
 		v = i;
 		v ^= v >> 1;
