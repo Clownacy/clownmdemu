@@ -53,7 +53,7 @@
 typedef struct FM_ChannelMetadata
 {
 	FM_Channel_State state;
-	unsigned int cached_upper_frequency_bits;
+	cc_u16f cached_upper_frequency_bits;
 	cc_bool pan_left;
 	cc_bool pan_right;
 } FM_ChannelMetadata;
@@ -66,9 +66,9 @@ typedef struct FM_Constant
 typedef struct FM_State
 {
 	FM_ChannelMetadata channels[6];
-	unsigned int port;
-	unsigned int address;
-	int dac_sample;
+	cc_u16f port;
+	cc_u16f address;
+	cc_s16f dac_sample;
 	cc_bool dac_enabled;
 } FM_State;
 
@@ -84,8 +84,8 @@ void FM_Constant_Initialise(FM_Constant *constant);
 void FM_State_Initialise(FM_State *state);
 void FM_Parameters_Initialise(FM *fm, const FM_Constant *constant, FM_State *state);
 
-void FM_DoAddress(const FM *fm, unsigned int port, unsigned int address);
-void FM_DoData(const FM *fm, unsigned int data);
+void FM_DoAddress(const FM *fm, cc_u16f port, cc_u16f address);
+void FM_DoData(const FM *fm, cc_u16f data);
 
 /* Updates the FM's internal state and outputs samples. */
 /* The samples are stereo and in signed 16-bit PCM format. */

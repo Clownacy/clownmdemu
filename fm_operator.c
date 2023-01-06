@@ -6,24 +6,24 @@
 
 #include "clowncommon.h"
 
-static unsigned int InversePow2(const FM_Operator_Constant *constant, unsigned int value)
+static cc_u16f InversePow2(const FM_Operator_Constant *constant, cc_u16f value)
 {
 	/* TODO: Maybe replace this whole thing with a single lookup table? */
 
 	/* The attenuation is in 5.8 fixed point format. */
-	const unsigned int whole = value >> 8;
-	const unsigned int fraction = value & 0xFF;
+	const cc_u16f whole = value >> 8;
+	const cc_u16f fraction = value & 0xFF;
 
 	return (constant->power_table[fraction] << 2) >> whole;
 }
 
 void FM_Operator_Constant_Initialise(FM_Operator_Constant *constant)
 {
-	const unsigned int sine_table_length = CC_COUNT_OF(constant->logarithmic_attenuation_sine_table);
-	const unsigned int pow_table_length = CC_COUNT_OF(constant->power_table);
+	const cc_u16f sine_table_length = CC_COUNT_OF(constant->logarithmic_attenuation_sine_table);
+	const cc_u16f pow_table_length = CC_COUNT_OF(constant->power_table);
 	const double log2 = log(2.0);
 
-	unsigned int i;
+	cc_u16f i;
 
 	/* Generate sine wave lookup table. */
 	for (i = 0; i < sine_table_length; ++i)
@@ -57,7 +57,7 @@ void FM_Operator_Constant_Initialise(FM_Operator_Constant *constant)
 
 		/* "Convert the attenuation value to a rounded 12-bit result in 4.8 fixed point
 		    format." */
-		const unsigned int sinResult = (unsigned int)((sin_result_as_attenuation * 256.0) + 0.5);
+		const cc_u16l sinResult = (cc_u16l)((sin_result_as_attenuation * 256.0) + 0.5);
 
 		/* "Write the result to the table." */
 		constant->logarithmic_attenuation_sine_table[i] = sinResult;
@@ -78,7 +78,7 @@ void FM_Operator_Constant_Initialise(FM_Operator_Constant *constant)
 		const double result_normalised = pow(2.0, -entry_normalised);
 
 		/* "Convert the normalized result to an 11-bit rounded result." */
-		const unsigned int result = (unsigned int)((result_normalised * 2048.0) + 0.5);
+		const cc_u16l result = (cc_u16l)((result_normalised * 2048.0) + 0.5);
 
 		/* "Write the result to the table." */
 		constant->power_table[i] = result;
@@ -91,7 +91,7 @@ void FM_Operator_State_Initialise(FM_Operator_State *state)
 	FM_Envelope_State_Initialise(&state->envelope);
 }
 
-void FM_Operator_SetFrequency(const FM_Operator *fm_operator, unsigned int f_number_and_block)
+void FM_Operator_SetFrequency(const FM_Operator *fm_operator, cc_u16f f_number_and_block)
 {
 	FM_Phase_SetFrequency(&fm_operator->state->phase, f_number_and_block);
 }
@@ -103,67 +103,67 @@ void FM_Operator_SetKeyOn(const FM_Operator *fm_operator, cc_bool key_on)
 		FM_Phase_Reset(&fm_operator->state->phase);
 }
 
-void FM_Operator_SetDetuneAndMultiplier(const FM_Operator *fm_operator, unsigned int detune, unsigned int multiplier)
+void FM_Operator_SetDetuneAndMultiplier(const FM_Operator *fm_operator, cc_u16f detune, cc_u16f multiplier)
 {
 	FM_Phase_SetDetuneAndMultiplier(&fm_operator->state->phase, detune, multiplier);
 }
 
-void FM_Operator_SetTotalLevel(const FM_Operator *fm_operator, unsigned int total_level)
+void FM_Operator_SetTotalLevel(const FM_Operator *fm_operator, cc_u16f total_level)
 {
 	FM_Envelope_SetTotalLevel(&fm_operator->state->envelope, total_level);
 }
 
-void FM_Operator_SetKeyScaleAndAttackRate(const FM_Operator *fm_operator, unsigned int key_scale, unsigned int attack_rate)
+void FM_Operator_SetKeyScaleAndAttackRate(const FM_Operator *fm_operator, cc_u16f key_scale, cc_u16f attack_rate)
 {
 	FM_Envelope_SetKeyScaleAndAttackRate(&fm_operator->state->envelope, key_scale, attack_rate);
 }
 
-void FM_Operator_DecayRate(const FM_Operator *fm_operator, unsigned int decay_rate)
+void FM_Operator_DecayRate(const FM_Operator *fm_operator, cc_u16f decay_rate)
 {
 	FM_Envelope_DecayRate(&fm_operator->state->envelope, decay_rate);
 }
 
-void FM_Operator_SetSustainRate(const FM_Operator *fm_operator, unsigned int sustain_rate)
+void FM_Operator_SetSustainRate(const FM_Operator *fm_operator, cc_u16f sustain_rate)
 {
 	FM_Envelope_SetSustainRate(&fm_operator->state->envelope, sustain_rate);
 }
 
-void FM_Operator_SetSustainLevelAndReleaseRate(const FM_Operator *fm_operator, unsigned int sustain_level, unsigned int release_rate)
+void FM_Operator_SetSustainLevelAndReleaseRate(const FM_Operator *fm_operator, cc_u16f sustain_level, cc_u16f release_rate)
 {
 	FM_Envelope_SetSustainLevelAndReleaseRate(&fm_operator->state->envelope, sustain_level, release_rate);
 }
 
-int FM_Operator_Process(const FM_Operator *fm_operator, int phase_modulation)
+cc_s16f FM_Operator_Process(const FM_Operator *fm_operator, cc_s16f phase_modulation)
 {
 	/* Update and obtain phase and make it 10-bit (the upper bits are discarded later). */
-	const unsigned int phase = FM_Phase_Increment(&fm_operator->state->phase) >> 10;
+	const cc_u16f phase = FM_Phase_Increment(&fm_operator->state->phase) >> 10;
 
 	/* Update and obtain attenuation (10-bit). */
-	const unsigned int attenuation = FM_Envelope_Update(&fm_operator->state->envelope, FM_Phase_GetKeyCode(&fm_operator->state->phase));
+	const cc_u16f attenuation = FM_Envelope_Update(&fm_operator->state->envelope, FM_Phase_GetKeyCode(&fm_operator->state->phase));
 
 	/* Modulate the phase. */
 	/* The modulation is divided by two because up to two operators can provide modulation at once. */
-	const unsigned int modulated_phase = (phase + phase_modulation / 2) & 0x3FF;
+	const cc_u16f modulated_phase = (phase + phase_modulation / 2) & 0x3FF;
 
 	/* Reduce the phase down to a single quarter of the span of a sine wave, since the other three quarters
 	   are just mirrored anyway. This allows us to use a much smaller sine wave lookup table. */
 	const cc_bool phase_is_in_negative_wave = (modulated_phase & 0x200) != 0;
 	const cc_bool phase_is_in_mirrored_half_of_wave = (modulated_phase & 0x100) != 0;
-	const unsigned int quarter_phase = (modulated_phase & 0xFF) ^ (phase_is_in_mirrored_half_of_wave ? 0xFF : 0);
+	const cc_u16f quarter_phase = (modulated_phase & 0xFF) ^ (phase_is_in_mirrored_half_of_wave ? 0xFF : 0);
 
 	/* This table triples as a sine wave lookup table, a logarithm lookup table, and an attenuation lookup table.
 	   The obtained attenuation is 12-bit. */
-	const unsigned int phase_as_attenuation = fm_operator->constant->logarithmic_attenuation_sine_table[quarter_phase];
+	const cc_u16f phase_as_attenuation = fm_operator->constant->logarithmic_attenuation_sine_table[quarter_phase];
 
 	/* Both attenuations are logarithms (measurements of decibels), so we can attenuate them by each other by just adding
 	   them together instead of multiplying them. The result is a 13-bit value. */
-	const unsigned int combined_attenuation = phase_as_attenuation + (attenuation << 2);
+	const cc_u16f combined_attenuation = phase_as_attenuation + (attenuation << 2);
 
 	/* Convert from logarithm (decibel) back to linear (sound pressure). */
-	const int sample_absolute = InversePow2(fm_operator->constant, combined_attenuation);
+	const cc_s16f sample_absolute = InversePow2(fm_operator->constant, combined_attenuation);
 
 	/* Restore the sign bit that we extracted earlier. */
-	const int sample = (phase_is_in_negative_wave ? -sample_absolute : sample_absolute);
+	const cc_s16f sample = (phase_is_in_negative_wave ? -sample_absolute : sample_absolute);
 
 	/* Return the 14-bit sample. */
 	return sample;

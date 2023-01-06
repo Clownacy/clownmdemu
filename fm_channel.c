@@ -11,7 +11,7 @@ void FM_Channel_Constant_Initialise(FM_Channel_Constant *constant)
 
 void FM_Channel_State_Initialise(FM_Channel_State *state)
 {
-	unsigned int i;
+	cc_u16f i;
 
 	for (i = 0; i < CC_COUNT_OF(state->operators); ++i)
 		FM_Operator_State_Initialise(&state->operators[i]);
@@ -25,7 +25,7 @@ void FM_Channel_State_Initialise(FM_Channel_State *state)
 
 void FM_Channel_Parameters_Initialise(FM_Channel *channel, const FM_Channel_Constant *constant, FM_Channel_State *state)
 {
-	unsigned int i;
+	cc_u16f i;
 
 	channel->constant = constant;
 	channel->state = state;
@@ -37,68 +37,68 @@ void FM_Channel_Parameters_Initialise(FM_Channel *channel, const FM_Channel_Cons
 	}
 }
 
-void FM_Channel_SetFrequency(const FM_Channel *channel, unsigned int f_number_and_block)
+void FM_Channel_SetFrequency(const FM_Channel *channel, cc_u16f f_number_and_block)
 {
-	unsigned int i;
+	cc_u16f i;
 
 	for (i = 0; i < CC_COUNT_OF(channel->state->operators); ++i)
 		FM_Operator_SetFrequency(&channel->operators[i], f_number_and_block);
 }
 
-void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel *channel, unsigned int feedback, unsigned int algorithm)
+void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel *channel, cc_u16f feedback, cc_u16f algorithm)
 {
 	channel->state->feedback_divisor = 1 << (9 - feedback);
 	channel->state->algorithm = algorithm;
 }
 
-void FM_Channel_SetKeyOn(const FM_Channel *channel, unsigned int operator_index, cc_bool key_on)
+void FM_Channel_SetKeyOn(const FM_Channel *channel, cc_u16f operator_index, cc_bool key_on)
 {
 	FM_Operator_SetKeyOn(&channel->operators[operator_index], key_on);
 }
 
-void FM_Channel_SetDetuneAndMultiplier(const FM_Channel *channel, unsigned int operator_index, unsigned int detune, unsigned int multiplier)
+void FM_Channel_SetDetuneAndMultiplier(const FM_Channel *channel, cc_u16f operator_index, cc_u16f detune, cc_u16f multiplier)
 {
 	FM_Operator_SetDetuneAndMultiplier(&channel->operators[operator_index], detune, multiplier);
 }
 
-void FM_Channel_SetTotalLevel(const FM_Channel *channel, unsigned int operator_index, unsigned int total_level)
+void FM_Channel_SetTotalLevel(const FM_Channel *channel, cc_u16f operator_index, cc_u16f total_level)
 {
 	FM_Operator_SetTotalLevel(&channel->operators[operator_index], total_level);
 }
 
-void FM_Channel_SetKeyScaleAndAttackRate(const FM_Channel *channel, unsigned int operator_index, unsigned int key_scale, unsigned int attack_rate)
+void FM_Channel_SetKeyScaleAndAttackRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f key_scale, cc_u16f attack_rate)
 {
 	FM_Operator_SetKeyScaleAndAttackRate(&channel->operators[operator_index], key_scale, attack_rate);
 }
 
-void FM_Channel_DecayRate(const FM_Channel *channel, unsigned int operator_index, unsigned int decay_rate)
+void FM_Channel_DecayRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f decay_rate)
 {
 	FM_Operator_DecayRate(&channel->operators[operator_index], decay_rate);
 }
 
-void FM_Channel_SetSustainRate(const FM_Channel *channel, unsigned int operator_index, unsigned int sustain_rate)
+void FM_Channel_SetSustainRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f sustain_rate)
 {
 	FM_Operator_SetSustainRate(&channel->operators[operator_index], sustain_rate);
 }
 
-void FM_Channel_SetSustainLevelAndReleaseRate(const FM_Channel *channel, unsigned int operator_index, unsigned int sustain_level, unsigned int release_rate)
+void FM_Channel_SetSustainLevelAndReleaseRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f sustain_level, cc_u16f release_rate)
 {
 	FM_Operator_SetSustainLevelAndReleaseRate(&channel->operators[operator_index], sustain_level, release_rate);
 }
 
-int FM_Channel_GetSample(const FM_Channel *channel)
+cc_s16f FM_Channel_GetSample(const FM_Channel *channel)
 {
 	const FM_Operator* const operator1 = &channel->operators[0];
 	const FM_Operator* const operator2 = &channel->operators[2]; /* Yes, these really are swapped. */
 	const FM_Operator* const operator3 = &channel->operators[1];
 	const FM_Operator* const operator4 = &channel->operators[3];
 
-	int feedback_modulation;
-	int operator_1_sample;
-	int operator_2_sample;
-	int operator_3_sample;
-	int operator_4_sample;
-	int sample;
+	cc_s16f feedback_modulation;
+	cc_s16f operator_1_sample;
+	cc_s16f operator_2_sample;
+	cc_s16f operator_3_sample;
+	cc_s16f operator_4_sample;
+	cc_s16f sample;
 
 	/* Compute operator 1's self-feedback modulation. */
 	if (channel->state->feedback_divisor == 1 << (9 - 0))

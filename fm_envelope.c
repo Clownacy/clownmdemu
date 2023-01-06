@@ -2,9 +2,9 @@
 
 #include "clowncommon.h"
 
-static unsigned int CalculateRate(const FM_Envelope_State *envelope, unsigned int key_code)
+static cc_u16f CalculateRate(const FM_Envelope_State *envelope, cc_u16f key_code)
 {
-	unsigned int rate;
+	cc_u16f rate;
 
 	if (envelope->rates[envelope->current_mode] == 0)
 		rate = 0;
@@ -37,7 +37,7 @@ void FM_Envelope_State_Initialise(FM_Envelope_State *state)
 	state->key_on = cc_false;
 }
 
-cc_bool FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on, unsigned int key_code)
+cc_bool FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on, cc_u16f key_code)
 {
 	const cc_bool key_state_changed = envelope->key_on != key_on;
 
@@ -66,29 +66,29 @@ cc_bool FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on, unsign
 	return key_state_changed && key_on;
 }
 
-void FM_Envelope_SetTotalLevel(FM_Envelope_State *envelope, unsigned int total_level)
+void FM_Envelope_SetTotalLevel(FM_Envelope_State *envelope, cc_u16f total_level)
 {
 	/* Convert from 7-bit to 10-bit. */
 	envelope->total_level = total_level << 3;
 }
 
-void FM_Envelope_SetKeyScaleAndAttackRate(FM_Envelope_State *envelope, unsigned int key_scale, unsigned int attack_rate)
+void FM_Envelope_SetKeyScaleAndAttackRate(FM_Envelope_State *envelope, cc_u16f key_scale, cc_u16f attack_rate)
 {
 	envelope->key_scale = 8 >> key_scale;
 	envelope->rates[FM_ENVELOPE_MODE_ATTACK] = attack_rate;
 }
 
-void FM_Envelope_DecayRate(FM_Envelope_State *envelope, unsigned int decay_rate)
+void FM_Envelope_DecayRate(FM_Envelope_State *envelope, cc_u16f decay_rate)
 {
 	envelope->rates[FM_ENVELOPE_MODE_DECAY] = decay_rate;
 }
 
-void FM_Envelope_SetSustainRate(FM_Envelope_State *envelope, unsigned int sustain_rate)
+void FM_Envelope_SetSustainRate(FM_Envelope_State *envelope, cc_u16f sustain_rate)
 {
 	envelope->rates[FM_ENVELOPE_MODE_SUSTAIN] = sustain_rate;
 }
 
-void FM_Envelope_SetSustainLevelAndReleaseRate(FM_Envelope_State *envelope, unsigned int sustain_level, unsigned int release_rate)
+void FM_Envelope_SetSustainLevelAndReleaseRate(FM_Envelope_State *envelope, cc_u16f sustain_level, cc_u16f release_rate)
 {
 	envelope->sustain_level = sustain_level == 0xF ? 0x3E0 : sustain_level * 0x20;
 
@@ -96,11 +96,11 @@ void FM_Envelope_SetSustainLevelAndReleaseRate(FM_Envelope_State *envelope, unsi
 	envelope->rates[FM_ENVELOPE_MODE_RELEASE] = (release_rate << 1) | 1;
 }
 
-unsigned int FM_Envelope_Update(FM_Envelope_State *envelope, unsigned int key_code)
+cc_u16f FM_Envelope_Update(FM_Envelope_State *envelope, cc_u16f key_code)
 {
 	if (--envelope->countdown == 0)
 	{
-		static const unsigned int cycle_bitmasks[0x40 / 4] = {
+		static const cc_u16f cycle_bitmasks[0x40 / 4] = {
 			#define GENERATE_BITMASK(x) ((1 << (x)) - 1)
 			GENERATE_BITMASK(11),
 			GENERATE_BITMASK(10),
@@ -121,13 +121,13 @@ unsigned int FM_Envelope_Update(FM_Envelope_State *envelope, unsigned int key_co
 			#undef GENERATE_BITMASK
 		};
 
-		const unsigned int rate = CalculateRate(envelope, key_code);
+		const cc_u16f rate = CalculateRate(envelope, key_code);
 
 		envelope->countdown = 3;
 
 		if ((envelope->cycle_counter++ & cycle_bitmasks[rate / 4]) == 0)
 		{
-			static const unsigned int deltas[0x40][8] = {
+			static const cc_u16f deltas[0x40][8] = {
 				{0, 0, 0, 0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0, 0, 0, 0},
 				{0, 1, 0, 1, 0, 1, 0, 1},
@@ -194,7 +194,7 @@ unsigned int FM_Envelope_Update(FM_Envelope_State *envelope, unsigned int key_co
 				{8, 8, 8, 8, 8, 8, 8, 8}
 			};
 
-			const unsigned int delta = deltas[rate][envelope->delta_index++ & 7];
+			const cc_u16f delta = deltas[rate][envelope->delta_index++ & 7];
 
 			switch (envelope->current_mode)
 			{

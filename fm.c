@@ -144,7 +144,7 @@ void FM_State_Initialise(FM_State *state)
 
 void FM_Parameters_Initialise(FM *fm, const FM_Constant *constant, FM_State *state)
 {
-	unsigned int i;
+	cc_u16f i;
 
 	fm->constant = constant;
 	fm->state = state;
@@ -153,13 +153,13 @@ void FM_Parameters_Initialise(FM *fm, const FM_Constant *constant, FM_State *sta
 		FM_Channel_Parameters_Initialise(&fm->channels[i], &constant->channels, &state->channels[i].state);
 }
 
-void FM_DoAddress(const FM *fm, unsigned int port, unsigned int address)
+void FM_DoAddress(const FM *fm, cc_u16f port, cc_u16f address)
 {
 	fm->state->port = port * 3;
 	fm->state->address = address;
 }
 
-void FM_DoData(const FM *fm, unsigned int data)
+void FM_DoData(const FM *fm, cc_u16f data)
 {
 	if (fm->state->address < 0x30)
 	{
@@ -168,7 +168,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 			switch (fm->state->address)
 			{
 				default:
-					PrintError("Unrecognised FM address latched (0x%02X)", fm->state->address);
+					PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST16 ")", fm->state->address);
 					break;
 
 				case 0x22:
@@ -183,7 +183,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 					/* Key on/off. */
 					/* There's a gap between channels 3 and 4. */
 					/* TODO - Check what happens if you try to access the 'gap' channels on real hardware. */
-					static const unsigned int table[] = {0, 1, 2, 0, 3, 4, 5, 0};
+					static const cc_u16f table[] = {0, 1, 2, 0, 3, 4, 5, 0};
 					const FM_Channel* const channel = &fm->channels[table[data & 7]];
 
 					FM_Channel_SetKeyOn(channel, 0, (data & (1 << 4)) != 0);
@@ -197,7 +197,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 				case 0x2A:
 					/* DAC sample. */
 					/* Convert from unsigned 8-bit PCM to signed 16-bit PCM. */
-					fm->state->dac_sample = ((int)data - 0x80) * (0x100 / FM_VOLUME_DIVIDER);
+					fm->state->dac_sample = ((cc_s16f)data - 0x80) * (0x100 / FM_VOLUME_DIVIDER);
 					break;
 
 				case 0x2B:
@@ -209,7 +209,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 	}
 	else
 	{
-		const unsigned int channel_index = fm->state->address & 3;
+		const cc_u16f channel_index = fm->state->address & 3;
 		FM_ChannelMetadata* const channel_metadata = &fm->state->channels[fm->state->port + channel_index];
 		const FM_Channel* const channel = &fm->channels[fm->state->port + channel_index];
 
@@ -220,12 +220,12 @@ void FM_DoData(const FM *fm, unsigned int data)
 			if (fm->state->address < 0xA0)
 			{
 				/* Per-operator. */
-				const unsigned int operator_index = (fm->state->address >> 2) & 3;
+				const cc_u16f operator_index = (fm->state->address >> 2) & 3;
 
 				switch (fm->state->address / 0x10)
 				{
 					default:
-						PrintError("Unrecognised FM address latched (0x%02X)", fm->state->address);
+						PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST16 ")", fm->state->address);
 						break;
 
 					case 0x30 / 0x10:
@@ -270,7 +270,7 @@ void FM_DoData(const FM *fm, unsigned int data)
 				switch (fm->state->address / 4)
 				{
 					default:
-						PrintError("Unrecognised FM address latched (0x%02X)", fm->state->address);
+						PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST16 ")", fm->state->address);
 						break;
 
 					case 0xA8 / 4:
@@ -307,7 +307,7 @@ void FM_Update(const FM *fm, cc_s16l *sample_buffer, size_t total_frames)
 {
 	const cc_s16l* const sample_buffer_end = &sample_buffer[total_frames * 2];
 
-	unsigned int i;
+	cc_u16f i;
 
 	for (i = 0; i < CC_COUNT_OF(fm->state->channels); ++i)
 	{
@@ -319,7 +319,7 @@ void FM_Update(const FM *fm, cc_s16l *sample_buffer, size_t total_frames)
 		const cc_bool right_enabled = channel_metadata->pan_right;
 		const cc_bool fm_enabled = channel_metadata != &fm->state->channels[5] || !fm->state->dac_enabled;
 
-		const int dac_sample = !fm_enabled ? fm->state->dac_sample : 0;
+		const cc_s16f dac_sample = !fm_enabled ? fm->state->dac_sample : 0;
 
 		cc_s16l *sample_buffer_pointer;
 
@@ -329,14 +329,14 @@ void FM_Update(const FM *fm, cc_s16l *sample_buffer, size_t total_frames)
 		{
 			/* The FM sample is 14-bit, so convert it to 16-bit and then divide it so that it
 			   can be mixed with the other five FM channels and the PSG without clipping. */
-			const int fm_sample = FM_Channel_GetSample(channel) * 4 / FM_VOLUME_DIVIDER;
+			const cc_s16f fm_sample = FM_Channel_GetSample(channel) * 4 / FM_VOLUME_DIVIDER;
 
 			/* Do some boolean algebra to select the FM sample or the DAC sample. */
-			const int sample = (fm_enabled ? fm_sample : 0) | dac_sample;
+			const cc_s16f sample = (fm_enabled ? fm_sample : 0) | dac_sample;
 
 			/* Apply panning. */
-			const int left_sample = left_enabled ? sample : 0;
-			const int right_sample = right_enabled ? sample : 0;
+			const cc_s16f left_sample = left_enabled ? sample : 0;
+			const cc_s16f right_sample = right_enabled ? sample : 0;
 
 			/* Output sample. */
 			*sample_buffer_pointer++ += left_sample;

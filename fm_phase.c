@@ -1,13 +1,15 @@
 #include "fm_phase.h"
 
+#include "clowncommon.h"
+
 static void RecalculatePhaseStep(FM_Phase_State *phase)
 {
 	/* First, obtain some values. */
 
 	/* Detune-related magic numbers. */
-	static const unsigned int key_codes[0x10] = {0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 3, 3, 3, 3, 3, 3};
+	static const cc_u16f key_codes[0x10] = {0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 3, 3, 3, 3, 3, 3};
 
-	static const unsigned int detune_lookup[8][4][4] = {
+	static const cc_u16f detune_lookup[8][4][4] = {
 		{
 			{0,  0,  1,  2},
 			{0,  0,  1,  2},
@@ -59,13 +61,13 @@ static void RecalculatePhaseStep(FM_Phase_State *phase)
 	};
 
 	/* The octave. */
-	const unsigned int block = (phase->f_number_and_block >> 11) & 7;
+	const cc_u16f block = (phase->f_number_and_block >> 11) & 7;
 
 	/* The frequency of the note within the octave. */
-	const unsigned int f_number = phase->f_number_and_block & 0x7FF;
+	const cc_u16f f_number = phase->f_number_and_block & 0x7FF;
 
 	/* Frequency offset. */
-	const unsigned int detune = detune_lookup[block][key_codes[f_number >> 7]][phase->detune & 3];
+	const cc_u16f detune = detune_lookup[block][key_codes[f_number >> 7]][phase->detune & 3];
 
 	/* Finally, calculate the phase step. */
 
@@ -102,12 +104,12 @@ void FM_Phase_State_Initialise(FM_Phase_State *phase)
 	FM_Phase_Reset(phase);
 }
 
-unsigned int FM_Phase_GetKeyCode(const FM_Phase_State *phase)
+cc_u16f FM_Phase_GetKeyCode(const FM_Phase_State *phase)
 {
 	return phase->key_code;
 }
 
-void FM_Phase_SetFrequency(FM_Phase_State *phase, unsigned int f_number_and_block)
+void FM_Phase_SetFrequency(FM_Phase_State *phase, cc_u16f f_number_and_block)
 {
 	phase->f_number_and_block = f_number_and_block;
 	phase->key_code = f_number_and_block >> 9;
@@ -115,7 +117,7 @@ void FM_Phase_SetFrequency(FM_Phase_State *phase, unsigned int f_number_and_bloc
 	RecalculatePhaseStep(phase);
 }
 
-void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, unsigned int detune, unsigned int multiplier)
+void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, cc_u16f detune, cc_u16f multiplier)
 {
 	phase->detune = detune;
 	phase->multiplier = multiplier == 0 ? 1 : multiplier * 2;
@@ -128,7 +130,7 @@ void FM_Phase_Reset(FM_Phase_State *phase)
 	phase->position = 0;
 }
 
-unsigned int FM_Phase_Increment(FM_Phase_State *phase)
+cc_u32f FM_Phase_Increment(FM_Phase_State *phase)
 {
 	phase->position += phase->step;
 
