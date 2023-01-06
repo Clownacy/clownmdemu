@@ -557,6 +557,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	Z80_ReadAndWriteCallbacks z80_read_write_callbacks;
 	CPUCallbackUserData cpu_callback_user_data;
 	cc_u16f m68k_countdown, z80_countdown;
+	cc_u8f h_int_counter;
 
 	const cc_u16f television_vertical_resolution = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
 	const cc_u16f console_vertical_resolution = (clownmdemu->state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
@@ -581,7 +582,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	z80_countdown = clownmdemu->state->countdowns.z80;
 
 	/* Reload H-Int counter at the top of the screen, just like real hardware does */
-	clownmdemu->state->h_int_counter = clownmdemu->state->vdp.h_int_interval;
+	h_int_counter = clownmdemu->state->vdp.h_int_interval;
 
 	clownmdemu->state->vdp.currently_in_vblank = cc_false;
 
@@ -632,9 +633,9 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 			}
 
 			/* Fire a H-Int if we've reached the requested line */
-			if (clownmdemu->state->h_int_counter-- == 0)
+			if (h_int_counter-- == 0)
 			{
-				clownmdemu->state->h_int_counter = clownmdemu->state->vdp.h_int_interval;
+				h_int_counter = clownmdemu->state->vdp.h_int_interval;
 
 				/* Do H-Int */
 				if (clownmdemu->state->vdp.h_int_enabled)

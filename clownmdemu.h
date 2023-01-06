@@ -131,7 +131,6 @@ typedef struct ClownMDEmu_State
 	cc_u8l m68k_ram[0x10000];
 	cc_u8l z80_ram[0x2000];
 	VDP_State vdp;
-	cc_u8l h_int_counter;
 	FM_State fm;
 	PSG_State psg;
 	struct
