@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.18)
 
+option(BUILD_SHARED_LIBS "Create a shared library instead of a static library." ON)
+
 project(clownmdemu_libretro LANGUAGES C)
 
 # Sources.
-add_library(clownmdemu_libretro SHARED
+add_library(clownmdemu_libretro
 	"libretro.c"
 )
 
