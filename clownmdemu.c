@@ -69,12 +69,12 @@ static void GenerateAndPlayPSGSamples(CPUCallbackUserData *m68k_callback_user_da
 
 /* VDP memory access callback */
 
-static unsigned int VDPReadCallback(const void *user_data, unsigned long address)
+static cc_u16f VDPReadCallback(const void *user_data, cc_u32f address)
 {
 	DataAndCallbacks *data_and_callbacks = (DataAndCallbacks*)user_data;
 	ClownMDEmu_State *state = data_and_callbacks->data->state;
 	const ClownMDEmu_Callbacks *frontend_callbacks = data_and_callbacks->frontend_callbacks;
-	unsigned int value = 0;
+	cc_u16f value = 0;
 
 	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
 	{
@@ -90,7 +90,7 @@ static unsigned int VDPReadCallback(const void *user_data, unsigned long address
 	}
 	else
 	{
-		PrintError("VDP attempted to read invalid memory 0x%lX", address);
+		PrintError("VDP attempted to read invalid memory 0x%" CC_PRIXFAST32, address);
 	}
 
 	return value;

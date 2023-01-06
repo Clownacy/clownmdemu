@@ -162,8 +162,8 @@ typedef struct ClownMDEmu_Callbacks
 
 	unsigned int (*cartridge_read)(const void *user_data, unsigned long address);
 	void (*cartridge_written)(const void *user_data, unsigned long address, unsigned int value);
-	void (*colour_updated)(const void *user_data, unsigned int index, unsigned int colour);
-	void (*scanline_rendered)(const void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height);
+	void (*colour_updated)(const void *user_data, cc_u16f index, cc_u16f colour);
+	void (*scanline_rendered)(const void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height);
 	cc_bool (*input_requested)(const void *user_data, unsigned int player_id, ClownMDEmu_Button button_id);
 	void (*fm_audio_to_be_generated)(const void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*psg_audio_to_be_generated)(const void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples));

@@ -20,8 +20,8 @@ typedef struct VDP_Configuration
 
 typedef struct VDP_Constant
 {
-	unsigned char blit_lookup[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
-	unsigned char blit_lookup_shadow_highlight[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
+	cc_u8l blit_lookup[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
+	cc_u8l blit_lookup_shadow_highlight[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
 } VDP_Constant;
 
 typedef enum VDP_Access
@@ -53,15 +53,15 @@ typedef enum VDP_VScrollMode
 
 typedef struct VDP_SpriteRowCacheEntry
 {
-	unsigned char table_index;
-	unsigned char y_in_sprite;
-	unsigned char width;
-	unsigned char height;
+	cc_u8l table_index;
+	cc_u8l y_in_sprite;
+	cc_u8l width;
+	cc_u8l height;
 } VDP_SpriteRowCacheEntry;
 
 typedef struct VDP_SpriteRowCacheRow
 {
-	unsigned char total;
+	cc_u8l total;
 	VDP_SpriteRowCacheEntry sprites[20];
 } VDP_SpriteRowCacheRow;
 
@@ -70,13 +70,13 @@ typedef struct VDP_State
 	struct
 	{
 		cc_bool write_pending;
-		unsigned short cached_write;
+		cc_u16l cached_write;
 
 		VDP_Access selected_buffer;
 
 		cc_bool read_mode;
-		unsigned short index;
-		unsigned short increment;
+		cc_u16l index;
+		cc_u16l increment;
 	} access;
 
 	struct
@@ -84,21 +84,21 @@ typedef struct VDP_State
 		cc_bool enabled;
 		cc_bool pending;
 		VDP_DMAMode mode;
-		unsigned char source_address_high;
-		unsigned short source_address_low;
-		unsigned short length;
+		cc_u8l source_address_high;
+		cc_u16l source_address_low;
+		cc_u16l length;
 	} dma;
 
-	unsigned short plane_a_address;
-	unsigned short plane_b_address;
-	unsigned short window_address;
-	unsigned short sprite_table_address;
-	unsigned short hscroll_address;
+	cc_u16l plane_a_address;
+	cc_u16l plane_b_address;
+	cc_u16l window_address;
+	cc_u16l sprite_table_address;
+	cc_u16l hscroll_address;
 
-	unsigned short plane_width;
-	unsigned short plane_height;
-	unsigned short plane_width_bitmask;
-	unsigned short plane_height_bitmask;
+	cc_u16l plane_width;
+	cc_u16l plane_height;
+	cc_u16l plane_width_bitmask;
+	cc_u16l plane_height_bitmask;
 
 	cc_bool display_enabled;
 	cc_bool v_int_enabled;
@@ -108,21 +108,21 @@ typedef struct VDP_State
 	cc_bool shadow_highlight_enabled;
 	cc_bool double_resolution_enabled;
 
-	unsigned char background_colour;
-	unsigned char h_int_interval;
+	cc_u8l background_colour;
+	cc_u8l h_int_interval;
 	cc_bool currently_in_vblank;
 
 	VDP_HScrollMode hscroll_mode;
 	VDP_VScrollMode vscroll_mode;
 
-	unsigned short vram[0x8000];
-	unsigned short cram[4 * 16];
+	cc_u16l vram[0x8000];
+	cc_u16l cram[4 * 16];
 	/* http://gendev.spritesmind.net/forum/viewtopic.php?p=36727#p36727 */
 	/* According to Mask of Destiny on SpritesMind, later models of Mega Drive (MD2 VA4 and later) have 64 words
 	   of VSRAM, instead of the 40 words that earlier models have. */
-	unsigned short vsram[64];
+	cc_u16l vsram[64];
 
-	unsigned short sprite_table_cache[80][2];
+	cc_u16l sprite_table_cache[80][2];
 
 	struct
 	{
@@ -140,12 +140,12 @@ typedef struct VDP
 
 void VDP_Constant_Initialise(VDP_Constant *constant);
 void VDP_State_Initialise(VDP_State *state);
-void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_rendered_callback)(const void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), const void *scanline_rendered_callback_user_data);
+void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_rendered_callback)(const void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height), const void *scanline_rendered_callback_user_data);
 
-unsigned int VDP_ReadData(const VDP *vdp);
-unsigned int VDP_ReadControl(const VDP *vdp);
-void VDP_WriteData(const VDP *vdp, unsigned int value, void (*colour_updated_callback)(const void *user_data, unsigned int index, unsigned int colour), const void *colour_updated_callback_user_data);
-void VDP_WriteControl(const VDP *vdp, unsigned int value, void (*colour_updated_callback)(const void *user_data, unsigned int index, unsigned int colour), const void *colour_updated_callback_user_data, unsigned int (*read_callback)(const void *user_data, unsigned long address), const void *read_callback_user_data);
+cc_u16f VDP_ReadData(const VDP *vdp);
+cc_u16f VDP_ReadControl(const VDP *vdp);
+void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(const void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data);
+void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(const void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data, cc_u16f(*read_callback)(const void *user_data, cc_u32f address), const void *read_callback_user_data);
 
 #ifdef __cplusplus
 }

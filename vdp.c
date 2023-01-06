@@ -18,9 +18,9 @@ enum
 /* Some of the logic here is based on research done by Nemesis:
    https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016 */
 
-static void WriteAndIncrement(VDP_State *state, unsigned int value, void (*colour_updated_callback)(const void *user_data, unsigned int index, unsigned int colour), const void *colour_updated_callback_user_data)
+static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_updated_callback)(const void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data)
 {
-	const unsigned int index = state->access.index / 2;
+	const cc_u16f index = state->access.index / 2;
 
 	switch (state->access.selected_buffer)
 	{
@@ -32,15 +32,15 @@ static void WriteAndIncrement(VDP_State *state, unsigned int value, void (*colou
 		case VDP_ACCESS_VRAM:
 		{
 			/* Update sprite cache if we're writing to the sprite table */
-			const unsigned int sprite_table_index = index - state->sprite_table_address;
+			const cc_u16f sprite_table_index = index - state->sprite_table_address;
 
 			if (sprite_table_index < (state->h40_enabled ? 80u : 64u) * 4u && (sprite_table_index & 2) == 0)
 			{
-				state->sprite_table_cache[sprite_table_index / 4][sprite_table_index & 1] = (unsigned short)value;
+				state->sprite_table_cache[sprite_table_index / 4][sprite_table_index & 1] = (cc_u16l)value;
 				state->sprite_row_cache.needs_updating = cc_true;
 			}
 
-			state->vram[index % CC_COUNT_OF(state->vram)] = (unsigned short)value;
+			state->vram[index % CC_COUNT_OF(state->vram)] = (cc_u16l)value;
 
 			break;
 		}
@@ -48,13 +48,13 @@ static void WriteAndIncrement(VDP_State *state, unsigned int value, void (*colou
 		case VDP_ACCESS_CRAM:
 		{
 			/* Remove garbage bits */
-			const unsigned int colour = value & 0xEEE;
+			const cc_u16f colour = value & 0xEEE;
 
 			/* Fit index to within CRAM */
-			const unsigned int index_wrapped = index % CC_COUNT_OF(state->cram);
+			const cc_u16f index_wrapped = index % CC_COUNT_OF(state->cram);
 
 			/* Store regular Mega Drive-format colour (with garbage bits intact) */
-			state->cram[index_wrapped] = (unsigned short)value;
+			state->cram[index_wrapped] = (cc_u16l)value;
 
 			/* Now let's precompute the shadow/normal/highlight colours in
 			   RGB444 (so we don't have to calculate them during blitting)
@@ -76,18 +76,18 @@ static void WriteAndIncrement(VDP_State *state, unsigned int value, void (*colou
 		}
 
 		case VDP_ACCESS_VSRAM:
-			state->vsram[index % CC_COUNT_OF(state->vsram)] = (unsigned short)value;
+			state->vsram[index % CC_COUNT_OF(state->vsram)] = (cc_u16l)value;
 			break;
 	}
 
 	state->access.index += state->access.increment;
 }
 
-static unsigned int ReadAndIncrement(VDP_State *state)
+static cc_u16f ReadAndIncrement(VDP_State *state)
 {
-	unsigned int value;
+	cc_u16f value;
 
-	const unsigned int index = state->access.index / 2;
+	const cc_u16f index = state->access.index / 2;
 
 	switch (state->access.selected_buffer)
 	{
@@ -118,37 +118,37 @@ void VDP_Constant_Initialise(VDP_Constant *constant)
 	/* This essentially pre-computes the VDP's depth-test and alpha-test,
 	   generating a lookup table to eliminate the need to perform these
 	   every time a pixel is blitted. This provides a *massive* speed boost. */
-	const unsigned int palette_line_index_mask = 0xF;
-	const unsigned int colour_index_mask = 0x3F;
-	const unsigned int priority_mask = 0x40;
-	const unsigned int not_shadowed_mask = 0x80;
+	const cc_u16f palette_line_index_mask = 0xF;
+	const cc_u16f colour_index_mask = 0x3F;
+	const cc_u16f priority_mask = 0x40;
+	const cc_u16f not_shadowed_mask = 0x80;
 
-	unsigned int old_pixel, new_pixel;
+	cc_u16f old_pixel, new_pixel;
 
 	for (old_pixel = 0; old_pixel < CC_COUNT_OF(constant->blit_lookup); ++old_pixel)
 	{
 		for (new_pixel = 0; new_pixel < CC_COUNT_OF(constant->blit_lookup[0]); ++new_pixel)
 		{
-			const unsigned int old_palette_line_index = old_pixel & palette_line_index_mask;
-			const unsigned int old_colour_index = old_pixel & colour_index_mask;
+			const cc_u16f old_palette_line_index = old_pixel & palette_line_index_mask;
+			const cc_u16f old_colour_index = old_pixel & colour_index_mask;
 			const cc_bool old_priority = (old_pixel & priority_mask) != 0;
 			const cc_bool old_not_shadowed = (old_pixel & not_shadowed_mask) != 0;
 
-			const unsigned int new_palette_line_index = new_pixel & palette_line_index_mask;
-			const unsigned int new_colour_index = new_pixel & colour_index_mask;
+			const cc_u16f new_palette_line_index = new_pixel & palette_line_index_mask;
+			const cc_u16f new_colour_index = new_pixel & colour_index_mask;
 			const cc_bool new_priority = (new_pixel & priority_mask) != 0;
 			const cc_bool new_not_shadowed = new_priority;
 
 			const cc_bool draw_new_pixel = new_palette_line_index != 0 && (old_palette_line_index == 0 || !old_priority || new_priority);
 
-			unsigned int output;
+			cc_u16f output;
 
 			/* First, generate the table for regular blitting */
 			output = draw_new_pixel ? new_pixel : old_pixel;
 
 			output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
 
-			constant->blit_lookup[old_pixel][new_pixel] = (unsigned char)output;
+			constant->blit_lookup[old_pixel][new_pixel] = (cc_u8l)output;
 
 			/* Now, generate the table for shadow/highlight blitting */
 			if (draw_new_pixel)
@@ -181,7 +181,7 @@ void VDP_Constant_Initialise(VDP_Constant *constant)
 				output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
 			}
 
-			constant->blit_lookup_shadow_highlight[old_pixel][new_pixel] = (unsigned char)output;
+			constant->blit_lookup_shadow_highlight[old_pixel][new_pixel] = (cc_u8l)output;
 		}
 	}
 }
@@ -229,9 +229,9 @@ void VDP_State_Initialise(VDP_State *state)
 	state->sprite_row_cache.needs_updating = cc_true;
 }
 
-void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_rendered_callback)(const void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height), const void *scanline_rendered_callback_user_data)
+void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_rendered_callback)(const void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height), const void *scanline_rendered_callback_user_data)
 {
-	unsigned int i;
+	cc_u16f i;
 
 	/* The original hardware has a bug where if you use V-scroll and H-scroll at the same time,
 	   the partially off-screen leftmost column will use an invalid V-scroll value.
@@ -244,14 +244,15 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 	   it's fully on-screen or not. This is why VDP_MAX_SCANLINE_WIDTH is rounded up to 8.
 	   In both cases, these extra bytes exist to catch the 'overflow' values that are written
 	   outside the visible portion of the buffer. */
-	unsigned char plane_metapixels[16 + (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 * 8 + (16 - 1)];
+	cc_u8l plane_metapixels[16 + (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 * 8 + (16 - 1)];
 
-	const unsigned int tile_height_power = vdp->state->double_resolution_enabled ? 4 : 3;
+	const cc_u16f tile_height_power = vdp->state->double_resolution_enabled ? 4 : 3;
 
 	assert(scanline < VDP_MAX_SCANLINES);
 
 	/* Fill the scanline buffer with the background colour */
-	memset(plane_metapixels, vdp->state->background_colour, sizeof(plane_metapixels));
+	for (i = 0; i < CC_COUNT_OF(plane_metapixels); ++i)
+		plane_metapixels[i] = vdp->state->background_colour;
 
 	if (vdp->state->display_enabled)
 	{
@@ -261,15 +262,15 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 
 		#define MAX_SPRITE_WIDTH (8 * 4)
 
-		const unsigned int tile_height_mask = (1 << tile_height_power) - 1;
-		const unsigned int tile_size = (8 << tile_height_power) / 4;
+		const cc_u16f tile_height_mask = (1 << tile_height_power) - 1;
+		const cc_u16f tile_size = (8 << tile_height_power) / 4;
 
-		unsigned int sprite_limit = vdp->state->h40_enabled ? 20 : 16;
-		unsigned int pixel_limit = vdp->state->h40_enabled ? 320 : 256;
+		cc_u16f sprite_limit = vdp->state->h40_enabled ? 20 : 16;
+		cc_u16f pixel_limit = vdp->state->h40_enabled ? 320 : 256;
 
 		/* The padding bytes of the left and right are for allowing sprites to overdraw at the
 		   edges of the screen. */
-		unsigned char sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_WIDTH - 1)];
+		cc_u8l sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_WIDTH - 1)];
 
 
 		/* *********** */
@@ -280,13 +281,13 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 			if (!vdp->configuration->planes_disabled[i])
 			{
 				/* The extra two tiles on the left of the scanline */
-				const unsigned int EXTRA_TILES = 2;
+				const cc_u16f EXTRA_TILES = 2;
 
-				unsigned int j;
-				unsigned char *metapixels_pointer;
-				unsigned int hscroll;
-				unsigned int hscroll_scroll_offset;
-				unsigned int plane_x_offset;
+				cc_u16f j;
+				cc_u8l *metapixels_pointer;
+				cc_u16f hscroll;
+				cc_u16f hscroll_scroll_offset;
+				cc_u16f plane_x_offset;
 
 				/* Get the horizontal scroll value */
 				switch (vdp->state->hscroll_mode)
@@ -320,21 +321,21 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 				/* Render tiles */
 				for (j = 0; j < (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 + EXTRA_TILES; ++j)
 				{
-					unsigned int k;
+					cc_u16f k;
 
-					unsigned int vscroll;
+					cc_u16f vscroll;
 
-					unsigned int pixel_y_in_plane;
-					unsigned int tile_x;
-					unsigned int tile_y;
-					unsigned int pixel_y_in_tile;
+					cc_u16f pixel_y_in_plane;
+					cc_u16f tile_x;
+					cc_u16f tile_y;
+					cc_u16f pixel_y_in_tile;
 
-					unsigned int tile_metadata;
+					cc_u16f tile_metadata;
 					cc_bool tile_priority;
-					unsigned int tile_palette_line;
+					cc_u16f tile_palette_line;
 					cc_bool tile_y_flip;
 					cc_bool tile_x_flip;
-					unsigned int tile_index;
+					cc_u16f tile_index;
 
 					/* Get the vertical scroll value */
 					switch (vdp->state->vscroll_mode)
@@ -374,16 +375,16 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 					for (k = 0; k < 8; ++k)
 					{
 						/* Get the X coordinate of the pixel in the tile */
-						const unsigned int pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
+						const cc_u16f pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
 
 						/* Get raw tile data that contains the desired metapixel */
-						const unsigned int tile_data = vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+						const cc_u16f tile_data = vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
 
 						/* Obtain the index into the palette line */
-						const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
+						const cc_u16f palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
 
 						/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
-						const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
+						const cc_u16f metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
 
 						*metapixels_pointer = vdp->constant->blit_lookup[*metapixels_pointer][metapixel];
 						++metapixels_pointer;
@@ -402,10 +403,10 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 			/* Caching and preprocessing some of the sprite table allows the renderer to avoid
 				scanning the entire sprite table every time it renders a scanline. The VDP actually
 				partially caches its sprite data too, though I don't know if it's for the same purpose. */
-			const unsigned int max_sprites = vdp->state->h40_enabled ? 80 : 64;
+			const cc_u16f max_sprites = vdp->state->h40_enabled ? 80 : 64;
 
-			unsigned int sprite_index;
-			unsigned int sprites_remaining = max_sprites;
+			cc_u16f sprite_index;
+			cc_u16f sprites_remaining = max_sprites;
 
 			vdp->state->sprite_row_cache.needs_updating = cc_false;
 
@@ -418,13 +419,13 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 			do
 			{
 				/* Decode sprite data */
-				const unsigned short *cached_sprite = vdp->state->sprite_table_cache[sprite_index];
-				const unsigned int y = cached_sprite[0] & 0x3FF;
-				const unsigned int width = ((cached_sprite[1] >> 10) & 3) + 1;
-				const unsigned int height = ((cached_sprite[1] >> 8) & 3) + 1;
-				const unsigned int link = cached_sprite[1] & 0x7F;
+				const cc_u16l *cached_sprite = vdp->state->sprite_table_cache[sprite_index];
+				const cc_u16f y = cached_sprite[0] & 0x3FF;
+				const cc_u16f width = ((cached_sprite[1] >> 10) & 3) + 1;
+				const cc_u16f height = ((cached_sprite[1] >> 8) & 3) + 1;
+				const cc_u16f link = cached_sprite[1] & 0x7F;
 
-				const unsigned int blank_lines = 128 << vdp->state->double_resolution_enabled;
+				const cc_u16f blank_lines = 128 << vdp->state->double_resolution_enabled;
 
 				/* This loop only processes rows that are on-screen, and haven't been drawn yet */
 				for (i = CC_MAX(blank_lines + scanline, y); i < CC_MIN(blank_lines + ((vdp->state->v30_enabled ? 30 : 28) << tile_height_power), y + (height << tile_height_power)); ++i)
@@ -436,10 +437,10 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 					{
 						struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &row->sprites[row->total++];
 
-						sprite_row_cache_entry->table_index = (unsigned char)sprite_index;
-						sprite_row_cache_entry->width = (unsigned char)width;
-						sprite_row_cache_entry->height = (unsigned char)height;
-						sprite_row_cache_entry->y_in_sprite = (unsigned char)(i - y);
+						sprite_row_cache_entry->table_index = (cc_u8l)sprite_index;
+						sprite_row_cache_entry->width = (cc_u8l)width;
+						sprite_row_cache_entry->height = (cc_u8l)height;
+						sprite_row_cache_entry->y_in_sprite = (cc_u8l)(i - y);
 					}
 				}
 
@@ -468,20 +469,20 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 				struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &vdp->state->sprite_row_cache.rows[scanline].sprites[i];
 
 				/* Decode sprite data */
-				const unsigned short *sprite = &vdp->state->vram[vdp->state->sprite_table_address + sprite_row_cache_entry->table_index * 4];
-				const unsigned int width = sprite_row_cache_entry->width;
-				const unsigned int height = sprite_row_cache_entry->height;
-				const unsigned int tile_metadata = sprite[2];
-				const unsigned int x = sprite[3] & 0x1FF;
+				const cc_u16l *sprite = &vdp->state->vram[vdp->state->sprite_table_address + sprite_row_cache_entry->table_index * 4];
+				const cc_u16f width = sprite_row_cache_entry->width;
+				const cc_u16f height = sprite_row_cache_entry->height;
+				const cc_u16f tile_metadata = sprite[2];
+				const cc_u16f x = sprite[3] & 0x1FF;
 
 				/* Decode tile metadata */
 				const cc_bool tile_priority = (tile_metadata & 0x8000) != 0;
-				const unsigned int tile_palette_line = (tile_metadata >> 13) & 3;
+				const cc_u16f tile_palette_line = (tile_metadata >> 13) & 3;
 				const cc_bool tile_y_flip = (tile_metadata & 0x1000) != 0;
 				const cc_bool tile_x_flip = (tile_metadata & 0x0800) != 0;
-				const unsigned int tile_index_base = tile_metadata & 0x7FF;
+				const cc_u16f tile_index_base = tile_metadata & 0x7FF;
 
-				unsigned int y_in_sprite = sprite_row_cache_entry->y_in_sprite;
+				cc_u16f y_in_sprite = sprite_row_cache_entry->y_in_sprite;
 
 				/* TODO - sprites only mask if another sprite rendered before them on the
 				   current scanline, or if the previous scanline reached its pixel limit */
@@ -491,35 +492,35 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 
 				if (x + width * 8 > 128 && x < 128u + (vdp->state->h40_enabled ? 40 : 32) * 8 - 1)
 				{
-					unsigned int j;
+					cc_u16f j;
 
-					unsigned char *metapixels_pointer = sprite_metapixels + (MAX_SPRITE_WIDTH - 1) + x - 128;
+					cc_u8l *metapixels_pointer = sprite_metapixels + (MAX_SPRITE_WIDTH - 1) + x - 128;
 
 					y_in_sprite = tile_y_flip ? (height << tile_height_power) - y_in_sprite - 1 : y_in_sprite;
 
 					for (j = 0; j < width; ++j)
 					{
-						unsigned int k;
+						cc_u16f k;
 
-						const unsigned int x_in_sprite = tile_x_flip ? width - j - 1 : j;
-						const unsigned int tile_index = tile_index_base + (y_in_sprite >> tile_height_power) + x_in_sprite * height;
-						const unsigned int pixel_y_in_tile = y_in_sprite & tile_height_mask;
+						const cc_u16f x_in_sprite = tile_x_flip ? width - j - 1 : j;
+						const cc_u16f tile_index = tile_index_base + (y_in_sprite >> tile_height_power) + x_in_sprite * height;
+						const cc_u16f pixel_y_in_tile = y_in_sprite & tile_height_mask;
 
 						for (k = 0; k < 8; ++k)
 						{
 							/* Get the X coordinate of the pixel in the tile */
-							const unsigned int pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
+							const cc_u16f pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
 
 							/* Get raw tile data that contains the desired metapixel */
-							const unsigned int tile_data = vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+							const cc_u16f tile_data = vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
 
 							/* Obtain the index into the palette line */
-							const unsigned int palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
+							const cc_u16f palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
 
 							/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
-							const unsigned int metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
+							const cc_u16f metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
 
-							*metapixels_pointer |= metapixel & (0 - (unsigned int)(*metapixels_pointer == 0)) & (0 - (unsigned int)(palette_line_index != 0));
+							*metapixels_pointer |= metapixel & (0 - (cc_u16f)(*metapixels_pointer == 0)) & (0 - (cc_u16f)(palette_line_index != 0));
 							++metapixels_pointer;
 
 							if (--pixel_limit == 0)
@@ -564,9 +565,9 @@ void VDP_RenderScanline(const VDP *vdp, unsigned int scanline, void (*scanline_r
 	scanline_rendered_callback(scanline_rendered_callback_user_data, scanline, plane_metapixels + 16, (vdp->state->h40_enabled ? 40 : 32) * 8, (vdp->state->v30_enabled ? 30 : 28) << tile_height_power);
 }
 
-unsigned int VDP_ReadData(const VDP *vdp)
+cc_u16f VDP_ReadData(const VDP *vdp)
 {
-	unsigned int value = 0;
+	cc_u16f value = 0;
 
 	if (!vdp->state->access.read_mode)
 	{
@@ -583,7 +584,7 @@ unsigned int VDP_ReadData(const VDP *vdp)
 	return value;
 }
 
-unsigned int VDP_ReadControl(const VDP *vdp)
+cc_u16f VDP_ReadControl(const VDP *vdp)
 {
 	/* TODO */
 
@@ -596,7 +597,7 @@ unsigned int VDP_ReadControl(const VDP *vdp)
 	return (vdp->state->currently_in_vblank << 3) | (1 << 2); /* The H-blank bit is forced for now so Sonic 2's two-player mode works */
 }
 
-void VDP_WriteData(const VDP *vdp, unsigned int value, void (*colour_updated_callback)(const void *user_data, unsigned int index, unsigned int colour), const void *colour_updated_callback_user_data)
+void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(const void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data)
 {
 	if (vdp->state->access.read_mode)
 	{
@@ -626,17 +627,17 @@ void VDP_WriteData(const VDP *vdp, unsigned int value, void (*colour_updated_cal
 }
 
 /* TODO - Retention of partial commands */
-void VDP_WriteControl(const VDP *vdp, unsigned int value, void (*colour_updated_callback)(const void *user_data, unsigned int index, unsigned int colour), const void *colour_updated_callback_user_data, unsigned int (*read_callback)(const void *user_data, unsigned long address), const void *read_callback_user_data)
+void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(const void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data, cc_u16f (*read_callback)(const void *user_data, cc_u32f address), const void *read_callback_user_data)
 {
 	if (vdp->state->access.write_pending)
 	{
 		/* This command is setting up for a memory access (part 2) */
-		const unsigned int destination_address = (vdp->state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
-		const unsigned int access_mode = ((vdp->state->access.cached_write >> 14) & 3) | ((value >> 2) & 0x3C);
+		const cc_u16f destination_address = (vdp->state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
+		const cc_u16f access_mode = ((vdp->state->access.cached_write >> 14) & 3) | ((value >> 2) & 0x3C);
 
 		vdp->state->access.write_pending = cc_false;
 
-		vdp->state->access.index = (unsigned short)destination_address;
+		vdp->state->access.index = (cc_u16l)destination_address;
 		vdp->state->access.read_mode = (access_mode & 1) == 0;
 
 		if (vdp->state->dma.enabled)
@@ -658,7 +659,7 @@ void VDP_WriteControl(const VDP *vdp, unsigned int value, void (*colour_updated_
 				break;
 
 			default: /* Invalid */
-				PrintError("Invalid VDP access mode specified (0x%X)", access_mode);
+				PrintError("Invalid VDP access mode specified (0x%" CC_PRIXFAST16 ")", access_mode);
 				break;
 		}
 
@@ -671,7 +672,7 @@ void VDP_WriteControl(const VDP *vdp, unsigned int value, void (*colour_updated_
 			{
 				do
 				{
-					WriteAndIncrement(vdp->state, read_callback(read_callback_user_data, ((unsigned long)vdp->state->dma.source_address_high << 17) | ((unsigned long)vdp->state->dma.source_address_low << 1)), colour_updated_callback, colour_updated_callback_user_data);
+					WriteAndIncrement(vdp->state, read_callback(read_callback_user_data, ((cc_u32f)vdp->state->dma.source_address_high << 17) | ((cc_u32f)vdp->state->dma.source_address_low << 1)), colour_updated_callback, colour_updated_callback_user_data);
 
 					/* Emulate the 128KiB DMA wrap-around bug */
 					++vdp->state->dma.source_address_low;
@@ -690,12 +691,12 @@ void VDP_WriteControl(const VDP *vdp, unsigned int value, void (*colour_updated_
 	{
 		/* This command is setting up for a memory access (part 1) */
 		vdp->state->access.write_pending = cc_true;
-		vdp->state->access.cached_write = (unsigned short)value;
+		vdp->state->access.cached_write = (cc_u16l)value;
 	}
 	else
 	{
-		const unsigned int reg = (value >> 8) & 0x3F;
-		const unsigned int data = value & 0xFF;
+		const cc_u16f reg = (value >> 8) & 0x3F;
+		const cc_u16f data = value & 0xFF;
 
 		/* This command is setting a register */
 		switch (reg)
@@ -749,7 +750,7 @@ void VDP_WriteControl(const VDP *vdp, unsigned int value, void (*colour_updated_
 
 			case 10:
 				/* H INTERRUPT REGISTER */
-				vdp->state->h_int_interval = (unsigned char)data;
+				vdp->state->h_int_interval = (cc_u8l)data;
 				break;
 
 			case 11:
@@ -829,14 +830,14 @@ void VDP_WriteControl(const VDP *vdp, unsigned int value, void (*colour_updated_
 
 			case 15:
 				/* AUTO INCREMENT DATA */
-				vdp->state->access.increment = (unsigned short)data;
+				vdp->state->access.increment = (cc_u16l)data;
 				break;
 
 			case 16:
 			{
 				/* SCROLL SIZE */
-				const unsigned int width_index  = (data >> 0) & 3;
-				const unsigned int height_index = (data >> 4) & 3;
+				const cc_u16f width_index  = (data >> 0) & 3;
+				const cc_u16f height_index = (data >> 4) & 3;
 
 				if ((width_index == 3 && height_index != 0) || (height_index == 3 && width_index != 0))
 				{
@@ -947,7 +948,7 @@ void VDP_WriteControl(const VDP *vdp, unsigned int value, void (*colour_updated_
 
 			default:
 				/* Invalid */
-				PrintError("Attempted to set invalid VDP register (0x%X)", reg);
+				PrintError("Attempted to set invalid VDP register (0x%" CC_PRIXFAST16 ")", reg);
 				break;
 		}
 	}
