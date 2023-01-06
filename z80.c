@@ -1895,18 +1895,54 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_RRD:
+		{
+			const cc_u16f hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
+			const cc_u8f hl_value = MemoryRead(z80, callbacks, hl);
+			const cc_u8f hl_high = (hl_value >> 4) & 0xF;
+			const cc_u8f hl_low = (hl_value >> 0) & 0xF;
+			const cc_u8f a_high = (z80->state->a >> 4) & 0xF;
+			const cc_u8f a_low = (z80->state->a >> 0) & 0xF;
+
 			/* This instruction requires an extra 4 cycles. */
 			z80->state->cycles += 4;
 
-			UNIMPLEMENTED_INSTRUCTION("RRD");
+			MemoryWrite(z80, callbacks, hl, (a_low << 4) | (hl_high << 0));
+			result_value = (a_high << 4) | (hl_low << 0);
+
+			z80->state->f &= FLAG_MASK_CARRY;
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_PARITY;
+
+			z80->state->a = result_value;
+
 			break;
+		}
 
 		case Z80_OPCODE_RLD:
+		{
+			const cc_u16f hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
+			const cc_u8f hl_value = MemoryRead(z80, callbacks, hl);
+			const cc_u8f hl_high = (hl_value >> 4) & 0xF;
+			const cc_u8f hl_low = (hl_value >> 0) & 0xF;
+			const cc_u8f a_high = (z80->state->a >> 4) & 0xF;
+			const cc_u8f a_low = (z80->state->a >> 0) & 0xF;
+
 			/* This instruction requires an extra 4 cycles. */
 			z80->state->cycles += 4;
 
-			UNIMPLEMENTED_INSTRUCTION("RLD");
+			MemoryWrite(z80, callbacks, hl, (hl_low << 4) | (a_low << 0));
+			result_value = (a_high << 4) | (hl_high << 0);
+
+			z80->state->f &= FLAG_MASK_CARRY;
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_PARITY;
+
+			z80->state->a = result_value;
+
 			break;
+		}
 
 		case Z80_OPCODE_LDI:
 		{
