@@ -6,6 +6,7 @@
 #include "libretro.h"
 #include "libretro_core_options.h"
 
+#include "../clowncommon.h"
 #include "../clownmdemu.h"
 
 #define MIXER_FORMAT int16_t
@@ -46,9 +47,9 @@ static void *current_framebuffer;
 static size_t current_framebuffer_pitch;
 static unsigned int current_screen_width;
 static unsigned int current_screen_height;
-static void (*scanline_rendered_callback)(const void *user_data, const unsigned char *source_pixels, void *destination_pixels, unsigned int screen_width);
-static void (*fallback_colour_updated_callback)(const void *user_data, unsigned int index, unsigned int colour);
-static void (*fallback_scanline_rendered_callback)(const void *user_data, const unsigned char *source_pixels, void *destination_pixels, unsigned int screen_width);
+static void (*scanline_rendered_callback)(const void *user_data, const cc_u8l *source_pixels, void *destination_pixels, unsigned int screen_width);
+static void (*fallback_colour_updated_callback)(const void *user_data, cc_u16f index, cc_u16f colour);
+static void (*fallback_scanline_rendered_callback)(const void *user_data, const cc_u8l *source_pixels, void *destination_pixels, unsigned int screen_width);
 
 static const unsigned char *rom;
 static size_t rom_size;
@@ -67,7 +68,7 @@ static struct
 	CC_ATTRIBUTE_PRINTF(2, 3) retro_log_printf_t log;
 } libretro_callbacks;
 
-static unsigned int CartridgeReadCallback(const void *user_data, unsigned long address)
+static cc_u16f CartridgeReadCallback(const void *user_data, cc_u32f address)
 {
 	(void)user_data;
 
@@ -77,14 +78,14 @@ static unsigned int CartridgeReadCallback(const void *user_data, unsigned long a
 		return rom[address];
 }
 
-static void CartridgeWriteCallback(const void *user_data, unsigned long address, unsigned int value)
+static void CartridgeWriteCallback(const void *user_data, cc_u32f address, cc_u16f value)
 {
 	(void)user_data;
 	(void)address;
 	(void)value;
 }
 
-static void ColourUpdatedCallback_0RGB1555(const void *user_data, unsigned int index, unsigned int colour)
+static void ColourUpdatedCallback_0RGB1555(const void *user_data, cc_u16f index, cc_u16f colour)
 {
 	/* Convert from 0BGR4444 to 0RGB1555. */
 	const unsigned int red   = (colour >> (4 * 0)) & 0xF;
@@ -98,7 +99,7 @@ static void ColourUpdatedCallback_0RGB1555(const void *user_data, unsigned int i
 	                   | (((blue  << 1) | (blue  >> 3)) << (5 * 0));
 }
 
-static void ColourUpdatedCallback_RGB565(const void *user_data, unsigned int index, unsigned int colour)
+static void ColourUpdatedCallback_RGB565(const void *user_data, cc_u16f index, cc_u16f colour)
 {
 	/* Convert from 0BGR4444 to RGB565. */
 	const unsigned int red   = (colour >> (4 * 0)) & 0xF;
@@ -112,7 +113,7 @@ static void ColourUpdatedCallback_RGB565(const void *user_data, unsigned int ind
 	                   | (((blue  << 1) | (blue  >> 3)) << 0);
 }
 
-static void ColourUpdatedCallback_XRGB8888(const void *user_data, unsigned int index, unsigned int colour)
+static void ColourUpdatedCallback_XRGB8888(const void *user_data, cc_u16f index, cc_u16f colour)
 {
 	/* Convert from 0BGR4444 to XRGB8888. */
 	const unsigned int red   = (colour >> (4 * 0)) & 0xF;
@@ -126,9 +127,9 @@ static void ColourUpdatedCallback_XRGB8888(const void *user_data, unsigned int i
 	                   | (((blue  << 4) | (blue  >> 0)) << (8 * 0));
 }
 
-static void ScanlineRenderedCallback_16Bit(const void *user_data, const unsigned char *source_pixels, void *destination_pixels, unsigned int screen_width)
+static void ScanlineRenderedCallback_16Bit(const void *user_data, const cc_u8l *source_pixels, void *destination_pixels, unsigned int screen_width)
 {
-	const unsigned char *source_pixel_pointer = source_pixels;
+	const cc_u8l *source_pixel_pointer = source_pixels;
 	uint16_t *destination_pixel_pointer = (uint16_t*)destination_pixels;
 
 	unsigned int i;
@@ -139,9 +140,9 @@ static void ScanlineRenderedCallback_16Bit(const void *user_data, const unsigned
 		*destination_pixel_pointer++ = colours.u16[*source_pixel_pointer++];
 }
 
-static void ScanlineRenderedCallback_32Bit(const void *user_data, const unsigned char *source_pixels, void *destination_pixels, unsigned int screen_width)
+static void ScanlineRenderedCallback_32Bit(const void *user_data, const cc_u8l *source_pixels, void *destination_pixels, unsigned int screen_width)
 {
-	const unsigned char *source_pixel_pointer = source_pixels;
+	const cc_u8l *source_pixel_pointer = source_pixels;
 	uint32_t *destination_pixel_pointer = (uint32_t*)destination_pixels;
 
 	unsigned int i;
@@ -152,7 +153,7 @@ static void ScanlineRenderedCallback_32Bit(const void *user_data, const unsigned
 		*destination_pixel_pointer++ = colours.u32[*source_pixel_pointer++];
 }
 
-static void ScanlineRenderedCallback(const void *user_data, unsigned int scanline, const unsigned char *pixels, unsigned int screen_width, unsigned int screen_height)
+static void ScanlineRenderedCallback(const void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height)
 {
 	/* At the start of the frame, update the screen width and height
 	   and obtain a new framebuffer from the frontend. */
@@ -229,9 +230,9 @@ static void ScanlineRenderedCallback(const void *user_data, unsigned int scanlin
 	}
 }
 
-static cc_bool InputRequestedCallback(const void *user_data, unsigned int player_id, ClownMDEmu_Button button_id)
+static cc_bool InputRequestedCallback(const void *user_data, cc_u16f player_id, ClownMDEmu_Button button_id)
 {
-	unsigned int libretro_button_id;
+	cc_u16f libretro_button_id;
 
 	(void)user_data;
 
@@ -275,14 +276,14 @@ static cc_bool InputRequestedCallback(const void *user_data, unsigned int player
 	return libretro_callbacks.input_state(player_id, RETRO_DEVICE_JOYPAD, 0, libretro_button_id);
 }
 
-static void FMAudioToBeGeneratedCallback(const void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, int16_t *sample_buffer, size_t total_frames))
+static void FMAudioToBeGeneratedCallback(const void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames))
 {
 	(void)user_data;
 
 	generate_fm_audio(&clownmdemu, Mixer_AllocateFMSamples(&mixer, total_frames), total_frames);
 }
 
-static void PSGAudioToBeGeneratedCallback(const void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, int16_t *sample_buffer, size_t total_samples))
+static void PSGAudioToBeGeneratedCallback(const void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples))
 {
 	(void)user_data;
 
