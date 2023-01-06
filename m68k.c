@@ -54,13 +54,13 @@ typedef struct DecodedAddressMode
 	{
 		struct
 		{
-			unsigned long *address;
-			unsigned long operation_size_bitmask;
+			cc_u32l *address;
+			cc_u32f operation_size_bitmask;
 		} reg;
 		struct
 		{
-			unsigned long address;
-			unsigned char operation_size_in_bytes;
+			cc_u32f address;
+			cc_u8f operation_size_in_bytes;
 		} memory;
 	} data;
 } DecodedAddressMode;
@@ -71,8 +71,8 @@ typedef struct Stuff
 	const M68k_ReadWriteCallbacks *callbacks;
 	struct
 	{
-		unsigned long program_counter;
-		unsigned short status_register;
+		cc_u32l program_counter;
+		cc_u16l status_register;
 		jmp_buf context;
 	} exception;
 } Stuff;
@@ -80,11 +80,11 @@ typedef struct Stuff
 /* Exception forward-declarations. */
 
 static void Group1Or2Exception(Stuff *stuff, size_t vector_offset);
-static void Group0Exception(Stuff *stuff, size_t vector_offset, unsigned long access_address, cc_bool is_a_read);
+static void Group0Exception(Stuff *stuff, size_t vector_offset, cc_u32f access_address, cc_bool is_a_read);
 
 /* Memory reads */
 
-static unsigned long ReadByte(const Stuff *stuff, unsigned long address)
+static cc_u32f ReadByte(const Stuff *stuff, cc_u32f address)
 {
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 	const cc_bool odd = (address & 1) != 0;
@@ -92,7 +92,7 @@ static unsigned long ReadByte(const Stuff *stuff, unsigned long address)
 	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, (cc_bool)!odd, odd) >> (odd ? 0 : 8);
 }
 
-static unsigned long ReadWord(Stuff *stuff, unsigned long address)
+static cc_u32f ReadWord(Stuff *stuff, cc_u32f address)
 {
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
@@ -105,9 +105,9 @@ static unsigned long ReadWord(Stuff *stuff, unsigned long address)
 	return callbacks->read_callback(callbacks->user_data, address & 0xFFFFFE, cc_true, cc_true);
 }
 
-static unsigned long ReadLongWord(Stuff *stuff, unsigned long address)
+static cc_u32f ReadLongWord(Stuff *stuff, cc_u32f address)
 {
-	unsigned long value;
+	cc_u32f value;
 
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
@@ -118,15 +118,15 @@ static unsigned long ReadLongWord(Stuff *stuff, unsigned long address)
 	}
 
 	value = 0;
-	value |= (unsigned long)callbacks->read_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true) << 16;
-	value |= (unsigned long)callbacks->read_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true) <<  0;
+	value |= (cc_u32f)callbacks->read_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true) << 16;
+	value |= (cc_u32f)callbacks->read_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true) <<  0;
 
 	return value;
 }
 
 /* Memory writes */
 
-static void WriteByte(const Stuff *stuff, unsigned long address, unsigned long value)
+static void WriteByte(const Stuff *stuff, cc_u32f address, cc_u32f value)
 {
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 	const cc_bool odd = (address & 1) != 0;
@@ -134,7 +134,7 @@ static void WriteByte(const Stuff *stuff, unsigned long address, unsigned long v
 	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, (cc_bool)!odd, odd, value << (odd ? 0 : 8));
 }
 
-static void WriteWord(Stuff *stuff, unsigned long address, unsigned long value)
+static void WriteWord(Stuff *stuff, cc_u32f address, cc_u32f value)
 {
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
@@ -147,7 +147,7 @@ static void WriteWord(Stuff *stuff, unsigned long address, unsigned long value)
 	callbacks->write_callback(callbacks->user_data, address & 0xFFFFFE, cc_true, cc_true, value);
 }
 
-static void WriteLongWord(Stuff *stuff, unsigned long address, unsigned long value)
+static void WriteLongWord(Stuff *stuff, cc_u32f address, cc_u32f value)
 {
 	const M68k_ReadWriteCallbacks* const callbacks = stuff->callbacks;
 
@@ -179,7 +179,7 @@ static void Group1Or2Exception(Stuff *stuff, size_t vector_offset)
 	state->program_counter = ReadLongWord(stuff, vector_offset * 4);
 }
 
-static void Group0Exception(Stuff *stuff, size_t vector_offset, unsigned long access_address, cc_bool is_a_read)
+static void Group0Exception(Stuff *stuff, size_t vector_offset, cc_u32f access_address, cc_bool is_a_read)
 {
 	M68k_State* const state = stuff->state;
 
@@ -205,16 +205,16 @@ static void Group0Exception(Stuff *stuff, size_t vector_offset, unsigned long ac
 
 /* Misc. utility */
 
-static unsigned long DecodeMemoryAddressMode(Stuff *stuff, const Operand *decoded_operand)
+static cc_u32f DecodeMemoryAddressMode(Stuff *stuff, const Operand *decoded_operand)
 {
 	M68k_State* const state = stuff->state;
 
-	unsigned long address;
+	cc_u32f address;
 
 	if (decoded_operand->address_mode == ADDRESS_MODE_SPECIAL && decoded_operand->address_mode_register == ADDRESS_MODE_REGISTER_SPECIAL_ABSOLUTE_SHORT)
 	{
 		/* Absolute short */
-		const unsigned int short_address = ReadWord(stuff, state->program_counter);
+		const cc_u32f short_address = ReadWord(stuff, state->program_counter);
 
 		address = CC_SIGN_EXTEND_ULONG(15, short_address);
 		state->program_counter += 2;
@@ -250,7 +250,7 @@ static unsigned long DecodeMemoryAddressMode(Stuff *stuff, const Operand *decode
 		/* Address register indirect with predecrement */
 
 		/* The stack pointer moves two bytes instead of one byte, for alignment purposes */
-		const unsigned int increment_decrement_size = (decoded_operand->address_mode_register == 7 && decoded_operand->operation_size_in_bytes == 1) ? 2 : decoded_operand->operation_size_in_bytes;
+		const cc_u16f increment_decrement_size = (decoded_operand->address_mode_register == 7 && decoded_operand->operation_size_in_bytes == 1) ? 2 : decoded_operand->operation_size_in_bytes;
 
 		state->address_registers[decoded_operand->address_mode_register] -= increment_decrement_size;
 		address = state->address_registers[decoded_operand->address_mode_register];
@@ -260,7 +260,7 @@ static unsigned long DecodeMemoryAddressMode(Stuff *stuff, const Operand *decode
 		/* Address register indirect with postincrement */
 
 		/* The stack pointer moves two bytes instead of one byte, for alignment purposes */
-		const unsigned int increment_decrement_size = (decoded_operand->address_mode_register == 7 && decoded_operand->operation_size_in_bytes == 1) ? 2 : decoded_operand->operation_size_in_bytes;
+		const cc_u16f increment_decrement_size = (decoded_operand->address_mode_register == 7 && decoded_operand->operation_size_in_bytes == 1) ? 2 : decoded_operand->operation_size_in_bytes;
 
 		address = state->address_registers[decoded_operand->address_mode_register];
 		state->address_registers[decoded_operand->address_mode_register] += increment_decrement_size;
@@ -281,7 +281,7 @@ static unsigned long DecodeMemoryAddressMode(Stuff *stuff, const Operand *decode
 		if (decoded_operand->address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_DISPLACEMENT || (decoded_operand->address_mode == ADDRESS_MODE_SPECIAL && decoded_operand->address_mode_register == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_DISPLACEMENT))
 		{
 			/* Add displacement */
-			const unsigned int displacement = ReadWord(stuff, state->program_counter);
+			const cc_u32f displacement = ReadWord(stuff, state->program_counter);
 
 			address += CC_SIGN_EXTEND_ULONG(15, displacement);
 			state->program_counter += 2;
@@ -289,13 +289,13 @@ static unsigned long DecodeMemoryAddressMode(Stuff *stuff, const Operand *decode
 		else if (decoded_operand->address_mode == ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_INDEX || (decoded_operand->address_mode == ADDRESS_MODE_SPECIAL && decoded_operand->address_mode_register == ADDRESS_MODE_REGISTER_SPECIAL_PROGRAM_COUNTER_WITH_INDEX))
 		{
 			/* Add index register and index literal */
-			const unsigned int extension_word = ReadWord(stuff, state->program_counter);
+			const cc_u32f extension_word = ReadWord(stuff, state->program_counter);
 			const cc_bool is_address_register = (extension_word & 0x8000) != 0;
-			const unsigned int displacement_reg = (extension_word >> 12) & 7;
+			const cc_u32f displacement_reg = (extension_word >> 12) & 7;
 			const cc_bool is_longword = (extension_word & 0x0800) != 0;
-			const unsigned long displacement_literal_value = CC_SIGN_EXTEND_ULONG(7, extension_word);
+			const cc_u32f displacement_literal_value = CC_SIGN_EXTEND_ULONG(7, extension_word);
 			/* TODO - Is an address register ever used here on the 68k? */
-			const unsigned long displacement_reg_value = CC_SIGN_EXTEND_ULONG(is_longword ? 31 : 15, (is_address_register ? state->address_registers : state->data_registers)[displacement_reg]);
+			const cc_u32f displacement_reg_value = CC_SIGN_EXTEND_ULONG(is_longword ? 31 : 15, (is_address_register ? state->address_registers : state->data_registers)[displacement_reg]);
 
 			address += displacement_reg_value;
 			address += displacement_literal_value;
@@ -329,7 +329,7 @@ static void DecodeAddressMode(Stuff *stuff, DecodedAddressMode *decoded_address_
 			/* Memory access */
 			decoded_address_mode->type = DECODED_ADDRESS_MODE_TYPE_MEMORY;
 			decoded_address_mode->data.memory.address = DecodeMemoryAddressMode(stuff, decoded_operand);
-			decoded_address_mode->data.memory.operation_size_in_bytes = (unsigned char)decoded_operand->operation_size_in_bytes;
+			decoded_address_mode->data.memory.operation_size_in_bytes = (cc_u8f)decoded_operand->operation_size_in_bytes;
 			break;
 
 		case ADDRESS_MODE_STATUS_REGISTER:
@@ -342,9 +342,9 @@ static void DecodeAddressMode(Stuff *stuff, DecodedAddressMode *decoded_address_
 	}
 }
 
-static unsigned long GetValueUsingDecodedAddressMode(Stuff *stuff, DecodedAddressMode *decoded_address_mode)
+static cc_u32f GetValueUsingDecodedAddressMode(Stuff *stuff, DecodedAddressMode *decoded_address_mode)
 {
-	unsigned long value = 0;
+	cc_u32f value = 0;
 
 	M68k_State* const state = stuff->state;
 
@@ -356,7 +356,7 @@ static unsigned long GetValueUsingDecodedAddressMode(Stuff *stuff, DecodedAddres
 
 		case DECODED_ADDRESS_MODE_TYPE_MEMORY:
 		{
-			const unsigned long address = decoded_address_mode->data.memory.address;
+			const cc_u32f address = decoded_address_mode->data.memory.address;
 
 			switch (decoded_address_mode->data.memory.operation_size_in_bytes)
 			{
@@ -392,7 +392,7 @@ static unsigned long GetValueUsingDecodedAddressMode(Stuff *stuff, DecodedAddres
 	return value;
 }
 
-static void SetValueUsingDecodedAddressMode(Stuff *stuff, DecodedAddressMode *decoded_address_mode, unsigned long value)
+static void SetValueUsingDecodedAddressMode(Stuff *stuff, DecodedAddressMode *decoded_address_mode, cc_u32f value)
 {
 	M68k_State* const state = stuff->state;
 
@@ -400,15 +400,15 @@ static void SetValueUsingDecodedAddressMode(Stuff *stuff, DecodedAddressMode *de
 	{
 		case DECODED_ADDRESS_MODE_TYPE_REGISTER:
 		{
-			const unsigned long destination_value = *decoded_address_mode->data.reg.address;
-			const unsigned long operation_size_bitmask = decoded_address_mode->data.reg.operation_size_bitmask;
+			const cc_u32f destination_value = *decoded_address_mode->data.reg.address;
+			const cc_u32f operation_size_bitmask = decoded_address_mode->data.reg.operation_size_bitmask;
 			*decoded_address_mode->data.reg.address = (value & operation_size_bitmask) | (destination_value & ~operation_size_bitmask);
 			break;
 		}
 
 		case DECODED_ADDRESS_MODE_TYPE_MEMORY:
 		{
-			const unsigned long address = decoded_address_mode->data.memory.address;
+			const cc_u32f address = decoded_address_mode->data.memory.address;
 
 			switch (decoded_address_mode->data.memory.operation_size_in_bytes)
 			{
@@ -443,7 +443,7 @@ static void SetValueUsingDecodedAddressMode(Stuff *stuff, DecodedAddressMode *de
 	}
 }
 
-static cc_bool IsOpcodeConditionTrue(M68k_State *state, unsigned int opcode)
+static cc_bool IsOpcodeConditionTrue(M68k_State *state, cc_u16f opcode)
 {
 	const cc_bool carry = (state->status_register & CONDITION_CODE_CARRY) != 0;
 	const cc_bool overflow = (state->status_register & CONDITION_CODE_OVERFLOW) != 0;
@@ -548,7 +548,7 @@ void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 	}
 }
 
-void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, unsigned int level)
+void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks, cc_u16f level)
 {
 	Stuff stuff;
 
@@ -561,7 +561,7 @@ void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks,
 	{
 		assert(level >= 1 && level <= 7);
 
-		if (level == 7 || level > (((unsigned int)state->status_register >> 8) & 7))
+		if (level == 7 || level > (((cc_u16f)state->status_register >> 8) & 7))
 		{
 			Group1Or2Exception(&stuff, 24 + level);
 
@@ -597,10 +597,10 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			/* Process new instruction */
 			Opcode opcode;
 			DecodedAddressMode source_decoded_address_mode, destination_decoded_address_mode;
-			unsigned long source_value, destination_value, result_value;
+			cc_u32f source_value, destination_value, result_value;
 			DecodedOpcode decoded_opcode;
-			unsigned long msb_mask;
-			unsigned int sm, dm, rm;
+			cc_u32f msb_mask;
+			cc_u16f sm, dm, rm;
 
 			source_value = destination_value = result_value = 0;
 
@@ -728,7 +728,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 					"INSTRUCTION_UNIMPLEMENTED_2"
 				};
 
-				fprintf(stderr, "0x%.8lX - %s\n", state->program_counter, instruction_strings[instruction]);
+				fprintf(stderr, "0x%.8" CC_PRIXLEAST32 " - %s\n", state->program_counter, instruction_strings[instruction]);
 				state->program_counter |= 0; /* Something to latch a breakpoint onto */
 			}
 		#endif

@@ -217,7 +217,7 @@
 
 #include <stdio.h>
 
-#define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%lX", state->program_counter)
+#define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%" CC_PRIXLEAST32, state->program_counter)
 
 #define DO_INSTRUCTION_ACTION_OR\
 	result_value = destination_value | source_value
@@ -276,7 +276,7 @@
 
 #define DO_INSTRUCTION_ACTION_MOVEP\
 	{\
-	unsigned long memory_address = destination_value; /* TODO: Maybe get rid of this alias? */\
+	cc_u32f memory_address = destination_value; /* TODO: Maybe get rid of this alias? */\
 \
 	switch (opcode.bits_6_and_7)\
 	{\
@@ -400,7 +400,7 @@
 	UNIMPLEMENTED_INSTRUCTION("STOP")
 
 #define DO_INSTRUCTION_ACTION_RTE\
-	state->status_register = (unsigned short)ReadWord(&stuff, state->address_registers[7]);\
+	state->status_register = (cc_u16l)ReadWord(&stuff, state->address_registers[7]);\
 	state->address_registers[7] += 2;\
 	state->program_counter = ReadLongWord(&stuff, state->address_registers[7]);\
 	state->address_registers[7] += 4
@@ -431,14 +431,14 @@
 #define DO_INSTRUCTION_ACTION_MOVEM\
 	{\
 	/* Hot damn is this a mess */\
-	unsigned long memory_address = destination_value; /* TODO: Maybe get rid of this alias? */\
-	unsigned int i;\
-	unsigned int bitfield;\
+	cc_u32f memory_address = destination_value; /* TODO: Maybe get rid of this alias? */\
+	cc_u16f i;\
+	cc_u16f bitfield;\
 	\
 	int delta;\
-	void (*write_function)(Stuff *stuff, unsigned long address, unsigned long value);\
+	void (*write_function)(Stuff *stuff, cc_u32f address, cc_u32f value);\
 	\
-	if (opcode.raw & 0x0040)\
+	if ((opcode.raw & 0x0040) != 0)\
 	{\
 		delta = 4;\
 		write_function = WriteLongWord;\
@@ -457,12 +457,12 @@
 	/* First group of registers */\
 	for (i = 0; i < 8; ++i)\
 	{\
-		if (bitfield & 1)\
+		if ((bitfield & 1) != 0)\
 		{\
-			if (opcode.raw & 0x0400)\
+			if ((opcode.raw & 0x0400) != 0)\
 			{\
 				/* Memory to register */\
-				if (opcode.raw & 0x0040)\
+				if ((opcode.raw & 0x0040) != 0)\
 					state->data_registers[i] = ReadLongWord(&stuff, memory_address);\
 				else\
 					state->data_registers[i] = CC_SIGN_EXTEND_ULONG(15, ReadWord(&stuff, memory_address));\
@@ -485,12 +485,12 @@
 	/* Second group of registers */\
 	for (i = 0; i < 8; ++i)\
 	{\
-		if (bitfield & 1)\
+		if ((bitfield & 1) != 0)\
 		{\
-			if (opcode.raw & 0x0400)\
+			if ((opcode.raw & 0x0400) != 0)\
 			{\
 				/* Memory to register */\
-				if (opcode.raw & 0x0040)\
+				if ((opcode.raw & 0x0040) != 0)\
 					state->address_registers[i] = ReadLongWord(&stuff, memory_address);\
 				else\
 					state->address_registers[i] = CC_SIGN_EXTEND_ULONG(15, ReadWord(&stuff, memory_address));\
@@ -516,9 +516,9 @@
 
 #define DO_INSTRUCTION_ACTION_CHK\
 	{\
-	const unsigned long value = state->data_registers[opcode.secondary_register];\
+	const cc_u32f value = state->data_registers[opcode.secondary_register];\
 	\
-	if (value & 0x8000)\
+	if ((value & 0x8000) != 0)\
 	{\
 		/* Value is smaller than 0. */\
 		state->status_register |= CONDITION_CODE_NEGATIVE;\
@@ -538,7 +538,7 @@
 #define DO_INSTRUCTION_ACTION_DBCC\
 	if (!IsOpcodeConditionTrue(state, opcode.raw))\
 	{\
-		unsigned int loop_counter = state->data_registers[opcode.primary_register] & 0xFFFF;\
+		cc_u16f loop_counter = state->data_registers[opcode.primary_register] & 0xFFFF;\
 	\
 		if (loop_counter-- != 0)\
 		{\
@@ -595,11 +595,11 @@
 		const cc_bool destination_is_negative = decoded_opcode.instruction == INSTRUCTION_DIVS && (destination_value & 0x80000000) != 0;\
 		const cc_bool result_is_negative = source_is_negative != destination_is_negative;\
 \
-		const unsigned long absolute_source_value = source_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;\
-		const unsigned long absolute_destination_value = destination_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(31, destination_value) : destination_value;\
+		const cc_u32f absolute_source_value = source_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;\
+		const cc_u32f absolute_destination_value = destination_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(31, destination_value) : destination_value;\
 \
-		const unsigned long absolute_quotient = absolute_destination_value / absolute_source_value;\
-		const unsigned long quotient = result_is_negative ? 0 - absolute_quotient : absolute_quotient;\
+		const cc_u32f absolute_quotient = absolute_destination_value / absolute_source_value;\
+		const cc_u32f quotient = result_is_negative ? 0 - absolute_quotient : absolute_quotient;\
 \
 		state->status_register &= ~(CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW);\
 \
@@ -612,8 +612,8 @@
 		}\
 		else\
 		{\
-			const unsigned long absolute_remainder = absolute_destination_value % absolute_source_value;\
-			const unsigned long remainder = destination_is_negative ? 0 - absolute_remainder : absolute_remainder;\
+			const cc_u32f absolute_remainder = absolute_destination_value % absolute_source_value;\
+			const cc_u32f remainder = destination_is_negative ? 0 - absolute_remainder : absolute_remainder;\
 \
 			result_value = (quotient & 0xFFFF) | ((remainder & 0xFFFF) << 16);\
 		}\
@@ -636,10 +636,10 @@
 	const cc_bool multiplicand_is_negative = decoded_opcode.instruction == INSTRUCTION_MULS && (destination_value & 0x8000) != 0;\
 	const cc_bool result_is_negative = multiplier_is_negative != multiplicand_is_negative;\
 \
-	const unsigned long multiplier = multiplier_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;\
-	const unsigned long multiplicand = multiplicand_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, destination_value) : destination_value & 0xFFFF;\
+	const cc_u32f multiplier = multiplier_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, source_value) : source_value;\
+	const cc_u32f multiplicand = multiplicand_is_negative ? 0 - CC_SIGN_EXTEND_ULONG(15, destination_value) : destination_value & 0xFFFF;\
 \
-	const unsigned long absolute_result = multiplicand * multiplier;\
+	const cc_u32f absolute_result = multiplicand * multiplier;\
 \
 	result_value = result_is_negative ? 0 - absolute_result : absolute_result;\
 	}
@@ -650,7 +650,7 @@
 
 #define DO_INSTRUCTION_ACTION_EXG\
 	{\
-	unsigned long temp;\
+	cc_u32f temp;\
 \
 	switch (opcode.raw & 0x00F8)\
 	{\
@@ -725,12 +725,12 @@
 
 #define DO_INSTRUCTION_ACTION_SHIFT(SUB_ACTION_1, SUB_ACTION_2, SUB_ACTION_3, SUB_ACTION_4, SUB_ACTION_5)\
 	{\
-	const unsigned long sign_bit_bitmask = 1ul << (operation_size * 8 - 1);\
+	const cc_u32f sign_bit_bitmask = 1ul << (operation_size * 8 - 1);\
 \
 	SUB_ACTION_1\
 \
-	unsigned int i;\
-	unsigned int count;\
+	cc_u16f i;\
+	cc_u16f count;\
 \
 	result_value = destination_value;\
 \

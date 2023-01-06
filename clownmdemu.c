@@ -101,12 +101,12 @@ static cc_u16f VDPReadCallback(const void *user_data, cc_u32f address)
 static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address);
 static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f value);
 
-static unsigned int M68kReadCallback(const void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte)
+static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
 	const ClownMDEmu_Callbacks* const frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
-	unsigned int value = 0;
+	cc_u16f value = 0;
 
 	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
 	{
@@ -121,7 +121,7 @@ static unsigned int M68kReadCallback(const void *user_data, unsigned long addres
 		/* Z80 RAM */
 		if (do_high_byte && do_low_byte)
 		{
-			PrintError("68k attempted to perform word-sized read of Z80 memory at 0x%lX at 0x%lX", address, clownmdemu->state->m68k.program_counter);
+			PrintError("68k attempted to perform word-sized read of Z80 memory at 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->state->m68k.program_counter);
 		}
 		else
 		{
@@ -159,11 +159,11 @@ static unsigned int M68kReadCallback(const void *user_data, unsigned long addres
 			case 0xA10004:
 				if (do_low_byte)
 				{
-					const unsigned int joypad_index = (address - 0xA10002) / 2;
+					const cc_u16f joypad_index = (address - 0xA10002) / 2;
 
 					value |= clownmdemu->state->joypads[joypad_index].data;
 
-					if (value & 0x40)
+					if ((value & 0x40) != 0)
 					{
 						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_C) << 5;
 						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_B) << 4;
@@ -192,7 +192,7 @@ static unsigned int M68kReadCallback(const void *user_data, unsigned long addres
 			case 0xA1000C:
 				if (do_low_byte)
 				{
-					const unsigned int joypad_index = (address - 0xA10008) / 2;
+					const cc_u16f joypad_index = (address - 0xA10008) / 2;
 
 					value = clownmdemu->state->joypads[joypad_index].control;
 				}
@@ -251,20 +251,20 @@ static unsigned int M68kReadCallback(const void *user_data, unsigned long addres
 	}
 	else
 	{
-		PrintError("Attempted to read invalid 68k address 0x%lX", address);
+		PrintError("Attempted to read invalid 68k address 0x%" CC_PRIXFAST32, address);
 	}
 
 	return value;
 }
 
-static void M68kWriteCallback(const void *user_data, unsigned long address, cc_bool do_high_byte, cc_bool do_low_byte, unsigned int value)
+static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
 	const ClownMDEmu_Callbacks* const frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
 
-	const unsigned char high_byte = (unsigned char)((value >> 8) & 0xFF);
-	const unsigned char low_byte = (unsigned char)((value >> 0) & 0xFF);
+	const cc_u16f high_byte = (value >> 8) & 0xFF;
+	const cc_u16f low_byte = (value >> 0) & 0xFF;
 
 	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
 	{
@@ -275,22 +275,22 @@ static void M68kWriteCallback(const void *user_data, unsigned long address, cc_b
 			frontend_callbacks->cartridge_written(frontend_callbacks->user_data, address + 1, low_byte);
 
 		/* TODO - This is temporary, just to catch possible bugs in the 68k emulator */
-		PrintError("Attempted to write to ROM address 0x%lX", address);
+		PrintError("Attempted to write to ROM address 0x%" CC_PRIXFAST32, address);
 	}
 	else if ((address >= 0xA00000 && address <= 0xA01FFF) || (address == 0xA04000 || address == 0xA04002))
 	{
 		/* Z80 RAM and YM2612 */
 		if (!clownmdemu->state->m68k_has_z80_bus)
 		{
-			PrintError("68k attempted to access Z80 memory/YM2612 ports without Z80 bus at 0x%lX", clownmdemu->state->m68k.program_counter);
+			PrintError("68k attempted to access Z80 memory/YM2612 ports without Z80 bus at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 		}
 		else if (clownmdemu->state->z80_reset)
 		{
-			PrintError("68k attempted to access Z80 memory/YM2612 ports while Z80 reset request was active at 0x%lX", clownmdemu->state->m68k.program_counter);
+			PrintError("68k attempted to access Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 		}
 		else if (do_high_byte && do_low_byte)
 		{
-			PrintError("68k attempted to perform word-sized write of Z80 memory/YM2612 ports at 0x%lX", clownmdemu->state->m68k.program_counter);
+			PrintError("68k attempted to perform word-sized write of Z80 memory/YM2612 ports at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 		}
 		else
 		{
@@ -395,7 +395,7 @@ static void M68kWriteCallback(const void *user_data, unsigned long address, cc_b
 	}
 	else
 	{
-		PrintError("Attempted to write invalid 68k address 0x%lX", address);
+		PrintError("Attempted to write invalid 68k address 0x%" CC_PRIXFAST32, address);
 	}
 }
 
