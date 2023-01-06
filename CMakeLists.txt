@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.18)
 
-option(CLOWNMDEMU_INSANE_INTEGERS "Use insane integetr types to test code that code is actually sane" OFF)
+option(CLOWNMDEMU_INSANE_INTEGERS "Use insane integer types to test that code is actually sane" OFF)
+option(CLOWNMDEMU_USE_C99_INTEGERS "Use C99 integer types instead of the original C89 ones. May save RAM depending on the platform's data model." OFF)
 
 project(clownmdemu LANGUAGES C)
 
@@ -104,4 +105,6 @@ if(CLOWNMDEMU_INSANE_INTEGERS)
 		cc_false=0
 		cc_true=1
 	)
+elseif(CLOWNMDEMU_USE_C99_INTEGERS)
+	target_compile_definitions(clownmdemu PUBLIC CC_USE_C99_INTEGERS)
 endif()
