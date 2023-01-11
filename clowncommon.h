@@ -145,7 +145,7 @@ enum
 #define CC_COUNT_OF(array) (sizeof(array) / sizeof(*(array)))
 #define CC_DIVIDE_ROUND(a, b) (((a) + (b / 2)) / (b))
 #define CC_DIVIDE_CEILING(a, b) (((a) + (b - 1)) / (b))
-#define CC_SIGN_EXTEND(type, bit_index, value) (((value) & (((type)1u << (bit_index)) - (type)1u)) - ((value) & ((type)1u << (bit_index))))
+#define CC_SIGN_EXTEND(type, bit_index, value) (((value) & (((type)1 << (bit_index)) - 1)) - ((value) & ((type)1 << (bit_index))))
 #define CC_SIGN_EXTEND_UINT(bit_index, value) CC_SIGN_EXTEND(unsigned int, bit_index, value)
 #define CC_SIGN_EXTEND_ULONG(bit_index, value) CC_SIGN_EXTEND(unsigned long, bit_index, value)
 
