@@ -14,8 +14,6 @@ https://floooh.github.io/2021/12/06/z80-instruction-timing.html
 
 #include "error.h"
 
-#define UNIMPLEMENTED_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%" CC_PRIXLEAST16, z80->state->program_counter)
-
 typedef enum InstructionMode
 {
 	INSTRUCTION_MODE_NORMAL,
@@ -39,13 +37,13 @@ enum
 	FLAG_MASK_SIGN = 1 << FLAG_BIT_SIGN
 };
 
-typedef struct Instruction
+typedef struct Z80Instruction
 {
 	const Z80_InstructionMetadata *metadata;
 	cc_u16f literal;
 	cc_u16f address;
 	cc_bool double_prefix_mode;
-} Instruction;
+} Z80Instruction;
 
 static cc_bool EvaluateCondition(cc_u8l flags, Z80_Condition condition)
 {
@@ -134,7 +132,7 @@ static void MemoryWrite16Bit(const Z80 *z80, const Z80_ReadAndWriteCallbacks *ca
 	MemoryWrite(z80, callbacks, address + 1, value >> 8);
 }
 
-static cc_u16f ReadOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Instruction *instruction, Z80_Operand operand)
+static cc_u16f ReadOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Z80Instruction *instruction, Z80_Operand operand)
 {
 	cc_u16f value;
 
@@ -249,7 +247,7 @@ static cc_u16f ReadOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *call
 	return value;
 }
 
-static void WriteOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Instruction *instruction, Z80_Operand operand, cc_u16f value)
+static void WriteOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Z80Instruction *instruction, Z80_Operand operand, cc_u16f value)
 {
 	/* Handle double-prefix instructions. */
 	const Z80_Operand double_prefix_operand = z80->state->register_mode == Z80_REGISTER_MODE_IX ? Z80_OPERAND_IX_INDIRECT : Z80_OPERAND_IY_INDIRECT;
@@ -887,7 +885,7 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 	}
 }
 
-static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, Instruction *instruction)
+static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, Z80Instruction *instruction)
 {
 	cc_u16f opcode;
 	cc_u16f displacement;
@@ -1046,7 +1044,7 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 
 #define WRITE_DESTINATION WriteOperand(z80, callbacks, instruction, (Z80_Operand)instruction->metadata->operands[1], result_value)
 
-static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Instruction *instruction)
+static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Z80Instruction *instruction)
 {
 	cc_u16f source_value;
 	cc_u16f destination_value;
@@ -1060,6 +1058,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 	switch ((Z80_Opcode)instruction->metadata->opcode)
 	{
+		#define UNIMPLEMENTED_Z80_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%" CC_PRIXLEAST16, z80->state->program_counter)
+
 		case Z80_OPCODE_NOP:
 			/* Does nothing, naturally. */
 			break;
@@ -1247,7 +1247,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 		case Z80_OPCODE_DAA:
 			/* TODO */
-			UNIMPLEMENTED_INSTRUCTION("DAA");
+			UNIMPLEMENTED_Z80_INSTRUCTION("DAA");
 			break;
 
 		case Z80_OPCODE_CPL:
@@ -1273,7 +1273,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 		case Z80_OPCODE_HALT:
 			/* TODO */
-			UNIMPLEMENTED_INSTRUCTION("HALT");
+			UNIMPLEMENTED_Z80_INSTRUCTION("HALT");
 			break;
 
 		case Z80_OPCODE_ADD_A:
@@ -1495,12 +1495,12 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 		case Z80_OPCODE_OUT:
 			/* TODO */
-			UNIMPLEMENTED_INSTRUCTION("OUT");
+			UNIMPLEMENTED_Z80_INSTRUCTION("OUT");
 			break;
 
 		case Z80_OPCODE_IN:
 			/* TODO */
-			UNIMPLEMENTED_INSTRUCTION("IN");
+			UNIMPLEMENTED_Z80_INSTRUCTION("IN");
 			break;
 
 		case Z80_OPCODE_EX_SP_HL:
@@ -1766,19 +1766,19 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_IN_REGISTER:
-			UNIMPLEMENTED_INSTRUCTION("IN (register)");
+			UNIMPLEMENTED_Z80_INSTRUCTION("IN (register)");
 			break;
 
 		case Z80_OPCODE_IN_NO_REGISTER:
-			UNIMPLEMENTED_INSTRUCTION("IN (no register)");
+			UNIMPLEMENTED_Z80_INSTRUCTION("IN (no register)");
 			break;
 
 		case Z80_OPCODE_OUT_REGISTER:
-			UNIMPLEMENTED_INSTRUCTION("OUT (register)");
+			UNIMPLEMENTED_Z80_INSTRUCTION("OUT (register)");
 			break;
 
 		case Z80_OPCODE_OUT_NO_REGISTER:
-			UNIMPLEMENTED_INSTRUCTION("OUT (no register)");
+			UNIMPLEMENTED_Z80_INSTRUCTION("OUT (no register)");
 			break;
 
 		case Z80_OPCODE_SBC_HL:
@@ -1851,15 +1851,15 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_RETN:
-			UNIMPLEMENTED_INSTRUCTION("RETN");
+			UNIMPLEMENTED_Z80_INSTRUCTION("RETN");
 			break;
 
 		case Z80_OPCODE_RETI:
-			UNIMPLEMENTED_INSTRUCTION("RETI");
+			UNIMPLEMENTED_Z80_INSTRUCTION("RETI");
 			break;
 
 		case Z80_OPCODE_IM:
-			UNIMPLEMENTED_INSTRUCTION("IM");
+			UNIMPLEMENTED_Z80_INSTRUCTION("IM");
 			break;
 
 		case Z80_OPCODE_LD_I_A:
@@ -2127,52 +2127,54 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 		}
 
 		case Z80_OPCODE_CPI:
-			UNIMPLEMENTED_INSTRUCTION("CPI");
+			UNIMPLEMENTED_Z80_INSTRUCTION("CPI");
 			break;
 
 		case Z80_OPCODE_CPD:
-			UNIMPLEMENTED_INSTRUCTION("CPD");
+			UNIMPLEMENTED_Z80_INSTRUCTION("CPD");
 			break;
 
 		case Z80_OPCODE_CPIR:
-			UNIMPLEMENTED_INSTRUCTION("CPIR");
+			UNIMPLEMENTED_Z80_INSTRUCTION("CPIR");
 			break;
 
 		case Z80_OPCODE_CPDR:
-			UNIMPLEMENTED_INSTRUCTION("CPDR");
+			UNIMPLEMENTED_Z80_INSTRUCTION("CPDR");
 			break;
 
 		case Z80_OPCODE_INI:
-			UNIMPLEMENTED_INSTRUCTION("INI");
+			UNIMPLEMENTED_Z80_INSTRUCTION("INI");
 			break;
 
 		case Z80_OPCODE_IND:
-			UNIMPLEMENTED_INSTRUCTION("IND");
+			UNIMPLEMENTED_Z80_INSTRUCTION("IND");
 			break;
 
 		case Z80_OPCODE_INIR:
-			UNIMPLEMENTED_INSTRUCTION("INIR");
+			UNIMPLEMENTED_Z80_INSTRUCTION("INIR");
 			break;
 
 		case Z80_OPCODE_INDR:
-			UNIMPLEMENTED_INSTRUCTION("INDR");
+			UNIMPLEMENTED_Z80_INSTRUCTION("INDR");
 			break;
 
 		case Z80_OPCODE_OUTI:
-			UNIMPLEMENTED_INSTRUCTION("OTDI");
+			UNIMPLEMENTED_Z80_INSTRUCTION("OTDI");
 			break;
 
 		case Z80_OPCODE_OUTD:
-			UNIMPLEMENTED_INSTRUCTION("OUTD");
+			UNIMPLEMENTED_Z80_INSTRUCTION("OUTD");
 			break;
 
 		case Z80_OPCODE_OTIR:
-			UNIMPLEMENTED_INSTRUCTION("OTIR");
+			UNIMPLEMENTED_Z80_INSTRUCTION("OTIR");
 			break;
 
 		case Z80_OPCODE_OTDR:
-			UNIMPLEMENTED_INSTRUCTION("OTDR");
+			UNIMPLEMENTED_Z80_INSTRUCTION("OTDR");
 			break;
+
+		#undef UNIMPLEMENTED_Z80_INSTRUCTION
 	}
 }
 
@@ -2249,7 +2251,7 @@ void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
 	if (--z80->state->cycles == 0)
 	{
 		/* Process new instruction. */
-		Instruction instruction;
+		Z80Instruction instruction;
 
 	#ifndef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 		Z80_InstructionMetadata metadata;

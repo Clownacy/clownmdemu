@@ -627,6 +627,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 				#include "m68k/gen.c"
 			}
 
+			#undef operation_size
+
 		#ifdef DEBUG_STUFF
 			{
 				static const char* const instruction_strings[] = {
