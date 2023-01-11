@@ -196,6 +196,7 @@ static void SetSupervisorMode(M68k_State *state, cc_bool supervisor_mode)
 static void Group1Or2Exception(Stuff *stuff, size_t vector_offset)
 {
 	M68k_State* const state = stuff->state;
+	const cc_u16l copy_status_register = state->status_register; /* Preserve the original supervisor bit. */
 
 	/* Exit trace mode. */
 	state->status_register &= ~STATUS_TRACE;
@@ -205,7 +206,7 @@ static void Group1Or2Exception(Stuff *stuff, size_t vector_offset)
 	state->address_registers[7] -= 4;
 	WriteLongWord(stuff, state->address_registers[7], state->program_counter);
 	state->address_registers[7] -= 2;
-	WriteWord(stuff, state->address_registers[7], state->status_register);
+	WriteWord(stuff, state->address_registers[7], copy_status_register);
 
 	state->program_counter = ReadLongWord(stuff, vector_offset * 4);
 }
