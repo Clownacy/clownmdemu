@@ -399,11 +399,15 @@
 	{\
 	const cc_u16f new_status = ReadWord(&stuff, state->address_registers[7]) & STATUS_REGISTER_MASK;\
 \
-	SetSupervisorMode(stuff.state, (new_status & STATUS_SUPERVISOR) != 0);\
 	state->status_register = new_status;\
 	state->address_registers[7] += 2;\
 	state->program_counter = ReadLongWord(&stuff, state->address_registers[7]);\
 	state->address_registers[7] += 4;\
+\
+	/* Restore the previous supervisor bit so we can toggle properly. */\
+	/* TODO: Maybe redesign SetSupervisorMode so that it isn't so clunky to use here. */\
+	state->status_register |= STATUS_SUPERVISOR;\
+	SetSupervisorMode(stuff.state, (new_status & STATUS_SUPERVISOR) != 0);\
 	}
 
 #define DO_INSTRUCTION_ACTION_RTS\
