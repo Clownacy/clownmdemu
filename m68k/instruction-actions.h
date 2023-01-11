@@ -382,7 +382,7 @@
 	Group1Or2Exception(&stuff, 32 + source_value)
 
 #define DO_INSTRUCTION_ACTION_MOVE_USP\
-	if (opcode.raw & 8)\
+	if ((opcode.raw & 8) != 0)\
 		state->address_registers[opcode.primary_register] = state->user_stack_pointer;\
 	else\
 		state->user_stack_pointer = state->address_registers[opcode.primary_register]
@@ -396,22 +396,27 @@
 	UNIMPLEMENTED_INSTRUCTION("STOP")
 
 #define DO_INSTRUCTION_ACTION_RTE\
-	state->status_register = (cc_u16l)ReadWord(&stuff, state->address_registers[7]);\
+	{\
+	const cc_u16f new_status = ReadWord(&stuff, state->address_registers[7]) & STATUS_REGISTER_MASK;\
+\
+	SetSupervisorMode(stuff.state, (new_status & STATUS_SUPERVISOR) != 0);\
+	state->status_register = new_status;\
 	state->address_registers[7] += 2;\
 	state->program_counter = ReadLongWord(&stuff, state->address_registers[7]);\
-	state->address_registers[7] += 4
+	state->address_registers[7] += 4;\
+	}
 
 #define DO_INSTRUCTION_ACTION_RTS\
 	state->program_counter = ReadLongWord(&stuff, state->address_registers[7]);\
 	state->address_registers[7] += 4
 
 #define DO_INSTRUCTION_ACTION_TRAPV\
-	if (state->status_register & CONDITION_CODE_OVERFLOW)\
+	if ((state->status_register & CONDITION_CODE_OVERFLOW) != 0)\
 		Group1Or2Exception(&stuff, 7)
 
 #define DO_INSTRUCTION_ACTION_RTR\
-	state->status_register &= 0xFF00;\
-	state->status_register |= ReadByte(&stuff, state->address_registers[7] + 1);\
+	state->status_register &= ~CONDITION_CODE_REGISTER_MASK;\
+	state->status_register |= ReadByte(&stuff, state->address_registers[7] + 1) & CONDITION_CODE_REGISTER_MASK;\
 	state->address_registers[7] += 2;\
 	state->program_counter = ReadLongWord(&stuff, state->address_registers[7]);\
 	state->address_registers[7] += 4;

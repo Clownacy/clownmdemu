@@ -36,7 +36,13 @@ enum
 	CONDITION_CODE_OVERFLOW = 1 << 1,
 	CONDITION_CODE_ZERO     = 1 << 2,
 	CONDITION_CODE_NEGATIVE = 1 << 3,
-	CONDITION_CODE_EXTEND   = 1 << 4
+	CONDITION_CODE_EXTEND   = 1 << 4,
+	CONDITION_CODE_REGISTER_MASK = CONDITION_CODE_EXTEND | CONDITION_CODE_NEGATIVE | CONDITION_CODE_ZERO | CONDITION_CODE_OVERFLOW | CONDITION_CODE_CARRY,
+
+	STATUS_INTERRUPT_MASK   = 7 << 8,
+	STATUS_SUPERVISOR       = 1 << 13,
+	STATUS_TRACE            = 1 << 15,
+	STATUS_REGISTER_MASK    = STATUS_TRACE | STATUS_SUPERVISOR | STATUS_INTERRUPT_MASK | CONDITION_CODE_REGISTER_MASK
 };
 
 typedef	enum DecodedAddressModeType
@@ -161,20 +167,47 @@ static void WriteLongWord(Stuff *stuff, cc_u32f address, cc_u32f value)
 	callbacks->write_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true, (value >>  0) & 0xFFFF);
 }
 
+/* Supervisor mode */
+
+static void SetSupervisorMode(M68k_State *state, cc_bool supervisor_mode)
+{
+	const cc_bool already_supervisor_mode = (state->status_register & STATUS_SUPERVISOR) != 0;
+
+	if (supervisor_mode)
+	{
+		if (!already_supervisor_mode)
+		{
+			state->status_register |= STATUS_SUPERVISOR;
+			state->user_stack_pointer = state->address_registers[7];
+			state->address_registers[7] = state->supervisor_stack_pointer;
+		}
+	}
+	else
+	{
+		if (already_supervisor_mode)
+		{
+			state->status_register &= ~STATUS_SUPERVISOR;
+			state->supervisor_stack_pointer = state->address_registers[7];
+			state->address_registers[7] = state->user_stack_pointer;
+		}
+	}
+}
+
 /* Exceptions */
 
 static void Group1Or2Exception(Stuff *stuff, size_t vector_offset)
 {
 	M68k_State* const state = stuff->state;
 
+	/* Exit trace mode. */
+	state->status_register &= ~STATUS_TRACE;
+	/* Set supervisor bit */
+	SetSupervisorMode(stuff->state, cc_true);
+
 	state->address_registers[7] -= 4;
 	WriteLongWord(stuff, state->address_registers[7], stuff->exception.program_counter);
 	state->address_registers[7] -= 2;
 	WriteWord(stuff, state->address_registers[7], stuff->exception.status_register);
-
-	state->status_register &= 0x00FF;
-	/* Set supervisor bit */
-	state->status_register |= 0x2000;
 
 	state->program_counter = ReadLongWord(stuff, vector_offset * 4);
 }
@@ -434,11 +467,13 @@ static void SetValueUsingDecodedAddressMode(Stuff *stuff, DecodedAddressMode *de
 		}
 
 		case DECODED_ADDRESS_MODE_TYPE_STATUS_REGISTER:
-			state->status_register = value;
+			SetSupervisorMode(stuff->state, (value & STATUS_SUPERVISOR) != 0);
+			state->status_register = value & STATUS_REGISTER_MASK;
+
 			break;
 
 		case DECODED_ADDRESS_MODE_TYPE_CONDITION_CODE_REGISTER:
-			state->status_register = (value & 0xFF) | (state->status_register & 0xFF00);
+			state->status_register = (state->status_register & ~CONDITION_CODE_REGISTER_MASK) | (value & CONDITION_CODE_REGISTER_MASK);
 			break;
 	}
 }
@@ -537,14 +572,15 @@ void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 	{
 		state->halted = cc_false;
 
+		/* Disable trace mode. */
+		state->status_register &= ~STATUS_TRACE;
+		/* Set interrupt mask to 7 */
+		state->status_register |= 0x0700;
+		/* Set supervisor bit */
+		SetSupervisorMode(state, cc_true);
+
 		state->address_registers[7] = ReadLongWord(&stuff, 0);
 		state->program_counter = ReadLongWord(&stuff, 4);
-
-		state->status_register &= 0x00FF;
-		/* Set supervisor bit */
-		state->status_register |= 0x2000;
-		/* Set interrupt mask set to 7 */
-		state->status_register |= 0x0700;
 	}
 }
 
@@ -566,6 +602,7 @@ void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks,
 			Group1Or2Exception(&stuff, 24 + level);
 
 			/* Set interrupt mask set to current level */
+			state->status_register &= ~STATUS_INTERRUPT_MASK;
 			state->status_register |= level << 8;
 		}
 	}

@@ -11,6 +11,7 @@ typedef struct M68k_State
 {
 	cc_u32l data_registers[8];
 	cc_u32l address_registers[8];
+	cc_u32l supervisor_stack_pointer;
 	cc_u32l user_stack_pointer;
 	cc_u32l program_counter;
 	cc_u16l status_register;
