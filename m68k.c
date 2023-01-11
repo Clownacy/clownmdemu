@@ -77,8 +77,6 @@ typedef struct Stuff
 	const M68k_ReadWriteCallbacks *callbacks;
 	struct
 	{
-		cc_u32l program_counter;
-		cc_u16l status_register;
 		jmp_buf context;
 	} exception;
 } Stuff;
@@ -205,9 +203,9 @@ static void Group1Or2Exception(Stuff *stuff, size_t vector_offset)
 	SetSupervisorMode(stuff->state, cc_true);
 
 	state->address_registers[7] -= 4;
-	WriteLongWord(stuff, state->address_registers[7], stuff->exception.program_counter);
+	WriteLongWord(stuff, state->address_registers[7], state->program_counter);
 	state->address_registers[7] -= 2;
-	WriteWord(stuff, state->address_registers[7], stuff->exception.status_register);
+	WriteWord(stuff, state->address_registers[7], state->status_register);
 
 	state->program_counter = ReadLongWord(stuff, vector_offset * 4);
 }
@@ -565,8 +563,6 @@ void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 	stuff.state = state;
 	stuff.callbacks = callbacks;
-	stuff.exception.program_counter = state->program_counter;
-	stuff.exception.status_register = state->status_register;
 
 	if (!setjmp(stuff.exception.context))
 	{
@@ -590,8 +586,6 @@ void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks,
 
 	stuff.state = state;
 	stuff.callbacks = callbacks;
-	stuff.exception.program_counter = state->program_counter;
-	stuff.exception.status_register = state->status_register;
 
 	if (!setjmp(stuff.exception.context))
 	{
@@ -626,8 +620,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 		stuff.state = state;
 		stuff.callbacks = callbacks;
-		stuff.exception.program_counter = state->program_counter;
-		stuff.exception.status_register = state->status_register;
 
 		if (!setjmp(stuff.exception.context))
 		{
