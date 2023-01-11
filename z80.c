@@ -1443,6 +1443,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 				break;
 			/* Fallthrough */
 		case Z80_OPCODE_RET_UNCONDITIONAL:
+		case Z80_OPCODE_RETN: /* TODO: The IFF1/IFF2 stuff. */
+		case Z80_OPCODE_RETI: /* Ditto. */
 			z80->state->program_counter = MemoryRead16Bit(z80, callbacks, z80->state->stack_pointer);
 			z80->state->stack_pointer += 2;
 			z80->state->stack_pointer &= 0xFFFF;
@@ -1848,14 +1850,6 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 			z80->state->a = result_value;
 
-			break;
-
-		case Z80_OPCODE_RETN:
-			UNIMPLEMENTED_Z80_INSTRUCTION("RETN");
-			break;
-
-		case Z80_OPCODE_RETI:
-			UNIMPLEMENTED_Z80_INSTRUCTION("RETI");
 			break;
 
 		case Z80_OPCODE_IM:
