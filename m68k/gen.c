@@ -397,6 +397,13 @@ case INSTRUCTION_ANDI_TO_CCR:
 	break;
 
 case INSTRUCTION_ANDI_TO_SR:
+	/* Only allow this instruction in supervisor mode. */
+	if ((state->status_register & 0x2000) == 0)
+	{
+		Group1Or2Exception(&stuff, 8);
+		longjmp(stuff.exception.context, 1);
+	}
+
 	/* Decode source address mode. */
 	DecodeAddressMode(&stuff, &source_decoded_address_mode, &decoded_opcode.operands[0]);
 
@@ -1356,6 +1363,13 @@ case INSTRUCTION_EORI_TO_CCR:
 	break;
 
 case INSTRUCTION_EORI_TO_SR:
+	/* Only allow this instruction in supervisor mode. */
+	if ((state->status_register & 0x2000) == 0)
+	{
+		Group1Or2Exception(&stuff, 8);
+		longjmp(stuff.exception.context, 1);
+	}
+
 	/* Decode source address mode. */
 	DecodeAddressMode(&stuff, &source_decoded_address_mode, &decoded_opcode.operands[0]);
 
@@ -1684,6 +1698,13 @@ case INSTRUCTION_MOVE:
 	break;
 
 case INSTRUCTION_MOVE_FROM_SR:
+	/* Only allow this instruction in supervisor mode. */
+	if ((state->status_register & 0x2000) == 0)
+	{
+		Group1Or2Exception(&stuff, 8);
+		longjmp(stuff.exception.context, 1);
+	}
+
 	/* Decode source address mode. */
 	DecodeAddressMode(&stuff, &source_decoded_address_mode, &decoded_opcode.operands[0]);
 
@@ -1748,6 +1769,13 @@ case INSTRUCTION_MOVE_TO_CCR:
 	break;
 
 case INSTRUCTION_MOVE_TO_SR:
+	/* Only allow this instruction in supervisor mode. */
+	if ((state->status_register & 0x2000) == 0)
+	{
+		Group1Or2Exception(&stuff, 8);
+		longjmp(stuff.exception.context, 1);
+	}
+
 	/* Decode source address mode. */
 	DecodeAddressMode(&stuff, &source_decoded_address_mode, &decoded_opcode.operands[0]);
 
@@ -1780,6 +1808,13 @@ case INSTRUCTION_MOVE_TO_SR:
 	break;
 
 case INSTRUCTION_MOVE_USP:
+	/* Only allow this instruction in supervisor mode. */
+	if ((state->status_register & 0x2000) == 0)
+	{
+		Group1Or2Exception(&stuff, 8);
+		longjmp(stuff.exception.context, 1);
+	}
+
 	/* Do the actual instruction. */
 	DO_INSTRUCTION_ACTION_MOVE_USP;
 
@@ -2285,6 +2320,13 @@ case INSTRUCTION_ORI_TO_CCR:
 	break;
 
 case INSTRUCTION_ORI_TO_SR:
+	/* Only allow this instruction in supervisor mode. */
+	if ((state->status_register & 0x2000) == 0)
+	{
+		Group1Or2Exception(&stuff, 8);
+		longjmp(stuff.exception.context, 1);
+	}
+
 	/* Decode source address mode. */
 	DecodeAddressMode(&stuff, &source_decoded_address_mode, &decoded_opcode.operands[0]);
 
@@ -2346,6 +2388,13 @@ case INSTRUCTION_PEA:
 	break;
 
 case INSTRUCTION_RESET:
+	/* Only allow this instruction in supervisor mode. */
+	if ((state->status_register & 0x2000) == 0)
+	{
+		Group1Or2Exception(&stuff, 8);
+		longjmp(stuff.exception.context, 1);
+	}
+
 	/* Do the actual instruction. */
 	DO_INSTRUCTION_ACTION_RESET;
 
@@ -2506,6 +2555,13 @@ case INSTRUCTION_ROXD_REGISTER:
 	break;
 
 case INSTRUCTION_RTE:
+	/* Only allow this instruction in supervisor mode. */
+	if ((state->status_register & 0x2000) == 0)
+	{
+		Group1Or2Exception(&stuff, 8);
+		longjmp(stuff.exception.context, 1);
+	}
+
 	/* Do the actual instruction. */
 	DO_INSTRUCTION_ACTION_RTE;
 
@@ -2632,6 +2688,13 @@ case INSTRUCTION_SCC:
 	break;
 
 case INSTRUCTION_STOP:
+	/* Only allow this instruction in supervisor mode. */
+	if ((state->status_register & 0x2000) == 0)
+	{
+		Group1Or2Exception(&stuff, 8);
+		longjmp(stuff.exception.context, 1);
+	}
+
 	/* Decode source address mode. */
 	DecodeAddressMode(&stuff, &source_decoded_address_mode, &decoded_opcode.operands[0]);
 

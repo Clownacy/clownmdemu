@@ -128,5 +128,6 @@ InstructionOverflow Instruction_GetOverflowModifier(const Instruction instructio
 InstructionZero Instruction_GetZeroModifier(const Instruction instruction);
 InstructionNegative Instruction_GetNegativeModifier(const Instruction instruction);
 InstructionExtend Instruction_GetExtendModifier(const Instruction instruction);
+cc_bool Instruction_IsPrivileged(const Instruction instruction);
 
 #endif /* M68K_INSTRUCTION_PROPERTIES_H */

@@ -393,10 +393,6 @@
 
 #define DO_INSTRUCTION_ACTION_STOP\
 	/* TODO */\
-	/*if (supervisor_mode)\
-		state->status_register = source_value;\
-	else\
-		TRAP();*/\
 	UNIMPLEMENTED_INSTRUCTION("STOP")
 
 #define DO_INSTRUCTION_ACTION_RTE\
@@ -411,7 +407,7 @@
 
 #define DO_INSTRUCTION_ACTION_TRAPV\
 	if (state->status_register & CONDITION_CODE_OVERFLOW)\
-		Group1Or2Exception(&stuff, 32 + 7)
+		Group1Or2Exception(&stuff, 7)
 
 #define DO_INSTRUCTION_ACTION_RTR\
 	state->status_register &= 0xFF00;\
