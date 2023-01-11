@@ -118,8 +118,8 @@ int main(int argc, char **argv)
 		++emit_indentation;
 		EmitInstructionSupervisorCheck(i);
 		EmitInstructionSourceAddressMode(i);
-		EmitInstructionDestinationAddressMode(i);
 		EmitInstructionReadSourceOperand(i);
+		EmitInstructionDestinationAddressMode(i);
 		EmitInstructionReadDestinationOperand(i);
 		EmitInstructionAction(i);
 		EmitInstructionWriteDestinationOperand(i);
