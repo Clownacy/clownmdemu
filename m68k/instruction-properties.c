@@ -1150,7 +1150,6 @@ cc_bool Instruction_IsPrivileged(const Instruction instruction)
 	{
 		case INSTRUCTION_ANDI_TO_SR:
 		case INSTRUCTION_EORI_TO_SR:
-		case INSTRUCTION_MOVE_FROM_SR:
 		case INSTRUCTION_MOVE_TO_SR:
 		case INSTRUCTION_MOVE_USP:
 		case INSTRUCTION_ORI_TO_SR:
@@ -1228,6 +1227,7 @@ cc_bool Instruction_IsPrivileged(const Instruction instruction)
 		case INSTRUCTION_ILLEGAL:
 		case INSTRUCTION_LEA:
 		case INSTRUCTION_LINK:
+		case INSTRUCTION_MOVE_FROM_SR:
 		case INSTRUCTION_MOVE_TO_CCR:
 		case INSTRUCTION_MOVEA:
 		case INSTRUCTION_MOVEM:

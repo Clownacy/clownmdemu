@@ -1698,13 +1698,6 @@ case INSTRUCTION_MOVE:
 	break;
 
 case INSTRUCTION_MOVE_FROM_SR:
-	/* Only allow this instruction in supervisor mode. */
-	if ((state->status_register & 0x2000) == 0)
-	{
-		Group1Or2Exception(&stuff, 8);
-		longjmp(stuff.exception.context, 1);
-	}
-
 	/* Decode source address mode. */
 	DecodeAddressMode(&stuff, &source_decoded_address_mode, &decoded_opcode.operands[0]);
 
