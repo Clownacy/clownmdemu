@@ -418,7 +418,7 @@
 	state->status_register |= ReadByte(&stuff, state->address_registers[7] + 1);\
 	state->address_registers[7] += 2;\
 	state->program_counter = ReadLongWord(&stuff, state->address_registers[7]);\
-	state->address_registers[7] += 4;\
+	state->address_registers[7] += 4;
 
 #define DO_INSTRUCTION_ACTION_JSR\
 	state->address_registers[7] -= 4;\
