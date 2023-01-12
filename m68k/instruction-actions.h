@@ -686,7 +686,7 @@
 	count = 1;
 
 #define DO_INSTRUCTION_ACTION_SHIFT_2_REGISTER\
-	count = opcode.raw & 0x0020 ? state->data_registers[opcode.secondary_register] % 64 : ((opcode.secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8 */
+	count = (opcode.raw & 0x0020) != 0 ? state->data_registers[opcode.secondary_register] % 64 : ((opcode.secondary_register - 1u) & 7u) + 1u; /* A little math trick to turn 0 into 8 */
 
 #define DO_INSTRUCTION_ACTION_SHIFT_3_ASD\
 	state->status_register |= CONDITION_CODE_OVERFLOW & (0 - ((result_value & sign_bit_bitmask) != original_sign_bit));\
