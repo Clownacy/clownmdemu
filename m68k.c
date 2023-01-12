@@ -577,6 +577,9 @@ void M68k_Reset(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 		state->address_registers[7] = ReadLongWord(&stuff, 0);
 		state->program_counter = ReadLongWord(&stuff, 4);
+
+		/* Pre-fetch the next instruction. */
+		state->instruction_register = ReadWord(&stuff, state->program_counter);
 	}
 }
 
@@ -598,6 +601,9 @@ void M68k_Interrupt(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks,
 			/* Set interrupt mask set to current level */
 			state->status_register &= ~STATUS_INTERRUPT_MASK;
 			state->status_register |= level << 8;
+
+			/* Pre-fetch the next instruction. */
+			state->instruction_register = ReadWord(&stuff, state->program_counter);
 		}
 	}
 }
@@ -633,7 +639,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			source_value = destination_value = result_value = 0;
 
-			opcode.raw = ReadWord(&stuff, state->program_counter);
+			opcode.raw = state->instruction_register;
 
 			opcode.bits_6_and_7 = (opcode.raw >> 6) & 3;
 			opcode.bit_8 = (opcode.raw & 0x100) != 0;
@@ -643,7 +649,7 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			opcode.secondary_address_mode = (AddressMode)((opcode.raw >> 6) & 7);
 			opcode.secondary_register = (opcode.raw >> 9) & 7;
 
-			state->instruction_register = opcode.raw;
+			/* We already pre-fetched the instruction, so just advance past it. */
 			state->program_counter += 2;
 
 			/* Figure out which instruction this is */
@@ -657,6 +663,9 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			}
 
 			#undef operation_size
+
+			/* Pre-fetch the next instruction. */
+			state->instruction_register = ReadWord(&stuff, state->program_counter);
 
 		#ifdef DEBUG_STUFF
 			{
