@@ -326,7 +326,6 @@ static cc_u32f DecodeMemoryAddressMode(Stuff *stuff, const Operand *decoded_oper
 			const cc_u32f displacement_reg = (extension_word >> 12) & 7;
 			const cc_bool is_longword = (extension_word & 0x0800) != 0;
 			const cc_u32f displacement_literal_value = CC_SIGN_EXTEND_ULONG(7, extension_word);
-			/* TODO - Is an address register ever used here on the 68k? */
 			const cc_u32f displacement_reg_value = CC_SIGN_EXTEND_ULONG(is_longword ? 31 : 15, (is_address_register ? state->address_registers : state->data_registers)[displacement_reg]);
 
 			address += displacement_reg_value;
