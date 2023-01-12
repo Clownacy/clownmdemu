@@ -521,7 +521,7 @@
 
 #define DO_INSTRUCTION_ACTION_CHK\
 	{\
-	const cc_u32f value = state->data_registers[opcode.secondary_register];\
+	const cc_u32f value = state->data_registers[opcode.secondary_register] & 0xFFFF;\
 	\
 	if ((value & 0x8000) != 0)\
 	{\
@@ -529,11 +529,16 @@
 		state->status_register |= CONDITION_CODE_NEGATIVE;\
 		Group1Or2Exception(&stuff, 6);\
 	}\
-	else if (value > source_value)\
+	else\
 	{\
-		/* Value is greater than upper bound. */\
-		state->status_register &= ~CONDITION_CODE_NEGATIVE;\
-		Group1Or2Exception(&stuff, 6);\
+		const cc_u32f delta = value - source_value;\
+\
+		if ((delta & 0x8000) == 0 && delta != 0)\
+		{\
+			/* Value is greater than upper bound. */\
+			state->status_register &= ~CONDITION_CODE_NEGATIVE;\
+			Group1Or2Exception(&stuff, 6);\
+		}\
 	}\
 	}
 
