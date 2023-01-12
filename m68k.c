@@ -231,7 +231,8 @@ static void Group0Exception(Stuff *stuff, size_t vector_offset, cc_u32f access_a
 		WriteLongWord(stuff, state->address_registers[7], access_address);
 		state->address_registers[7] -= 2;
 		/* TODO - Function code and 'Instruction/Not' bit. */
-		WriteWord(stuff, state->address_registers[7], is_a_read << 4);
+		/* According to the test suite, there really is a partial phantom copy of the intruction register here. */
+		WriteWord(stuff, state->address_registers[7], (state->instruction_register & 0xFFE0) | (is_a_read << 4) | 0xE);
 	}
 }
 
@@ -664,9 +665,6 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 
 			#undef operation_size
 
-			/* Pre-fetch the next instruction. */
-			state->instruction_register = ReadWord(&stuff, state->program_counter);
-
 		#ifdef DEBUG_STUFF
 			{
 				static const char* const instruction_strings[] = {
@@ -773,5 +771,8 @@ void M68k_DoCycle(M68k_State *state, const M68k_ReadWriteCallbacks *callbacks)
 			}
 		#endif
 		}
+
+		/* Pre-fetch the next instruction. */
+		state->instruction_register = ReadWord(&stuff, state->program_counter);
 	}
 }
