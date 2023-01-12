@@ -52,9 +52,6 @@
 #define DO_INSTRUCTION_ACTION_MOVEA\
 	Emit("DO_INSTRUCTION_ACTION_MOVEA;")
 
-#define DO_INSTRUCTION_ACTION_MOVE_FROM_SR\
-	Emit("DO_INSTRUCTION_ACTION_MOVE_FROM_SR;")
-
 #define DO_INSTRUCTION_ACTION_MOVE\
 	Emit("DO_INSTRUCTION_ACTION_MOVE;")
 
@@ -314,10 +311,6 @@
 
 #define DO_INSTRUCTION_ACTION_MOVEA\
 	result_value = operation_size == 2 ? CC_SIGN_EXTEND_ULONG(15, source_value) : source_value
-
-#define DO_INSTRUCTION_ACTION_MOVE_FROM_SR\
-	source_value = state->status_register;\
-	DO_INSTRUCTION_ACTION_MOVE
 
 #define DO_INSTRUCTION_ACTION_MOVE\
 	result_value = source_value
@@ -659,6 +652,7 @@
 \
 	switch (opcode.raw & 0x00F8)\
 	{\
+		/* TODO: What should happen when an invalid bit pattern occurs? */\
 		case 0x0040:\
 			temp = state->data_registers[opcode.secondary_register];\
 			state->data_registers[opcode.secondary_register] = state->data_registers[opcode.primary_register];\

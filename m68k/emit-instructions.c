@@ -13,7 +13,7 @@ void EmitInstructionSupervisorCheck(const Instruction instruction)
 	if (Instruction_IsPrivileged(instruction))
 	{
 		Emit("/* Only allow this instruction in supervisor mode. */");
-		Emit("if ((state->status_register & 0x2000) == 0)");
+		Emit("if ((state->status_register & STATUS_SUPERVISOR) == 0)");
 		Emit("{");
 		Emit("	Group1Or2Exception(&stuff, 8);");
 		Emit("	longjmp(stuff.exception.context, 1);");

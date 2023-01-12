@@ -398,7 +398,7 @@ case INSTRUCTION_ANDI_TO_CCR:
 
 case INSTRUCTION_ANDI_TO_SR:
 	/* Only allow this instruction in supervisor mode. */
-	if ((state->status_register & 0x2000) == 0)
+	if ((state->status_register & STATUS_SUPERVISOR) == 0)
 	{
 		Group1Or2Exception(&stuff, 8);
 		longjmp(stuff.exception.context, 1);
@@ -1364,7 +1364,7 @@ case INSTRUCTION_EORI_TO_CCR:
 
 case INSTRUCTION_EORI_TO_SR:
 	/* Only allow this instruction in supervisor mode. */
-	if ((state->status_register & 0x2000) == 0)
+	if ((state->status_register & STATUS_SUPERVISOR) == 0)
 	{
 		Group1Or2Exception(&stuff, 8);
 		longjmp(stuff.exception.context, 1);
@@ -1763,7 +1763,7 @@ case INSTRUCTION_MOVE_TO_CCR:
 
 case INSTRUCTION_MOVE_TO_SR:
 	/* Only allow this instruction in supervisor mode. */
-	if ((state->status_register & 0x2000) == 0)
+	if ((state->status_register & STATUS_SUPERVISOR) == 0)
 	{
 		Group1Or2Exception(&stuff, 8);
 		longjmp(stuff.exception.context, 1);
@@ -1802,7 +1802,7 @@ case INSTRUCTION_MOVE_TO_SR:
 
 case INSTRUCTION_MOVE_USP:
 	/* Only allow this instruction in supervisor mode. */
-	if ((state->status_register & 0x2000) == 0)
+	if ((state->status_register & STATUS_SUPERVISOR) == 0)
 	{
 		Group1Or2Exception(&stuff, 8);
 		longjmp(stuff.exception.context, 1);
@@ -2314,7 +2314,7 @@ case INSTRUCTION_ORI_TO_CCR:
 
 case INSTRUCTION_ORI_TO_SR:
 	/* Only allow this instruction in supervisor mode. */
-	if ((state->status_register & 0x2000) == 0)
+	if ((state->status_register & STATUS_SUPERVISOR) == 0)
 	{
 		Group1Or2Exception(&stuff, 8);
 		longjmp(stuff.exception.context, 1);
@@ -2382,7 +2382,7 @@ case INSTRUCTION_PEA:
 
 case INSTRUCTION_RESET:
 	/* Only allow this instruction in supervisor mode. */
-	if ((state->status_register & 0x2000) == 0)
+	if ((state->status_register & STATUS_SUPERVISOR) == 0)
 	{
 		Group1Or2Exception(&stuff, 8);
 		longjmp(stuff.exception.context, 1);
@@ -2549,7 +2549,7 @@ case INSTRUCTION_ROXD_REGISTER:
 
 case INSTRUCTION_RTE:
 	/* Only allow this instruction in supervisor mode. */
-	if ((state->status_register & 0x2000) == 0)
+	if ((state->status_register & STATUS_SUPERVISOR) == 0)
 	{
 		Group1Or2Exception(&stuff, 8);
 		longjmp(stuff.exception.context, 1);
@@ -2682,7 +2682,7 @@ case INSTRUCTION_SCC:
 
 case INSTRUCTION_STOP:
 	/* Only allow this instruction in supervisor mode. */
-	if ((state->status_register & 0x2000) == 0)
+	if ((state->status_register & STATUS_SUPERVISOR) == 0)
 	{
 		Group1Or2Exception(&stuff, 8);
 		longjmp(stuff.exception.context, 1);
