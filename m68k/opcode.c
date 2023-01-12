@@ -505,6 +505,9 @@ static unsigned int GetSize(const Instruction instruction, const Opcode* const o
 		case INSTRUCTION_DIVS:
 		case INSTRUCTION_MULU:
 		case INSTRUCTION_MULS:
+		case INSTRUCTION_SUBA:
+		case INSTRUCTION_CMPA:
+		case INSTRUCTION_ADDA:
 			/* Hardcoded to a longword. */
 			operation_size = 4;
 			break;
@@ -543,13 +546,6 @@ static unsigned int GetSize(const Instruction instruction, const Opcode* const o
 
 		case INSTRUCTION_EXT:
 			operation_size = opcode->raw & 0x0040 ? 4 : 2;
-			break;
-
-		case INSTRUCTION_SUBA:
-		case INSTRUCTION_CMPA:
-		case INSTRUCTION_ADDA:
-			/* Word or longword based on bit 8. */
-			operation_size = opcode->bit_8 ? 4 : 2;
 			break;
 
 		case INSTRUCTION_ORI:
@@ -710,6 +706,13 @@ static cc_bool GetSourceOperand(DecodedOpcode* const decoded_opcode, const Opcod
 
 			break;
 
+		case INSTRUCTION_SUBA:
+		case INSTRUCTION_CMPA:
+		case INSTRUCTION_ADDA:
+			/* Word or longword based on bit 8. */
+			SET_OPERAND(opcode->bit_8 ? 4 : 2, opcode->primary_address_mode, opcode->primary_register);
+			break;
+
 		case INSTRUCTION_CMPM:
 			SET_OPERAND(decoded_opcode->size, ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_POSTINCREMENT, opcode->primary_register);
 			break;
@@ -719,10 +722,7 @@ static cc_bool GetSourceOperand(DecodedOpcode* const decoded_opcode, const Opcod
 		case INSTRUCTION_MOVE_TO_CCR:
 		case INSTRUCTION_MOVE_TO_SR:
 		case INSTRUCTION_CHK:
-		case INSTRUCTION_SUBA:
 		case INSTRUCTION_CMP:
-		case INSTRUCTION_CMPA:
-		case INSTRUCTION_ADDA:
 		case INSTRUCTION_TST:
 			/* Primary address mode. */
 			SET_OPERAND(decoded_opcode->size, opcode->primary_address_mode, opcode->primary_register);
@@ -806,6 +806,9 @@ static cc_bool GetDestinationOperand(DecodedOpcode* const decoded_opcode, const 
 			break;
 
 		case INSTRUCTION_LEA:
+		case INSTRUCTION_SUBA:
+		case INSTRUCTION_CMPA:
+		case INSTRUCTION_ADDA:
 			/* Address register (secondary) */
 			SET_OPERAND(decoded_opcode->size, ADDRESS_MODE_ADDRESS_REGISTER, opcode->secondary_register);
 			break;
@@ -834,9 +837,6 @@ static cc_bool GetDestinationOperand(DecodedOpcode* const decoded_opcode, const 
 
 			break;
 
-		case INSTRUCTION_SUBA:
-		case INSTRUCTION_CMPA:
-		case INSTRUCTION_ADDA:
 		case INSTRUCTION_MOVEA:
 			/* Full secondary address register */
 			SET_OPERAND(4, ADDRESS_MODE_ADDRESS_REGISTER, opcode->secondary_register);
