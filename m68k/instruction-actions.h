@@ -327,9 +327,16 @@
 	state->address_registers[7] += CC_SIGN_EXTEND_ULONG(15, source_value)
 
 #define DO_INSTRUCTION_ACTION_UNLK\
+	{\
+	cc_u32l value;\
+\
 	state->address_registers[7] = state->address_registers[opcode.primary_register];\
-	state->address_registers[opcode.primary_register] = ReadLongWord(&stuff, state->address_registers[7]);\
-	state->address_registers[7] += 4
+	value = ReadLongWord(&stuff, state->address_registers[7]);\
+	state->address_registers[7] += 4;\
+\
+	/* We need to do this last in case we're writing to A7. */\
+	state->address_registers[opcode.primary_register] = value;\
+	}
 
 #define DO_INSTRUCTION_ACTION_NEGX\
 	/* TODO */\
