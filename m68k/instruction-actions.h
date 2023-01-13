@@ -637,8 +637,7 @@
 	UNIMPLEMENTED_INSTRUCTION("SBCD")
 
 #define DO_INSTRUCTION_ACTION_SUBX\
-	/* TODO */\
-	UNIMPLEMENTED_INSTRUCTION("SUBX")
+	result_value = destination_value - source_value - ((state->status_register & CONDITION_CODE_EXTEND) != 0 ? 1 : 0)
 
 #define DO_INSTRUCTION_ACTION_MUL\
 	{\
@@ -686,8 +685,7 @@
 	}
 
 #define DO_INSTRUCTION_ACTION_ADDX\
-	/* TODO */\
-	UNIMPLEMENTED_INSTRUCTION("ADDX")
+	result_value = destination_value + source_value + ((state->status_register & CONDITION_CODE_EXTEND) != 0 ? 1 : 0)
 
 #define DO_INSTRUCTION_ACTION_SHIFT_1_ASD\
 	const unsigned long original_sign_bit = destination_value & sign_bit_bitmask;

@@ -433,7 +433,6 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 	switch (zero)
 	{
 		case INSTRUCTION_ZERO_CLEAR_IF_NONZERO_UNAFFECTED_OTHERWISE:
-			/* TODO */
 			break;
 
 		case INSTRUCTION_ZERO_SET_IF_ZERO_CLEAR_OTHERWISE:
@@ -554,7 +553,8 @@ void EmitInstructionConditionCodes(const Instruction instruction)
 	switch (zero)
 	{
 		case INSTRUCTION_ZERO_CLEAR_IF_NONZERO_UNAFFECTED_OTHERWISE:
-			Emit("/* TODO - \"Cleared if the result is nonzero; unchanged otherwise\" */");
+			Emit("/* Cleared if the result is nonzero; unchanged otherwise */");
+			Emit("state->status_register &= ~CONDITION_CODE_ZERO | (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));");
 			break;
 
 		case INSTRUCTION_ZERO_SET_IF_ZERO_CLEAR_OTHERWISE:

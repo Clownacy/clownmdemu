@@ -25,7 +25,8 @@ case INSTRUCTION_ABCD:
 	/* Update OVERFLOW condition code */
 	/* Undefined */
 	/* Update ZERO condition code */
-	/* TODO - "Cleared if the result is nonzero; unchanged otherwise" */
+	/* Cleared if the result is nonzero; unchanged otherwise */
+	state->status_register &= ~CONDITION_CODE_ZERO | (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Undefined */
 	/* Update EXTEND condition code */
@@ -267,7 +268,8 @@ case INSTRUCTION_ADDX:
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
 	state->status_register |= CONDITION_CODE_OVERFLOW & ((sm & dm & ~rm) | (~sm & ~dm & rm));
 	/* Update ZERO condition code */
-	/* TODO - "Cleared if the result is nonzero; unchanged otherwise" */
+	/* Cleared if the result is nonzero; unchanged otherwise */
+	state->status_register &= ~CONDITION_CODE_ZERO | (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
@@ -2052,7 +2054,8 @@ case INSTRUCTION_NBCD:
 	/* Update OVERFLOW condition code */
 	/* Undefined */
 	/* Update ZERO condition code */
-	/* TODO - "Cleared if the result is nonzero; unchanged otherwise" */
+	/* Cleared if the result is nonzero; unchanged otherwise */
+	state->status_register &= ~CONDITION_CODE_ZERO | (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Undefined */
 	/* Update EXTEND condition code */
@@ -2128,7 +2131,8 @@ case INSTRUCTION_NEGX:
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
 	state->status_register |= CONDITION_CODE_OVERFLOW & (dm & rm);
 	/* Update ZERO condition code */
-	/* TODO - "Cleared if the result is nonzero; unchanged otherwise" */
+	/* Cleared if the result is nonzero; unchanged otherwise */
+	state->status_register &= ~CONDITION_CODE_ZERO | (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;
@@ -2641,7 +2645,8 @@ case INSTRUCTION_SBCD:
 	/* Update OVERFLOW condition code */
 	/* Undefined */
 	/* Update ZERO condition code */
-	/* TODO - "Cleared if the result is nonzero; unchanged otherwise" */
+	/* Cleared if the result is nonzero; unchanged otherwise */
+	state->status_register &= ~CONDITION_CODE_ZERO | (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Undefined */
 	/* Update EXTEND condition code */
@@ -2945,7 +2950,8 @@ case INSTRUCTION_SUBX:
 	state->status_register &= ~CONDITION_CODE_OVERFLOW;
 	state->status_register |= CONDITION_CODE_OVERFLOW & ((~sm & dm & ~rm) | (sm & ~dm & rm));
 	/* Update ZERO condition code */
-	/* TODO - "Cleared if the result is nonzero; unchanged otherwise" */
+	/* Cleared if the result is nonzero; unchanged otherwise */
+	state->status_register &= ~CONDITION_CODE_ZERO | (0 - ((result_value & (0xFFFFFFFF >> (32 - operation_size * 8))) == 0));
 	/* Update NEGATIVE condition code */
 	/* Standard behaviour: set if result value is negative; clear otherwise */
 	state->status_register &= ~CONDITION_CODE_NEGATIVE;

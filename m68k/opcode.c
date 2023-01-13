@@ -348,7 +348,7 @@ static Instruction GetInstruction(const Opcode *opcode)
 		case 0x9:
 			if (opcode->bits_6_and_7 == 3)
 				instruction = INSTRUCTION_SUBA;
-			else if ((opcode->raw & 0x0170) == 0x0100)
+			else if ((opcode->raw & 0x0130) == 0x0100)
 				instruction = INSTRUCTION_SUBX;
 			else
 				instruction = INSTRUCTION_SUB;
@@ -396,7 +396,7 @@ static Instruction GetInstruction(const Opcode *opcode)
 		case 0xD:
 			if (opcode->bits_6_and_7 == 3)
 				instruction = INSTRUCTION_ADDA;
-			else if ((opcode->raw & 0x0170) == 0x0100)
+			else if ((opcode->raw & 0x0130) == 0x0100)
 				instruction = INSTRUCTION_ADDX;
 			else
 				instruction = INSTRUCTION_ADD;
@@ -691,7 +691,7 @@ static cc_bool GetSourceOperand(DecodedOpcode* const decoded_opcode, const Opcod
 		case INSTRUCTION_ABCD:
 		case INSTRUCTION_SUBX:
 		case INSTRUCTION_ADDX:
-			SET_OPERAND(decoded_opcode->size, opcode->raw & 0x0008 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode->primary_register);
+			SET_OPERAND(decoded_opcode->size, (opcode->raw & 0x0008) != 0 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode->primary_register);
 			break;
 
 		case INSTRUCTION_OR:
@@ -822,7 +822,7 @@ static cc_bool GetDestinationOperand(DecodedOpcode* const decoded_opcode, const 
 		case INSTRUCTION_SUBX:
 		case INSTRUCTION_ABCD:
 		case INSTRUCTION_ADDX:
-			SET_OPERAND(decoded_opcode->size, opcode->raw & 0x0008 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode->secondary_register);
+			SET_OPERAND(decoded_opcode->size, (opcode->raw & 0x0008) != 0 ? ADDRESS_MODE_ADDRESS_REGISTER_INDIRECT_WITH_PREDECREMENT : ADDRESS_MODE_DATA_REGISTER, opcode->secondary_register);
 			break;
 
 		case INSTRUCTION_OR:
