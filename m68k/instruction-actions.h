@@ -339,8 +339,7 @@
 	}
 
 #define DO_INSTRUCTION_ACTION_NEGX\
-	/* TODO */\
-	UNIMPLEMENTED_INSTRUCTION("NEGX")
+	result_value = 0 - destination_value - ((state->status_register & CONDITION_CODE_EXTEND) != 0 ? 1 : 0)
 
 #define DO_INSTRUCTION_ACTION_CLR\
 	result_value = 0
