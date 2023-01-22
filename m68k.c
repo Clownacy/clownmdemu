@@ -486,73 +486,73 @@ static cc_bool IsOpcodeConditionTrue(M68k_State *state, cc_u16f opcode)
 
 	switch ((opcode >> 8) & 0xF)
 	{
-		case 0:
+		case 0x0:
 			/* True */
 			return cc_true;
 
-		case 1:
+		case 0x1:
 			/* False */
 			return cc_false;
 
-		case 2:
+		case 0x2:
 			/* Higher */
 			return !carry && !zero;
 
-		case 3:
+		case 0x3:
 			/* Lower or same */
 			return carry || zero;
 
-		case 4:
+		case 0x4:
 			/* Carry clear */
 			return !carry;
 
-		case 5:
+		case 0x5:
 			/* Carry set */
 			return carry;
 
-		case 6:
+		case 0x6:
 			/* Not equal */
 			return !zero;
 
-		case 7:
+		case 0x7:
 			/* Equal */
 			return zero;
 
-		case 8:
+		case 0x8:
 			/* Overflow clear */
 			return !overflow;
 
-		case 9:
+		case 0x9:
 			/* Overflow set */
 			return overflow;
 
-		case 10:
+		case 0xA:
 			/* Plus */
 			return !negative;
 
-		case 11:
+		case 0xB:
 			/* Minus */
 			return negative;
 
-		case 12:
+		case 0xC:
 			/* Greater or equal */
-			return (negative && overflow) || (!negative && !overflow);
+			return negative == overflow;
 
-		case 13:
+		case 0xD:
 			/* Less than */
-			return (negative && !overflow) || (!negative && overflow);
+			return negative != overflow;
 
-		case 14:
+		case 0xE:
 			/* Greater than */
-			return (negative && overflow && !zero) || (!negative && !overflow && !zero);
+			return !zero && negative == overflow;
 
-		case 15:
+		case 0xF:
 			/* Less or equal */
-			return zero || (negative && !overflow) || (!negative && overflow);
-
-		default:
-			return cc_false;
+			return zero || negative != overflow;
 	}
+
+	assert(cc_false);
+	return cc_false;
 }
 
 
