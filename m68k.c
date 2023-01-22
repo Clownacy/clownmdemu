@@ -161,8 +161,8 @@ static void WriteLongWord(Stuff *stuff, cc_u32f address, cc_u32f value)
 		longjmp(stuff->exception.context, 1);
 	}
 
-	callbacks->write_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true, (value >> 16) & 0xFFFF);
-	callbacks->write_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true, (value >>  0) & 0xFFFF);
+	callbacks->write_callback(callbacks->user_data, (address + 0) & 0xFFFFFE, cc_true, cc_true, value >> 16);
+	callbacks->write_callback(callbacks->user_data, (address + 2) & 0xFFFFFE, cc_true, cc_true, value & 0xFFFF);
 }
 
 /* Supervisor mode */
