@@ -35,7 +35,7 @@ set_target_properties(clownmdemu PROPERTIES
 	C_EXTENSIONS OFF
 )
 
-add_subdirectory("clown68000")
+add_subdirectory("clown68000" EXCLUDE_FROM_ALL)
 
 target_link_libraries(clownmdemu PRIVATE clown68000)
 
