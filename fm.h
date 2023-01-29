@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 #include "fm_channel.h"
 

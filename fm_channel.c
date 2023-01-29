@@ -2,7 +2,7 @@
 
 #include <assert.h>
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 void FM_Channel_Constant_Initialise(FM_Channel_Constant *constant)
 {

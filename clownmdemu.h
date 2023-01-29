@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 #include "fm.h"
 #include "m68k.h"

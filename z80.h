@@ -4,7 +4,7 @@
 /* If enabled, a lookup table is used to optimise opcode decoding. Disable this to save RAM. */
 #define Z80_PRECOMPUTE_INSTRUCTION_METADATA
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 typedef enum Z80_Opcode
 {

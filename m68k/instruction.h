@@ -1,7 +1,7 @@
 #ifndef M68K_INSTRUCTION_H
 #define M68K_INSTRUCTION_H
 
-#include "../clowncommon.h"
+#include "../clowncommon/clowncommon.h"
 
 typedef enum Instruction
 {

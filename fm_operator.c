@@ -4,7 +4,7 @@
 
 #include <math.h>
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 static cc_u16f InversePow2(const FM_Operator_Constant *constant, cc_u16f value)
 {

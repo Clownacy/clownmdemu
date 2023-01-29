@@ -8,7 +8,7 @@ project(clownmdemu LANGUAGES C)
 add_library(clownmdemu STATIC
 	"clownmdemu.c"
 	"clownmdemu.h"
-	"clowncommon.h"
+	"clowncommon/clowncommon.h"
 	"error.c"
 	"error.h"
 	"fm.c"

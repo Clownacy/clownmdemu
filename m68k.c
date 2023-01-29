@@ -17,7 +17,7 @@ https://gendev.spritesmind.net/forum/viewtopic.php?p=36118#p36118
 #include <setjmp.h>
 #include <stddef.h>
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 #include "error.h"
 #include "m68k/instruction-actions.h"

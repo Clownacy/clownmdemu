@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "../clowncommon.h"
+#include "../clowncommon/clowncommon.h"
 
 FILE *emit_file;
 unsigned int emit_indentation;

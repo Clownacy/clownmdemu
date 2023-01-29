@@ -1,6 +1,6 @@
 #include "fm_envelope.h"
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 static cc_u16f CalculateRate(const FM_Envelope_State *envelope, cc_u16f key_code)
 {

@@ -1,7 +1,7 @@
 #ifndef FM_CHANNEL_H
 #define FM_CHANNEL_H
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 #include "fm_operator.h"
 

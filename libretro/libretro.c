@@ -6,7 +6,7 @@
 #include "libretro.h"
 #include "libretro_core_options.h"
 
-#include "../clowncommon.h"
+#include "../clowncommon/clowncommon.h"
 #include "../clownmdemu.h"
 
 #define MIXER_FORMAT int16_t

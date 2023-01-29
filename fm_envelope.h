@@ -1,7 +1,7 @@
 #ifndef FM_ENVELOPE_H
 #define FM_ENVELOPE_H
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 typedef enum FM_Envelope_Mode
 {

@@ -1,7 +1,7 @@
 #ifndef M68K_INSTRUCTION_PROPERTIES_H
 #define M68K_INSTRUCTION_PROPERTIES_H
 
-#include "../clowncommon.h"
+#include "../clowncommon/clowncommon.h"
 
 #include "instruction.h"
 

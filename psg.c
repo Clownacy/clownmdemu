@@ -9,7 +9,7 @@ https://www.smspower.org/Development/SN76489
 
 #include <math.h>
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 void PSG_Constant_Initialise(PSG_Constant *constant)
 {

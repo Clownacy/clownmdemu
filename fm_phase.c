@@ -1,6 +1,6 @@
 #include "fm_phase.h"
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 static void RecalculatePhaseStep(FM_Phase_State *phase)
 {

@@ -10,7 +10,7 @@ https://floooh.github.io/2021/12/06/z80-instruction-timing.html
 #include <assert.h>
 #include <stddef.h>
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 #include "error.h"
 

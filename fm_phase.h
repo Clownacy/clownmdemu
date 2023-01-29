@@ -1,7 +1,7 @@
 #ifndef FM_PHASE_H
 #define FM_PHASE_H
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 typedef struct FM_Phase_State
 {

@@ -1,7 +1,7 @@
 #ifndef M68K_H
 #define M68K_H
 
-#include "clowncommon.h"
+#include "clowncommon/clowncommon.h"
 
 #ifdef __cplusplus
 extern "C" {
