@@ -7,7 +7,7 @@
 #include "clowncommon/clowncommon.h"
 
 #include "fm.h"
-#include "m68k.h"
+#include "clown68000/m68k.h"
 #include "psg.h"
 #include "vdp.h"
 #include "z80.h"

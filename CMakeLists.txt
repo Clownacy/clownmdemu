@@ -21,10 +21,6 @@ add_library(clownmdemu STATIC
 	"fm_operator.h"
 	"fm_phase.c"
 	"fm_phase.h"
-	"m68k.c"
-	"m68k.h"
-	"m68k/opcode.c"
-	"m68k/opcode.h"
 	"psg.c"
 	"psg.h"
 	"vdp.c"
@@ -38,6 +34,10 @@ set_target_properties(clownmdemu PROPERTIES
 	C_STANDARD_REQUIRED NO
 	C_EXTENSIONS OFF
 )
+
+add_subdirectory("clown68000")
+
+target_link_libraries(clownmdemu PRIVATE clown68000)
 
 if(CLOWNMDEMU_INSANE_INTEGERS)
 	target_compile_definitions(clownmdemu PUBLIC

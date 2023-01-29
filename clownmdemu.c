@@ -8,7 +8,7 @@
 
 #include "error.h"
 #include "fm.h"
-#include "m68k.h"
+#include "clown68000/m68k.h"
 #include "psg.h"
 #include "vdp.h"
 #include "z80.h"
@@ -688,4 +688,5 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg))
 {
 	SetErrorCallback(error_callback);
+	M68k_SetErrorCallback(error_callback);
 }
