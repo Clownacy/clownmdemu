@@ -3,7 +3,7 @@
 
 #include "SDL.h"
 
-#include "../clowncommon.h"
+#include "../clowncommon/clowncommon.h"
 #include "../clownmdemu.h"
 
 #include "libraries/tinyfiledialogs/tinyfiledialogs.h"

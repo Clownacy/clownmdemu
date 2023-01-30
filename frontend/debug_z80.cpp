@@ -1,7 +1,7 @@
 #include "debug_z80.h"
 
 #include "libraries/imgui/imgui.h"
-#include "../clowncommon.h"
+#include "../clowncommon/clowncommon.h"
 #include "../clownmdemu.h"
 
 void Debug_Z80(bool *open, Z80_State *z80, ImFont *monospace_font)

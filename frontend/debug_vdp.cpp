@@ -4,7 +4,7 @@
 
 #include "SDL.h"
 #include "libraries/imgui/imgui.h"
-#include "../clowncommon.h"
+#include "../clowncommon/clowncommon.h"
 #include "../clownmdemu.h"
 
 #include "error.h"

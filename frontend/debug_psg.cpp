@@ -2,7 +2,7 @@
 
 #include "SDL.h"
 #include "libraries/imgui/imgui.h"
-#include "../clowncommon.h"
+#include "../clowncommon/clowncommon.h"
 #include "../clownmdemu.h"
 
 void Debug_PSG(bool *open, ClownMDEmu *clownmdemu, ImFont *monospace_font)
