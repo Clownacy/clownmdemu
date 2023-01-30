@@ -7,6 +7,17 @@ but many standard features of the Mega Drive are unemulated (see `TODO.md` for
 more information).
 
 
+# Frontends
+
+To actually play games with clownmdemu, you'll need to use a frontend.
+Currently there are two official frontends:
+- The standalone frontend, which includes a variety of debugging menus:
+  https://github.com/Clownacy/clownmdemu-frontend
+- The libretro frontend, for use with libretro implementations such as
+  RetroArch:
+  https://github.com/Clownacy/clownmdemu-libretro
+
+
 # Design
 
 clownmdemu's code adheres to the following principles, emphasising minimalism
@@ -73,71 +84,14 @@ streams at once, then the frontend can skip the expensive steps of audio
 resampling and mixing.
 
 
-# Frontend
-
-![Minimal](/screenshot-minimal.png)
-![Debug](/screenshot-debug.png)
-
-An example frontend is provided in the `frontend` directory; it is written in
-C++98 and leverages the SDL2, Dear ImGui, FreeType, and tinyfiledialogs
-libraries.
-
-The control scheme is currently hardcoded to the following layout:
-
-Keyboard:
-- W  = Up
-- S  = Down
-- A  = Left
-- D  = Right
-- O  = A
-- P  = B
-- \[ = C
-- Enter = Start
-
-Controller:
-- Up    = Up
-- Down  = Down
-- Left  = Left
-- Right = Right
-- X     = A
-- Y     = B
-- B     = C
-- A     = B
-- Start = Start
-- Back  = Toggle which joypad the controller controls
-- LB    = Rewind
-- RB    = Fast-forward
-- RSB   = Toggle menu controls (see http://www.dearimgui.org/controls_sheets/imgui%20controls%20v6%20-%20Xbox.png)
-
-Hotkeys:
-- Space = Fast-forward
-- R     = Rewind
-- Tab   = Soft reset
-- F1    = Toggle which joypad the keyboard controls
-- F5    = Create save state
-- F9    = Load save state
-- F11   = Toggle fullscreen
-
-
-# libretro
-
-A frontend that exposes clownmdemu as a libretro core is provided in the
-`libretro` directory. It is written in C89 and should provide all of the same
-features as the example frontend aside from the debug menus.
-
-
 # Compiling
 
 clownmdemu can be built using CMake, however it should not be hard to make it
 use a different build system if necessary as the emulator's build process is
 not complicated.
 
-The reference frontend is also built using CMake.
-
-The libretro core can be built using either CMake or GNU Make.
-
 Be aware that this repo uses Git submodules: use `git submodule update --init`
-to pull in these submodules before compiling either frontend.
+to pull in these submodules before compiling.
 
 
 # Licence
