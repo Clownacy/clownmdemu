@@ -7,7 +7,7 @@
 #include "clowncommon/clowncommon.h"
 
 #include "fm.h"
-#include "clown68000/m68k.h"
+#include "clown68000/clown68000.h"
 #include "psg.h"
 #include "vdp.h"
 #include "z80.h"
@@ -126,7 +126,7 @@ typedef struct ClownMDEmu_State
 		cc_u16f m68k;
 		cc_u16f z80;
 	} countdowns;
-	M68k_State m68k;
+	Clown68000_State m68k;
 	Z80_State z80;
 	cc_u8l m68k_ram[0x10000];
 	cc_u8l z80_ram[0x2000];
@@ -148,7 +148,7 @@ typedef struct ClownMDEmu
 	const ClownMDEmu_Configuration *configuration;
 	const ClownMDEmu_Constant *constant;
 	ClownMDEmu_State *state;
-	M68k_State *m68k;
+	Clown68000_State *m68k;
 	Z80 z80;
 	VDP vdp;
 	FM fm;

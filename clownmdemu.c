@@ -8,7 +8,7 @@
 
 #include "error.h"
 #include "fm.h"
-#include "clown68000/m68k.h"
+#include "clown68000/clown68000.h"
 #include "psg.h"
 #include "vdp.h"
 #include "z80.h"
@@ -553,7 +553,7 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
 	cc_u16f scanline;
-	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
+	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 	Z80_ReadAndWriteCallbacks z80_read_write_callbacks;
 	CPUCallbackUserData cpu_callback_user_data;
 	cc_u16f m68k_countdown, z80_countdown;
@@ -600,7 +600,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 			{
 				m68k_countdown = CLOWNMDEMU_M68K_CLOCK_DIVIDER * 10; /* TODO - The x10 is a temporary hack to get the 68k to run roughly at the correct speed until instruction cycle durations are added */
 
-				M68k_DoCycle(clownmdemu->m68k, &m68k_read_write_callbacks);
+				Clown68000_DoCycle(clownmdemu->m68k, &m68k_read_write_callbacks);
 			}
 
 			m68k_countdown -= cycles_to_do;
@@ -639,7 +639,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 
 				/* Do H-Int */
 				if (clownmdemu->state->vdp.h_int_enabled)
-					M68k_Interrupt(clownmdemu->m68k, &m68k_read_write_callbacks, 4);
+					Clown68000_Interrupt(clownmdemu->m68k, &m68k_read_write_callbacks, 4);
 			}
 		}
 
@@ -649,7 +649,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 			/* Do V-Int */
 			if (clownmdemu->state->vdp.v_int_enabled)
 			{
-				M68k_Interrupt(clownmdemu->m68k, &m68k_read_write_callbacks, 6);
+				Clown68000_Interrupt(clownmdemu->m68k, &m68k_read_write_callbacks, 6);
 				Z80_Interrupt(&clownmdemu->z80);
 			}
 
@@ -671,7 +671,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 
 void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
-	M68k_ReadWriteCallbacks m68k_read_write_callbacks;
+	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 	CPUCallbackUserData callback_user_data;
 
 	callback_user_data.data_and_callbacks.data = clownmdemu;
@@ -681,12 +681,12 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
 	m68k_read_write_callbacks.user_data = &callback_user_data;
 
-	M68k_Reset(clownmdemu->m68k, &m68k_read_write_callbacks);
+	Clown68000_Reset(clownmdemu->m68k, &m68k_read_write_callbacks);
 	Z80_Reset(&clownmdemu->z80);
 }
 
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg))
 {
 	SetErrorCallback(error_callback);
-	M68k_SetErrorCallback(error_callback);
+	Clown68000_SetErrorCallback(error_callback);
 }
