@@ -229,6 +229,10 @@ static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool 
 		{
 			/* VDP control port */
 			value = VDP_ReadControl(&clownmdemu->vdp);
+
+			/* Temporary stupid hack: shove the PAL bit in here. */
+			/* TODO: This should be moved to the VDP core once it becomes sensitive to PAL mode differences. */
+			value |= (clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL);
 		}
 	}
 	else if (address == 0xC00008)
