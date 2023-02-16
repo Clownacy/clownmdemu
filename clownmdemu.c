@@ -548,8 +548,9 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 	clownmdemu->vdp.constant = &constant->vdp;
 	clownmdemu->vdp.state = &state->vdp;
 
-	FM_Parameters_Initialise(&clownmdemu->fm, &constant->fm, &state->fm);
+	FM_Parameters_Initialise(&clownmdemu->fm, &configuration->fm, &constant->fm, &state->fm);
 
+	clownmdemu->psg.configuration = &configuration->psg;
 	clownmdemu->psg.constant = &constant->psg;
 	clownmdemu->psg.state = &state->psg;
 }

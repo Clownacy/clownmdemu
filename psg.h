@@ -61,6 +61,12 @@ typedef struct PSG_LatchedCommand
 	cc_bool is_volume_command;
 } PSG_LatchedCommand;
 
+typedef struct PSG_Configuration
+{
+	cc_bool tone_disabled[3];
+	cc_bool noise_disabled;
+} PSG_Configuration;
+
 typedef struct PSG_Constant
 {
 	cc_s16l volumes[0x10][2];
@@ -80,6 +86,7 @@ typedef struct PSG_State
 
 typedef struct PSG
 {
+	const PSG_Configuration *configuration;
 	const PSG_Constant *constant;
 	PSG_State *state;
 } PSG;

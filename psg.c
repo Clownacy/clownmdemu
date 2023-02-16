@@ -136,75 +136,81 @@ void PSG_Update(const PSG *psg, cc_s16l *sample_buffer, size_t total_samples)
 	/* Do the tone channels. */
 	for (i = 0; i < CC_COUNT_OF(psg->state->tones); ++i)
 	{
-		PSG_ToneState* const tone = &psg->state->tones[i];
+		if (!psg->configuration->tone_disabled[i])
+		{
+			PSG_ToneState* const tone = &psg->state->tones[i];
 
+			sample_buffer_pointer = sample_buffer;
+
+			for (j = 0; j < total_samples; ++j)
+			{
+				/* This countdown is responsible for the channel's frequency. */
+				if (tone->countdown-- == 0)
+				{
+					/* Reset the countdown. */
+					tone->countdown = tone->countdown_master;
+
+					/* Switch from positive phase to negative phase and vice versa. */
+					tone->output_bit = !tone->output_bit;
+				}
+
+				/* Output a sample. */
+				*sample_buffer_pointer++ += psg->constant->volumes[tone->attenuation][tone->output_bit];
+			}
+		}
+	}
+
+	if (!psg->configuration->noise_disabled)
+	{
+		/* Do the noise channel. */
 		sample_buffer_pointer = sample_buffer;
 
 		for (j = 0; j < total_samples; ++j)
 		{
 			/* This countdown is responsible for the channel's frequency. */
-			if (tone->countdown-- == 0)
+			if (psg->state->noise.countdown-- == 0)
 			{
 				/* Reset the countdown. */
-				tone->countdown = tone->countdown_master;
+				switch (psg->state->noise.frequency_mode)
+				{
+					case 0:
+						psg->state->noise.countdown = 0x10 - 1;
+						break;
 
-				/* Switch from positive phase to negative phase and vice versa. */
-				tone->output_bit = !tone->output_bit;
+					case 1:
+						psg->state->noise.countdown = 0x20 - 1;
+						break;
+
+					case 2:
+						psg->state->noise.countdown = 0x40 - 1;
+						break;
+
+					case 3:
+						/* Use the last tone channel's frequency. */
+						psg->state->noise.countdown = psg->state->tones[CC_COUNT_OF(psg->state->tones) - 1].countdown_master;
+						break;
+				}
+
+				psg->state->noise.fake_output_bit = !psg->state->noise.fake_output_bit;
+
+				if (psg->state->noise.fake_output_bit)
+				{
+					/* The noise channel works by maintaining a 16-bit register, whose bits are rotated every time
+					   the output bit goes from low to high. The bit that was rotated from the 'bottom' of the
+					   register to the 'top' is what is output to the speaker. In white noise mode, after rotation,
+					   the bit at the 'top' is XOR'd with the bit that is third from the 'bottom'. */
+					psg->state->noise.real_output_bit = (psg->state->noise.shift_register & 0x8000) >> 15;
+
+					psg->state->noise.shift_register <<= 1;
+					psg->state->noise.shift_register |= psg->state->noise.real_output_bit;
+
+					if (psg->state->noise.type == PSG_NOISE_TYPE_WHITE)
+						psg->state->noise.shift_register ^= (psg->state->noise.shift_register & 0x2000) >> 13;
+				}
 			}
 
 			/* Output a sample. */
-			*sample_buffer_pointer++ += psg->constant->volumes[tone->attenuation][tone->output_bit];
+			*sample_buffer_pointer++ += psg->constant->volumes[psg->state->noise.attenuation][psg->state->noise.real_output_bit];
 		}
-	}
-
-	/* Do the noise channel. */
-	sample_buffer_pointer = sample_buffer;
-
-	for (j = 0; j < total_samples; ++j)
-	{
-		/* This countdown is responsible for the channel's frequency. */
-		if (psg->state->noise.countdown-- == 0)
-		{
-			/* Reset the countdown. */
-			switch (psg->state->noise.frequency_mode)
-			{
-				case 0:
-					psg->state->noise.countdown = 0x10 - 1;
-					break;
-
-				case 1:
-					psg->state->noise.countdown = 0x20 - 1;
-					break;
-
-				case 2:
-					psg->state->noise.countdown = 0x40 - 1;
-					break;
-
-				case 3:
-					/* Use the last tone channel's frequency. */
-					psg->state->noise.countdown = psg->state->tones[CC_COUNT_OF(psg->state->tones) - 1].countdown_master;
-					break;
-			}
-
-			psg->state->noise.fake_output_bit = !psg->state->noise.fake_output_bit;
-
-			if (psg->state->noise.fake_output_bit)
-			{
-				/* The noise channel works by maintaining a 16-bit register, whose bits are rotated every time
-				   the output bit goes from low to high. The bit that was rotated from the 'bottom' of the
-				   register to the 'top' is what is output to the speaker. In white noise mode, after rotation,
-				   the bit at the 'top' is XOR'd with the bit that is third from the 'bottom'. */
-				psg->state->noise.real_output_bit = (psg->state->noise.shift_register & 0x8000) >> 15;
-
-				psg->state->noise.shift_register <<= 1;
-				psg->state->noise.shift_register |= psg->state->noise.real_output_bit;
-
-				if (psg->state->noise.type == PSG_NOISE_TYPE_WHITE)
-					psg->state->noise.shift_register ^= (psg->state->noise.shift_register & 0x2000) >> 13;
-			}
-		}
-
-		/* Output a sample. */
-		*sample_buffer_pointer++ += psg->constant->volumes[psg->state->noise.attenuation][psg->state->noise.real_output_bit];
 	}
 }

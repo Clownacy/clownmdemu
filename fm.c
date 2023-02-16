@@ -142,10 +142,11 @@ void FM_State_Initialise(FM_State *state)
 	state->dac_enabled = cc_false;
 }
 
-void FM_Parameters_Initialise(FM *fm, const FM_Constant *constant, FM_State *state)
+void FM_Parameters_Initialise(FM *fm, const FM_Configuration *configuration, const FM_Constant *constant, FM_State *state)
 {
 	cc_u16f i;
 
+	fm->configuration = configuration;
 	fm->constant = constant;
 	fm->state = state;
 
@@ -311,36 +312,39 @@ void FM_Update(const FM *fm, cc_s16l *sample_buffer, size_t total_frames)
 
 	for (i = 0; i < CC_COUNT_OF(fm->state->channels); ++i)
 	{
-		FM_ChannelMetadata *channel_metadata = &fm->state->channels[i];
-		const FM_Channel* const channel = &fm->channels[i];
-
-		/* These will be used in later boolean algebra, to avoid branches. */
-		const cc_bool left_enabled = channel_metadata->pan_left;
-		const cc_bool right_enabled = channel_metadata->pan_right;
-		const cc_bool fm_enabled = channel_metadata != &fm->state->channels[5] || !fm->state->dac_enabled;
-
-		const cc_s16f dac_sample = !fm_enabled ? fm->state->dac_sample : 0;
-
-		cc_s16l *sample_buffer_pointer;
-
-		sample_buffer_pointer = sample_buffer;
-
-		while (sample_buffer_pointer != sample_buffer_end)
+		if (!fm->configuration->channel_disabled[i])
 		{
-			/* The FM sample is 14-bit, so convert it to 16-bit and then divide it so that it
-			   can be mixed with the other five FM channels and the PSG without clipping. */
-			const cc_s16f fm_sample = FM_Channel_GetSample(channel) * 4 / FM_VOLUME_DIVIDER;
+			FM_ChannelMetadata *channel_metadata = &fm->state->channels[i];
+			const FM_Channel* const channel = &fm->channels[i];
 
-			/* Do some boolean algebra to select the FM sample or the DAC sample. */
-			const cc_s16f sample = (fm_enabled ? fm_sample : 0) | dac_sample;
+			/* These will be used in later boolean algebra, to avoid branches. */
+			const cc_bool left_enabled = channel_metadata->pan_left;
+			const cc_bool right_enabled = channel_metadata->pan_right;
+			const cc_bool fm_enabled = channel_metadata != &fm->state->channels[5] || !fm->state->dac_enabled;
 
-			/* Apply panning. */
-			const cc_s16f left_sample = left_enabled ? sample : 0;
-			const cc_s16f right_sample = right_enabled ? sample : 0;
+			const cc_s16f dac_sample = !fm_enabled ? fm->state->dac_sample : 0;
 
-			/* Output sample. */
-			*sample_buffer_pointer++ += left_sample;
-			*sample_buffer_pointer++ += right_sample;
+			cc_s16l *sample_buffer_pointer;
+
+			sample_buffer_pointer = sample_buffer;
+
+			while (sample_buffer_pointer != sample_buffer_end)
+			{
+				/* The FM sample is 14-bit, so convert it to 16-bit and then divide it so that it
+				   can be mixed with the other five FM channels and the PSG without clipping. */
+				const cc_s16f fm_sample = FM_Channel_GetSample(channel) * 4 / FM_VOLUME_DIVIDER;
+
+				/* Do some boolean algebra to select the FM sample or the DAC sample. */
+				const cc_s16f sample = (fm_enabled ? fm_sample : 0) | dac_sample;
+
+				/* Apply panning. */
+				const cc_s16f left_sample = left_enabled ? sample : 0;
+				const cc_s16f right_sample = right_enabled ? sample : 0;
+
+				/* Output sample. */
+				*sample_buffer_pointer++ += left_sample;
+				*sample_buffer_pointer++ += right_sample;
+			}
 		}
 	}
 }

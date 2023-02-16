@@ -13,7 +13,8 @@
    than dividing by 7, so that was opted for instead. */
 #define FM_VOLUME_DIVIDER 8
 
-#define FM_PARAMETERS_INITIALISE(CONSTANT, STATE) { \
+#define FM_PARAMETERS_INITIALISE(CONFIGURATION, CONSTANT, STATE) { \
+		(CONFIGURATION), \
 		(CONSTANT), \
 		(STATE), \
 \
@@ -58,6 +59,11 @@ typedef struct FM_ChannelMetadata
 	cc_bool pan_right;
 } FM_ChannelMetadata;
 
+typedef struct FM_Configuration
+{
+	cc_bool channel_disabled[6];
+} FM_Configuration;
+
 typedef struct FM_Constant
 {
 	FM_Channel_Constant channels;
@@ -74,6 +80,7 @@ typedef struct FM_State
 
 typedef struct FM
 {
+	const FM_Configuration *configuration;
 	const FM_Constant *constant;
 	FM_State *state;
 
@@ -82,7 +89,7 @@ typedef struct FM
 
 void FM_Constant_Initialise(FM_Constant *constant);
 void FM_State_Initialise(FM_State *state);
-void FM_Parameters_Initialise(FM *fm, const FM_Constant *constant, FM_State *state);
+void FM_Parameters_Initialise(FM *fm, const FM_Configuration *configuration, const FM_Constant *constant, FM_State *state);
 
 void FM_DoAddress(const FM *fm, cc_u16f port, cc_u16f address);
 void FM_DoData(const FM *fm, cc_u16f data);

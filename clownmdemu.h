@@ -37,11 +37,13 @@ extern "C" {
 		}, \
 \
 		FM_PARAMETERS_INITIALISE( \
+			&(CONFIGURATION)->fm, \
 			&(CONSTANT)->fm, \
 			&(STATE)->fm \
 		), \
 \
 		{ \
+			&(CONFIGURATION)->psg, \
 			&(CONSTANT)->psg, \
 			&(STATE)->psg \
 		} \
@@ -109,6 +111,8 @@ typedef struct ClownMDEmu_Configuration
 	} general;
 
 	VDP_Configuration vdp;
+	FM_Configuration fm;
+	PSG_Configuration psg;
 } ClownMDEmu_Configuration;
 
 typedef struct ClownMDEmu_Constant
