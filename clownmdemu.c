@@ -116,32 +116,28 @@ static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool 
 		if (do_low_byte)
 			value |= frontend_callbacks->cartridge_read(frontend_callbacks->user_data, address + 1) << 0;
 	}
-	else if (address >= 0xA00000 && address <= 0xA01FFF)
+	else if ((address >= 0xA00000 && address <= 0xA01FFF) || address == 0xA04000 || address == 0xA04002)
 	{
-		/* Z80 RAM */
-		if (do_high_byte && do_low_byte)
+		/* Z80 RAM and YM2612 */
+		if (!clownmdemu->state->m68k_has_z80_bus)
 		{
-			PrintError("68k attempted to perform word-sized read of Z80 memory at 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->state->m68k.program_counter);
+			PrintError("68k attempted to read Z80 memory/YM2612 ports without Z80 bus at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+		}
+		else if (clownmdemu->state->z80_reset)
+		{
+			PrintError("68k attempted to read Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+		}
+		else if (do_high_byte && do_low_byte)
+		{
+			PrintError("68k attempted to perform word-sized read of Z80 memory/YM2612 ports at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 		}
 		else
 		{
-			address -= 0xA00000;
-
 			if (do_high_byte)
-				value |= clownmdemu->state->z80_ram[address + 0] << 8;
-			else if (do_low_byte)
-				value |= clownmdemu->state->z80_ram[address + 1] << 0;
+				value = Z80ReadCallback(user_data, (address & 0xFFFF) + 0) << 8;
+			else /*if (do_low_byte)*/
+				value = Z80ReadCallback(user_data, (address & 0xFFFF) + 1) << 0;
 		}
-	}
-	else if (address == 0xA04000)
-	{
-		/* YM2612 A0 + D0 */
-		/* TODO */
-	}
-	else if (address == 0xA04002)
-	{
-		/* YM2612 A1 + D1 */
-		/* TODO */
 	}
 	else if (address >= 0xA10000 && address <= 0xA1001F)
 	{
@@ -281,16 +277,16 @@ static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do
 		/* TODO - This is temporary, just to catch possible bugs in the 68k emulator */
 		PrintError("Attempted to write to ROM address 0x%" CC_PRIXFAST32, address);
 	}
-	else if ((address >= 0xA00000 && address <= 0xA01FFF) || (address == 0xA04000 || address == 0xA04002))
+	else if ((address >= 0xA00000 && address <= 0xA01FFF) || address == 0xA04000 || address == 0xA04002)
 	{
 		/* Z80 RAM and YM2612 */
 		if (!clownmdemu->state->m68k_has_z80_bus)
 		{
-			PrintError("68k attempted to access Z80 memory/YM2612 ports without Z80 bus at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+			PrintError("68k attempted to write Z80 memory/YM2612 ports without Z80 bus at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 		}
 		else if (clownmdemu->state->z80_reset)
 		{
-			PrintError("68k attempted to access Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+			PrintError("68k attempted to write Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 		}
 		else if (do_high_byte && do_low_byte)
 		{
@@ -299,9 +295,9 @@ static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do
 		else
 		{
 			if (do_high_byte)
-				Z80WriteCallback(user_data, (address & 0xFFFE) + 0, high_byte);
+				Z80WriteCallback(user_data, (address & 0xFFFF) + 0, high_byte);
 			else /*if (do_low_byte)*/
-				Z80WriteCallback(user_data, (address & 0xFFFE) + 1, low_byte);
+				Z80WriteCallback(user_data, (address & 0xFFFF) + 1, low_byte);
 		}
 	}
 	else if (address >= 0xA10000 && address <= 0xA1001F)
