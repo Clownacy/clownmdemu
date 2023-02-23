@@ -29,23 +29,27 @@ typedef struct CPUCallbackUserData
 	cc_u32f psg_previous_cycle;
 } CPUCallbackUserData;
 
-static void GenerateFMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames)
+static void FMCallbackWrapper(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames)
 {
-	FM_Update(&clownmdemu->fm, sample_buffer, total_frames);
+	FM_OutputSamples(&clownmdemu->fm, sample_buffer, total_frames);
 }
 
-static void GenerateAndPlayFMSamples(CPUCallbackUserData *m68k_callback_user_data)
+static void GenerateFMAudio(const void *user_data, cc_u32f total_frames)
 {
-	const cc_u32f fm_current_cycle = m68k_callback_user_data->current_cycle / (CLOWNMDEMU_M68K_CLOCK_DIVIDER * CLOWNMDEMU_FM_SAMPLE_RATE_DIVIDER);
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	const size_t samples_to_generate = fm_current_cycle - m68k_callback_user_data->fm_previous_cycle;
+	callback_user_data->data_and_callbacks.frontend_callbacks->fm_audio_to_be_generated(callback_user_data->data_and_callbacks.frontend_callbacks->user_data, total_frames, FMCallbackWrapper);
+}
 
-	if (samples_to_generate != 0)
-	{
-		m68k_callback_user_data->data_and_callbacks.frontend_callbacks->fm_audio_to_be_generated(m68k_callback_user_data->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate, GenerateFMAudio);
+static cc_u8f GenerateAndPlayFMSamples(CPUCallbackUserData *m68k_callback_user_data)
+{
+	const cc_u32f fm_current_cycle = m68k_callback_user_data->current_cycle / CLOWNMDEMU_M68K_CLOCK_DIVIDER;
 
-		m68k_callback_user_data->fm_previous_cycle = fm_current_cycle;
-	}
+	const cc_u32f cycles_to_do = fm_current_cycle - m68k_callback_user_data->fm_previous_cycle;
+
+	m68k_callback_user_data->fm_previous_cycle = fm_current_cycle;
+
+	return FM_Update(&m68k_callback_user_data->data_and_callbacks.data->fm, cycles_to_do, GenerateFMAudio, m68k_callback_user_data);
 }
 
 static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples)
@@ -419,7 +423,8 @@ static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address)
 	else if (address >= 0x4000 && address <= 0x4003)
 	{
 		/* YM2612 */
-		/* TODO */
+		/* TODO: Model 1 Mega Drives only do this for 0x4000 and 0x4002. */
+		value = GenerateAndPlayFMSamples(callback_user_data);
 	}
 	else if (address == 0x6000 || address == 0x6001)
 	{

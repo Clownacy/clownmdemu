@@ -13,6 +13,8 @@
    than dividing by 7, so that was opted for instead. */
 #define FM_VOLUME_DIVIDER 8
 
+#define FM_SAMPLE_RATE_DIVIDER (6 * 6 * 4)
+
 #define FM_PARAMETERS_INITIALISE(CONFIGURATION, CONSTANT, STATE) { \
 		(CONFIGURATION), \
 		(CONSTANT), \
@@ -69,6 +71,13 @@ typedef struct FM_Constant
 	FM_Channel_Constant channels;
 } FM_Constant;
 
+typedef struct FM_Timer
+{
+	cc_u32f value;
+	cc_u32f counter;
+	cc_bool enabled;
+} FM_Timer;
+
 typedef struct FM_State
 {
 	FM_ChannelMetadata channels[6];
@@ -76,6 +85,10 @@ typedef struct FM_State
 	cc_u16f address;
 	cc_s16f dac_sample;
 	cc_bool dac_enabled;
+	cc_u16f raw_timer_a_value;
+	FM_Timer timers[2];
+	cc_u8f leftover_cycles;
+	cc_u8f status;
 } FM_State;
 
 typedef struct FM
@@ -94,8 +107,9 @@ void FM_Parameters_Initialise(FM *fm, const FM_Configuration *configuration, con
 void FM_DoAddress(const FM *fm, cc_u16f port, cc_u16f address);
 void FM_DoData(const FM *fm, cc_u16f data);
 
+void FM_OutputSamples(const FM *fm, cc_s16l *sample_buffer, cc_u32f total_frames);
 /* Updates the FM's internal state and outputs samples. */
 /* The samples are stereo and in signed 16-bit PCM format. */
-void FM_Update(const FM *fm, cc_s16l *sample_buffer, size_t total_frames);
+cc_u8f FM_Update(const FM *fm, cc_u32f cycles_to_do, void (*fm_audio_to_be_generated)(const void *user_data, cc_u32f total_frames), const void *user_data);
 
 #endif /* FM_H */

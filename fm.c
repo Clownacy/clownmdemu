@@ -123,6 +123,7 @@ void FM_Constant_Initialise(FM_Constant *constant)
 void FM_State_Initialise(FM_State *state)
 {
 	FM_ChannelMetadata *channel;
+	cc_u8f i;
 
 	for (channel = &state->channels[0]; channel < &state->channels[CC_COUNT_OF(state->channels)]; ++channel)
 	{
@@ -140,6 +141,18 @@ void FM_State_Initialise(FM_State *state)
 
 	state->dac_sample = 0;
 	state->dac_enabled = cc_false;
+
+	state->leftover_cycles = 0;
+	state->raw_timer_a_value = 0;
+
+	for (i = 0; i < 2; ++i)
+	{
+		state->timers[i].value = 0;
+		state->timers[i].counter = 0;
+		state->timers[i].enabled = cc_false;
+	}
+
+	state->status = 0;
 }
 
 void FM_Parameters_Initialise(FM *fm, const FM_Configuration *configuration, const FM_Constant *constant, FM_State *state)
@@ -160,7 +173,7 @@ void FM_DoAddress(const FM *fm, cc_u16f port, cc_u16f address)
 	fm->state->address = address;
 }
 
-void FM_DoData(const FM *fm, cc_u16f data)
+void FM_DoData(const FM *fm, cc_u16f data) /* TODO: This should be cc_u8f. */
 {
 	if (fm->state->address < 0x30)
 	{
@@ -173,11 +186,45 @@ void FM_DoData(const FM *fm, cc_u16f data)
 					break;
 
 				case 0x22:
-				case 0x24:
-				case 0x25:
-				case 0x26:
-				case 0x27:
+					/* TODO: LFO. */
 					break;
+
+				case 0x24:
+					/* Oddly, the YM2608 manual describes these timers being twice as fast as they are here. */
+					fm->state->raw_timer_a_value &= 3;
+					fm->state->raw_timer_a_value |= data << 2;
+					fm->state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - fm->state->raw_timer_a_value);
+					break;
+
+				case 0x25:
+					fm->state->raw_timer_a_value &= ~3;
+					fm->state->raw_timer_a_value |= data & 3;
+					fm->state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - fm->state->raw_timer_a_value);
+					break;
+
+				case 0x26:
+					fm->state->timers[1].value = FM_SAMPLE_RATE_DIVIDER * 16 * (0x100 - data);
+					break;
+
+				case 0x27:
+				{
+					/* TODO: FM3 special mode. */
+
+					cc_u8f i;
+
+					for (i = 0; i < 2; ++i)
+					{
+						if ((data & (1 << (0 + i))) != 0)
+							fm->state->timers[i].counter = fm->state->timers[i].value;
+
+						fm->state->timers[i].enabled = (data & (1 << (2 + i))) != 0;
+
+						if ((data & (1 << (4 + i))) != 0)
+							fm->state->status &= ~(1 << i);
+					}
+
+					break;
+				}
 
 				case 0x28:
 				{
@@ -304,7 +351,7 @@ void FM_DoData(const FM *fm, cc_u16f data)
 	}
 }
 
-void FM_Update(const FM *fm, cc_s16l *sample_buffer, size_t total_frames)
+void FM_OutputSamples(const FM *fm, cc_s16l *sample_buffer, cc_u32f total_frames)
 {
 	const cc_s16l* const sample_buffer_end = &sample_buffer[total_frames * 2];
 
@@ -347,4 +394,27 @@ void FM_Update(const FM *fm, cc_s16l *sample_buffer, size_t total_frames)
 			}
 		}
 	}
+}
+
+cc_u8f FM_Update(const FM *fm, cc_u32f cycles_to_do, void (*fm_audio_to_be_generated)(const void *user_data, cc_u32f total_frames), const void *user_data)
+{
+	cc_u8f i;
+
+	const cc_u32f total_frames = (fm->state->leftover_cycles + cycles_to_do) / FM_SAMPLE_RATE_DIVIDER;
+
+	fm->state->leftover_cycles = (fm->state->leftover_cycles + cycles_to_do) % FM_SAMPLE_RATE_DIVIDER;
+
+	if (total_frames != 0)
+		fm_audio_to_be_generated(user_data, total_frames);
+
+	for (i = 0; i < 2; ++i)
+	{
+		if (fm->state->timers[i].counter != 0)
+		{
+			fm->state->timers[i].counter -= CC_MIN(fm->state->timers[i].counter, cycles_to_do);
+			fm->state->status |= fm->state->timers[i].counter == 0 && fm->state->timers[i].enabled ? 1 << i : 0;
+		}
+	}
+
+	return fm->state->status;
 }
