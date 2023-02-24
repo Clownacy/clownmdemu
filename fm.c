@@ -193,7 +193,8 @@ void FM_DoData(const FM *fm, cc_u8f data)
 					/* Oddly, the YM2608 manual describes these timers being twice as fast as they are here. */
 					fm->state->raw_timer_a_value &= 3;
 					fm->state->raw_timer_a_value |= data << 2;
-					/* TODO: According to railgun.works, this doesn't happen here: 0x25 must be done to  */
+					/* TODO: According to http://md.railgun.works/index.php?title=YM2612, this doesn't happen
+					   here: address 0x25 must be written to in order to update the timer proper. */
 					fm->state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - fm->state->raw_timer_a_value);
 					break;
 
