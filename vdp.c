@@ -723,6 +723,8 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 
 			case 3:
 				/* PATTERN NAME TABLE BASE ADDRESS FOR WINDOW */
+				/* TODO: The lowest bit is invalid is H40 mode according to the 'Genesis Software Manual'. */
+				/* http://techdocs.exodusemulator.com/Console/SegaMegaDrive/Documentation.html#mega-drive-documentation */
 				vdp->state->window_address = (data & 0x3E) << (10 - 1);
 				break;
 
