@@ -315,16 +315,8 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 			if (!vdp->configuration->planes_disabled[i])
 			{
 				const cc_bool rendering_window_plane = i == 0 && scanline < vdp->state->window_vertical_boundary != vdp->state->window_aligned_bottom;
-				const plane_address = i == 0 ? (rendering_window_plane ? vdp->state->window_address : vdp->state->plane_a_address) : vdp->state->plane_b_address;
 
-				/* The extra two tiles on the left of the scanline */
-				const cc_u16f EXTRA_TILES = 2;
-
-				cc_u16f j;
-				cc_u8l *metapixels_pointer;
 				cc_u16f hscroll;
-				cc_u16f hscroll_scroll_offset;
-				cc_u16f plane_x_offset;
 
 				/* Get the horizontal scroll value */
 				if (rendering_window_plane)
@@ -353,65 +345,62 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 					}
 				}
 
-				/* Get the value used to offset the writes to the metapixel buffer */
-				hscroll_scroll_offset = hscroll % 16;
-
-				/* Get the value used to offset the reads from the plane map */
-				plane_x_offset = 0 - EXTRA_TILES - ((hscroll - hscroll_scroll_offset) / 8);
-
-				/* Obtain the pointer used to write metapixels to the buffer */
-				metapixels_pointer = plane_metapixels + hscroll_scroll_offset;
-
-				/* Render tiles */
-				for (j = 0; j < CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, 8) + EXTRA_TILES; ++j)
 				{
-					cc_u16f k;
+					cc_u16f j;
 
-					cc_u16f vscroll;
+					const plane_address = i == 0 ? (rendering_window_plane ? vdp->state->window_address : vdp->state->plane_a_address) : vdp->state->plane_b_address;
 
-					cc_u16f pixel_y_in_plane;
-					cc_u16f tile_x;
-					cc_u16f tile_y;
-					cc_u16f pixel_y_in_tile;
+					/* The extra two tiles on the left of the scanline */
+					const cc_u16f EXTRA_TILES = 2;
 
-					cc_u16f tile_metadata;
-					cc_bool tile_priority;
-					cc_u16f tile_palette_line;
-					cc_bool tile_y_flip;
-					cc_bool tile_x_flip;
-					cc_u16f tile_index;
+					/* Get the value used to offset the writes to the metapixel buffer */
+					const cc_u16f hscroll_scroll_offset = hscroll % 16;
 
-					/* Get the vertical scroll value */
-					if (rendering_window_plane)
+					/* Get the value used to offset the reads from the plane map */
+					const cc_u16f plane_x_offset = 0 - EXTRA_TILES - ((hscroll - hscroll_scroll_offset) / 8);
+
+					/* Obtain the pointer used to write metapixels to the buffer */
+					cc_u8l *metapixels_pointer = plane_metapixels + hscroll_scroll_offset;
+
+					/* Render tiles */
+					for (j = 0; j < CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, 8) + EXTRA_TILES; ++j)
 					{
-						vscroll = 0;
-					}
-					else
-					{
-						switch (vdp->state->vscroll_mode)
+						cc_u16f vscroll;
+
+						/* Get the vertical scroll value */
+						if (rendering_window_plane)
 						{
-							default:
-								/* Should never happen. */
-								assert(0);
-								/* Fallthrough */
-							case VDP_VSCROLL_MODE_FULL:
-								vscroll = vdp->state->vsram[i];
-								break;
+							vscroll = 0;
+						}
+						else
+						{
+							switch (vdp->state->vscroll_mode)
+							{
+								default:
+									/* Should never happen. */
+									assert(0);
+									/* Fallthrough */
+								case VDP_VSCROLL_MODE_FULL:
+									vscroll = vdp->state->vsram[i];
+									break;
 
-							case VDP_VSCROLL_MODE_2CELL:
-								vscroll = vdp->state->vsram[(((0 - EXTRA_TILES + j) / 2) * 2 + i) % CC_COUNT_OF(vdp->state->vsram)];
-								break;
+								case VDP_VSCROLL_MODE_2CELL:
+									vscroll = vdp->state->vsram[(((0 - EXTRA_TILES + j) / 2) * 2 + i) % CC_COUNT_OF(vdp->state->vsram)];
+									break;
+							}
+						}
+
+						{
+							/* Get the Y coordinate of the pixel in the plane */
+							const cc_u16f pixel_y_in_plane = vscroll + scanline;
+
+							/* Get the coordinates of the tile in the plane */
+							const cc_u16f tile_x = (plane_x_offset + j) & vdp->state->plane_width_bitmask;
+							const cc_u16f tile_y = (pixel_y_in_plane >> tile_height_power) & vdp->state->plane_height_bitmask;
+
+							RenderTile(vdp, pixel_y_in_plane, tile_x, tile_y, plane_address, tile_height_mask, tile_size, &metapixels_pointer);
 						}
 					}
-
-					/* Get the Y coordinate of the pixel in the plane */
-					pixel_y_in_plane = vscroll + scanline;
-
-					/* Get the coordinates of the tile in the plane */
-					tile_x = (plane_x_offset + j) & vdp->state->plane_width_bitmask;
-					tile_y = (pixel_y_in_plane >> tile_height_power) & vdp->state->plane_height_bitmask;
-
-					RenderTile(vdp, pixel_y_in_plane, tile_x, tile_y, plane_address, tile_height_mask, tile_size, &metapixels_pointer);
 				}
 			}
 		}
@@ -420,11 +409,15 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		 * Draw horizontal part of window plane *
 		 * ************************************ */
 		{
+			/* TODO: Emulate the bug where the tiles to the right of the window plane distort
+			   if Plane A is scrolled horizontally by an amount that is not a multiple of 16. */
 			const cc_u16f start = vdp->state->window_aligned_right ? vdp->state->window_horizontal_boundary : 0;
 			const cc_u16f end = vdp->state->window_aligned_right ? CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, 8) : vdp->state->window_horizontal_boundary;
 
+			/* Obtain the pointer used to write metapixels to the buffer */
 			cc_u8l *metapixels_pointer = &plane_metapixels[16 + start * 8];
 
+			/* Render tiles */
 			for (i = start; i < end; ++i)
 				RenderTile(vdp, scanline, i, scanline >> tile_height_power, vdp->state->window_address, tile_height_mask, tile_size, &metapixels_pointer);
 		}
