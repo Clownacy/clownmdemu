@@ -280,6 +280,9 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		{
 			if (!vdp->configuration->planes_disabled[i])
 			{
+				const cc_bool rendering_window_plane = scanline < vdp->state->window_vertical_boundary != vdp->state->window_aligned_bottom;
+				const plane_address = i == 0 ? (rendering_window_plane ? vdp->state->window_address : vdp->state->plane_a_address) : vdp->state->plane_b_address;
+
 				/* The extra two tiles on the left of the scanline */
 				const cc_u16f EXTRA_TILES = 2;
 
@@ -290,23 +293,30 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 				cc_u16f plane_x_offset;
 
 				/* Get the horizontal scroll value */
-				switch (vdp->state->hscroll_mode)
+				if (rendering_window_plane)
 				{
-					default:
-						/* Should never happen. */
-						assert(0);
-						/* Fallthrough */
-					case VDP_HSCROLL_MODE_FULL:
-						hscroll = vdp->state->vram[vdp->state->hscroll_address + i];
-						break;
+					hscroll = 0;
+				}
+				else
+				{
+					switch (vdp->state->hscroll_mode)
+					{
+						default:
+							/* Should never happen. */
+							assert(0);
+							/* Fallthrough */
+						case VDP_HSCROLL_MODE_FULL:
+							hscroll = vdp->state->vram[vdp->state->hscroll_address + i];
+							break;
 
-					case VDP_HSCROLL_MODE_1CELL:
-						hscroll = vdp->state->vram[vdp->state->hscroll_address + (scanline >> tile_height_power) * 2 + i];
-						break;
+						case VDP_HSCROLL_MODE_1CELL:
+							hscroll = vdp->state->vram[vdp->state->hscroll_address + (scanline >> tile_height_power) * 2 + i];
+							break;
 
-					case VDP_HSCROLL_MODE_1LINE:
-						hscroll = vdp->state->vram[vdp->state->hscroll_address + (scanline >> vdp->state->double_resolution_enabled) * 2 + i];
-						break;
+						case VDP_HSCROLL_MODE_1LINE:
+							hscroll = vdp->state->vram[vdp->state->hscroll_address + (scanline >> vdp->state->double_resolution_enabled) * 2 + i];
+							break;
+					}
 				}
 
 				/* Get the value used to offset the writes to the metapixel buffer */
@@ -338,19 +348,26 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 					cc_u16f tile_index;
 
 					/* Get the vertical scroll value */
-					switch (vdp->state->vscroll_mode)
+					if (rendering_window_plane)
 					{
-						default:
-							/* Should never happen. */
-							assert(0);
-							/* Fallthrough */
-						case VDP_VSCROLL_MODE_FULL:
-							vscroll = vdp->state->vsram[i];
-							break;
+						vscroll = 0;
+					}
+					else
+					{
+						switch (vdp->state->vscroll_mode)
+						{
+							default:
+								/* Should never happen. */
+								assert(0);
+								/* Fallthrough */
+							case VDP_VSCROLL_MODE_FULL:
+								vscroll = vdp->state->vsram[i];
+								break;
 
-						case VDP_VSCROLL_MODE_2CELL:
-							vscroll = vdp->state->vsram[(((0 - EXTRA_TILES + j) / 2) * 2 + i) % CC_COUNT_OF(vdp->state->vsram)];
-							break;
+							case VDP_VSCROLL_MODE_2CELL:
+								vscroll = vdp->state->vsram[(((0 - EXTRA_TILES + j) / 2) * 2 + i) % CC_COUNT_OF(vdp->state->vsram)];
+								break;
+						}
 					}
 
 					/* Get the Y coordinate of the pixel in the plane */
@@ -361,7 +378,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 					tile_y = (pixel_y_in_plane >> tile_height_power) & vdp->state->plane_height_bitmask;
 
 					/* Obtain and decode tile metadata */
-					tile_metadata = vdp->state->vram[(i ? vdp->state->plane_b_address : vdp->state->plane_a_address) + tile_y * vdp->state->plane_width + tile_x];
+					tile_metadata = vdp->state->vram[plane_address + tile_y * vdp->state->plane_width + tile_x];
 					tile_priority = (tile_metadata & 0x8000) != 0;
 					tile_palette_line = (tile_metadata >> 13) & 3;
 					tile_y_flip = (tile_metadata & 0x1000) != 0;
@@ -894,12 +911,14 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 
 			case 17:
 				/* WINDOW H POSITION */
-				/* TODO */
+				vdp->state->window_aligned_right = (data & 0x80) != 0;
+				vdp->state->window_horizontal_boundary = (data & 0x1F) * 16;
 				break;
 
 			case 18:
 				/* WINDOW V POSITION */
-				/* TODO */
+				vdp->state->window_aligned_bottom = (data & 0x80) != 0;
+				vdp->state->window_vertical_boundary = (data & 0x1F) * 8;
 				break;
 
 			case 19:

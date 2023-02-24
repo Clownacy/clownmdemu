@@ -95,6 +95,11 @@ typedef struct VDP_State
 	cc_u16l sprite_table_address;
 	cc_u16l hscroll_address;
 
+	cc_bool window_aligned_right;
+	cc_bool window_aligned_bottom;
+	cc_u16l window_horizontal_boundary;
+	cc_u16l window_vertical_boundary;
+
 	cc_u16l plane_width;
 	cc_u16l plane_height;
 	cc_u16l plane_width_bitmask;
