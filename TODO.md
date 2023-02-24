@@ -4,6 +4,7 @@
   - Condition codes
   - Interrupts
   - Exceptions (very incomplete and broken)
+  - User mode
 - Z80
   - Most instructions
   - Flags
@@ -27,6 +28,7 @@
       - Feedback
       - Algorithms
   - DAC channel
+  - Timer A and Timer B
 - PSG
   - 3 tone channels
   - Noise channel
@@ -36,13 +38,11 @@
   - 3-button Mega Drive controller
   - Two joypads
 
-
 # Unimplemented
 - 68k
   - Instruction cycle durations
-  - User mode
   - Exceptions
-  - The ABCD, ADDX, NBCD, NEGX, RESET, SBCD, SUBX, and STOP instructions
+  - The RESET and STOP instructions
 - VDP
   - Slot-based rendering
   - Interlacing in Interlace Mode 1 and Interlace Mode 2
@@ -53,7 +53,7 @@
   - Mode 4
   - FIFO, and related 68k delays
 - Z80
-  - The DAA, HALT, OUT, IN, RETN, RETI, IM, RRD, RLD, CPI, CPD, CPIR, CPDR,
+  - The DAA, HALT, OUT, IN, IM, CPI, CPD, CPIR, CPDR,
     INI, IND, INIR, INDR, OTDI, OUTD, OTIR, and OTDR instructions.
   - Interrupt modes 0 and 2
   - Proper interrupt timings
@@ -61,7 +61,6 @@
   - Envelope Generator
     - SSG-EG
   - Low-Frequency Oscillator
-  - Timer A and Timer B
   - Per-operator frequencies
   - Debug registers
   - Busy flag
