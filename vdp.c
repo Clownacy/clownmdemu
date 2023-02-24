@@ -280,7 +280,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		{
 			if (!vdp->configuration->planes_disabled[i])
 			{
-				const cc_bool rendering_window_plane = scanline < vdp->state->window_vertical_boundary != vdp->state->window_aligned_bottom;
+				const cc_bool rendering_window_plane = i == 0 && scanline < vdp->state->window_vertical_boundary != vdp->state->window_aligned_bottom;
 				const plane_address = i == 0 ? (rendering_window_plane ? vdp->state->window_address : vdp->state->plane_a_address) : vdp->state->plane_b_address;
 
 				/* The extra two tiles on the left of the scanline */
