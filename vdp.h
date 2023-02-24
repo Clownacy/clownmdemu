@@ -97,8 +97,8 @@ typedef struct VDP_State
 
 	cc_bool window_aligned_right;
 	cc_bool window_aligned_bottom;
-	cc_u16l window_horizontal_boundary;
-	cc_u16l window_vertical_boundary;
+	cc_u8l window_horizontal_boundary;
+	cc_u8l window_vertical_boundary;
 
 	cc_u16l plane_width;
 	cc_u16l plane_height;

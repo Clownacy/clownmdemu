@@ -229,6 +229,40 @@ void VDP_State_Initialise(VDP_State *state)
 	state->sprite_row_cache.needs_updating = cc_true;
 }
 
+static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f tile_x, const cc_u16f tile_y, const cc_u16f plane_address, const cc_u16f tile_height_mask, const cc_u16f tile_size, cc_u8l** const metapixels_pointer)
+{
+	cc_u16f k;
+
+	const cc_u16f tile_metadata = vdp->state->vram[plane_address + tile_y * vdp->state->plane_width + tile_x];
+	const cc_bool tile_priority = (tile_metadata & 0x8000) != 0;
+	const cc_u16f tile_palette_line = (tile_metadata >> 13) & 3;
+	const cc_bool tile_y_flip = (tile_metadata & 0x1000) != 0;
+	const cc_bool tile_x_flip = (tile_metadata & 0x0800) != 0;
+	const cc_u16f tile_index = tile_metadata & 0x7FF;
+
+	/* Get the Y coordinate of the pixel in the tile */
+	const cc_u16f pixel_y_in_tile = (pixel_y_in_plane & tile_height_mask) ^ (tile_y_flip ? tile_height_mask : 0);
+
+	/* TODO - Unroll this loop? */
+	for (k = 0; k < 8; ++k)
+	{
+		/* Get the X coordinate of the pixel in the tile */
+		const cc_u16f pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
+
+		/* Get raw tile data that contains the desired metapixel */
+		const cc_u16f tile_data = vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+
+		/* Obtain the index into the palette line */
+		const cc_u16f palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
+
+		/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
+		const cc_u16f metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
+
+		**metapixels_pointer = vdp->constant->blit_lookup[**metapixels_pointer][metapixel];
+		++*metapixels_pointer;
+	}
+}
+
 void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_rendered_callback)(const void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height), const void *scanline_rendered_callback_user_data)
 {
 	cc_u16f i;
@@ -276,7 +310,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		/* *********** */
 		/* Draw planes */
 		/* *********** */
-		for (i = 2 ; i-- > 0; )
+		for (i = 2; i-- > 0; )
 		{
 			if (!vdp->configuration->planes_disabled[i])
 			{
@@ -377,37 +411,22 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 					tile_x = (plane_x_offset + j) & vdp->state->plane_width_bitmask;
 					tile_y = (pixel_y_in_plane >> tile_height_power) & vdp->state->plane_height_bitmask;
 
-					/* Obtain and decode tile metadata */
-					tile_metadata = vdp->state->vram[plane_address + tile_y * vdp->state->plane_width + tile_x];
-					tile_priority = (tile_metadata & 0x8000) != 0;
-					tile_palette_line = (tile_metadata >> 13) & 3;
-					tile_y_flip = (tile_metadata & 0x1000) != 0;
-					tile_x_flip = (tile_metadata & 0x0800) != 0;
-					tile_index = tile_metadata & 0x7FF;
-
-					/* Get the Y coordinate of the pixel in the tile */
-					pixel_y_in_tile = (pixel_y_in_plane & tile_height_mask) ^ (tile_y_flip ? tile_height_mask : 0);
-
-					/* TODO - Unroll this loop? */
-					for (k = 0; k < 8; ++k)
-					{
-						/* Get the X coordinate of the pixel in the tile */
-						const cc_u16f pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
-
-						/* Get raw tile data that contains the desired metapixel */
-						const cc_u16f tile_data = vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
-
-						/* Obtain the index into the palette line */
-						const cc_u16f palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
-
-						/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
-						const cc_u16f metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
-
-						*metapixels_pointer = vdp->constant->blit_lookup[*metapixels_pointer][metapixel];
-						++metapixels_pointer;
-					}
+					RenderTile(vdp, pixel_y_in_plane, tile_x, tile_y, plane_address, tile_height_mask, tile_size, &metapixels_pointer);
 				}
 			}
+		}
+
+		/* ************************************ *
+		 * Draw horizontal part of window plane *
+		 * ************************************ */
+		{
+			const cc_u16f start = vdp->state->window_aligned_right ? vdp->state->window_horizontal_boundary : 0;
+			const cc_u16f end = vdp->state->window_aligned_right ? CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, 8) : vdp->state->window_horizontal_boundary;
+
+			cc_u8l *metapixels_pointer = &plane_metapixels[16 + start * 8];
+
+			for (i = start; i < end; ++i)
+				RenderTile(vdp, scanline, i, scanline >> tile_height_power, vdp->state->window_address, tile_height_mask, tile_size, &metapixels_pointer);
 		}
 
 		/* ************ *
@@ -912,13 +931,13 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 			case 17:
 				/* WINDOW H POSITION */
 				vdp->state->window_aligned_right = (data & 0x80) != 0;
-				vdp->state->window_horizontal_boundary = (data & 0x1F) * 16;
+				vdp->state->window_horizontal_boundary = (data & 0x1F) * 2; /* Measured in tiles. */
 				break;
 
 			case 18:
 				/* WINDOW V POSITION */
 				vdp->state->window_aligned_bottom = (data & 0x80) != 0;
-				vdp->state->window_vertical_boundary = (data & 0x1F) * 8;
+				vdp->state->window_vertical_boundary = (data & 0x1F) * 8; /* Measured in scanlines. */
 				break;
 
 			case 19:
