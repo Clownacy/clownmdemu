@@ -244,7 +244,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 	   it's fully on-screen or not. This is why VDP_MAX_SCANLINE_WIDTH is rounded up to 8.
 	   In both cases, these extra bytes exist to catch the 'overflow' values that are written
 	   outside the visible portion of the buffer. */
-	cc_u8l plane_metapixels[16 + (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 * 8 + (16 - 1)];
+	cc_u8l plane_metapixels[16 + CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, 8) * 8 + (16 - 1)];
 
 	const cc_u16f tile_height_power = vdp->state->double_resolution_enabled ? 4 : 3;
 
@@ -329,7 +329,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 				metapixels_pointer = plane_metapixels + hscroll_scroll_offset;
 
 				/* Render tiles */
-				for (j = 0; j < (VDP_MAX_SCANLINE_WIDTH + (8 - 1)) / 8 + EXTRA_TILES; ++j)
+				for (j = 0; j < CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, 8) + EXTRA_TILES; ++j)
 				{
 					cc_u16f k;
 
