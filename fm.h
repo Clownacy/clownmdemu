@@ -81,8 +81,8 @@ typedef struct FM_Timer
 typedef struct FM_State
 {
 	FM_ChannelMetadata channels[6];
-	cc_u16f port;
-	cc_u16f address;
+	cc_u8f port;
+	cc_u8f address;
 	cc_s16f dac_sample;
 	cc_bool dac_enabled;
 	cc_u16f raw_timer_a_value;
@@ -104,8 +104,8 @@ void FM_Constant_Initialise(FM_Constant *constant);
 void FM_State_Initialise(FM_State *state);
 void FM_Parameters_Initialise(FM *fm, const FM_Configuration *configuration, const FM_Constant *constant, FM_State *state);
 
-void FM_DoAddress(const FM *fm, cc_u16f port, cc_u16f address);
-void FM_DoData(const FM *fm, cc_u16f data);
+void FM_DoAddress(const FM *fm, cc_u8f port, cc_u8f address);
+void FM_DoData(const FM *fm, cc_u8f data);
 
 void FM_OutputSamples(const FM *fm, cc_s16l *sample_buffer, cc_u32f total_frames);
 /* Updates the FM's internal state and outputs samples. */

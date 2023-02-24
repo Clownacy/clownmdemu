@@ -167,13 +167,13 @@ void FM_Parameters_Initialise(FM *fm, const FM_Configuration *configuration, con
 		FM_Channel_Parameters_Initialise(&fm->channels[i], &constant->channels, &state->channels[i].state);
 }
 
-void FM_DoAddress(const FM *fm, cc_u16f port, cc_u16f address)
+void FM_DoAddress(const FM *fm, cc_u8f port, cc_u8f address)
 {
 	fm->state->port = port * 3;
 	fm->state->address = address;
 }
 
-void FM_DoData(const FM *fm, cc_u16f data) /* TODO: This should be cc_u8f. */
+void FM_DoData(const FM *fm, cc_u8f data)
 {
 	if (fm->state->address < 0x30)
 	{
@@ -193,6 +193,7 @@ void FM_DoData(const FM *fm, cc_u16f data) /* TODO: This should be cc_u8f. */
 					/* Oddly, the YM2608 manual describes these timers being twice as fast as they are here. */
 					fm->state->raw_timer_a_value &= 3;
 					fm->state->raw_timer_a_value |= data << 2;
+					/* TODO: According to railgun.works, this doesn't happen here: 0x25 must be done to  */
 					fm->state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - fm->state->raw_timer_a_value);
 					break;
 
