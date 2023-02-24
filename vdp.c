@@ -313,6 +313,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		for (i = 2; i-- > 0; )
 		{
 			/* Notably, we allow Plane A to render in the Window Plane's place when the latter is disabled. */
+			/* TODO: Test if this works properly in Interlace Mode 2. */
 			const cc_bool rendering_window_plane = i == 0 && scanline < vdp->state->window_vertical_boundary != vdp->state->window_aligned_bottom && !vdp->configuration->window_disabled;
 
 			if (rendering_window_plane || !vdp->configuration->planes_disabled[i])
