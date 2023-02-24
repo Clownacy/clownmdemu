@@ -312,10 +312,10 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		/* *********** */
 		for (i = 2; i-- > 0; )
 		{
-			if (!vdp->configuration->planes_disabled[i])
-			{
-				const cc_bool rendering_window_plane = i == 0 && scanline < vdp->state->window_vertical_boundary != vdp->state->window_aligned_bottom;
+			const cc_bool rendering_window_plane = i == 0 && scanline < vdp->state->window_vertical_boundary != vdp->state->window_aligned_bottom && !vdp->configuration->window_disabled;
 
+			if (rendering_window_plane || !vdp->configuration->planes_disabled[i])
+			{
 				cc_u16f hscroll;
 
 				/* Get the horizontal scroll value */
@@ -408,6 +408,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		/* ************************************ *
 		 * Draw horizontal part of window plane *
 		 * ************************************ */
+		if (!vdp->configuration->window_disabled)
 		{
 			/* TODO: Emulate the bug where the tiles to the right of the window plane distort
 			   if Plane A is scrolled horizontally by an amount that is not a multiple of 16. */

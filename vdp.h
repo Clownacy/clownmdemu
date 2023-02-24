@@ -15,6 +15,7 @@ extern "C" {
 typedef struct VDP_Configuration
 {
 	cc_bool sprites_disabled;
+	cc_bool window_disabled;
 	cc_bool planes_disabled[2];
 } VDP_Configuration;
 
