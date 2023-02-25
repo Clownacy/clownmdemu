@@ -1286,7 +1286,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			z80->state->f &= FLAG_MASK_ADD_SUBTRACT;
 			z80->state->f |= (z80->state->a >> (7 - FLAG_BIT_SIGN)) & FLAG_MASK_SIGN;
 			z80->state->f |= (z80->state->a == 0) << FLAG_BIT_ZERO;
-			z80->state->f |= ((original_a ^ z80->state->a) & 0x10) != 0 ? FLAG_MASK_HALF_CARRY : 0; /* Binary carry. */
+			z80->state->f |= ((original_a ^ z80->state->a) >> (4 - FLAG_BIT_HALF_CARRY)) & FLAG_MASK_HALF_CARRY; /* Binary carry. */
 			z80->state->f |= z80->constant->parity_lookup[z80->state->a];
 			z80->state->f |= (correction_factor >> (6 - FLAG_BIT_CARRY)) & FLAG_MASK_CARRY; /* Decimal carry. */
 
@@ -2122,109 +2122,295 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 		case Z80_OPCODE_LDIR:
 		{
-			cc_u16f bc;
-			cc_u16f de;
-			cc_u16f hl;
+			const cc_u16f de = ((cc_u16f)z80->state->d << 8) | z80->state->e;
+			const cc_u16f hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
 
-			bc = ((cc_u16f)z80->state->b << 8) | z80->state->c;
-			de = ((cc_u16f)z80->state->d << 8) | z80->state->e;
-			hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
+			MemoryWrite(z80, callbacks, de, MemoryRead(z80, callbacks, hl));
 
-			for (;;)
+			/* Increment 'hl'. */
+			++z80->state->l;
+			z80->state->l &= 0xFF;
+
+			if (z80->state->l == 0)
 			{
-				MemoryWrite(z80, callbacks, de, MemoryRead(z80, callbacks, hl));
-
-				++hl;
-				hl &= 0xFFFF;
-
-				++de;
-				de &= 0xFFFF;
-
-				--bc;
-				bc &= 0xFFFF;
-
-				/* An extra 2 cycles are needed here. */
-				z80->state->cycles += 2;
-
-				if (bc == 0)
-					break;
-
-				/* An extra 5 cycles are needed here. */
-				z80->state->cycles += 5;
+				++z80->state->h;
+				z80->state->h &= 0xFF;
 			}
 
-			z80->state->b = 0;
-			z80->state->c = 0;
-			z80->state->d = de >> 8;
-			z80->state->e = de & 0xFF;
-			z80->state->h = hl >> 8;
-			z80->state->l = hl & 0xFF;
+			/* Increment 'de'. */
+			++z80->state->e;
+			z80->state->e &= 0xFF;
+
+			if (z80->state->e == 0)
+			{
+				++z80->state->d;
+				z80->state->d &= 0xFF;
+			}
+
+			/* Decrement 'bc'. */
+			--z80->state->c;
+			z80->state->c &= 0xFF;
+
+			if (z80->state->c == 0xFF)
+			{
+				--z80->state->b;
+				z80->state->b &= 0xFF;
+			}
 
 			z80->state->f &= FLAG_MASK_CARRY | FLAG_MASK_ZERO | FLAG_MASK_SIGN;
+			z80->state->f |= (z80->state->b | z80->state->c) != 0 ? FLAG_MASK_PARITY_OVERFLOW : 0;
+
+			/* This instruction requires an extra 2 cycles. */
+			z80->state->cycles += 2;
+
+			if ((z80->state->f & FLAG_MASK_PARITY_OVERFLOW) != 0)
+			{
+				/* An extra 5 cycles are needed here. */
+				z80->state->cycles += 5;
+
+				z80->state->program_counter -= 2;
+			}
 
 			break;
 		}
 
 		case Z80_OPCODE_LDDR:
 		{
-			cc_u16f bc;
-			cc_u16f de;
-			cc_u16f hl;
+			const cc_u16f de = ((cc_u16f)z80->state->d << 8) | z80->state->e;
+			const cc_u16f hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
 
-			bc = ((cc_u16f)z80->state->b << 8) | z80->state->c;
-			de = ((cc_u16f)z80->state->d << 8) | z80->state->e;
-			hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
+			MemoryWrite(z80, callbacks, de, MemoryRead(z80, callbacks, hl));
 
-			for (;;)
+			/* Decrement 'hl'. */
+			--z80->state->l;
+			z80->state->l &= 0xFF;
+
+			if (z80->state->l == 0xFF)
 			{
-				MemoryWrite(z80, callbacks, de, MemoryRead(z80, callbacks, hl));
-
-				--hl;
-				hl &= 0xFFFF;
-
-				--de;
-				de &= 0xFFFF;
-
-				--bc;
-				bc &= 0xFFFF;
-
-				/* An extra 2 cycles are needed here. */
-				z80->state->cycles += 2;
-
-				if (bc == 0)
-					break;
-
-				/* An extra 5 cycles are needed here. */
-				z80->state->cycles += 5;
+				--z80->state->h;
+				z80->state->h &= 0xFF;
 			}
 
-			z80->state->b = 0;
-			z80->state->c = 0;
-			z80->state->d = de >> 8;
-			z80->state->e = de & 0xFF;
-			z80->state->h = hl >> 8;
-			z80->state->l = hl & 0xFF;
+			/* Decrement 'de'. */
+			--z80->state->e;
+			z80->state->e &= 0xFF;
+
+			if (z80->state->e == 0xFF)
+			{
+				--z80->state->d;
+				z80->state->d &= 0xFF;
+			}
+
+			/* Decrement 'bc'. */
+			--z80->state->c;
+			z80->state->c &= 0xFF;
+
+			if (z80->state->c == 0xFF)
+			{
+				--z80->state->b;
+				z80->state->b &= 0xFF;
+			}
 
 			z80->state->f &= FLAG_MASK_CARRY | FLAG_MASK_ZERO | FLAG_MASK_SIGN;
+			z80->state->f |= (z80->state->b | z80->state->c) != 0 ? FLAG_MASK_PARITY_OVERFLOW : 0;
+
+			/* This instruction requires an extra 2 cycles. */
+			z80->state->cycles += 2;
+
+			if ((z80->state->f & FLAG_MASK_PARITY_OVERFLOW) != 0)
+			{
+				/* An extra 5 cycles are needed here. */
+				z80->state->cycles += 5;
+
+				z80->state->program_counter -= 2;
+			}
 
 			break;
 		}
 
 		case Z80_OPCODE_CPI:
-			UNIMPLEMENTED_Z80_INSTRUCTION("CPI");
+		{
+			const cc_u16f hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
+
+			source_value = MemoryRead(z80, callbacks, hl);
+			destination_value = z80->state->a;
+			result_value = destination_value - source_value;
+
+			/* Increment 'hl'. */
+			++z80->state->l;
+			z80->state->l &= 0xFF;
+
+			if (z80->state->l == 0)
+			{
+				++z80->state->h;
+				z80->state->h &= 0xFF;
+			}
+
+			/* Decrement 'bc'. */
+			--z80->state->c;
+			z80->state->c &= 0xFF;
+
+			if (z80->state->c == 0xFF)
+			{
+				--z80->state->b;
+				z80->state->b &= 0xFF;
+			}
+
+			z80->state->f &= FLAG_MASK_CARRY;
+			z80->state->f |= (z80->state->b | z80->state->c) != 0 ? FLAG_MASK_PARITY_OVERFLOW : 0;
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_HALF_CARRY;
+
+			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
+
+			/* This instruction requires an extra 2 cycles. */
+			z80->state->cycles += 2;
+
 			break;
+		}
 
 		case Z80_OPCODE_CPD:
-			UNIMPLEMENTED_Z80_INSTRUCTION("CPD");
+		{
+			const cc_u16f hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
+
+			source_value = MemoryRead(z80, callbacks, hl);
+			destination_value = z80->state->a;
+			result_value = destination_value - source_value;
+
+			/* Decrement 'hl'. */
+			--z80->state->l;
+			z80->state->l &= 0xFF;
+
+			if (z80->state->l == 0xFF)
+			{
+				--z80->state->h;
+				z80->state->h &= 0xFF;
+			}
+
+			/* Decrement 'bc'. */
+			--z80->state->c;
+			z80->state->c &= 0xFF;
+
+			if (z80->state->c == 0xFF)
+			{
+				--z80->state->b;
+				z80->state->b &= 0xFF;
+			}
+
+			z80->state->f &= FLAG_MASK_CARRY;
+			z80->state->f |= (z80->state->b | z80->state->c) != 0 ? FLAG_MASK_PARITY_OVERFLOW : 0;
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_HALF_CARRY;
+
+			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
+
+			/* This instruction requires an extra 2 cycles. */
+			z80->state->cycles += 2;
+
 			break;
+		}
 
 		case Z80_OPCODE_CPIR:
-			UNIMPLEMENTED_Z80_INSTRUCTION("CPIR");
+		{
+			const cc_u16f hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
+
+			source_value = MemoryRead(z80, callbacks, hl);
+			destination_value = z80->state->a;
+			result_value = destination_value - source_value;
+
+			/* Increment 'hl'. */
+			++z80->state->l;
+			z80->state->l &= 0xFF;
+
+			if (z80->state->l == 0)
+			{
+				++z80->state->h;
+				z80->state->h &= 0xFF;
+			}
+
+			/* Decrement 'bc'. */
+			--z80->state->c;
+			z80->state->c &= 0xFF;
+
+			if (z80->state->c == 0xFF)
+			{
+				--z80->state->b;
+				z80->state->b &= 0xFF;
+			}
+
+			z80->state->f &= FLAG_MASK_CARRY;
+			z80->state->f |= (z80->state->b | z80->state->c) != 0 ? FLAG_MASK_PARITY_OVERFLOW : 0;
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_HALF_CARRY;
+
+			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
+
+			/* This instruction requires an extra 2 cycles. */
+			z80->state->cycles += 2;
+
+			if ((z80->state->f & FLAG_MASK_PARITY_OVERFLOW) != 0 && (z80->state->f & FLAG_MASK_ZERO) == 0)
+			{
+				/* An extra 5 cycles are needed here. */
+				z80->state->cycles += 5;
+
+				z80->state->program_counter -= 2;
+			}
+
 			break;
+		}
 
 		case Z80_OPCODE_CPDR:
-			UNIMPLEMENTED_Z80_INSTRUCTION("CPDR");
+		{
+			const cc_u16f hl = ((cc_u16f)z80->state->h << 8) | z80->state->l;
+
+			source_value = MemoryRead(z80, callbacks, hl);
+			destination_value = z80->state->a;
+			result_value = destination_value - source_value;
+
+			/* Decrement 'hl'. */
+			--z80->state->l;
+			z80->state->l &= 0xFF;
+
+			if (z80->state->l == 0xFF)
+			{
+				--z80->state->h;
+				z80->state->h &= 0xFF;
+			}
+
+			/* Decrement 'bc'. */
+			--z80->state->c;
+			z80->state->c &= 0xFF;
+
+			if (z80->state->c == 0xFF)
+			{
+				--z80->state->b;
+				z80->state->b &= 0xFF;
+			}
+
+			z80->state->f &= FLAG_MASK_CARRY;
+			z80->state->f |= (z80->state->b | z80->state->c) != 0 ? FLAG_MASK_PARITY_OVERFLOW : 0;
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_HALF_CARRY;
+
+			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
+
+			/* This instruction requires an extra 2 cycles. */
+			z80->state->cycles += 2;
+
+			if ((z80->state->f & FLAG_MASK_PARITY_OVERFLOW) != 0 && (z80->state->f & FLAG_MASK_ZERO) == 0)
+			{
+				/* An extra 5 cycles are needed here. */
+				z80->state->cycles += 5;
+
+				z80->state->program_counter -= 2;
+			}
+
 			break;
+		}
 
 		case Z80_OPCODE_INI:
 			UNIMPLEMENTED_Z80_INSTRUCTION("INI");
