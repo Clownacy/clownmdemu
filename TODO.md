@@ -53,8 +53,8 @@
   - Mode 4
   - FIFO, and related 68k delays
 - Z80
-  - The DAA, HALT, OUT, IN, IM, CPI, CPD, CPIR, CPDR,
-    INI, IND, INIR, INDR, OTDI, OUTD, OTIR, and OTDR instructions.
+  - The HALT, OUT, IN, IM, CPI, CPD, CPIR, CPDR, INI, IND, INIR, INDR, OTDI,
+    OUTD, OTIR, and OTDR instructions.
   - Interrupt modes 0 and 2
   - Proper interrupt timings
 - FM

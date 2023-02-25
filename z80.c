@@ -1266,9 +1266,32 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_DAA:
-			/* TODO */
-			UNIMPLEMENTED_Z80_INSTRUCTION("DAA");
+		{
+			cc_u16f correction_factor;
+
+			const cc_u16f original_a = z80->state->a;
+
+			correction_factor = ((z80->state->a + 0x66) ^ z80->state->a) & 0x110;
+			correction_factor |= (z80->state->f & FLAG_MASK_CARRY) << (8 - FLAG_BIT_CARRY);
+			correction_factor |= (z80->state->f & FLAG_MASK_HALF_CARRY) << (4 - FLAG_BIT_HALF_CARRY);
+			correction_factor = (correction_factor >> 2) | (correction_factor >> 3);
+
+			if ((z80->state->f & FLAG_MASK_ADD_SUBTRACT) != 0)
+				z80->state->a -= correction_factor;
+			else
+				z80->state->a += correction_factor;
+
+			z80->state->a &= 0xFF;
+
+			z80->state->f &= FLAG_MASK_ADD_SUBTRACT;
+			z80->state->f |= (z80->state->a >> (7 - FLAG_BIT_SIGN)) & FLAG_MASK_SIGN;
+			z80->state->f |= (z80->state->a == 0) << FLAG_BIT_ZERO;
+			z80->state->f |= ((original_a ^ z80->state->a) & 0x10) != 0 ? FLAG_MASK_HALF_CARRY : 0; /* Binary carry. */
+			z80->state->f |= z80->constant->parity_lookup[z80->state->a];
+			z80->state->f |= (correction_factor >> (6 - FLAG_BIT_CARRY)) & FLAG_MASK_CARRY; /* Decimal carry. */
+
 			break;
+		}
 
 		case Z80_OPCODE_CPL:
 			z80->state->a = ~z80->state->a;
