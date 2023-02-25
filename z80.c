@@ -122,14 +122,14 @@ static cc_u16f MemoryRead16Bit(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 {
 	cc_u16f value;
 	value = MemoryRead(z80, callbacks, address + 0);
-	value |= MemoryRead(z80, callbacks, address + 1) << 8;
+	value |= MemoryRead(z80, callbacks, (address + 1) & 0xFFFF) << 8;
 	return value;
 }
 
 static void MemoryWrite16Bit(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, cc_u16f address, cc_u16f value)
 {
 	MemoryWrite(z80, callbacks, address + 0, value & 0xFF);
-	MemoryWrite(z80, callbacks, address + 1, value >> 8);
+	MemoryWrite(z80, callbacks, (address + 1) & 0xFFFF, value >> 8);
 }
 
 static cc_u16f ReadOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Z80Instruction *instruction, Z80_Operand operand)
@@ -926,6 +926,12 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 			{
 				/* Normal mode. */
 				opcode = OpcodeFetch(z80, callbacks);
+
+			#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
+				instruction->metadata = &z80->constant->instruction_metadata_lookup_bits[z80->state->register_mode][opcode];
+			#else
+				DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_BITS, (Z80_RegisterMode)z80->state->register_mode, opcode);
+			#endif
 			}
 			else
 			{
@@ -937,13 +943,26 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 
 				/* Reading the opcode is overlaid with the 5 displacement cycles, so the above memory read doesn't cost 3 cycles. */
 				z80->state->cycles -= 3;
-			}
 
-		#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
-			instruction->metadata = &z80->constant->instruction_metadata_lookup_bits[z80->state->register_mode][opcode];
-		#else
-			DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_BITS, (Z80_RegisterMode)z80->state->register_mode, opcode);
-		#endif
+				if (z80->state->register_mode == Z80_REGISTER_MODE_IX)
+					instruction->address = ((((cc_u16f)z80->state->ixh << 8) | z80->state->ixl) + displacement) & 0xFFFF;
+				else /*if (z80->state->register_mode == Z80_REGISTER_MODE_IY)*/
+					instruction->address = ((((cc_u16f)z80->state->iyh << 8) | z80->state->iyl) + displacement) & 0xFFFF;
+
+				/* TODO: Use a separate lookup for double-prefix mode? */
+			#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
+				instruction->metadata = &z80->constant->instruction_metadata_lookup_bits[Z80_REGISTER_MODE_HL][opcode];
+			#else
+				DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_HL, opcode);
+			#endif
+
+				if (instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT)
+				#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
+					instruction->metadata = &z80->constant->instruction_metadata_lookup_bits[z80->state->register_mode][opcode];
+				#else
+					DecodeInstructionMetadata(instruction->metadata, INSTRUCTION_MODE_BITS, (Z80_RegisterMode)z80->state->register_mode, opcode);
+				#endif
+			}
 
 			break;
 
@@ -1004,11 +1023,11 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 				break;
 
 			case Z80_OPERAND_IX_INDIRECT:
-				instruction->address = (((cc_u16f)z80->state->ixh << 8) | z80->state->ixl) + displacement;
+				instruction->address = ((((cc_u16f)z80->state->ixh << 8) | z80->state->ixl) + displacement) & 0xFFFF;
 				break;
 
 			case Z80_OPERAND_IY_INDIRECT:
-				instruction->address = (((cc_u16f)z80->state->iyh << 8) | z80->state->iyl) + displacement;
+				instruction->address = ((((cc_u16f)z80->state->iyh << 8) | z80->state->iyl) + displacement) & 0xFFFF;
 				break;
 
 			case Z80_OPERAND_ADDRESS:
@@ -1024,15 +1043,17 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 	a = b; \
 	b = swap_holder
 
+#define CONDITION_SIGN_BASE(bit) z80->state->f |= (result_value >> (bit - FLAG_BIT_SIGN)) & FLAG_MASK_SIGN
 #define CONDITION_CARRY_BASE(variable, bit) z80->state->f |= (variable >> (bit - FLAG_BIT_CARRY)) & FLAG_MASK_CARRY
 #define CONDITION_HALF_CARRY_BASE(bit) z80->state->f |= ((source_value ^ destination_value ^ result_value) >> (bit - FLAG_BIT_HALF_CARRY)) & FLAG_MASK_HALF_CARRY
 #define CONDITION_OVERFLOW_BASE(bit) z80->state->f |= ((~(source_value ^ destination_value) & (source_value ^ result_value)) >> (bit - FLAG_BIT_PARITY_OVERFLOW)) & FLAG_MASK_PARITY_OVERFLOW
 
+#define CONDITION_SIGN_16BIT CONDITION_SIGN_BASE(15)
 #define CONDITION_HALF_CARRY_16BIT CONDITION_HALF_CARRY_BASE(12)
 #define CONDITION_OVERFLOW_16BIT CONDITION_OVERFLOW_BASE(15)
 #define CONDITION_CARRY_16BIT CONDITION_CARRY_BASE(result_value_with_carry_16bit, 16)
 
-#define CONDITION_SIGN z80->state->f |= (result_value >> (7 - FLAG_BIT_SIGN)) & FLAG_MASK_SIGN
+#define CONDITION_SIGN CONDITION_SIGN_BASE(7)
 #define CONDITION_ZERO z80->state->f |= result_value == 0 ? FLAG_MASK_ZERO : 0
 #define CONDITION_HALF_CARRY CONDITION_HALF_CARRY_BASE(4)
 #define CONDITION_OVERFLOW CONDITION_OVERFLOW_BASE(7)
@@ -1186,9 +1207,8 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			CONDITION_HALF_CARRY;
 			CONDITION_OVERFLOW;
 
+			z80->state->f ^= FLAG_MASK_HALF_CARRY;
 			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
-			/* TODO: I thought this needed to be inverted? */
-			/*z80->state->f ^= FLAG_MASK_HALF_CARRY;*/
 
 			WRITE_DESTINATION;
 
@@ -1227,7 +1247,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 			z80->state->a <<= 1;
 			z80->state->a &= 0xFF;
-			z80->state->a |= (z80->state->f &= FLAG_MASK_CARRY) != 0 ? 1 : 0;
+			z80->state->a |= (z80->state->f & FLAG_MASK_CARRY) != 0 ? 1 : 0;
 
 			z80->state->f &= FLAG_MASK_SIGN | FLAG_MASK_ZERO | FLAG_MASK_PARITY_OVERFLOW;
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
@@ -1238,7 +1258,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			carry = (z80->state->a & 0x01) != 0;
 
 			z80->state->a >>= 1;
-			z80->state->a |= (z80->state->f &= FLAG_MASK_CARRY) != 0 ? 0x80 : 0;
+			z80->state->a |= (z80->state->f & FLAG_MASK_CARRY) != 0 ? 0x80 : 0;
 
 			z80->state->f &= FLAG_MASK_SIGN | FLAG_MASK_ZERO | FLAG_MASK_PARITY_OVERFLOW;
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
@@ -1327,8 +1347,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			CONDITION_HALF_CARRY;
 			CONDITION_OVERFLOW;
 
-			/* TODO: I thought these needed to be inverted? */
-			/*z80->state->f ^= FLAG_MASK_HALF_CARRY | FLAG_MASK_CARRY;*/
+			z80->state->f ^= FLAG_MASK_HALF_CARRY;
 			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
 
 			z80->state->a = result_value;
@@ -1350,8 +1369,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			CONDITION_HALF_CARRY;
 			CONDITION_OVERFLOW;
 
-			/* TODO: I thought these needed to be inverted? */
-			/*z80->state->f ^= FLAG_MASK_HALF_CARRY | FLAG_MASK_CARRY;*/
+			z80->state->f ^= FLAG_MASK_HALF_CARRY;
 			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
 
 			z80->state->a = result_value;
@@ -1419,8 +1437,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			CONDITION_HALF_CARRY;
 			CONDITION_OVERFLOW;
 
-			/* TODO: I thought these needed to be inverted? */
-			/*z80->state->f ^= FLAG_MASK_HALF_CARRY | FLAG_MASK_CARRY;*/
+			z80->state->f ^= FLAG_MASK_HALF_CARRY;
 			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
 
 			break;
@@ -1586,8 +1603,11 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			result_value = (destination_value << 1) & 0xFF;
 			result_value |= carry ? 0x01 : 0;
 
-			z80->state->f &= ~(FLAG_MASK_CARRY | FLAG_MASK_HALF_CARRY | FLAG_MASK_ADD_SUBTRACT);
+			z80->state->f = 0;
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_PARITY;
 
 			WRITE_DESTINATION;
 
@@ -1606,8 +1626,11 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			result_value = destination_value >> 1;
 			result_value |= carry ? 0x80 : 0;
 
-			z80->state->f &= ~(FLAG_MASK_CARRY | FLAG_MASK_HALF_CARRY | FLAG_MASK_ADD_SUBTRACT);
+			z80->state->f = 0;
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_PARITY;
 
 			WRITE_DESTINATION;
 
@@ -1626,8 +1649,11 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			result_value = (destination_value << 1) & 0xFF;
 			result_value |= (z80->state->f &= FLAG_MASK_CARRY) != 0 ? 0x01 : 0;
 
-			z80->state->f &= ~(FLAG_MASK_CARRY | FLAG_MASK_HALF_CARRY | FLAG_MASK_ADD_SUBTRACT);
+			z80->state->f = 0;
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_PARITY;
 
 			WRITE_DESTINATION;
 
@@ -1646,8 +1672,11 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			result_value = destination_value >> 1;
 			result_value |= (z80->state->f &= FLAG_MASK_CARRY) != 0 ? 0x80 : 0;
 
-			z80->state->f &= ~(FLAG_MASK_CARRY | FLAG_MASK_HALF_CARRY | FLAG_MASK_ADD_SUBTRACT);
+			z80->state->f = 0;
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
+			CONDITION_SIGN;
+			CONDITION_ZERO;
+			CONDITION_PARITY;
 
 			WRITE_DESTINATION;
 
@@ -1659,7 +1688,6 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			break;
 
 		case Z80_OPCODE_SLA:
-		case Z80_OPCODE_SLL:
 			READ_DESTINATION;
 
 			carry = (destination_value & 0x80) != 0;
@@ -1669,7 +1697,29 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			z80->state->f = 0;
 			z80->state->f |= (result_value & 0x80) != 0 ? FLAG_MASK_SIGN : 0;
 			z80->state->f |= result_value == 0 ? FLAG_MASK_ZERO : 0;
-			/* TODO: Parity. */
+			CONDITION_PARITY;
+			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
+
+			WRITE_DESTINATION;
+
+			/* The memory-accessing version takes an extra cycle. */
+			z80->state->cycles += instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT
+				|| instruction->metadata->operands[1] == Z80_OPERAND_IX_INDIRECT
+				|| instruction->metadata->operands[1] == Z80_OPERAND_IY_INDIRECT;
+
+			break;
+
+		case Z80_OPCODE_SLL:
+			READ_DESTINATION;
+
+			carry = (destination_value & 0x80) != 0;
+
+			result_value = ((destination_value << 1) | 1) & 0xFF;
+
+			z80->state->f = 0;
+			z80->state->f |= (result_value & 0x80) != 0 ? FLAG_MASK_SIGN : 0;
+			z80->state->f |= result_value == 0 ? FLAG_MASK_ZERO : 0;
+			CONDITION_PARITY;
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			WRITE_DESTINATION;
@@ -1691,7 +1741,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			z80->state->f = 0;
 			z80->state->f |= (result_value & 0x80) != 0 ? FLAG_MASK_SIGN : 0;
 			z80->state->f |= result_value == 0 ? FLAG_MASK_ZERO : 0;
-			/* TODO: Parity. */
+			CONDITION_PARITY;
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			WRITE_DESTINATION;
@@ -1713,7 +1763,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			z80->state->f = 0;
 			z80->state->f |= (result_value & 0x80) != 0 ? FLAG_MASK_SIGN : 0;
 			z80->state->f |= result_value == 0 ? FLAG_MASK_ZERO : 0;
-			/* TODO: Parity. */
+			CONDITION_PARITY;
 			z80->state->f |= carry ? FLAG_MASK_CARRY : 0;
 
 			WRITE_DESTINATION;
@@ -1728,9 +1778,12 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 		case Z80_OPCODE_BIT:
 			READ_DESTINATION;
 
+			/* The setting of the parity and sign bits doesn't seem to be documented anywhere. */
+			/* TODO: See if emulating this instruction with a SUB instruction produces the proper condition codes. */
 			z80->state->f &= FLAG_MASK_CARRY;
-			z80->state->f |= ((destination_value & instruction->metadata->embedded_literal) == 0) ? FLAG_MASK_ZERO : 0;
+			z80->state->f |= ((destination_value & instruction->metadata->embedded_literal) == 0) ? FLAG_MASK_ZERO | FLAG_MASK_PARITY_OVERFLOW : 0;
 			z80->state->f |= FLAG_MASK_HALF_CARRY;
+			z80->state->f |= instruction->metadata->embedded_literal == 0x80 && (z80->state->f & FLAG_MASK_ZERO) == 0 ? FLAG_MASK_SIGN : 0;
 
 			/* The memory-accessing version takes an extra cycle. */
 			z80->state->cycles += instruction->metadata->operands[1] == Z80_OPERAND_HL_INDIRECT
@@ -1787,17 +1840,20 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			READ_SOURCE;
 			READ_DESTINATION;
 
-			result_value_with_carry_16bit = ~(cc_u32f)source_value + (cc_u32f)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 0 : 1);
+			source_value = ~(cc_u32f)source_value;
+
+			result_value_with_carry_16bit = (cc_u32f)source_value + (cc_u32f)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 0 : 1);;
 			result_value = result_value_with_carry_16bit & 0xFFFF;
 
 			z80->state->f = 0;
 
-			CONDITION_SIGN;
+			CONDITION_SIGN_16BIT;
 			CONDITION_ZERO;
 			CONDITION_HALF_CARRY_16BIT;
 			CONDITION_OVERFLOW_16BIT;
 			CONDITION_CARRY_16BIT;
 
+			z80->state->f ^= FLAG_MASK_HALF_CARRY;
 			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
 
 			WRITE_DESTINATION;
@@ -1811,12 +1867,14 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			READ_SOURCE;
 			READ_DESTINATION;
 
+			source_value = source_value;
+
 			result_value_with_carry_16bit = (cc_u32f)source_value + (cc_u32f)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 1 : 0);
 			result_value = result_value_with_carry_16bit & 0xFFFF;
 
 			z80->state->f = 0;
 
-			CONDITION_SIGN;
+			CONDITION_SIGN_16BIT;
 			CONDITION_ZERO;
 			CONDITION_HALF_CARRY_16BIT;
 			CONDITION_OVERFLOW_16BIT;
@@ -1844,8 +1902,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			CONDITION_HALF_CARRY;
 			CONDITION_OVERFLOW;
 
-			/* TODO: I thought these needed to be inverted? */
-			/*z80->state->f ^= FLAG_MASK_HALF_CARRY | FLAG_MASK_CARRY;*/
+			z80->state->f ^= FLAG_MASK_HALF_CARRY;
 			z80->state->f |= FLAG_MASK_ADD_SUBTRACT;
 
 			z80->state->a = result_value;
@@ -1878,6 +1935,11 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 
 			z80->state->a = z80->state->i;
 
+			z80->state->f &= FLAG_MASK_CARRY;
+			z80->state->f |= (z80->state->a >> (7 - FLAG_BIT_SIGN)) & FLAG_MASK_SIGN;
+			z80->state->f |= z80->state->a == 0 ? FLAG_MASK_ZERO : 0;
+			/* TODO: IFF2 parity bit stuff. */
+
 			break;
 
 		case Z80_OPCODE_LD_A_R:
@@ -1885,6 +1947,11 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			z80->state->cycles += 1;
 
 			z80->state->a = z80->state->r;
+
+			z80->state->f &= FLAG_MASK_CARRY;
+			z80->state->f |= (z80->state->a >> (7 - FLAG_BIT_SIGN)) & FLAG_MASK_SIGN;
+			z80->state->f |= z80->state->a == 0 ? FLAG_MASK_ZERO : 0;
+			/* TODO: IFF2 parity bit stuff. */
 
 			break;
 
@@ -1995,7 +2062,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			--z80->state->l;
 			z80->state->l &= 0xFF;
 
-			if (z80->state->l == 0)
+			if (z80->state->l == 0xFF)
 			{
 				--z80->state->h;
 				z80->state->h &= 0xFF;
@@ -2005,7 +2072,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			--z80->state->e;
 			z80->state->e &= 0xFF;
 
-			if (z80->state->e == 0)
+			if (z80->state->e == 0xFF)
 			{
 				--z80->state->d;
 				z80->state->d &= 0xFF;
