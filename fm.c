@@ -175,6 +175,14 @@ void FM_DoAddress(const FM *fm, cc_u8f port, cc_u8f address)
 
 void FM_DoData(const FM *fm, cc_u8f data)
 {
+	/* Set BUSY flag. */
+	fm->state->status |= 0x80;
+	/* The YM2612's BUSY flag is always active for exactly 32 internal cycles.
+	   If I remember correctly, the YM3438 actually gives the BUSY flag
+	   different durations based on the pending operation. */
+	/* TODO: YM3438 BUSY flag durations. */
+	fm->state->busy_flag_counter = 32 * 6;
+
 	if (fm->state->address < 0x30)
 	{
 		if (fm->state->port == 0)
@@ -431,6 +439,16 @@ cc_u8f FM_Update(const FM *fm, cc_u32f cycles_to_do, void (*fm_audio_to_be_gener
 				fm->state->timers[i].counter = fm->state->timers[i].value;
 			}
 		}
+	}
+
+	/* Decrement the BUSY flag counter. */
+	if (fm->state->busy_flag_counter != 0)
+	{
+		fm->state->busy_flag_counter -= CC_MIN(fm->state->busy_flag_counter, cycles_to_do);
+
+		/* Clear BUSY flag if the counter has elapsed. */
+		if (fm->state->busy_flag_counter == 0)
+			fm->state->status &= ~0x80;
 	}
 
 	return fm->state->status;

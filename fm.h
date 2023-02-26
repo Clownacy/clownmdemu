@@ -90,6 +90,7 @@ typedef struct FM_State
 	cc_u8f cached_address_27;
 	cc_u8f leftover_cycles;
 	cc_u8f status;
+	cc_u8f busy_flag_counter;
 } FM_State;
 
 typedef struct FM
