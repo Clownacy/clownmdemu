@@ -145,7 +145,7 @@ void FM_State_Initialise(FM_State *state)
 	state->leftover_cycles = 0;
 	state->raw_timer_a_value = 0;
 
-	for (i = 0; i < 2; ++i)
+	for (i = 0; i < CC_COUNT_OF(state->timers); ++i)
 	{
 		state->timers[i].value = 0;
 		state->timers[i].counter = 0;
@@ -175,22 +175,24 @@ void FM_DoAddress(const FM *fm, cc_u8f port, cc_u8f address)
 
 void FM_DoData(const FM *fm, cc_u8f data)
 {
+	FM_State* const state = fm->state;
+
 	/* Set BUSY flag. */
-	fm->state->status |= 0x80;
+	state->status |= 0x80;
 	/* The YM2612's BUSY flag is always active for exactly 32 internal cycles.
 	   If I remember correctly, the YM3438 actually gives the BUSY flag
 	   different durations based on the pending operation. */
 	/* TODO: YM3438 BUSY flag durations. */
-	fm->state->busy_flag_counter = 32 * 6;
+	state->busy_flag_counter = 32 * 6;
 
-	if (fm->state->address < 0x30)
+	if (state->address < 0x30)
 	{
-		if (fm->state->port == 0)
+		if (state->port == 0)
 		{
-			switch (fm->state->address)
+			switch (state->address)
 			{
 				default:
-					PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST16 ")", fm->state->address);
+					PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST16 ")", state->address);
 					break;
 
 				case 0x22:
@@ -199,21 +201,21 @@ void FM_DoData(const FM *fm, cc_u8f data)
 
 				case 0x24:
 					/* Oddly, the YM2608 manual describes these timers being twice as fast as they are here. */
-					fm->state->raw_timer_a_value &= 3;
-					fm->state->raw_timer_a_value |= data << 2;
+					state->raw_timer_a_value &= 3;
+					state->raw_timer_a_value |= data << 2;
 					/* TODO: According to http://md.railgun.works/index.php?title=YM2612, this doesn't happen
 					   here: address 0x25 must be written to in order to update the timer proper. */
-					fm->state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - fm->state->raw_timer_a_value);
+					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - state->raw_timer_a_value);
 					break;
 
 				case 0x25:
-					fm->state->raw_timer_a_value &= ~3;
-					fm->state->raw_timer_a_value |= data & 3;
-					fm->state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - fm->state->raw_timer_a_value);
+					state->raw_timer_a_value &= ~3;
+					state->raw_timer_a_value |= data & 3;
+					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - state->raw_timer_a_value);
 					break;
 
 				case 0x26:
-					fm->state->timers[1].value = FM_SAMPLE_RATE_DIVIDER * 16 * (0x100 - data);
+					state->timers[1].value = FM_SAMPLE_RATE_DIVIDER * 16 * (0x100 - data);
 					break;
 
 				case 0x27:
@@ -222,22 +224,22 @@ void FM_DoData(const FM *fm, cc_u8f data)
 
 					cc_u8f i;
 
-					for (i = 0; i < CC_COUNT_OF(fm->state->timers); ++i)
+					for (i = 0; i < CC_COUNT_OF(state->timers); ++i)
 					{
 						/* Only reload the timer on a rising edge. */
-						if ((data & (1 << (0 + i))) != 0 && (fm->state->cached_address_27 & (1 << (0 + i))) == 0)
-							fm->state->timers[i].counter = fm->state->timers[i].value;
+						if ((data & (1 << (0 + i))) != 0 && (state->cached_address_27 & (1 << (0 + i))) == 0)
+							state->timers[i].counter = state->timers[i].value;
 
 						/* Enable the timer. */
-						fm->state->timers[i].enabled = (data & (1 << (2 + i))) != 0;
+						state->timers[i].enabled = (data & (1 << (2 + i))) != 0;
 
 						/* Clear the 'timer expired' flag. */
 						if ((data & (1 << (4 + i))) != 0)
-							fm->state->status &= ~(1 << i);
+							state->status &= ~(1 << i);
 					}
 
 					/* Cache the contents of this write for the above rising-edge detection. */
-					fm->state->cached_address_27 = data;
+					state->cached_address_27 = data;
 
 					break;
 				}
@@ -261,35 +263,35 @@ void FM_DoData(const FM *fm, cc_u8f data)
 				case 0x2A:
 					/* DAC sample. */
 					/* Convert from unsigned 8-bit PCM to signed 16-bit PCM. */
-					fm->state->dac_sample = ((cc_s16f)data - 0x80) * (0x100 / FM_VOLUME_DIVIDER);
+					state->dac_sample = ((cc_s16f)data - 0x80) * (0x100 / FM_VOLUME_DIVIDER);
 					break;
 
 				case 0x2B:
 					/* DAC enable/disable. */
-					fm->state->dac_enabled = (data & 0x80) != 0;
+					state->dac_enabled = (data & 0x80) != 0;
 					break;
 			}
 		}
 	}
 	else
 	{
-		const cc_u16f channel_index = fm->state->address & 3;
-		FM_ChannelMetadata* const channel_metadata = &fm->state->channels[fm->state->port + channel_index];
-		const FM_Channel* const channel = &fm->channels[fm->state->port + channel_index];
+		const cc_u16f channel_index = state->address & 3;
+		FM_ChannelMetadata* const channel_metadata = &state->channels[state->port + channel_index];
+		const FM_Channel* const channel = &fm->channels[state->port + channel_index];
 
 		/* There is no fourth channel per slot. */
 		/* TODO: See how real hardware handles this. */
 		if (channel_index != 3)
 		{
-			if (fm->state->address < 0xA0)
+			if (state->address < 0xA0)
 			{
 				/* Per-operator. */
-				const cc_u16f operator_index = (fm->state->address >> 2) & 3;
+				const cc_u16f operator_index = (state->address >> 2) & 3;
 
-				switch (fm->state->address / 0x10)
+				switch (state->address / 0x10)
 				{
 					default:
-						PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST16 ")", fm->state->address);
+						PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST16 ")", state->address);
 						break;
 
 					case 0x30 / 0x10:
@@ -331,10 +333,10 @@ void FM_DoData(const FM *fm, cc_u8f data)
 			else
 			{
 				/* Per-channel. */
-				switch (fm->state->address / 4)
+				switch (state->address / 4)
 				{
 					default:
-						PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST16 ")", fm->state->address);
+						PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST16 ")", state->address);
 						break;
 
 					case 0xA8 / 4:
@@ -369,23 +371,24 @@ void FM_DoData(const FM *fm, cc_u8f data)
 
 void FM_OutputSamples(const FM *fm, cc_s16l *sample_buffer, cc_u32f total_frames)
 {
-	const cc_s16l* const sample_buffer_end = &sample_buffer[total_frames * 2];
-
 	cc_u16f i;
 
-	for (i = 0; i < CC_COUNT_OF(fm->state->channels); ++i)
+	FM_State* const state = fm->state;
+	const cc_s16l* const sample_buffer_end = &sample_buffer[total_frames * 2];
+
+	for (i = 0; i < CC_COUNT_OF(state->channels); ++i)
 	{
 		if (!fm->configuration->channel_disabled[i])
 		{
-			FM_ChannelMetadata *channel_metadata = &fm->state->channels[i];
+			FM_ChannelMetadata *channel_metadata = &state->channels[i];
 			const FM_Channel* const channel = &fm->channels[i];
 
 			/* These will be used in later boolean algebra, to avoid branches. */
 			const cc_bool left_enabled = channel_metadata->pan_left;
 			const cc_bool right_enabled = channel_metadata->pan_right;
-			const cc_bool fm_enabled = channel_metadata != &fm->state->channels[5] || !fm->state->dac_enabled;
+			const cc_bool fm_enabled = channel_metadata != &state->channels[5] || !state->dac_enabled;
 
-			const cc_s16f dac_sample = !fm_enabled ? fm->state->dac_sample : 0;
+			const cc_s16f dac_sample = !fm_enabled ? state->dac_sample : 0;
 
 			cc_s16l *sample_buffer_pointer;
 
@@ -416,40 +419,41 @@ cc_u8f FM_Update(const FM *fm, cc_u32f cycles_to_do, void (*fm_audio_to_be_gener
 {
 	cc_u8f i;
 
-	const cc_u32f total_frames = (fm->state->leftover_cycles + cycles_to_do) / FM_SAMPLE_RATE_DIVIDER;
+	FM_State* const state = fm->state;
+	const cc_u32f total_frames = (state->leftover_cycles + cycles_to_do) / FM_SAMPLE_RATE_DIVIDER;
 
-	fm->state->leftover_cycles = (fm->state->leftover_cycles + cycles_to_do) % FM_SAMPLE_RATE_DIVIDER;
+	state->leftover_cycles = (state->leftover_cycles + cycles_to_do) % FM_SAMPLE_RATE_DIVIDER;
 
 	if (total_frames != 0)
 		fm_audio_to_be_generated(user_data, total_frames);
 
 	/* Decrement the timers. */
-	for (i = 0; i < CC_COUNT_OF(fm->state->timers); ++i)
+	for (i = 0; i < CC_COUNT_OF(state->timers); ++i)
 	{
-		if (fm->state->timers[i].counter != 0)
+		if (state->timers[i].counter != 0)
 		{
-			fm->state->timers[i].counter -= CC_MIN(fm->state->timers[i].counter, cycles_to_do);
+			state->timers[i].counter -= CC_MIN(state->timers[i].counter, cycles_to_do);
 
-			if (fm->state->timers[i].counter == 0)
+			if (state->timers[i].counter == 0)
 			{
 				/* Set the 'timer expired' flag. */
-				fm->state->status |= fm->state->timers[i].enabled ? 1 << i : 0;
+				state->status |= state->timers[i].enabled ? 1 << i : 0;
 
 				/* Reload the timer's counter. */
-				fm->state->timers[i].counter = fm->state->timers[i].value;
+				state->timers[i].counter = state->timers[i].value;
 			}
 		}
 	}
 
 	/* Decrement the BUSY flag counter. */
-	if (fm->state->busy_flag_counter != 0)
+	if (state->busy_flag_counter != 0)
 	{
-		fm->state->busy_flag_counter -= CC_MIN(fm->state->busy_flag_counter, cycles_to_do);
+		state->busy_flag_counter -= CC_MIN(state->busy_flag_counter, cycles_to_do);
 
 		/* Clear BUSY flag if the counter has elapsed. */
-		if (fm->state->busy_flag_counter == 0)
-			fm->state->status &= ~0x80;
+		if (state->busy_flag_counter == 0)
+			state->status &= ~0x80;
 	}
 
-	return fm->state->status;
+	return state->status;
 }
