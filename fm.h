@@ -87,6 +87,7 @@ typedef struct FM_State
 	cc_bool dac_enabled;
 	cc_u16f raw_timer_a_value;
 	FM_Timer timers[2];
+	cc_u8f cached_address_27;
 	cc_u8f leftover_cycles;
 	cc_u8f status;
 } FM_State;

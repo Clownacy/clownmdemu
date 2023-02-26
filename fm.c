@@ -214,16 +214,22 @@ void FM_DoData(const FM *fm, cc_u8f data)
 
 					cc_u8f i;
 
-					for (i = 0; i < 2; ++i)
+					for (i = 0; i < CC_COUNT_OF(fm->state->timers); ++i)
 					{
-						if ((data & (1 << (0 + i))) != 0)
+						/* Only reload the timer on a rising edge. */
+						if ((data & (1 << (0 + i))) != 0 && (fm->state->cached_address_27 & (1 << (0 + i))) == 0)
 							fm->state->timers[i].counter = fm->state->timers[i].value;
 
+						/* Enable the timer. */
 						fm->state->timers[i].enabled = (data & (1 << (2 + i))) != 0;
 
+						/* Clear the 'timer expired' flag. */
 						if ((data & (1 << (4 + i))) != 0)
 							fm->state->status &= ~(1 << i);
 					}
+
+					/* Cache the contents of this write for the above rising-edge detection. */
+					fm->state->cached_address_27 = data;
 
 					break;
 				}
@@ -409,12 +415,21 @@ cc_u8f FM_Update(const FM *fm, cc_u32f cycles_to_do, void (*fm_audio_to_be_gener
 	if (total_frames != 0)
 		fm_audio_to_be_generated(user_data, total_frames);
 
-	for (i = 0; i < 2; ++i)
+	/* Decrement the timers. */
+	for (i = 0; i < CC_COUNT_OF(fm->state->timers); ++i)
 	{
 		if (fm->state->timers[i].counter != 0)
 		{
 			fm->state->timers[i].counter -= CC_MIN(fm->state->timers[i].counter, cycles_to_do);
-			fm->state->status |= fm->state->timers[i].counter == 0 && fm->state->timers[i].enabled ? 1 << i : 0;
+
+			if (fm->state->timers[i].counter == 0)
+			{
+				/* Set the 'timer expired' flag. */
+				fm->state->status |= fm->state->timers[i].enabled ? 1 << i : 0;
+
+				/* Reload the timer's counter. */
+				fm->state->timers[i].counter = fm->state->timers[i].value;
+			}
 		}
 	}
 
