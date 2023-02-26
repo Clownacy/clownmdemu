@@ -63,7 +63,8 @@ typedef struct FM_ChannelMetadata
 
 typedef struct FM_Configuration
 {
-	cc_bool channel_disabled[6];
+	cc_bool fm_channels_disabled[6];
+	cc_bool dac_channel_disabled;
 } FM_Configuration;
 
 typedef struct FM_Constant

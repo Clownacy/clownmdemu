@@ -378,39 +378,31 @@ void FM_OutputSamples(const FM *fm, cc_s16l *sample_buffer, cc_u32f total_frames
 
 	for (i = 0; i < CC_COUNT_OF(state->channels); ++i)
 	{
-		if (!fm->configuration->channel_disabled[i])
+		FM_ChannelMetadata *channel_metadata = &state->channels[i];
+		const FM_Channel* const channel = &fm->channels[i];
+
+		const cc_bool left_enabled = channel_metadata->pan_left;
+		const cc_bool right_enabled = channel_metadata->pan_right;
+		const cc_bool is_dac = i == 5 && state->dac_enabled;
+		const cc_bool fm_enabled = !is_dac && !fm->configuration->fm_channels_disabled[i];
+		const cc_s16f dac_sample = is_dac && !fm->configuration->dac_channel_disabled ? state->dac_sample : 0;
+
+		cc_s16l *sample_buffer_pointer;
+
+		sample_buffer_pointer = sample_buffer;
+
+		while (sample_buffer_pointer != sample_buffer_end)
 		{
-			FM_ChannelMetadata *channel_metadata = &state->channels[i];
-			const FM_Channel* const channel = &fm->channels[i];
+			/* The FM sample is 14-bit, so convert it to 16-bit and then divide it so that it
+			   can be mixed with the other five FM channels and the PSG without clipping. */
+			const cc_s16f fm_sample = FM_Channel_GetSample(channel) * 4 / FM_VOLUME_DIVIDER;
 
-			/* These will be used in later boolean algebra, to avoid branches. */
-			const cc_bool left_enabled = channel_metadata->pan_left;
-			const cc_bool right_enabled = channel_metadata->pan_right;
-			const cc_bool fm_enabled = channel_metadata != &state->channels[5] || !state->dac_enabled;
+			/* Select between the FM and DAC samples. */
+			const cc_s16f sample = fm_enabled ? fm_sample : dac_sample;
 
-			const cc_s16f dac_sample = !fm_enabled ? state->dac_sample : 0;
-
-			cc_s16l *sample_buffer_pointer;
-
-			sample_buffer_pointer = sample_buffer;
-
-			while (sample_buffer_pointer != sample_buffer_end)
-			{
-				/* The FM sample is 14-bit, so convert it to 16-bit and then divide it so that it
-				   can be mixed with the other five FM channels and the PSG without clipping. */
-				const cc_s16f fm_sample = FM_Channel_GetSample(channel) * 4 / FM_VOLUME_DIVIDER;
-
-				/* Do some boolean algebra to select the FM sample or the DAC sample. */
-				const cc_s16f sample = (fm_enabled ? fm_sample : 0) | dac_sample;
-
-				/* Apply panning. */
-				const cc_s16f left_sample = left_enabled ? sample : 0;
-				const cc_s16f right_sample = right_enabled ? sample : 0;
-
-				/* Output sample. */
-				*sample_buffer_pointer++ += left_sample;
-				*sample_buffer_pointer++ += right_sample;
-			}
+			/* Output sample whilst applying panning. */
+			*sample_buffer_pointer++ += left_enabled ? sample : 0;
+			*sample_buffer_pointer++ += right_enabled ? sample : 0;
 		}
 	}
 }
