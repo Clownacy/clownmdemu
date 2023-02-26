@@ -29,6 +29,7 @@
       - Algorithms
   - DAC channel
   - Timer A and Timer B
+  - Busy flag
 - PSG
   - 3 tone channels
   - Noise channel
@@ -63,7 +64,6 @@
   - Low-Frequency Oscillator
   - Per-operator frequencies
   - Debug registers
-  - Busy flag
 - SRAM
 - Cartridge mappers
 - Joypads
