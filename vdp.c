@@ -338,7 +338,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 							break;
 
 						case VDP_HSCROLL_MODE_1CELL:
-							hscroll = vdp->state->vram[vdp->state->hscroll_address + (scanline >> tile_height_power) * 2 + i];
+							hscroll = vdp->state->vram[vdp->state->hscroll_address + (scanline >> tile_height_power << tile_height_power) * 2 + i];
 							break;
 
 						case VDP_HSCROLL_MODE_1LINE:
