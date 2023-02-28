@@ -121,11 +121,12 @@ typedef struct VDP_State
 	VDP_HScrollMode hscroll_mode;
 	VDP_VScrollMode vscroll_mode;
 
-	cc_u16l vram[0x8000];
+	cc_u8l vram[0x10000];
 	cc_u16l cram[4 * 16];
 	/* http://gendev.spritesmind.net/forum/viewtopic.php?p=36727#p36727 */
 	/* According to Mask of Destiny on SpritesMind, later models of Mega Drive (MD2 VA4 and later) have 64 words
 	   of VSRAM, instead of the 40 words that earlier models have. */
+	/* TODO: Add a toggle for Model 1 and Model 2 behaviour. */
 	cc_u16l vsram[64];
 
 	cc_u16l sprite_table_cache[80][2];

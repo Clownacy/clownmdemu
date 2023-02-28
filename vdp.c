@@ -18,10 +18,13 @@ enum
 /* Some of the logic here is based on research done by Nemesis:
    https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016 */
 
+static cc_u16f VRAMReadWord(const VDP_State* const state, const cc_u16f address)
+{
+	return (state->vram[(address + 0) % CC_COUNT_OF(state->vram)] << 8) | state->vram[(address + 1) % CC_COUNT_OF(state->vram)];
+}
+
 static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_updated_callback)(const void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data)
 {
-	const cc_u16f index = state->access.index / 2;
-
 	switch (state->access.selected_buffer)
 	{
 		default:
@@ -32,15 +35,17 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 		case VDP_ACCESS_VRAM:
 		{
 			/* Update sprite cache if we're writing to the sprite table */
-			const cc_u16f sprite_table_index = index - state->sprite_table_address;
+			const cc_u16f sprite_table_index = state->access.index - state->sprite_table_address;
 
-			if (sprite_table_index < (state->h40_enabled ? 80u : 64u) * 4u && (sprite_table_index & 2) == 0)
+			/* TODO: Use bytes instead of words for the cache. Or maybe just handle odd addresses better. */
+			if (sprite_table_index < (state->h40_enabled ? 80u : 64u) * 8u && (sprite_table_index & 4) == 0)
 			{
-				state->sprite_table_cache[sprite_table_index / 4][sprite_table_index & 1] = (cc_u16l)value;
+				state->sprite_table_cache[sprite_table_index / 8][(sprite_table_index & 2) >> 1] = (cc_u16l)value;
 				state->sprite_row_cache.needs_updating = cc_true;
 			}
 
-			state->vram[index % CC_COUNT_OF(state->vram)] = (cc_u16l)value;
+			state->vram[(state->access.index + 0) % CC_COUNT_OF(state->vram)] = (cc_u8l)(value >> 8);
+			state->vram[(state->access.index + 1) % CC_COUNT_OF(state->vram)] = (cc_u8l)(value & 0xFF);
 
 			break;
 		}
@@ -51,7 +56,7 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 			const cc_u16f colour = value & 0xEEE;
 
 			/* Fit index to within CRAM */
-			const cc_u16f index_wrapped = index % CC_COUNT_OF(state->cram);
+			const cc_u16f index_wrapped = (state->access.index / 2) % CC_COUNT_OF(state->cram);
 
 			/* Store regular Mega Drive-format colour (with garbage bits intact) */
 			state->cram[index_wrapped] = (cc_u16l)value;
@@ -76,7 +81,7 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 		}
 
 		case VDP_ACCESS_VSRAM:
-			state->vsram[index % CC_COUNT_OF(state->vsram)] = (cc_u16l)value;
+			state->vsram[(state->access.index / 2) % CC_COUNT_OF(state->vsram)] = (cc_u16l)value;
 			break;
 	}
 
@@ -87,8 +92,6 @@ static cc_u16f ReadAndIncrement(VDP_State *state)
 {
 	cc_u16f value;
 
-	const cc_u16f index = state->access.index / 2;
-
 	switch (state->access.selected_buffer)
 	{
 		default:
@@ -96,15 +99,15 @@ static cc_u16f ReadAndIncrement(VDP_State *state)
 			assert(0);
 			/* Fallthrough */
 		case VDP_ACCESS_VRAM:
-			value = state->vram[index % CC_COUNT_OF(state->vram)];
+			value = VRAMReadWord(state, state->access.index);
 			break;
 
 		case VDP_ACCESS_CRAM:
-			value = state->cram[index % CC_COUNT_OF(state->cram)];
+			value = state->cram[(state->access.index / 2) % CC_COUNT_OF(state->cram)];
 			break;
 
 		case VDP_ACCESS_VSRAM:
-			value = state->vsram[index % CC_COUNT_OF(state->vsram)];
+			value = state->vsram[(state->access.index / 2) % CC_COUNT_OF(state->vsram)];
 			break;
 	}
 
@@ -233,7 +236,7 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 {
 	cc_u16f k;
 
-	const cc_u16f tile_metadata = vdp->state->vram[plane_address + tile_y * vdp->state->plane_width + tile_x];
+	const cc_u16f tile_metadata = VRAMReadWord(vdp->state, plane_address + (tile_y * vdp->state->plane_width + tile_x) * 2);
 	const cc_bool tile_priority = (tile_metadata & 0x8000) != 0;
 	const cc_u16f tile_palette_line = (tile_metadata >> 13) & 3;
 	const cc_bool tile_y_flip = (tile_metadata & 0x1000) != 0;
@@ -250,7 +253,8 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 		const cc_u16f pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
 
 		/* Get raw tile data that contains the desired metapixel */
-		const cc_u16f tile_data = vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+		/* TODO: Optimise. */
+		const cc_u16f tile_data = VRAMReadWord(vdp->state, tile_index * tile_size + pixel_y_in_tile * 4 + ((pixel_x_in_tile / 2) & ~1));
 
 		/* Obtain the index into the palette line */
 		const cc_u16f palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
@@ -297,7 +301,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		#define MAX_SPRITE_WIDTH (8 * 4)
 
 		const cc_u16f tile_height_mask = (1 << tile_height_power) - 1;
-		const cc_u16f tile_size = (8 << tile_height_power) / 4;
+		const cc_u16f tile_size = (8 << tile_height_power) / 2;
 
 		cc_u16f sprite_limit = vdp->state->h40_enabled ? 20 : 16;
 		cc_u16f pixel_limit = vdp->state->h40_enabled ? 320 : 256;
@@ -334,15 +338,15 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 							assert(0);
 							/* Fallthrough */
 						case VDP_HSCROLL_MODE_FULL:
-							hscroll = vdp->state->vram[vdp->state->hscroll_address + i];
+							hscroll = VRAMReadWord(vdp->state, vdp->state->hscroll_address + i * 2);
 							break;
 
 						case VDP_HSCROLL_MODE_1CELL:
-							hscroll = vdp->state->vram[vdp->state->hscroll_address + (scanline >> tile_height_power << tile_height_power) * 2 + i];
+							hscroll = VRAMReadWord(vdp->state, vdp->state->hscroll_address + (scanline >> tile_height_power << tile_height_power) * 4 + i * 2);
 							break;
 
 						case VDP_HSCROLL_MODE_1LINE:
-							hscroll = vdp->state->vram[vdp->state->hscroll_address + (scanline >> vdp->state->double_resolution_enabled) * 2 + i];
+							hscroll = VRAMReadWord(vdp->state, vdp->state->hscroll_address + (scanline >> vdp->state->double_resolution_enabled) * 4 + i * 2);
 							break;
 					}
 				}
@@ -501,11 +505,11 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 				struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &vdp->state->sprite_row_cache.rows[scanline].sprites[i];
 
 				/* Decode sprite data */
-				const cc_u16l *sprite = &vdp->state->vram[vdp->state->sprite_table_address + sprite_row_cache_entry->table_index * 4];
+				const cc_u16f sprite_index = vdp->state->sprite_table_address + sprite_row_cache_entry->table_index * 8;
 				const cc_u16f width = sprite_row_cache_entry->width;
 				const cc_u16f height = sprite_row_cache_entry->height;
-				const cc_u16f tile_metadata = sprite[2];
-				const cc_u16f x = sprite[3] & 0x1FF;
+				const cc_u16f tile_metadata = VRAMReadWord(vdp->state, sprite_index + 4);
+				const cc_u16f x = VRAMReadWord(vdp->state, sprite_index + 6) & 0x1FF;
 
 				/* Decode tile metadata */
 				const cc_bool tile_priority = (tile_metadata & 0x8000) != 0;
@@ -544,7 +548,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 							const cc_u16f pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
 
 							/* Get raw tile data that contains the desired metapixel */
-							const cc_u16f tile_data = vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 2 + pixel_x_in_tile / 4];
+							const cc_u16f tile_data = VRAMReadWord(vdp->state, tile_index * tile_size + pixel_y_in_tile * 4 + ((pixel_x_in_tile / 2) & ~1));
 
 							/* Obtain the index into the palette line */
 							const cc_u16f palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
@@ -645,9 +649,12 @@ void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback
 		/* Perform DMA fill */
 		vdp->state->dma.pending = cc_false;
 
+		++vdp->state->dma.length; /* TODO: How does a real Mega Drive handle a length of 0? */
+
 		do
 		{
-			WriteAndIncrement(vdp->state, value, colour_updated_callback, colour_updated_callback_user_data);
+ 			vdp->state->vram[vdp->state->access.index] = value >> 8;
+			vdp->state->access.index += vdp->state->access.increment;
 		}
 		while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
 	}
@@ -709,8 +716,7 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 					/* Emulate the 128KiB DMA wrap-around bug */
 					++vdp->state->dma.source_address_low;
 					vdp->state->dma.source_address_low &= 0xFFFF;
-				}
-				while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
+				} while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
 			}
 			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
 			{
@@ -750,24 +756,24 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 
 			case 2:
 				/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL A */
-				vdp->state->plane_a_address = (data & 0x38) << (10 - 1);
+				vdp->state->plane_a_address = (data & 0x38) << 10;
 				break;
 
 			case 3:
 				/* PATTERN NAME TABLE BASE ADDRESS FOR WINDOW */
 				/* TODO: The lowest bit is invalid is H40 mode according to the 'Genesis Software Manual'. */
 				/* http://techdocs.exodusemulator.com/Console/SegaMegaDrive/Documentation.html#mega-drive-documentation */
-				vdp->state->window_address = (data & 0x3E) << (10 - 1);
+				vdp->state->window_address = (data & 0x3E) << 10;
 				break;
 
 			case 4:
 				/* PATTERN NAME TABLE BASE ADDRESS FOR SCROLL B */
-				vdp->state->plane_b_address = (data & 7) << (13 - 1);
+				vdp->state->plane_b_address = (data & 7) << 13;
 				break;
 
 			case 5:
 				/* SPRITE ATTRIBUTE TABLE BASE ADDRESS */
-				vdp->state->sprite_table_address = (data & 0x7F) << (9 - 1);
+				vdp->state->sprite_table_address = (data & 0x7F) << 9;
 
 				/* Real VDPs partially cache the sprite table, and forget to update it
 				   when the sprite table base address is changed. Replicating this
@@ -801,6 +807,8 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 						break;
 
 					case 1:
+						/* TODO: Some unauthorised EA games use this, and it acts as
+						   a slightly unstable version of one of the other modes. */
 						PrintError("Prohibitied H-scroll mode selected");
 						break;
 
@@ -859,7 +867,7 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 
 			case 13:
 				/* H SCROLL DATA TABLE BASE ADDRESS */
-				vdp->state->hscroll_address = (data & 0x3F) << (10 - 1);
+				vdp->state->hscroll_address = (data & 0x3F) << 10;
 				break;
 
 			case 15:
