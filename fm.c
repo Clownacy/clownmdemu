@@ -142,7 +142,6 @@ void FM_State_Initialise(FM_State *state)
 	state->dac_sample = 0;
 	state->dac_enabled = cc_false;
 
-	state->leftover_cycles = 0;
 	state->raw_timer_a_value = 0;
 
 	for (i = 0; i < CC_COUNT_OF(state->timers); ++i)
@@ -152,7 +151,10 @@ void FM_State_Initialise(FM_State *state)
 		state->timers[i].enabled = cc_false;
 	}
 
+	state->cached_address_27 = 0;
+	state->leftover_cycles = 0;
 	state->status = 0;
+	state->busy_flag_counter = 0;
 }
 
 void FM_Parameters_Initialise(FM *fm, const FM_Configuration *configuration, const FM_Constant *constant, FM_State *state)
@@ -205,7 +207,7 @@ void FM_DoData(const FM *fm, cc_u8f data)
 					state->raw_timer_a_value |= data << 2;
 					/* TODO: According to http://md.railgun.works/index.php?title=YM2612, this doesn't happen
 					   here: address 0x25 must be written to in order to update the timer proper. */
-					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - state->raw_timer_a_value);
+					/*state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - state->raw_timer_a_value);*/
 					break;
 
 				case 0x25:
