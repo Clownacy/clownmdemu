@@ -146,8 +146,8 @@ void FM_State_Initialise(FM_State *state)
 
 	for (i = 0; i < CC_COUNT_OF(state->timers); ++i)
 	{
-		state->timers[i].value = 0;
-		state->timers[i].counter = 0;
+		state->timers[i].value = FM_SAMPLE_RATE_DIVIDER; /* The timer expires when it goes BELOW 0, so this is a trick to emulate that. */
+		state->timers[i].counter = FM_SAMPLE_RATE_DIVIDER;
 		state->timers[i].enabled = cc_false;
 	}
 
@@ -205,17 +205,18 @@ void FM_DoData(const FM *fm, cc_u8f data)
 					/* Oddly, the YM2608 manual describes these timers being twice as fast as they are here. */
 					state->raw_timer_a_value &= 3;
 					state->raw_timer_a_value |= data << 2;
-					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - state->raw_timer_a_value);
+					/* The '+1' is so that the timer afters when it tries to go BELOW 0. */
+					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (1 + (0x400 - state->raw_timer_a_value));
 					break;
 
 				case 0x25:
 					state->raw_timer_a_value &= ~3;
 					state->raw_timer_a_value |= data & 3;
-					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (0x400 - state->raw_timer_a_value);
+					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (1 + (0x400 - state->raw_timer_a_value));
 					break;
 
 				case 0x26:
-					state->timers[1].value = FM_SAMPLE_RATE_DIVIDER * 16 * (0x100 - data);
+					state->timers[1].value = FM_SAMPLE_RATE_DIVIDER * (1 + (16 * (0x100 - data)));
 					break;
 
 				case 0x27:
