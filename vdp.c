@@ -249,18 +249,17 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 	/* Get the Y coordinate of the pixel in the tile */
 	const cc_u16f pixel_y_in_tile = (pixel_y_in_plane & tile_height_mask) ^ (tile_y_flip ? tile_height_mask : 0);
 
+	/* Get raw tile data that contains the desired metapixel */
+	const cc_u8l* const tile_data = &vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 4];
+
 	/* TODO - Unroll this loop? */
 	for (k = 0; k < 8; ++k)
 	{
 		/* Get the X coordinate of the pixel in the tile */
 		const cc_u16f pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
 
-		/* Get raw tile data that contains the desired metapixel */
-		/* TODO: Optimise. */
-		const cc_u16f tile_data = VRAMReadWord(vdp->state, tile_index * tile_size + pixel_y_in_tile * 4 + ((pixel_x_in_tile / 2) & ~1));
-
 		/* Obtain the index into the palette line */
-		const cc_u16f palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
+		const cc_u16f palette_line_index = (tile_data[pixel_x_in_tile / 2] >> (4 * ((pixel_x_in_tile & 1) ^ 1))) & 0xF;
 
 		/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
 		const cc_u16f metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
@@ -545,16 +544,16 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 						const cc_u16f tile_index = tile_index_base + (y_in_sprite >> tile_height_power) + x_in_sprite * height;
 						const cc_u16f pixel_y_in_tile = y_in_sprite & tile_height_mask;
 
+						/* Get raw tile data that contains the desired metapixel */
+						const cc_u8l* const tile_data = &vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 4];
+
 						for (k = 0; k < 8; ++k)
 						{
 							/* Get the X coordinate of the pixel in the tile */
 							const cc_u16f pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
 
-							/* Get raw tile data that contains the desired metapixel */
-							const cc_u16f tile_data = VRAMReadWord(vdp->state, tile_index * tile_size + pixel_y_in_tile * 4 + ((pixel_x_in_tile / 2) & ~1));
-
 							/* Obtain the index into the palette line */
-							const cc_u16f palette_line_index = (tile_data >> (4 * ((pixel_x_in_tile & 3) ^ 3))) & 0xF;
+							const cc_u16f palette_line_index = (tile_data[pixel_x_in_tile / 2] >> (4 * ((pixel_x_in_tile & 1) ^ 1))) & 0xF;
 
 							/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
 							const cc_u16f metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
