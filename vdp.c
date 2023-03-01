@@ -1,3 +1,5 @@
+/* TODO: https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016 */
+
 #include "vdp.h"
 
 #include <assert.h>
@@ -20,7 +22,7 @@ enum
 
 static cc_u16f VRAMReadWord(const VDP_State* const state, const cc_u16f address)
 {
-	return (state->vram[(address + 0) % CC_COUNT_OF(state->vram)] << 8) | state->vram[(address + 1) % CC_COUNT_OF(state->vram)];
+	return (state->vram[address ^ 0] << 8) | state->vram[address ^ 1];
 }
 
 static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_updated_callback)(const void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data)
@@ -35,7 +37,8 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 		case VDP_ACCESS_VRAM:
 		{
 			/* Update sprite cache if we're writing to the sprite table */
-			const cc_u16f sprite_table_index = state->access.index - state->sprite_table_address;
+			const cc_u16f index_wrapped = state->access.index % CC_COUNT_OF(state->vram);
+			const cc_u16f sprite_table_index = index_wrapped - state->sprite_table_address;
 
 			/* TODO: Use bytes instead of words for the cache. Or maybe just handle odd addresses better. */
 			if (sprite_table_index < (state->h40_enabled ? 80u : 64u) * 8u && (sprite_table_index & 4) == 0)
@@ -44,8 +47,8 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 				state->sprite_row_cache.needs_updating = cc_true;
 			}
 
-			state->vram[(state->access.index + 0) % CC_COUNT_OF(state->vram)] = (cc_u8l)(value >> 8);
-			state->vram[(state->access.index + 1) % CC_COUNT_OF(state->vram)] = (cc_u8l)(value & 0xFF);
+			state->vram[index_wrapped ^ 0] = (cc_u8l)(value >> 8);
+			state->vram[index_wrapped ^ 1] = (cc_u8l)(value & 0xFF);
 
 			break;
 		}
@@ -99,7 +102,7 @@ static cc_u16f ReadAndIncrement(VDP_State *state)
 			assert(0);
 			/* Fallthrough */
 		case VDP_ACCESS_VRAM:
-			value = VRAMReadWord(state, state->access.index);
+			value = VRAMReadWord(state, state->access.index % CC_COUNT_OF(state->vram));
 			break;
 
 		case VDP_ACCESS_CRAM:
@@ -644,24 +647,28 @@ void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback
 		   data should not be written, but the address should be incremented */
 		vdp->state->access.index += vdp->state->access.increment;
 	}
-	else if (vdp->state->dma.pending)
-	{
-		/* Perform DMA fill */
-		vdp->state->dma.pending = cc_false;
-
-		++vdp->state->dma.length; /* TODO: How does a real Mega Drive handle a length of 0? */
-
-		do
-		{
- 			vdp->state->vram[vdp->state->access.index] = value >> 8;
-			vdp->state->access.index += vdp->state->access.increment;
-		}
-		while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
-	}
 	else
 	{
 		/* Write the value to memory */
 		WriteAndIncrement(vdp->state, value, colour_updated_callback, colour_updated_callback_user_data);
+
+		if (vdp->state->dma.pending)
+		{
+			/* Perform DMA fill */
+			/* TODO: https://gendev.spritesmind.net/forum/viewtopic.php?p=31857&sid=34ef0ab3215fa6ceb29e12db824c3427#p31857 */
+			vdp->state->dma.pending = cc_false;
+
+			do
+			{
+				vdp->state->vram[vdp->state->access.index % CC_COUNT_OF(vdp->state->vram)] = value >> 8;
+				vdp->state->access.index += vdp->state->access.increment;
+
+				/* Yes, even DMA fills do this, according to
+				   'https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016'. */
+				++vdp->state->dma.source_address_low;
+				vdp->state->dma.source_address_low &= 0xFFFF;
+			} while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
+		}
 	}
 }
 
