@@ -145,7 +145,10 @@ void PSG_Update(const PSG *psg, cc_s16l *sample_buffer, size_t total_samples)
 			for (j = 0; j < total_samples; ++j)
 			{
 				/* This countdown is responsible for the channel's frequency. */
-				if (tone->countdown-- == 0)
+				if (tone->countdown != 0)
+					--tone->countdown;
+
+				if (tone->countdown == 0)
 				{
 					/* Reset the countdown. */
 					tone->countdown = tone->countdown_master;
@@ -168,21 +171,24 @@ void PSG_Update(const PSG *psg, cc_s16l *sample_buffer, size_t total_samples)
 		for (j = 0; j < total_samples; ++j)
 		{
 			/* This countdown is responsible for the channel's frequency. */
-			if (psg->state->noise.countdown-- == 0)
+			if (psg->state->noise.countdown != 0)
+				--psg->state->noise.countdown;
+
+			if (psg->state->noise.countdown == 0)
 			{
 				/* Reset the countdown. */
 				switch (psg->state->noise.frequency_mode)
 				{
 					case 0:
-						psg->state->noise.countdown = 0x10 - 1;
+						psg->state->noise.countdown = 0x10;
 						break;
 
 					case 1:
-						psg->state->noise.countdown = 0x20 - 1;
+						psg->state->noise.countdown = 0x20;
 						break;
 
 					case 2:
-						psg->state->noise.countdown = 0x40 - 1;
+						psg->state->noise.countdown = 0x40;
 						break;
 
 					case 3:
