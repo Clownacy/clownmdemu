@@ -39,7 +39,11 @@ enum
 
 typedef struct Z80Instruction
 {
+#ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 	const Z80_InstructionMetadata *metadata;
+#else
+	Z80_InstructionMetadata *metadata;
+#endif
 	cc_u16f literal;
 	cc_u16f address;
 	cc_bool double_prefix_mode;
