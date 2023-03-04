@@ -194,7 +194,7 @@ void FM_DoData(const FM *fm, cc_u8f data)
 			switch (state->address)
 			{
 				default:
-					PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST16 ")", state->address);
+					PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST8 ")", state->address);
 					break;
 
 				case 0x22:
@@ -292,7 +292,7 @@ void FM_DoData(const FM *fm, cc_u8f data)
 				switch (state->address / 0x10)
 				{
 					default:
-						PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST16 ")", state->address);
+						PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST8 ")", state->address);
 						break;
 
 					case 0x30 / 0x10:
@@ -337,7 +337,7 @@ void FM_DoData(const FM *fm, cc_u8f data)
 				switch (state->address / 4)
 				{
 					default:
-						PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST16 ")", state->address);
+						PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST8 ")", state->address);
 						break;
 
 					case 0xA8 / 4:
