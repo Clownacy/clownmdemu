@@ -237,7 +237,7 @@ void VDP_State_Initialise(VDP_State *state)
 
 static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f tile_x, const cc_u16f tile_y, const cc_u16f plane_address, const cc_u16f tile_height_mask, const cc_u16f tile_size, cc_u8l** const metapixels_pointer)
 {
-	cc_u16f k;
+	cc_u16f i;
 
 	const cc_u16f tile_metadata = VRAMReadWord(vdp->state, plane_address + (tile_y * vdp->state->plane_width + tile_x) * 2);
 	const cc_bool tile_priority = (tile_metadata & 0x8000) != 0;
@@ -252,17 +252,21 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 	/* Get raw tile data that contains the desired metapixel */
 	const cc_u8l* const tile_data = &vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 4];
 
+	const cc_u8f byte_index_xor = tile_x_flip ? 7 : 0;
+	const cc_u8f metapixel_upper_bits = (tile_priority << 6) | (tile_palette_line << 4);
+
 	/* TODO - Unroll this loop? */
-	for (k = 0; k < 8; ++k)
+	for (i = 0; i < 8; ++i)
 	{
 		/* Get the X coordinate of the pixel in the tile */
-		const cc_u16f pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
+		const cc_u8f pixel_x_in_tile = i ^ byte_index_xor;
 
 		/* Obtain the index into the palette line */
-		const cc_u16f palette_line_index = (tile_data[pixel_x_in_tile / 2] >> (4 * ((pixel_x_in_tile & 1) ^ 1))) & 0xF;
+		const cc_u8f nibble_shift = (~pixel_x_in_tile & 1) << 2;
+		const cc_u8f palette_line_index = (tile_data[pixel_x_in_tile / 2] >> nibble_shift) & 0xF;
 
 		/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
-		const cc_u16f metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
+		const cc_u8f metapixel = metapixel_upper_bits | palette_line_index;
 
 		**metapixels_pointer = vdp->constant->blit_lookup[**metapixels_pointer][metapixel];
 		++*metapixels_pointer;
@@ -520,6 +524,8 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 				const cc_bool tile_x_flip = (tile_metadata & 0x0800) != 0;
 				const cc_u16f tile_index_base = tile_metadata & 0x7FF;
 
+				const cc_u8f metapixel_high_bits = (tile_priority << 6) | (tile_palette_line << 4);
+
 				cc_u16f y_in_sprite = sprite_row_cache_entry->y_in_sprite;
 
 				/* TODO - sprites only mask if another sprite rendered before them on the
@@ -550,15 +556,16 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 						for (k = 0; k < 8; ++k)
 						{
 							/* Get the X coordinate of the pixel in the tile */
-							const cc_u16f pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
+							const cc_u8f pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
 
 							/* Obtain the index into the palette line */
-							const cc_u16f palette_line_index = (tile_data[pixel_x_in_tile / 2] >> (4 * ((pixel_x_in_tile & 1) ^ 1))) & 0xF;
+							const cc_u8f nibble_shift = (~pixel_x_in_tile & 1) << 2;
+							const cc_u8f palette_line_index = (tile_data[pixel_x_in_tile / 2] >> nibble_shift) & 0xF;
 
 							/* Merge the priority, palette line, and palette line index into the complete indexed pixel */
-							const cc_u16f metapixel = (tile_priority << 6) | (tile_palette_line << 4) | palette_line_index;
+							const cc_u8f metapixel = metapixel_high_bits | palette_line_index;
 
-							*metapixels_pointer |= metapixel & (0 - (cc_u16f)(*metapixels_pointer == 0)) & (0 - (cc_u16f)(palette_line_index != 0));
+							*metapixels_pointer |= metapixel & (0 - (cc_u8f)(*metapixels_pointer == 0)) & (0 - (cc_u8f)(palette_line_index != 0));
 							++metapixels_pointer;
 
 							if (--pixel_limit == 0)
