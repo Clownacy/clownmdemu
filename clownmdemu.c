@@ -354,7 +354,10 @@ static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do
 			const cc_bool new_z80_reset = (high_byte & 1) == 0;
 
 			if (clownmdemu->state->z80_reset && !new_z80_reset)
+			{
 				Z80_Reset(&clownmdemu->z80);
+				FM_State_Initialise(&clownmdemu->state->fm);
+			}
 
 			clownmdemu->state->z80_reset = new_z80_reset;
 		}
