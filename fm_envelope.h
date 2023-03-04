@@ -14,17 +14,17 @@ typedef enum FM_Envelope_Mode
 typedef struct FM_Envelope_State
 {
 	/* TODO: Make these two global. */
-	cc_u16f countdown;
-	cc_u16f cycle_counter;
+	cc_u16l countdown;
+	cc_u16l cycle_counter;
 
-	cc_u16f delta_index;
-	cc_u16f current_attenuation;
+	cc_u16l delta_index;
+	cc_u16l current_attenuation;
 
-	cc_u16f total_level;
-	cc_u16f sustain_level;
-	cc_u16f key_scale;
+	cc_u16l total_level;
+	cc_u16l sustain_level;
+	cc_u16l key_scale;
 
-	cc_u16f rates[4];
+	cc_u16l rates[4];
 	FM_Envelope_Mode current_mode;
 
 	cc_bool key_on;

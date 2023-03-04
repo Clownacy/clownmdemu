@@ -178,7 +178,7 @@ typedef struct Z80_Constant
 typedef struct Z80_State
 {
 	cc_u8l register_mode; /* Z80_RegisterMode */
-	cc_u16f cycles;
+	cc_u16l cycles;
 	cc_u16l program_counter;
 	cc_u16l stack_pointer;
 	cc_u8l a, f, b, c, d, e, h, l;

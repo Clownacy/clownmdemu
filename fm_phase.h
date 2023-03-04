@@ -5,13 +5,13 @@
 
 typedef struct FM_Phase_State
 {
-	cc_u32f position;
-	cc_u32f step;
+	cc_u32l position;
+	cc_u32l step;
 
-	cc_u16f f_number_and_block;
-	cc_u16f key_code;
-	cc_u16f detune;
-	cc_u16f multiplier;
+	cc_u16l f_number_and_block;
+	cc_u16l key_code;
+	cc_u16l detune;
+	cc_u16l multiplier;
 } FM_Phase_State;
 
 void FM_Phase_State_Initialise(FM_Phase_State *phase);

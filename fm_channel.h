@@ -40,9 +40,9 @@ typedef struct FM_Channel_Constant
 typedef struct FM_Channel_State
 {
 	FM_Operator_State operators[4];
-	cc_s16f feedback_divisor;
-	cc_u16f algorithm;
-	cc_s16f operator_1_previous_samples[2];
+	cc_s16l feedback_divisor;
+	cc_u16l algorithm;
+	cc_s16l operator_1_previous_samples[2];
 } FM_Channel_State;
 
 typedef struct FM_Channel

@@ -18,35 +18,35 @@ typedef enum PSG_NoiseType
 typedef struct PSG_ToneState
 {
 	/* Countdown until the phase changes */
-	cc_u16f countdown;
+	cc_u16l countdown;
 	/* Value to reset the countdown to when it expires */
-	cc_u16f countdown_master;
+	cc_u16l countdown_master;
 	/* The volume attenuation level of the channel */
-	cc_u8f attenuation;
+	cc_u8l attenuation;
 	/* The current phase of the channel - 0 for high phase, and 1 for low phase */
-	cc_u8f output_bit;
+	cc_u8l output_bit;
 } PSG_ToneState;
 
 typedef struct PSG_NoiseState
 {
 	/* Countdown until the fake output bit alternates */
-	cc_u16f countdown;
+	cc_u16l countdown;
 	/* The volume attenuation level of the channel */
-	cc_u8f attenuation;
+	cc_u8l attenuation;
 	/* The shift register is rotated when this bit goes from low to high */
-	cc_u8f fake_output_bit;
+	cc_u8l fake_output_bit;
 	/* The current phase of the channel - 0 for high phase, and 1 for low phase */
-	cc_u8f real_output_bit;
+	cc_u8l real_output_bit;
 	/* Determines what the countdown is reset to when it expires:
 	   0 - 0x10
 	   1 - 0x20
 	   2 - 0x40
 	   3 - the same as the last tone channel */
-	cc_u8f frequency_mode;
+	cc_u8l frequency_mode;
 	/* The type of noise output by the channel */
 	cc_u8l type; /* PSG_NoiseType */
 	/* Rotating bitfield which is used to produce noise */
-	cc_u16f shift_register;
+	cc_u16l shift_register;
 } PSG_NoiseState;
 
 typedef struct PSG_LatchedCommand
@@ -56,7 +56,7 @@ typedef struct PSG_LatchedCommand
 	   1 = Tone channel 2
 	   2 = Tone channel 3
 	   3 = Noise channel */
-	cc_u8f channel;
+	cc_u8l channel;
 	/* Whether the latched command sets the volume attenuation or not */
 	cc_bool is_volume_command;
 } PSG_LatchedCommand;

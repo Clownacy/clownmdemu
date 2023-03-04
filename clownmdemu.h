@@ -140,7 +140,7 @@ typedef struct ClownMDEmu_State
 		cc_u8l control;
 		cc_u8l data;
 	} joypads[3];
-	cc_u16f z80_bank;
+	cc_u8l z80_bank;
 	cc_bool m68k_has_z80_bus;
 	cc_bool z80_reset;
 } ClownMDEmu_State;
