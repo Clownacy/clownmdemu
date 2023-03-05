@@ -1894,8 +1894,6 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 			READ_SOURCE;
 			READ_DESTINATION;
 
-			source_value = source_value;
-
 			result_value_with_carry_16bit = (cc_u32f)source_value + (cc_u32f)destination_value + ((z80->state->f & FLAG_MASK_CARRY) != 0 ? 1 : 0);
 			result_value = result_value_with_carry_16bit & 0xFFFF;
 
