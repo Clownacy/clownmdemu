@@ -21,8 +21,8 @@ typedef struct VDP_Configuration
 
 typedef struct VDP_Constant
 {
-	cc_u8l blit_lookup[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
-	cc_u8l blit_lookup_shadow_highlight[1 << (1 + 1 + 2 + 4)][1 << (1 + 2 + 4)];
+	cc_u8l blit_lookup[1 << (1 + 2)][1 << (1 + 1 + 2 + 4)][1 << 4];
+	cc_u8l blit_lookup_shadow_highlight[1 << (1 + 2)][1 << (1 + 1 + 2 + 4)][1 << 4];
 } VDP_Constant;
 
 typedef enum VDP_Access
