@@ -407,6 +407,7 @@ static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do
 }
 
 /* Z80 memory access callbacks */
+/* TODO: https://sonicresearch.org/community/index.php?threads/help-with-potentially-extra-ram-space-for-z80-sound-drivers.6763/#post-89797 */
 
 static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address)
 {
@@ -616,12 +617,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 
 			/* Z80 */
 			if (z80_countdown == 0)
-			{
-				z80_countdown = CLOWNMDEMU_Z80_CLOCK_DIVIDER;
-
-				if (!clownmdemu->state->m68k_has_z80_bus)
-					Z80_DoCycle(&clownmdemu->z80, &z80_read_write_callbacks);
-			}
+				z80_countdown = clownmdemu->state->m68k_has_z80_bus ? CLOWNMDEMU_Z80_CLOCK_DIVIDER : CLOWNMDEMU_Z80_CLOCK_DIVIDER * Z80_DoCycle(&clownmdemu->z80, &z80_read_write_callbacks);
 
 			z80_countdown -= cycles_to_do;
 

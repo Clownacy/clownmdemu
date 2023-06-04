@@ -2517,46 +2517,46 @@ void Z80_Interrupt(const Z80 *z80)
 	z80->state->interrupt_pending = cc_true;
 }
 
-void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
+cc_u16f Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
 {
-	/* Wait for previous instruction to end. */
-	if (--z80->state->cycles == 0)
+	/* Process new instruction. */
+	Z80Instruction instruction;
+
+#ifndef Z80_PRECOMPUTE_INSTRUCTION_METADATA
+	Z80_InstructionMetadata metadata;
+	instruction.metadata = &metadata;
+#endif
+
+	z80->state->cycles = 0;
+
+	DecodeInstruction(z80, callbacks, &instruction);
+
+	ExecuteInstruction(z80, callbacks, &instruction);
+
+	/* Perform interrupt after processing the instruction. */
+	/* TODO: The other interrupt modes. */
+	if (z80->state->interrupt_pending
+		&& z80->state->interrupts_enabled
+		/* Interrupts should not be able to occur directly after a prefix instruction. */
+		&& instruction.metadata->opcode != Z80_OPCODE_DD_PREFIX
+		&& instruction.metadata->opcode != Z80_OPCODE_FD_PREFIX
+		/* Curiously, interrupts do not occur directly after 'EI' instructions either. */
+		&& instruction.metadata->opcode != Z80_OPCODE_EI)
 	{
-		/* Process new instruction. */
-		Z80Instruction instruction;
+		z80->state->interrupt_pending = cc_false;
+		z80->state->interrupts_enabled = cc_false;
 
-	#ifndef Z80_PRECOMPUTE_INSTRUCTION_METADATA
-		Z80_InstructionMetadata metadata;
-		instruction.metadata = &metadata;
-	#endif
+		/* TODO: Interrupt duration. */
+		--z80->state->stack_pointer;
+		z80->state->stack_pointer &= 0xFFFF;
+		callbacks->write(callbacks->user_data, z80->state->stack_pointer, z80->state->program_counter >> 8);
 
-		DecodeInstruction(z80, callbacks, &instruction);
+		--z80->state->stack_pointer;
+		z80->state->stack_pointer &= 0xFFFF;
+		callbacks->write(callbacks->user_data, z80->state->stack_pointer, z80->state->program_counter & 0xFF);
 
-		ExecuteInstruction(z80, callbacks, &instruction);
-
-		/* Perform interrupt after processing the instruction. */
-		/* TODO: The other interrupt modes. */
-		if (z80->state->interrupt_pending
-		 && z80->state->interrupts_enabled
-		 /* Interrupts should not be able to occur directly after a prefix instruction. */
-		 && instruction.metadata->opcode != Z80_OPCODE_DD_PREFIX
-		 && instruction.metadata->opcode != Z80_OPCODE_FD_PREFIX
-		 /* Curiously, interrupts do not occur directly after 'EI' instructions either. */
-		 && instruction.metadata->opcode != Z80_OPCODE_EI)
-		{
-			z80->state->interrupt_pending = cc_false;
-			z80->state->interrupts_enabled = cc_false;
-
-			/* TODO: Interrupt duration. */
-			--z80->state->stack_pointer;
-			z80->state->stack_pointer &= 0xFFFF;
-			callbacks->write(callbacks->user_data, z80->state->stack_pointer, z80->state->program_counter >> 8);
-
-			--z80->state->stack_pointer;
-			z80->state->stack_pointer &= 0xFFFF;
-			callbacks->write(callbacks->user_data, z80->state->stack_pointer, z80->state->program_counter & 0xFF);
-
-			z80->state->program_counter = 0x38;
-		}
+		z80->state->program_counter = 0x38;
 	}
+
+	return z80->state->cycles;
 }

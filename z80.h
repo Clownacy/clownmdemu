@@ -206,6 +206,6 @@ void Z80_Constant_Initialise(Z80_Constant *constant);
 void Z80_State_Initialise(Z80_State *state);
 void Z80_Reset(const Z80 *z80);
 void Z80_Interrupt(const Z80 *z80);
-void Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks);
+cc_u16f Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks);
 
 #endif /* Z80_H */
