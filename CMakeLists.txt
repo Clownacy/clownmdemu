@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 
-option(CLOWNMDEMU_USE_C99_INTEGERS "Use C99 integer types instead of the original C89 ones. May save RAM depending on the platform's data model." OFF)
+option(CC_USE_C99_INTEGERS "Use C99 integer types instead of the original C89 ones. May save RAM depending on the platform's data model." OFF)
 
 project(clownmdemu LANGUAGES C)
 
@@ -38,6 +38,6 @@ add_subdirectory("clown68000" EXCLUDE_FROM_ALL)
 
 target_link_libraries(clownmdemu PRIVATE clown68000)
 
-if(CLOWNMDEMU_USE_C99_INTEGERS)
+if(CC_USE_C99_INTEGERS)
 	target_compile_definitions(clownmdemu PUBLIC CC_USE_C99_INTEGERS)
 endif()
