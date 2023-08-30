@@ -540,7 +540,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 				if (x == 0)
 					break;
 
-				if (x + width * 8 > 128 && x < 128u + (state->h40_enabled ? 40 : 32) * 8 - 1)
+				if (x + width * 8 > 128 && x < 128u + (state->h40_enabled ? 40 : 32) * 8)
 				{
 					cc_u16f j;
 
