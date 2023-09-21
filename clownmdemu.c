@@ -24,10 +24,75 @@ typedef struct DataAndCallbacks
 typedef struct CPUCallbackUserData
 {
 	DataAndCallbacks data_and_callbacks;
-	cc_u32f current_cycle;
-	cc_u32f fm_previous_cycle;
-	cc_u32f psg_previous_cycle;
+	cc_u32f m68k_current_cycle;
+	cc_u32f z80_current_cycle;
+	cc_u32f fm_current_cycle;
+	cc_u32f psg_current_cycle;
 } CPUCallbackUserData;
+
+static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte);
+static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value);
+static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address);
+static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f value);
+
+static void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
+{
+	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
+	cc_u16f m68k_countdown;
+
+	m68k_read_write_callbacks.read_callback = M68kReadCallback;
+	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
+	m68k_read_write_callbacks.user_data = other_state;
+
+	/* Store this in a local variable to make the upcoming code faster. */
+	m68k_countdown = clownmdemu->state->countdowns.m68k;
+
+	while (other_state->m68k_current_cycle < target_cycle)
+	{
+		const cc_u32f cycles_to_do = CC_MIN(m68k_countdown, target_cycle - other_state->m68k_current_cycle);
+
+		m68k_countdown -= cycles_to_do;
+
+		if (m68k_countdown == 0)
+		{
+			Clown68000_DoCycle(clownmdemu->m68k, &m68k_read_write_callbacks);
+			m68k_countdown = CLOWNMDEMU_M68K_CLOCK_DIVIDER * 10; /* TODO: The '* 10' is a temporary hack until 68000 instruction durations are added. */
+		}
+
+		other_state->m68k_current_cycle += cycles_to_do;
+	}
+
+	/* Store this back in memory for later. */
+	clownmdemu->state->countdowns.m68k = m68k_countdown;
+}
+
+static void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
+{
+	Z80_ReadAndWriteCallbacks z80_read_write_callbacks;
+	cc_u16f z80_countdown;
+
+	z80_read_write_callbacks.read = Z80ReadCallback;
+	z80_read_write_callbacks.write = Z80WriteCallback;
+	z80_read_write_callbacks.user_data = other_state;
+
+	/* Store this in a local variables to make the upcoming code faster. */
+	z80_countdown = clownmdemu->state->countdowns.z80;
+
+	while (other_state->z80_current_cycle < target_cycle)
+	{
+		const cc_u32f cycles_to_do = CC_MIN(z80_countdown, target_cycle - other_state->z80_current_cycle);
+
+		z80_countdown -= cycles_to_do;
+
+		if (z80_countdown == 0)
+			z80_countdown = CLOWNMDEMU_Z80_CLOCK_DIVIDER * (clownmdemu->state->m68k_has_z80_bus ? 1 : Z80_DoCycle(&clownmdemu->z80, &z80_read_write_callbacks));
+
+		other_state->z80_current_cycle += cycles_to_do;
+	}
+
+	/* Store this back in memory for later. */
+	clownmdemu->state->countdowns.z80 = z80_countdown;
+}
 
 static void FMCallbackWrapper(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames)
 {
@@ -41,15 +106,15 @@ static void GenerateFMAudio(const void *user_data, cc_u32f total_frames)
 	callback_user_data->data_and_callbacks.frontend_callbacks->fm_audio_to_be_generated(callback_user_data->data_and_callbacks.frontend_callbacks->user_data, total_frames, FMCallbackWrapper);
 }
 
-static cc_u8f GenerateAndPlayFMSamples(CPUCallbackUserData *m68k_callback_user_data)
+static cc_u8f SyncFM(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 {
-	const cc_u32f fm_current_cycle = m68k_callback_user_data->current_cycle / CLOWNMDEMU_M68K_CLOCK_DIVIDER;
+	const cc_u32f fm_target_cycle = target_cycle / CLOWNMDEMU_M68K_CLOCK_DIVIDER;
 
-	const cc_u32f cycles_to_do = fm_current_cycle - m68k_callback_user_data->fm_previous_cycle;
+	const cc_u32f cycles_to_do = fm_target_cycle - other_state->fm_current_cycle;
 
-	m68k_callback_user_data->fm_previous_cycle = fm_current_cycle;
+	other_state->fm_current_cycle = fm_target_cycle;
 
-	return FM_Update(&m68k_callback_user_data->data_and_callbacks.data->fm, cycles_to_do, GenerateFMAudio, m68k_callback_user_data);
+	return FM_Update(&other_state->data_and_callbacks.data->fm, cycles_to_do, GenerateFMAudio, other_state);
 }
 
 static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples)
@@ -57,17 +122,17 @@ static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffe
 	PSG_Update(&clownmdemu->psg, sample_buffer, total_samples);
 }
 
-static void GenerateAndPlayPSGSamples(CPUCallbackUserData *m68k_callback_user_data)
+static void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 {
-	const cc_u32f psg_current_cycle = m68k_callback_user_data->current_cycle / (CLOWNMDEMU_Z80_CLOCK_DIVIDER * CLOWNMDEMU_PSG_SAMPLE_RATE_DIVIDER);
+	const cc_u32f psg_target_cycle = target_cycle / (CLOWNMDEMU_Z80_CLOCK_DIVIDER * CLOWNMDEMU_PSG_SAMPLE_RATE_DIVIDER);
 
-	const size_t samples_to_generate = psg_current_cycle - m68k_callback_user_data->psg_previous_cycle;
+	const size_t samples_to_generate = psg_target_cycle - other_state->psg_current_cycle;
 
 	if (samples_to_generate != 0)
 	{
-		m68k_callback_user_data->data_and_callbacks.frontend_callbacks->psg_audio_to_be_generated(m68k_callback_user_data->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate, GeneratePSGAudio);
+		other_state->data_and_callbacks.frontend_callbacks->psg_audio_to_be_generated(other_state->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate, GeneratePSGAudio);
 
-		m68k_callback_user_data->psg_previous_cycle = psg_current_cycle;
+		other_state->psg_current_cycle = psg_target_cycle;
 	}
 }
 
@@ -102,10 +167,10 @@ static cc_u16f VDPReadCallback(const void *user_data, cc_u32f address)
 
 /* 68k memory access callbacks */
 
-static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address);
-static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f value);
+static cc_u16f Z80ReadCallbackWithCycle(const void *user_data, cc_u16f address, const cc_u32f target_cycle);
+static void Z80WriteCallbackWithCycle(const void *user_data, cc_u16f address, cc_u16f value, const cc_u32f target_cycle);
 
-static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte)
+static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, const cc_u32f target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
@@ -138,9 +203,9 @@ static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool 
 		else
 		{
 			if (do_high_byte)
-				value = Z80ReadCallback(user_data, (address & 0xFFFF) + 0) << 8;
+				value = Z80ReadCallbackWithCycle(user_data, (address & 0xFFFF) + 0, target_cycle) << 8;
 			else /*if (do_low_byte)*/
-				value = Z80ReadCallback(user_data, (address & 0xFFFF) + 1) << 0;
+				value = Z80ReadCallbackWithCycle(user_data, (address & 0xFFFF) + 1, target_cycle) << 0;
 		}
 	}
 	else if (address >= 0xA10000 && address <= 0xA1001F)
@@ -261,7 +326,14 @@ static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool 
 	return value;
 }
 
-static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value)
+static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte)
+{
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+
+	return M68kReadCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, callback_user_data->m68k_current_cycle);
+}
+
+static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value, const cc_u32f target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
@@ -299,9 +371,9 @@ static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do
 		else
 		{
 			if (do_high_byte)
-				Z80WriteCallback(user_data, (address & 0xFFFF) + 0, high_byte);
+				Z80WriteCallbackWithCycle(user_data, (address & 0xFFFF) + 0, high_byte, target_cycle);
 			else /*if (do_low_byte)*/
-				Z80WriteCallback(user_data, (address & 0xFFFF) + 1, low_byte);
+				Z80WriteCallbackWithCycle(user_data, (address & 0xFFFF) + 1, low_byte, target_cycle);
 		}
 	}
 	else if (address >= 0xA10000 && address <= 0xA1001F)
@@ -344,7 +416,10 @@ static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do
 	{
 		/* Z80 BUSREQ */
 		if (do_high_byte)
+		{
+			SyncZ80(clownmdemu, callback_user_data, target_cycle);
 			clownmdemu->state->m68k_has_z80_bus = (high_byte & 1) != 0;
+		}
 	}
 	else if (address == 0xA11200)
 	{
@@ -355,6 +430,7 @@ static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do
 
 			if (clownmdemu->state->z80_reset && !new_z80_reset)
 			{
+				SyncZ80(clownmdemu, callback_user_data, target_cycle);
 				Z80_Reset(&clownmdemu->z80);
 				FM_State_Initialise(&clownmdemu->state->fm);
 			}
@@ -385,8 +461,8 @@ static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do
 		/* PSG */
 		if (do_low_byte)
 		{
-			/* Update the PSG up until this point in time */
-			GenerateAndPlayPSGSamples(callback_user_data);
+			SyncZ80(clownmdemu, callback_user_data, target_cycle);
+			SyncPSG(callback_user_data, target_cycle);
 
 			/* Alter the PSG's state */
 			PSG_DoCommand(&clownmdemu->psg, low_byte);
@@ -406,10 +482,17 @@ static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do
 	}
 }
 
+static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value)
+{
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+
+	M68kWriteCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, value, callback_user_data->m68k_current_cycle);
+}
+
 /* Z80 memory access callbacks */
 /* TODO: https://sonicresearch.org/community/index.php?threads/help-with-potentially-extra-ram-space-for-z80-sound-drivers.6763/#post-89797 */
 
-static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address)
+static cc_u16f Z80ReadCallbackWithCycle(const void *user_data, cc_u16f address, const cc_u32f target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
@@ -428,7 +511,7 @@ static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address)
 	{
 		/* YM2612 */
 		/* TODO: Model 1 Mega Drives only do this for 0x4000 and 0x4002. */
-		value = GenerateAndPlayFMSamples(callback_user_data);
+		value = SyncFM(callback_user_data, target_cycle);
 	}
 	else if (address == 0x6000 || address == 0x6001)
 	{
@@ -444,10 +527,12 @@ static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address)
 		/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
 		const cc_u32f m68k_address = ((cc_u32f)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE);
 
+		SyncM68k(clownmdemu, callback_user_data, target_cycle);
+
 		if ((address & 1) != 0)
-			value = M68kReadCallback(user_data, m68k_address, cc_false, cc_true);
+			value = M68kReadCallbackWithCycle(user_data, m68k_address, cc_false, cc_true, target_cycle);
 		else
-			value = M68kReadCallback(user_data, m68k_address, cc_true, cc_false) >> 8;
+			value = M68kReadCallbackWithCycle(user_data, m68k_address, cc_true, cc_false, target_cycle) >> 8;
 	}
 	else
 	{
@@ -457,7 +542,14 @@ static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address)
 	return value;
 }
 
-static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f value)
+static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address)
+{
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+
+	return Z80ReadCallbackWithCycle(user_data, address, callback_user_data->z80_current_cycle);
+}
+
+static void Z80WriteCallbackWithCycle(const void *user_data, cc_u16f address, cc_u16f value, const cc_u32f target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
@@ -472,7 +564,7 @@ static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f val
 		const cc_u16f port = (address & 2) != 0 ? 1 : 0;
 
 		/* Update the FM up until this point in time. */
-		GenerateAndPlayFMSamples(callback_user_data);
+		SyncFM(callback_user_data, target_cycle);
 
 		if ((address & 1) == 0)
 			FM_DoAddress(&clownmdemu->fm, port, value);
@@ -487,7 +579,8 @@ static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f val
 	else if (address == 0x7F11)
 	{
 		/* PSG (accessed through the 68k's bus). */
-		M68kWriteCallback(user_data, 0xC00010, cc_false, cc_true, value);
+		SyncM68k(clownmdemu, callback_user_data, target_cycle);
+		M68kWriteCallbackWithCycle(user_data, 0xC00010, cc_false, cc_true, value, target_cycle);
 	}
 	else if (address >= 0x8000)
 	{
@@ -499,15 +592,24 @@ static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f val
 		/* TODO: Apparently the Z80 can access the IO ports and send a bus request to itself. */
 		const cc_u32f m68k_address = ((cc_u32f)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE);
 
+		SyncM68k(clownmdemu, callback_user_data, target_cycle);
+
 		if ((address & 1) != 0)
-			M68kWriteCallback(user_data, m68k_address, cc_false, cc_true, value);
+			M68kWriteCallbackWithCycle(user_data, m68k_address, cc_false, cc_true, value, target_cycle);
 		else
-			M68kWriteCallback(user_data, m68k_address, cc_true, cc_false, value << 8);
+			M68kWriteCallbackWithCycle(user_data, m68k_address, cc_true, cc_false, value << 8, target_cycle);
 	}
 	else
 	{
 		PrintError("Attempted to write invalid Z80 address 0x%" CC_PRIXFAST16, address);
 	}
+}
+
+static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f value)
+{
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+
+	Z80WriteCallbackWithCycle(user_data, address, value, callback_user_data->z80_current_cycle);
 }
 
 void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant)
@@ -564,32 +666,24 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 {
 	cc_u16f scanline;
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
-	Z80_ReadAndWriteCallbacks z80_read_write_callbacks;
 	CPUCallbackUserData cpu_callback_user_data;
-	cc_u16f m68k_countdown, z80_countdown;
 	cc_u8f h_int_counter;
 
 	const cc_u16f television_vertical_resolution = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
 	const cc_u16f console_vertical_resolution = (clownmdemu->state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
-	const cc_u16f cycles_per_scanline = (clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC)) / television_vertical_resolution;
+	const cc_u16f cycles_per_frame = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC);
+	const cc_u16f cycles_per_scanline = cycles_per_frame / television_vertical_resolution;
 
 	cpu_callback_user_data.data_and_callbacks.data = clownmdemu;
 	cpu_callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
-	cpu_callback_user_data.current_cycle = 0;
-	cpu_callback_user_data.fm_previous_cycle = 0;
-	cpu_callback_user_data.psg_previous_cycle = 0;
+	cpu_callback_user_data.m68k_current_cycle = 0;
+	cpu_callback_user_data.z80_current_cycle = 0;
+	cpu_callback_user_data.fm_current_cycle = 0;
+	cpu_callback_user_data.psg_current_cycle = 0;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
 	m68k_read_write_callbacks.user_data = &cpu_callback_user_data;
-
-	z80_read_write_callbacks.read = Z80ReadCallback;
-	z80_read_write_callbacks.write = Z80WriteCallback;
-	z80_read_write_callbacks.user_data = &cpu_callback_user_data;
-
-	/* Store these in local variables to make the upcoming code faster. */
-	m68k_countdown = clownmdemu->state->countdowns.m68k;
-	z80_countdown = clownmdemu->state->countdowns.z80;
 
 	/* Reload H-Int counter at the top of the screen, just like real hardware does */
 	h_int_counter = clownmdemu->state->vdp.h_int_interval;
@@ -598,31 +692,10 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 
 	for (scanline = 0; scanline < television_vertical_resolution; ++scanline)
 	{
-		/* Run the 68k and Z80 for a scanline's worth of cycles */
-		cc_u16f remaining_cycles, cycles_to_do;
+		const cc_u32f current_cycle = cycles_per_scanline * (1 + scanline);
 
-		for (remaining_cycles = cycles_per_scanline; remaining_cycles != 0; remaining_cycles -= cycles_to_do)
-		{
-			cycles_to_do = CC_MIN(remaining_cycles, CC_MIN(m68k_countdown, z80_countdown));
-
-			/* 68k */
-			if (m68k_countdown == 0)
-			{
-				m68k_countdown = CLOWNMDEMU_M68K_CLOCK_DIVIDER * 10; /* TODO - The x10 is a temporary hack to get the 68k to run roughly at the correct speed until instruction cycle durations are added */
-
-				Clown68000_DoCycle(clownmdemu->m68k, &m68k_read_write_callbacks);
-			}
-
-			m68k_countdown -= cycles_to_do;
-
-			/* Z80 */
-			if (z80_countdown == 0)
-				z80_countdown = clownmdemu->state->m68k_has_z80_bus ? CLOWNMDEMU_Z80_CLOCK_DIVIDER : CLOWNMDEMU_Z80_CLOCK_DIVIDER * Z80_DoCycle(&clownmdemu->z80, &z80_read_write_callbacks);
-
-			z80_countdown -= cycles_to_do;
-
-			cpu_callback_user_data.current_cycle += cycles_to_do;
-		}
+		/* Sync the 68k, since it's the one thing that can influence the VDP */
+		SyncM68k(clownmdemu, &cpu_callback_user_data, current_cycle);
 
 		/* Only render scanlines and generate H-Ints for scanlines that the console outputs to */
 		if (scanline < console_vertical_resolution)
@@ -647,14 +720,14 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 					Clown68000_Interrupt(clownmdemu->m68k, &m68k_read_write_callbacks, 4);
 			}
 		}
-
-		/* Check if we have reached the end of the console-output scanlines */
-		if (scanline == console_vertical_resolution)
+		else if (scanline == console_vertical_resolution) /* Check if we have reached the end of the console-output scanlines */
 		{
 			/* Do V-Int */
 			if (clownmdemu->state->vdp.v_int_enabled)
 			{
 				Clown68000_Interrupt(clownmdemu->m68k, &m68k_read_write_callbacks, 6);
+
+				SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
 				Z80_Interrupt(&clownmdemu->z80);
 			}
 
@@ -663,15 +736,12 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 		}
 	}
 
-	/* Store these back in memory for later. */
-	clownmdemu->state->countdowns.m68k = m68k_countdown;
-	clownmdemu->state->countdowns.z80 = z80_countdown;
+	/* Update the Z80, as it can influence the FM and PSG */
+	SyncZ80(clownmdemu, &cpu_callback_user_data, cycles_per_frame);
 
-	/* Update the FM for the rest of this frame */
-	GenerateAndPlayFMSamples(&cpu_callback_user_data);
-
-	/* Update the PSG for the rest of this frame */
-	GenerateAndPlayPSGSamples(&cpu_callback_user_data);
+	/* Update the FM and PSG so that an entire frame's worth of audio is output */
+	SyncFM(&cpu_callback_user_data, cycles_per_frame);
+	SyncPSG(&cpu_callback_user_data, cycles_per_frame);
 }
 
 void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
