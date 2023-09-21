@@ -30,6 +30,8 @@ extern "C" {
 			&(STATE)->z80 \
 		}, \
 \
+		&(STATE)->mcd_m68k, \
+\
 		{ \
 			&(CONFIGURATION)->vdp, \
 			&(CONSTANT)->vdp, \
@@ -49,6 +51,7 @@ extern "C" {
 		} \
 	}
 
+/* Mega Drive */
 #define CLOWNMDEMU_MASTER_CLOCK_NTSC 53693175
 #define CLOWNMDEMU_MASTER_CLOCK_PAL  53203424
 
@@ -66,6 +69,11 @@ extern "C" {
 #define CLOWNMDEMU_PSG_SAMPLE_RATE_DIVIDER 16
 #define CLOWNMDEMU_PSG_SAMPLE_RATE_NTSC (CLOWNMDEMU_Z80_CLOCK_NTSC / CLOWNMDEMU_PSG_SAMPLE_RATE_DIVIDER)
 #define CLOWNMDEMU_PSG_SAMPLE_RATE_PAL  (CLOWNMDEMU_Z80_CLOCK_PAL / CLOWNMDEMU_PSG_SAMPLE_RATE_DIVIDER)
+
+/* Mega CD */
+#define CLOWNMDEMU_MCD_MASTER_CLOCK 50000000
+#define CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER 4
+#define CLOWNMDEMU_MCD_M68K_CLOCK (CLOWNMDEMU_MCD_MASTER_CLOCK / CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER)
 
 /* The NTSC framerate is 59.94FPS (60 divided by 1.001) */
 #define CLOWNMDEMU_MULTIPLY_BY_NTSC_FRAMERATE(x) ((x) * (60 * 1000) / 1001)
@@ -127,11 +135,15 @@ typedef struct ClownMDEmu_State
 	{
 		cc_u16f m68k;
 		cc_u16f z80;
+		cc_u16f mcd_m68k;
 	} countdowns;
 	Clown68000_State m68k;
 	Z80_State z80;
+	Clown68000_State mcd_m68k;
 	cc_u8l m68k_ram[0x10000];
 	cc_u8l z80_ram[0x2000];
+	cc_u8l prg_ram[0x80000];
+	cc_u8l word_ram[0x40000];
 	VDP_State vdp;
 	FM_State fm;
 	PSG_State psg;
@@ -152,6 +164,7 @@ typedef struct ClownMDEmu
 	ClownMDEmu_State *state;
 	Clown68000_State *m68k;
 	Z80 z80;
+	Clown68000_State *mcd_m68k;
 	VDP vdp;
 	FM fm;
 	PSG psg;

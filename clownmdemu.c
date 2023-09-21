@@ -26,6 +26,7 @@ typedef struct CPUCallbackUserData
 	DataAndCallbacks data_and_callbacks;
 	cc_u32f m68k_current_cycle;
 	cc_u32f z80_current_cycle;
+	cc_u32f mcd_m68k_current_cycle;
 	cc_u32f fm_current_cycle;
 	cc_u32f psg_current_cycle;
 } CPUCallbackUserData;
@@ -34,6 +35,8 @@ static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool 
 static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value);
 static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address);
 static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f value);
+static cc_u16f MCDM68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte);
+static void MCDM68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value);
 
 static void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 {
@@ -92,6 +95,38 @@ static void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* con
 
 	/* Store this back in memory for later. */
 	clownmdemu->state->countdowns.z80 = z80_countdown;
+}
+
+static void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
+{
+	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
+	cc_u16f m68k_countdown;
+
+	m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
+	m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
+	m68k_read_write_callbacks.user_data = other_state;
+
+	/* Store this in a local variable to make the upcoming code faster. */
+	m68k_countdown = clownmdemu->state->countdowns.mcd_m68k;
+
+	while (other_state->mcd_m68k_current_cycle < target_cycle)
+	{
+		const cc_u32f cycles_to_do = CC_MIN(m68k_countdown, target_cycle - other_state->mcd_m68k_current_cycle);
+
+		m68k_countdown -= cycles_to_do;
+
+		if (m68k_countdown == 0)
+		{
+			Clown68000_DoCycle(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
+			m68k_countdown = CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * 10; /* TODO: The '* 10' is a temporary hack until 68000 instruction durations are added. */
+			/* TODO: Handle the MCD's master clock! */
+		}
+
+		other_state->mcd_m68k_current_cycle += cycles_to_do;
+	}
+
+	/* Store this back in memory for later. */
+	clownmdemu->state->countdowns.mcd_m68k = m68k_countdown;
 }
 
 static void FMCallbackWrapper(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames)
@@ -612,6 +647,84 @@ static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f val
 	Z80WriteCallbackWithCycle(user_data, address, value, callback_user_data->z80_current_cycle);
 }
 
+/* MCD 68k (SUB-CPU) memory access callbacks */
+
+static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, const cc_u32f target_cycle)
+{
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+	const ClownMDEmu_Callbacks* const frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
+	cc_u16f value = 0;
+
+	if (/*address >= 0 &&*/ address < 0x80000)
+	{
+		/* PRG-RAM */
+		if (do_high_byte)
+			value |= clownmdemu->state->prg_ram[address + 0] << 8;
+		if (do_low_byte)
+			value |= clownmdemu->state->prg_ram[address + 1] << 0;
+	}
+	else if (address < 0xC0000)
+	{
+		/* WORD-RAM */
+		if (do_high_byte)
+			value |= clownmdemu->state->prg_ram[(address + 0) & 0x3FFFF] << 8;
+		if (do_low_byte)
+			value |= clownmdemu->state->prg_ram[(address + 1) & 0x3FFFF] << 0;
+	}
+	else
+	{
+		PrintError("Attempted to read invalid MCD 68k address 0x%" CC_PRIXFAST32, address);
+	}
+
+	return value;
+}
+
+static cc_u16f MCDM68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte)
+{
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+
+	return MCDM68kReadCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, callback_user_data->mcd_m68k_current_cycle);
+}
+
+static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value, const cc_u32f target_cycle)
+{
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+	const ClownMDEmu_Callbacks* const frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
+
+	const cc_u16f high_byte = (value >> 8) & 0xFF;
+	const cc_u16f low_byte = (value >> 0) & 0xFF;
+
+	if (/*address >= 0 &&*/ address < 0x80000)
+	{
+		/* PRG-RAM */
+		if (do_high_byte)
+			clownmdemu->state->prg_ram[address + 0] = high_byte;
+		if (do_low_byte)
+			clownmdemu->state->prg_ram[address + 1] = low_byte;
+	}
+	else if (address < 0xC0000)
+	{
+		/* WORD-RAM */
+		if (do_high_byte)
+			clownmdemu->state->word_ram[(address + 0) & 0x3FFFF] = high_byte;
+		if (do_low_byte)
+			clownmdemu->state->word_ram[(address + 1) & 0x3FFFF] = low_byte;
+	}
+	else
+	{
+		PrintError("Attempted to write invalid MCD 68k address 0x%" CC_PRIXFAST32, address);
+	}
+}
+
+static void MCDM68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value)
+{
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+
+	MCDM68kWriteCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, value, callback_user_data->mcd_m68k_current_cycle);
+}
+
 void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant)
 {
 	Z80_Constant_Initialise(&constant->z80);
@@ -626,6 +739,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 
 	state->countdowns.m68k = 0;
 	state->countdowns.z80 = 0;
+	state->countdowns.mcd_m68k = 0;
 
 	state->m68k_has_z80_bus = cc_true;
 	state->z80_reset = cc_true;
@@ -638,6 +752,33 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	VDP_State_Initialise(&state->vdp);
 	FM_State_Initialise(&state->fm);
 	PSG_State_Initialise(&state->psg);
+
+	/* Very minimal BIOS (does nothing). */
+	/* Stack */
+	state->prg_ram[0] = 0;
+	state->prg_ram[1] = 0;
+	state->prg_ram[2] = 0x50;
+	state->prg_ram[3] = 0;
+	/* Entry point */
+	state->prg_ram[4] = 0;
+	state->prg_ram[5] = 0;
+	state->prg_ram[6] = 1;
+	state->prg_ram[7] = 2;
+	/* V-Int */
+	state->prg_ram[8] = 0;
+	state->prg_ram[9] = 0;
+	state->prg_ram[0xA] = 1;
+	state->prg_ram[0xB] = 0;
+	/* V-Int handler */
+	state->prg_ram[0x100] = 0x4E;
+	state->prg_ram[0x101] = 0x73;
+	/* Entry point */
+	state->prg_ram[0x102] = 0x4E;
+	state->prg_ram[0x103] = 0xF9;
+	state->prg_ram[0x104] = 0;
+	state->prg_ram[0x105] = 0;
+	state->prg_ram[0x106] = 1;
+	state->prg_ram[0x107] = 2;
 }
 
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state)
@@ -650,6 +791,8 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 
 	clownmdemu->z80.constant = &constant->z80;
 	clownmdemu->z80.state = &state->z80;
+
+	clownmdemu->mcd_m68k = &state->mcd_m68k;
 
 	clownmdemu->vdp.configuration = &configuration->vdp;
 	clownmdemu->vdp.constant = &constant->vdp;
@@ -678,6 +821,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	cpu_callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
 	cpu_callback_user_data.m68k_current_cycle = 0;
 	cpu_callback_user_data.z80_current_cycle = 0;
+	cpu_callback_user_data.mcd_m68k_current_cycle = 0;
 	cpu_callback_user_data.fm_current_cycle = 0;
 	cpu_callback_user_data.psg_current_cycle = 0;
 
@@ -736,10 +880,9 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 		}
 	}
 
-	/* Update the Z80, as it can influence the FM and PSG */
+	/* Update everything else for the rest of the frame. */
 	SyncZ80(clownmdemu, &cpu_callback_user_data, cycles_per_frame);
-
-	/* Update the FM and PSG so that an entire frame's worth of audio is output */
+	SyncMCDM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame);
 	SyncFM(&cpu_callback_user_data, cycles_per_frame);
 	SyncPSG(&cpu_callback_user_data, cycles_per_frame);
 }
@@ -752,12 +895,17 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 	callback_user_data.data_and_callbacks.data = clownmdemu;
 	callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
 
-	m68k_read_write_callbacks.read_callback = M68kReadCallback;
-	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
 	m68k_read_write_callbacks.user_data = &callback_user_data;
 
+	m68k_read_write_callbacks.read_callback = M68kReadCallback;
+	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
 	Clown68000_Reset(clownmdemu->m68k, &m68k_read_write_callbacks);
+
 	Z80_Reset(&clownmdemu->z80);
+
+	m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
+	m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
+	Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 }
 
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg))
