@@ -162,14 +162,11 @@ static cc_u8f SyncFM(CPUCallbackUserData* const other_state, const cc_u32f targe
 {
 	const cc_u32f fm_target_cycle = target_cycle / CLOWNMDEMU_M68K_CLOCK_DIVIDER;
 
-	if (fm_target_cycle > other_state->fm_current_cycle)
-	{
-		const cc_u32f cycles_to_do = fm_target_cycle - other_state->fm_current_cycle;
+	const cc_u32f cycles_to_do = fm_target_cycle - other_state->fm_current_cycle;
 
-		other_state->fm_current_cycle = fm_target_cycle;
+	other_state->fm_current_cycle = fm_target_cycle;
 
-		return FM_Update(&other_state->data_and_callbacks.data->fm, cycles_to_do, GenerateFMAudio, other_state);
-	}
+	return FM_Update(&other_state->data_and_callbacks.data->fm, cycles_to_do, GenerateFMAudio, other_state);
 }
 
 static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples)
