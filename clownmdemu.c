@@ -855,6 +855,9 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
 	cc_u16f value = 0;
 
+	(void)do_high_byte;
+	(void)do_low_byte;
+
 	if (/*address >= 0 &&*/ address < 0x80000 / 2)
 	{
 		/* PRG-RAM */
@@ -915,9 +918,6 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
 
-	const cc_u16f high_byte = (value >> 8) & 0xFF;
-	const cc_u16f low_byte = (value >> 0) & 0xFF;
-
 	cc_u16f mask = 0;
 
 	if (do_high_byte)
@@ -947,7 +947,7 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	else if (address == 0xFF8002 / 2)
 	{
 		/* Memory mode / Write protect */
-		if (do_low_byte && (low_byte & (1 << 0)) != 0)
+		if (do_low_byte && (value & (1 << 0)) != 0)
 			clownmdemu->state->mcd_has_word_ram = cc_false;
 	}
 	else if (address == 0xFF800E / 2)
