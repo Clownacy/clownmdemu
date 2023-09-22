@@ -284,9 +284,9 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 				else
 				{
 					if (do_high_byte)
-						value |= clownmdemu->state->prg_ram[0x20000 * clownmdemu->state->prg_ram_bank + (address + 0) & 0x1FFFF] << 8;
+						value |= clownmdemu->state->prg_ram[0x20000 * clownmdemu->state->prg_ram_bank + ((address + 0) & 0x1FFFF)] << 8;
 					if (do_low_byte)
-						value |= clownmdemu->state->prg_ram[0x20000 * clownmdemu->state->prg_ram_bank + (address + 1) & 0x1FFFF] << 0;
+						value |= clownmdemu->state->prg_ram[0x20000 * clownmdemu->state->prg_ram_bank + ((address + 1) & 0x1FFFF)] << 0;
 				}
 			}
 		}
@@ -590,7 +590,8 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		{
 			const cc_bool bus_request = (high_byte & 1) != 0;
 
-			SyncZ80(clownmdemu, callback_user_data, target_cycle);
+			if (clownmdemu->state->m68k_has_z80_bus != bus_request)
+				SyncZ80(clownmdemu, callback_user_data, target_cycle);
 
 			clownmdemu->state->m68k_has_z80_bus = bus_request;
 		}
@@ -627,7 +628,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
 			m68k_read_write_callbacks.user_data = callback_user_data;
 
-			if (!clownmdemu->state->m68k_has_mcd_m68k_bus != bus_request)
+			if (clownmdemu->state->m68k_has_mcd_m68k_bus != bus_request)
 				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 
 			if (!clownmdemu->state->mcd_m68k_reset && reset)
@@ -672,7 +673,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	else if (address >= 0xA12010 && address < 0xA12020)
 	{
 		/* Communication command */
-		cc_u16f mask;
+		cc_u16f mask = 0;
 
 		if (do_high_byte)
 			mask |= 0xFF00;
@@ -867,7 +868,6 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
-	const ClownMDEmu_Callbacks* const frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
 	cc_u16f value = 0;
 
 	if (/*address >= 0 &&*/ address < 0x80000)
@@ -876,7 +876,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 		if (address == 0x5F22)
 		{
 			PrintError("BIOS CALL DETECTED");
-			value = 0x4E75;
+			value = 0x4E75; /* 'rts' instruction */
 		}
 		else
 		{
@@ -935,7 +935,6 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
-	const ClownMDEmu_Callbacks* const frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
 
 	const cc_u16f high_byte = (value >> 8) & 0xFF;
 	const cc_u16f low_byte = (value >> 0) & 0xFF;
@@ -986,7 +985,7 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	else if (address >= 0xFF8020 && address < 0xFF8030)
 	{
 		/* Communication status */
-		cc_u16f mask;
+		cc_u16f mask = 0;
 
 		if (do_high_byte)
 			mask |= 0xFF00;
