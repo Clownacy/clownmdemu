@@ -31,6 +31,21 @@ typedef struct CPUCallbackUserData
 	cc_u32f psg_current_cycle;
 } CPUCallbackUserData;
 
+static const unsigned char subcpu_bios[] = {
+	0x0F, 0x63, 0x00, 0x00, 0x50, 0x00, 0xFF, 0x01,
+	0x0A, 0xFC, 0x00, 0x63, 0xB2, 0xFC, 0xF8, 0x5A,
+	0x08, 0xFC, 0x34, 0xF8, 0xFC, 0xF8, 0x12, 0x00,
+	0xC3, 0xFF, 0xFC, 0xF8, 0x7B, 0x4E, 0x71, 0xFE,
+	0x60, 0x00, 0xFF, 0xFA, 0x4E, 0x73, 0x41, 0xFA,
+	0x5E, 0xFF, 0xFF, 0xF4, 0x0C, 0x90, 0x4D, 0x41,
+	0x49, 0x4E, 0x66, 0xEA, 0xD1, 0xE8, 0x00, 0x18,
+	0x30, 0x10, 0x4E, 0xF0, 0x98, 0xB0, 0xDE, 0x46,
+	0xFC, 0x27, 0x00, 0xE6, 0xDA, 0x7F, 0x6A, 0xEE,
+	0x28, 0x00, 0x02, 0x4E, 0xF0, 0x00, 0xF0, 0xCA,
+	0xD6, 0xFD, 0x0C, 0x13, 0x08, 0xE8, 0xFD, 0x04,
+	0xD4, 0xBC, 0x00, 0xF0, 0x00, 0x00
+};
+
 static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte);
 static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value);
 static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address);
@@ -241,25 +256,20 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 						value |= clownmdemu->state->word_ram[(address + 1) & 0x3FFFF] << 0;
 				}
 			}
-			else if ((address & 0x1E0000) == 0)
+			else if ((address & 0x20000) == 0)
 			{
 				/* Mega CD BIOS */
-				switch (address & 0x1FFFF)
+				if ((address & 0x1FFFF) >= 0x16000 && (address & 0x1FFFF) < 0x16000 + sizeof(subcpu_bios))
+					value = (subcpu_bios[(address & 0x1FFFF) - 0x16000 + 0] << 8) | (subcpu_bios[(address & 0x1FFFF) - 0x16000 + 1] << 0);
+				else
 				{
-					/* Dummy Kosinski-compressed SUB-CPU payload (used by Mode 1 software). */
-					case 0x16000:
-						value = 0x0200;
-						break;
-					case 0x16002:
-						value = 0x00F0;
-						break;
-					case 0x16003:
-						value = 0x0000;
-						break;
-					/* SUB-CPU payload magic number (used by Mode 1 software). */
-					case 0x1606E:
-						value = ('E' << 8) | ('G' << 0);
-						break;
+					switch (address & 0x1FFFF)
+					{
+						/* SUB-CPU payload magic number (used by Mode 1 software). */
+						case 0x1606E:
+							value = ('E' << 8) | ('G' << 0);
+							break;
+					}
 				}
 			}
 			else
@@ -471,7 +481,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			/* TODO - This is temporary, just to catch possible bugs in the 68k emulator */
 			PrintError("Attempted to write to ROM address 0x%" CC_PRIXFAST32, address);
 		}
-		else if ((address & 0x1E0000) == 0)
+		else if ((address & 0x20000) == 0)
 		{
 			/* Mega CD BIOS */
 			PrintError("MAIN-CPU attempted to write to BIOS (0x%" CC_PRIXFAST32 ") at 0x%" CC_PRIXLEAST32, address, clownmdemu->state->m68k.program_counter);
@@ -485,10 +495,12 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			}
 			else
 			{
+				if ((address & 0x1FFFF) == 2)
+					address = 0xFF420002;
 				if (do_high_byte)
-					clownmdemu->state->prg_ram[0x20000 * clownmdemu->state->prg_ram_bank + (address + 0) & 0x1FFFF] = high_byte;
+					clownmdemu->state->prg_ram[0x20000 * clownmdemu->state->prg_ram_bank + ((address + 0) & 0x1FFFF)] = high_byte;
 				if (do_low_byte)
-					clownmdemu->state->prg_ram[0x20000 * clownmdemu->state->prg_ram_bank + (address + 1) & 0x1FFFF] = low_byte;
+					clownmdemu->state->prg_ram[0x20000 * clownmdemu->state->prg_ram_bank + ((address + 1) & 0x1FFFF)] = low_byte;
 			}
 		}
 	}
@@ -607,23 +619,23 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			const cc_bool bus_request = (low_byte & (1 << 1)) != 0;
 			const cc_bool reset = (low_byte & (1 << 0)) != 0;
 
-			m68k_read_write_callbacks.read_callback = M68kReadCallback;
-			m68k_read_write_callbacks.write_callback = M68kWriteCallback;
-			m68k_read_write_callbacks.user_data = &callback_user_data;
+			m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
+			m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
+			m68k_read_write_callbacks.user_data = callback_user_data;
 
 			if (!clownmdemu->state->m68k_has_mcd_m68k_bus && bus_request)
 				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 
-			if (clownmdemu->state->mcd_m68k_reset && !reset)
+			if (!clownmdemu->state->mcd_m68k_reset && reset)
 			{
 				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
-				Clown68000_Reset(&clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
+				Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 			}
 
 			if (interrupt)
 			{
 				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
-				Clown68000_Interrupt(&clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 2);
+				Clown68000_Interrupt(clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 2);
 			}
 
 			clownmdemu->state->m68k_has_mcd_m68k_bus = bus_request;
@@ -1008,36 +1020,6 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->mcd_m68k_reset = cc_true;
 	state->prg_ram_bank = 0;
 	state->mcd_has_word_ram = cc_true;
-
-	/* Very minimal BIOS (does nothing). */
-	/* Stack */
-	state->prg_ram[0] = 0;
-	state->prg_ram[1] = 0;
-	state->prg_ram[2] = 0x50;
-	state->prg_ram[3] = 0;
-	/* Entry point */
-	state->prg_ram[4] = 0;
-	state->prg_ram[5] = 0;
-	state->prg_ram[6] = 1;
-	state->prg_ram[7] = 2;
-	/* Interrupts */
-	for (i = 0; i < 8; ++i)
-	{
-		state->prg_ram[8 + 4 * i + 0] = 0;
-		state->prg_ram[8 + 4 * i + 2] = 0;
-		state->prg_ram[8 + 4 * i + 3] = 1;
-		state->prg_ram[8 + 4 * i + 4] = 0;
-	}
-	/* Interrupt handler */
-	state->prg_ram[0x100] = 0x4E;
-	state->prg_ram[0x101] = 0x73;
-	/* Entry point */
-	state->prg_ram[0x102] = 0x4E;
-	state->prg_ram[0x103] = 0xF9;
-	state->prg_ram[0x104] = 0;
-	state->prg_ram[0x105] = 0;
-	state->prg_ram[0x106] = 1;
-	state->prg_ram[0x107] = 2;
 }
 
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state)
