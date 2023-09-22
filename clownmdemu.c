@@ -208,8 +208,7 @@ static cc_u16f VDPReadCallback(const void *user_data, cc_u32f address)
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
 		/* 68k RAM. */
-		value |= state->m68k_ram[(address + 0) & 0xFFFF] << 8;
-		value |= state->m68k_ram[(address + 1) & 0xFFFF] << 0;
+		value = state->m68k_ram[(address & 0xFFFF) / 2];
 	}
 	else
 	{
@@ -444,10 +443,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
 		/* 68k RAM */
-		if (do_high_byte)
-			value |= clownmdemu->state->m68k_ram[(address + 0) & 0xFFFF] << 8;
-		if (do_low_byte)
-			value |= clownmdemu->state->m68k_ram[(address + 1) & 0xFFFF] << 0;
+		value = clownmdemu->state->m68k_ram[(address & 0xFFFF) / 2];
 	}
 	else
 	{
@@ -472,6 +468,13 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 
 	const cc_u16f high_byte = (value >> 8) & 0xFF;
 	const cc_u16f low_byte = (value >> 0) & 0xFF;
+
+	cc_u16f mask = 0;
+
+	if (do_high_byte)
+		mask |= 0xFF00;
+	if (do_low_byte)
+		mask |= 0x00FF;
 
 	if (address < 0x800000)
 	{
@@ -673,13 +676,6 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	else if (address >= 0xA12010 && address < 0xA12020)
 	{
 		/* Communication command */
-		cc_u16f mask = 0;
-
-		if (do_high_byte)
-			mask |= 0xFF00;
-		if (do_low_byte)
-			mask |= 0x00FF;
-
 		clownmdemu->state->mcd_communication_command[(address - 0xA12010) / 2] &= ~mask;
 		clownmdemu->state->mcd_communication_command[(address - 0xA12010) / 2] |= value & mask;
 	}
@@ -721,10 +717,8 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
 		/* 68k RAM */
-		if (do_high_byte)
-			clownmdemu->state->m68k_ram[(address + 0) & 0xFFFF] = high_byte;
-		if (do_low_byte)
-			clownmdemu->state->m68k_ram[(address + 1) & 0xFFFF] = low_byte;
+		clownmdemu->state->m68k_ram[(address & 0xFFFF) / 2] &= ~mask;
+		clownmdemu->state->m68k_ram[(address & 0xFFFF) / 2] |= value & mask;
 	}
 	else
 	{

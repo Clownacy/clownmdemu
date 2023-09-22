@@ -140,7 +140,7 @@ typedef struct ClownMDEmu_State
 	Clown68000_State m68k;
 	Z80_State z80;
 	Clown68000_State mcd_m68k;
-	cc_u8l m68k_ram[0x10000];
+	cc_u16l m68k_ram[0x8000];
 	cc_u8l z80_ram[0x2000];
 	cc_u8l prg_ram[0x80000];
 	cc_u8l word_ram[0x40000];
