@@ -241,15 +241,31 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 						value |= clownmdemu->state->word_ram[(address + 1) & 0x3FFFF] << 0;
 				}
 			}
-			else if ((address & 0x20000) == 0)
+			else if ((address & 0x1E0000) == 0)
 			{
 				/* Mega CD BIOS */
-				PrintError("MAIN-CPU attempted to read from BIOS at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+				switch (address & 0x1FFFF)
+				{
+					/* Dummy Kosinski-compressed SUB-CPU payload (used by Mode 1 software). */
+					case 0x16000:
+						value = 0x0200;
+						break;
+					case 0x16002:
+						value = 0x00F0;
+						break;
+					case 0x16003:
+						value = 0x0000;
+						break;
+					/* SUB-CPU payload magic number (used by Mode 1 software). */
+					case 0x1606E:
+						value = ('E' << 8) | ('G' << 0);
+						break;
+				}
 			}
 			else
 			{
 				/* PRG-RAM */
-				if (clownmdemu->state->m68k_has_mcd_m68k_bus)
+				if (!clownmdemu->state->m68k_has_mcd_m68k_bus)
 				{
 					PrintError("MAIN-CPU attempted to read from PRG-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 				}
@@ -294,7 +310,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 		{
 			case 0xA10000:
 				if (do_low_byte)
-					value |= ((clownmdemu->configuration->general.region == CLOWNMDEMU_REGION_OVERSEAS) << 7) | ((clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL) << 6) | (1 << 5);	/* Bit 5 set = no Mega CD attached */
+					value |= ((clownmdemu->configuration->general.region == CLOWNMDEMU_REGION_OVERSEAS) << 7) | ((clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL) << 6) | (0 << 5);	/* Bit 5 clear = Mega CD attached */
 
 				break;
 
@@ -370,6 +386,18 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 		/* Memory mode / Write protect */
 		value = (cc_u16f)clownmdemu->state->prg_ram_bank << 6;
 	}
+	else if (address == 0xA1200E)
+	{
+		value = clownmdemu->state->mcd_communication_flag;
+	}
+	else if (address >= 0xA12010 && address < 0xA12020)
+	{
+		value = clownmdemu->state->mcd_communication_command[(address - 0xA12010) / 2];
+	}
+	else if (address >= 0xA12020 && address < 0xA12030)
+	{
+		value = clownmdemu->state->mcd_communication_status[(address - 0xA12020) / 2];
+	}
 	else if (address == 0xC00000 || address == 0xC00002 || address == 0xC00004 || address == 0xC00006)
 	{
 		if (address == 0xC00000 || address == 0xC00002)
@@ -443,15 +471,15 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			/* TODO - This is temporary, just to catch possible bugs in the 68k emulator */
 			PrintError("Attempted to write to ROM address 0x%" CC_PRIXFAST32, address);
 		}
-		else if ((address & 0x20000) == 0)
+		else if ((address & 0x1E0000) == 0)
 		{
 			/* Mega CD BIOS */
-			PrintError("MAIN-CPU attempted to write to BIOS at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+			PrintError("MAIN-CPU attempted to write to BIOS (0x%" CC_PRIXFAST32 ") at 0x%" CC_PRIXLEAST32, address, clownmdemu->state->m68k.program_counter);
 		}
 		else
 		{
 			/* PRG-RAM */
-			if (clownmdemu->state->m68k_has_mcd_m68k_bus)
+			if (!clownmdemu->state->m68k_has_mcd_m68k_bus)
 			{
 				PrintError("MAIN-CPU attempted to write to PRG-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 			}
@@ -573,22 +601,29 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		/* RESET, HALT */
 		if (do_low_byte)
 		{
+			Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
+
+			const cc_bool interrupt = (high_byte & (1 << 0)) != 0;
 			const cc_bool bus_request = (low_byte & (1 << 1)) != 0;
 			const cc_bool reset = (low_byte & (1 << 0)) != 0;
+
+			m68k_read_write_callbacks.read_callback = M68kReadCallback;
+			m68k_read_write_callbacks.write_callback = M68kWriteCallback;
+			m68k_read_write_callbacks.user_data = &callback_user_data;
 
 			if (!clownmdemu->state->m68k_has_mcd_m68k_bus && bus_request)
 				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 
 			if (clownmdemu->state->mcd_m68k_reset && !reset)
 			{
-				Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
-
-				m68k_read_write_callbacks.read_callback = M68kReadCallback;
-				m68k_read_write_callbacks.write_callback = M68kWriteCallback;
-				m68k_read_write_callbacks.user_data = &callback_user_data;
-
 				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 				Clown68000_Reset(&clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
+			}
+
+			if (interrupt)
+			{
+				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
+				Clown68000_Interrupt(&clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 2);
 			}
 
 			clownmdemu->state->m68k_has_mcd_m68k_bus = bus_request;
@@ -608,6 +643,30 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 
 			clownmdemu->state->prg_ram_bank = (low_byte >> 6) & 3;
 		}
+	}
+	else if (address == 0xA1200E)
+	{
+		if (do_high_byte)
+			clownmdemu->state->mcd_communication_flag = (clownmdemu->state->mcd_communication_flag & 0x00FF) | (value & 0xFF00);
+
+		if (do_low_byte)
+			PrintError("MAIN-CPU attempted to write to SUB-CPU's communication flag at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+	}
+	else if (address >= 0xA12010 && address < 0xA12020)
+	{
+		cc_u16f mask;
+
+		if (do_high_byte)
+			mask |= 0xFF00;
+		if (do_low_byte)
+			mask |= 0x00FF;
+
+		clownmdemu->state->mcd_communication_command[(address - 0xA12010) / 2] &= ~mask;
+		clownmdemu->state->mcd_communication_command[(address - 0xA12010) / 2] |= value & mask;
+	}
+	else if (address >= 0xA12020 && address < 0xA12030)
+	{
+		PrintError("MAIN-CPU attempted to write to SUB-CPU's communication status at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
 	}
 	else if (address == 0xC00000 || address == 0xC00002 || address == 0xC00004 || address == 0xC00006)
 	{
@@ -815,6 +874,18 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 				value |= clownmdemu->state->word_ram[(address + 1) & 0x3FFFF] << 0;
 		}
 	}
+	else if (address == 0xFF800E)
+	{
+		value = clownmdemu->state->mcd_communication_flag;
+	}
+	else if (address >= 0xFF8010 && address < 0xFF8020)
+	{
+		value = clownmdemu->state->mcd_communication_command[(address - 0xFF8010) / 2];
+	}
+	else if (address >= 0xFF8020 && address < 0xFF8030)
+	{
+		value = clownmdemu->state->mcd_communication_status[(address - 0xFF8020) / 2];
+	}
 	else
 	{
 		PrintError("Attempted to read invalid MCD 68k address 0x%" CC_PRIXFAST32, address);
@@ -867,6 +938,30 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 		/* Memory mode / Write protect */
 		if (do_low_byte && (low_byte & (1 << 0)) != 0)
 			clownmdemu->state->mcd_has_word_ram = cc_false;
+	}
+	else if (address == 0xFF800E)
+	{
+		if (do_high_byte)
+			PrintError("SUB-CPU attempted to write to MAIN-CPU's communication flag at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+
+		if (do_low_byte)
+			clownmdemu->state->mcd_communication_flag = (clownmdemu->state->mcd_communication_flag & 0xFF00) | (value & 0x00FF);
+	}
+	else if (address >= 0xFF8010 && address < 0xFF8020)
+	{
+		PrintError("SUB-CPU attempted to write to MAIN-CPU's communication command at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+	}
+	else if (address >= 0xFF8020 && address < 0xFF8030)
+	{
+		cc_u16f mask;
+
+		if (do_high_byte)
+			mask |= 0xFF00;
+		if (do_low_byte)
+			mask |= 0x00FF;
+
+		clownmdemu->state->mcd_communication_status[(address - 0xFF8020) / 2] &= ~mask;
+		clownmdemu->state->mcd_communication_status[(address - 0xFF8020) / 2] |= value & mask;
 	}
 	else
 	{
