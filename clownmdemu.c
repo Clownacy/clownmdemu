@@ -38,7 +38,7 @@ static const unsigned char subcpu_bios[] = {
 	0xC3, 0xFF, 0xFC, 0xF8, 0x7B, 0x4E, 0x71, 0xFE,
 	0x60, 0x00, 0xFF, 0xFA, 0x4E, 0x73, 0x41, 0xFA,
 	0x5E, 0xFF, 0xFF, 0xF4, 0x0C, 0x90, 0x4D, 0x41,
-	0x49, 0x4E, 0x66, 0xEA, 0xD1, 0xE8, 0x00, 0x18,
+	0x49, 0x4E, 0x66, 0xF4, 0xD1, 0xE8, 0x00, 0x18,
 	0x30, 0x10, 0x4E, 0xF0, 0x98, 0xB0, 0xDE, 0x46,
 	0xFC, 0x27, 0x00, 0xE6, 0xDA, 0x7F, 0x6A, 0xEE,
 	0x28, 0x00, 0x02, 0x4E, 0xF0, 0x00, 0xF0, 0xCA,
@@ -162,11 +162,14 @@ static cc_u8f SyncFM(CPUCallbackUserData* const other_state, const cc_u32f targe
 {
 	const cc_u32f fm_target_cycle = target_cycle / CLOWNMDEMU_M68K_CLOCK_DIVIDER;
 
-	const cc_u32f cycles_to_do = fm_target_cycle - other_state->fm_current_cycle;
+	if (fm_target_cycle > other_state->fm_current_cycle)
+	{
+		const cc_u32f cycles_to_do = fm_target_cycle - other_state->fm_current_cycle;
 
-	other_state->fm_current_cycle = fm_target_cycle;
+		other_state->fm_current_cycle = fm_target_cycle;
 
-	return FM_Update(&other_state->data_and_callbacks.data->fm, cycles_to_do, GenerateFMAudio, other_state);
+		return FM_Update(&other_state->data_and_callbacks.data->fm, cycles_to_do, GenerateFMAudio, other_state);
+	}
 }
 
 static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples)
@@ -585,8 +588,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		{
 			const cc_bool bus_request = (high_byte & 1) != 0;
 
-			if (!clownmdemu->state->m68k_has_z80_bus && bus_request)
-				SyncZ80(clownmdemu, callback_user_data, target_cycle);
+			SyncZ80(clownmdemu, callback_user_data, target_cycle);
 
 			clownmdemu->state->m68k_has_z80_bus = bus_request;
 		}
@@ -623,7 +625,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
 			m68k_read_write_callbacks.user_data = callback_user_data;
 
-			if (!clownmdemu->state->m68k_has_mcd_m68k_bus && bus_request)
+			if (!clownmdemu->state->m68k_has_mcd_m68k_bus != bus_request)
 				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 
 			if (!clownmdemu->state->mcd_m68k_reset && reset)
@@ -658,6 +660,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	}
 	else if (address == 0xA1200E)
 	{
+		/* Communication flag */
 		if (do_high_byte)
 			clownmdemu->state->mcd_communication_flag = (clownmdemu->state->mcd_communication_flag & 0x00FF) | (value & 0xFF00);
 
@@ -666,6 +669,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	}
 	else if (address >= 0xA12010 && address < 0xA12020)
 	{
+		/* Communication command */
 		cc_u16f mask;
 
 		if (do_high_byte)
@@ -678,6 +682,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	}
 	else if (address >= 0xA12020 && address < 0xA12030)
 	{
+		/* Communication status */
 		PrintError("MAIN-CPU attempted to write to SUB-CPU's communication status at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
 	}
 	else if (address == 0xC00000 || address == 0xC00002 || address == 0xC00004 || address == 0xC00006)
@@ -866,10 +871,18 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	if (/*address >= 0 &&*/ address < 0x80000)
 	{
 		/* PRG-RAM */
-		if (do_high_byte)
-			value |= clownmdemu->state->prg_ram[address + 0] << 8;
-		if (do_low_byte)
-			value |= clownmdemu->state->prg_ram[address + 1] << 0;
+		if (address == 0x5F22)
+		{
+			PrintError("BIOS CALL DETECTED");
+			value = 0x4E75;
+		}
+		else
+		{
+			if (do_high_byte)
+				value |= clownmdemu->state->prg_ram[address + 0] << 8;
+			if (do_low_byte)
+				value |= clownmdemu->state->prg_ram[address + 1] << 0;
+		}
 	}
 	else if (address < 0xC0000)
 	{
@@ -1017,7 +1030,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	PSG_State_Initialise(&state->psg);
 
 	state->m68k_has_mcd_m68k_bus = cc_true;
-	state->mcd_m68k_reset = cc_true;
+	state->mcd_m68k_reset = cc_false;
 	state->prg_ram_bank = 0;
 	state->mcd_has_word_ram = cc_true;
 }
