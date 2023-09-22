@@ -31,19 +31,21 @@ typedef struct CPUCallbackUserData
 	cc_u32f psg_current_cycle;
 } CPUCallbackUserData;
 
-static const unsigned char subcpu_bios[] = {
-	0x0F, 0x63, 0x00, 0x00, 0x50, 0x00, 0xFF, 0x01,
-	0x0A, 0xFC, 0x00, 0x63, 0xB2, 0xFC, 0xF8, 0x5A,
-	0x08, 0xFC, 0x34, 0xF8, 0xFC, 0xF8, 0x12, 0x00,
-	0xC3, 0xFF, 0xFC, 0xF8, 0x7B, 0x4E, 0x71, 0xFE,
-	0x60, 0x00, 0xFF, 0xFA, 0x4E, 0x73, 0x41, 0xFA,
-	0x5E, 0xFF, 0xFF, 0xF4, 0x0C, 0x90, 0x4D, 0x41,
-	0x49, 0x4E, 0x66, 0xF4, 0xD1, 0xE8, 0x00, 0x18,
-	0x30, 0x10, 0x4E, 0xF0, 0x98, 0xB0, 0xDE, 0x46,
-	0xFC, 0x27, 0x00, 0xE6, 0xDA, 0x7F, 0x6A, 0xEE,
-	0x28, 0x00, 0x02, 0x4E, 0xF0, 0x00, 0xF0, 0xCA,
-	0xD6, 0xFD, 0x0C, 0x13, 0x08, 0xE8, 0xFD, 0x04,
-	0xD4, 0xBC, 0x00, 0xF0, 0x00, 0x00
+/* This is the 'bios.kos' file that can be found in the 'SUB-CPU BIOS' directory. */
+/* TODO: Please, anything but this... */
+static const cc_u16l subcpu_bios[] = {
+	0x0F63, 0x0000, 0x5000, 0xFF01,
+	0x0AFC, 0x0063, 0xB2FC, 0xF85A,
+	0x08FC, 0x34F8, 0xFCF8, 0x1200,
+	0xC3FF, 0xFCF8, 0x7B4E, 0x71FE,
+	0x6000, 0xFFFA, 0x4E73, 0x41FA,
+	0x5EFF, 0xFFF4, 0x0C90, 0x4D41,
+	0x494E, 0x66F4, 0xD1E8, 0x0018,
+	0x3010, 0x4EF0, 0x98B0, 0xDE46,
+	0xFC27, 0x00E6, 0xDA7F, 0x6AEE,
+	0x2800, 0x024E, 0xF000, 0xF0CA,
+	0xD6FD, 0x0C13, 0x08E8, 0xFD04,
+	0xD4BC, 0x00F0, 0x0000
 };
 
 static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte);
@@ -259,17 +261,17 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 			else if ((address & 0x20000) == 0)
 			{
 				/* Mega CD BIOS */
-				if ((address & 0x1FFFF) >= 0x16000 && (address & 0x1FFFF) < 0x16000 + sizeof(subcpu_bios))
-					value = (subcpu_bios[(address & 0x1FFFF) - 0x16000 + 0] << 8) | (subcpu_bios[(address & 0x1FFFF) - 0x16000 + 1] << 0);
-				else
+				const cc_u16f local_address = address & 0x1FFFF;
+
+				if (local_address >= 0x16000 && local_address < 0x16000 + CC_COUNT_OF(subcpu_bios) * 2)
 				{
-					switch (address & 0x1FFFF)
-					{
-						/* SUB-CPU payload magic number (used by Mode 1 software). */
-						case 0x1606E:
-							value = ('E' << 8) | ('G' << 0);
-							break;
-					}
+					/* Kosinski-compressed SUB-CPU payload. */
+					value = subcpu_bios[(local_address - 0x16000) / 2];
+				}
+				else if (local_address == 0x1606E)
+				{
+					/* SUB-CPU payload magic number (used by ROM-hacks that use 'Mode 1'). */
+					value = ('E' << 8) | ('G' << 0);
 				}
 			}
 			else
@@ -398,14 +400,17 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	}
 	else if (address == 0xA1200E)
 	{
+		/* Communication flag */
 		value = clownmdemu->state->mcd_communication_flag;
 	}
 	else if (address >= 0xA12010 && address < 0xA12020)
 	{
+		/* Communication command */
 		value = clownmdemu->state->mcd_communication_command[(address - 0xA12010) / 2];
 	}
 	else if (address >= 0xA12020 && address < 0xA12030)
 	{
+		/* Communication status */
 		value = clownmdemu->state->mcd_communication_status[(address - 0xA12020) / 2];
 	}
 	else if (address == 0xC00000 || address == 0xC00002 || address == 0xC00004 || address == 0xC00006)
@@ -898,14 +903,17 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	}
 	else if (address == 0xFF800E)
 	{
+		/* Communication flag */
 		value = clownmdemu->state->mcd_communication_flag;
 	}
 	else if (address >= 0xFF8010 && address < 0xFF8020)
 	{
+		/* Communication command */
 		value = clownmdemu->state->mcd_communication_command[(address - 0xFF8010) / 2];
 	}
 	else if (address >= 0xFF8020 && address < 0xFF8030)
 	{
+		/* Communication status */
 		value = clownmdemu->state->mcd_communication_status[(address - 0xFF8020) / 2];
 	}
 	else
@@ -963,6 +971,7 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	}
 	else if (address == 0xFF800E)
 	{
+		/* Communication flag */
 		if (do_high_byte)
 			PrintError("SUB-CPU attempted to write to MAIN-CPU's communication flag at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 
@@ -971,10 +980,12 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	}
 	else if (address >= 0xFF8010 && address < 0xFF8020)
 	{
+		/* Communication command */
 		PrintError("SUB-CPU attempted to write to MAIN-CPU's communication command at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
 	else if (address >= 0xFF8020 && address < 0xFF8030)
 	{
+		/* Communication status */
 		cc_u16f mask;
 
 		if (do_high_byte)
