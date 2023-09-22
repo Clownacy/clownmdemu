@@ -543,8 +543,12 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		/* Z80 BUSREQ */
 		if (do_high_byte)
 		{
-			SyncZ80(clownmdemu, callback_user_data, target_cycle);
-			clownmdemu->state->m68k_has_z80_bus = (high_byte & 1) != 0;
+			const cc_bool bus_request = (high_byte & 1) != 0;
+
+			if (!clownmdemu->state->m68k_has_z80_bus && bus_request)
+				SyncZ80(clownmdemu, callback_user_data, target_cycle);
+
+			clownmdemu->state->m68k_has_z80_bus = bus_request;
 		}
 	}
 	else if (address == 0xA11200)
@@ -569,8 +573,26 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		/* RESET, HALT */
 		if (do_low_byte)
 		{
-			clownmdemu->state->m68k_has_mcd_m68k_bus = (low_byte & (1 << 1)) != 0;
-			clownmdemu->state->mcd_m68k_reset = (low_byte & (1 << 0)) != 0;
+			const cc_bool bus_request = (low_byte & (1 << 1)) != 0;
+			const cc_bool reset = (low_byte & (1 << 0)) != 0;
+
+			if (!clownmdemu->state->m68k_has_mcd_m68k_bus && bus_request)
+				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
+
+			if (clownmdemu->state->mcd_m68k_reset && !reset)
+			{
+				Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
+
+				m68k_read_write_callbacks.read_callback = M68kReadCallback;
+				m68k_read_write_callbacks.write_callback = M68kWriteCallback;
+				m68k_read_write_callbacks.user_data = &callback_user_data;
+
+				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
+				Clown68000_Reset(&clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
+			}
+
+			clownmdemu->state->m68k_has_mcd_m68k_bus = bus_request;
+			clownmdemu->state->mcd_m68k_reset = reset;
 		}
 	}
 	else if (address == 0xA12002)
@@ -579,7 +601,10 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		if (do_low_byte)
 		{
 			if ((low_byte & (1 << 1)) != 0)
+			{
+				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 				clownmdemu->state->mcd_has_word_ram = cc_true;
+			}
 
 			clownmdemu->state->prg_ram_bank = (low_byte >> 6) & 3;
 		}
