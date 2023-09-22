@@ -677,7 +677,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	{
 		/* Communication command */
 		clownmdemu->state->mcd_communication_command[(address - 0xA12010) / 2] &= ~mask;
-		clownmdemu->state->mcd_communication_command[(address - 0xA12010) / 2] |= value & mask;
+		clownmdemu->state->mcd_communication_command[(address - 0xA12010) / 2] |= value;
 	}
 	else if (address >= 0xA12020 && address < 0xA12030)
 	{
@@ -718,7 +718,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	{
 		/* 68k RAM */
 		clownmdemu->state->m68k_ram[(address & 0xFFFF) / 2] &= ~mask;
-		clownmdemu->state->m68k_ram[(address & 0xFFFF) / 2] |= value & mask;
+		clownmdemu->state->m68k_ram[(address & 0xFFFF) / 2] |= value;
 	}
 	else
 	{
