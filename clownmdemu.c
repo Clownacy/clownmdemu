@@ -251,10 +251,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 				}
 				else
 				{
-					if (do_high_byte)
-						value |= clownmdemu->state->word_ram[(address + 0) & 0x3FFFF] << 8;
-					if (do_low_byte)
-						value |= clownmdemu->state->word_ram[(address + 1) & 0x3FFFF] << 0;
+					value = clownmdemu->state->word_ram[(address & 0x3FFFF) / 2];
 				}
 			}
 			else if ((address & 0x20000) == 0)
@@ -282,10 +279,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 				}
 				else
 				{
-					if (do_high_byte)
-						value |= clownmdemu->state->prg_ram[0x20000 * clownmdemu->state->prg_ram_bank + ((address + 0) & 0x1FFFF)] << 8;
-					if (do_low_byte)
-						value |= clownmdemu->state->prg_ram[0x20000 * clownmdemu->state->prg_ram_bank + ((address + 1) & 0x1FFFF)] << 0;
+					value = clownmdemu->state->prg_ram[(0x20000 * clownmdemu->state->prg_ram_bank + (address & 0x1FFFF)) / 2];
 				}
 			}
 		}
@@ -503,12 +497,8 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			}
 			else
 			{
-				if ((address & 0x1FFFF) == 2)
-					address = 0xFF420002;
-				if (do_high_byte)
-					clownmdemu->state->prg_ram[0x20000 * clownmdemu->state->prg_ram_bank + ((address + 0) & 0x1FFFF)] = high_byte;
-				if (do_low_byte)
-					clownmdemu->state->prg_ram[0x20000 * clownmdemu->state->prg_ram_bank + ((address + 1) & 0x1FFFF)] = low_byte;
+				clownmdemu->state->prg_ram[(0x20000 * clownmdemu->state->prg_ram_bank + (address & 0x1FFFF)) / 2] &= ~mask;
+				clownmdemu->state->prg_ram[(0x20000 * clownmdemu->state->prg_ram_bank + (address & 0x1FFFF)) / 2] |= value & mask;
 			}
 		}
 	}
@@ -521,10 +511,8 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		}
 		else
 		{
-			if (do_high_byte)
-				clownmdemu->state->word_ram[(address + 0) & 0x3FFFF] = high_byte;
-			if (do_low_byte)
-				clownmdemu->state->word_ram[(address + 1) & 0x3FFFF] = low_byte;
+			clownmdemu->state->word_ram[(address & 0x3FFFF) / 2] &= ~mask;
+			clownmdemu->state->word_ram[(address & 0x3FFFF) / 2] |= value & mask;
 		}
 	}
 	else if ((address >= 0xA00000 && address <= 0xA01FFF) || address == 0xA04000 || address == 0xA04002)
@@ -677,7 +665,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	{
 		/* Communication command */
 		clownmdemu->state->mcd_communication_command[(address - 0xA12010) / 2] &= ~mask;
-		clownmdemu->state->mcd_communication_command[(address - 0xA12010) / 2] |= value;
+		clownmdemu->state->mcd_communication_command[(address - 0xA12010) / 2] |= value & mask;
 	}
 	else if (address >= 0xA12020 && address < 0xA12030)
 	{
@@ -718,7 +706,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	{
 		/* 68k RAM */
 		clownmdemu->state->m68k_ram[(address & 0xFFFF) / 2] &= ~mask;
-		clownmdemu->state->m68k_ram[(address & 0xFFFF) / 2] |= value;
+		clownmdemu->state->m68k_ram[(address & 0xFFFF) / 2] |= value & mask;
 	}
 	else
 	{
@@ -874,10 +862,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 		}
 		else
 		{
-			if (do_high_byte)
-				value |= clownmdemu->state->prg_ram[address + 0] << 8;
-			if (do_low_byte)
-				value |= clownmdemu->state->prg_ram[address + 1] << 0;
+			value = clownmdemu->state->prg_ram[address / 2];
 		}
 	}
 	else if (address < 0xC0000)
@@ -889,10 +874,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 		}
 		else
 		{
-			if (do_high_byte)
-				value |= clownmdemu->state->word_ram[(address + 0) & 0x3FFFF] << 8;
-			if (do_low_byte)
-				value |= clownmdemu->state->word_ram[(address + 1) & 0x3FFFF] << 0;
+			value = clownmdemu->state->word_ram[(address & 0x3FFFF) / 2];
 		}
 	}
 	else if (address == 0xFF800E)
@@ -933,13 +915,18 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	const cc_u16f high_byte = (value >> 8) & 0xFF;
 	const cc_u16f low_byte = (value >> 0) & 0xFF;
 
+	cc_u16f mask = 0;
+
+	if (do_high_byte)
+		mask |= 0xFF00;
+	if (do_low_byte)
+		mask |= 0x00FF;
+
 	if (/*address >= 0 &&*/ address < 0x80000)
 	{
 		/* PRG-RAM */
-		if (do_high_byte)
-			clownmdemu->state->prg_ram[address + 0] = high_byte;
-		if (do_low_byte)
-			clownmdemu->state->prg_ram[address + 1] = low_byte;
+		clownmdemu->state->prg_ram[address / 2] &= ~mask;
+		clownmdemu->state->prg_ram[address / 2] |= value & mask;
 	}
 	else if (address < 0xC0000)
 	{
@@ -950,10 +937,8 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 		}
 		else
 		{
-			if (do_high_byte)
-				clownmdemu->state->word_ram[(address + 0) & 0x3FFFF] = high_byte;
-			if (do_low_byte)
-				clownmdemu->state->word_ram[(address + 1) & 0x3FFFF] = low_byte;
+			clownmdemu->state->word_ram[(address & 0x3FFFF) / 2] &= ~mask;
+			clownmdemu->state->word_ram[(address & 0x3FFFF) / 2] |= value & mask;
 		}
 	}
 	else if (address == 0xFF8002)
@@ -979,15 +964,8 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	else if (address >= 0xFF8020 && address < 0xFF8030)
 	{
 		/* Communication status */
-		cc_u16f mask = 0;
-
-		if (do_high_byte)
-			mask |= 0xFF00;
-		if (do_low_byte)
-			mask |= 0x00FF;
-
 		clownmdemu->state->mcd_communication_status[(address - 0xFF8020) / 2] &= ~mask;
-		clownmdemu->state->mcd_communication_status[(address - 0xFF8020) / 2] |= value & mask;
+		clownmdemu->state->mcd_communication_status[(address - 0xFF8020) / 2] |= value & mask & mask;
 	}
 	else
 	{
