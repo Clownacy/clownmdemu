@@ -155,6 +155,10 @@ typedef struct ClownMDEmu_State
 	cc_u16l z80_bank;
 	cc_bool m68k_has_z80_bus;
 	cc_bool z80_reset;
+	cc_bool m68k_has_mcd_m68k_bus;
+	cc_bool mcd_m68k_reset;
+	cc_u8l prg_ram_bank;
+	cc_bool mcd_has_word_ram;
 } ClownMDEmu_State;
 
 typedef struct ClownMDEmu
