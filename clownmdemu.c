@@ -245,13 +245,28 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 			if ((address & 0x100000) != 0)
 			{
 				/* WORD-RAM */
-				if (clownmdemu->state->mcd_has_word_ram)
+				if (clownmdemu->state->word_ram_1m_mode)
 				{
-					PrintError("MAIN-CPU attempted to read from WORD-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+					if ((address & 0x10000) != 0)
+					{
+						/* TODO */
+						PrintError("MAIN-CPU attempted to read from that weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+					}
+					else
+					{
+						value = clownmdemu->state->word_ram[(address & 0xFFFF) * 2 + clownmdemu->state->word_ram_ret];
+					}
 				}
 				else
 				{
-					value = clownmdemu->state->word_ram[address & 0x1FFFF];
+					if (clownmdemu->state->word_ram_dmna)
+					{
+						PrintError("MAIN-CPU attempted to read from WORD-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+					}
+					else
+					{
+						value = clownmdemu->state->word_ram[address & 0x1FFFF];
+					}
 				}
 			}
 			else if ((address & 0x10000) == 0)
@@ -389,7 +404,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address == 0xA12002 / 2)
 	{
 		/* Memory mode / Write protect */
-		value = (cc_u16f)clownmdemu->state->prg_ram_bank << 6;
+		value = ((cc_u16f)clownmdemu->state->prg_ram_bank << 6) | ((cc_u16f)clownmdemu->state->word_ram_dmna << 1) | ((cc_u16f)clownmdemu->state->word_ram_ret << 0);
 	}
 	else if (address == 0xA1200E / 2)
 	{
@@ -488,14 +503,30 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			if ((address & 0x100000) != 0)
 			{
 				/* WORD-RAM */
-				if (clownmdemu->state->mcd_has_word_ram)
+				if (clownmdemu->state->word_ram_1m_mode)
 				{
-					PrintError("MAIN-CPU attempted to write to WORD-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+					if ((address & 0x10000) != 0)
+					{
+						/* TODO */
+						PrintError("MAIN-CPU attempted to write to that weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+					}
+					else
+					{
+						clownmdemu->state->word_ram[(address & 0xFFFF) * 2 + clownmdemu->state->word_ram_ret] &= ~mask;
+						clownmdemu->state->word_ram[(address & 0xFFFF) * 2 + clownmdemu->state->word_ram_ret] |= value & mask;
+					}
 				}
 				else
 				{
-					clownmdemu->state->word_ram[address & 0x1FFFF] &= ~mask;
-					clownmdemu->state->word_ram[address & 0x1FFFF] |= value & mask;
+					if (clownmdemu->state->word_ram_dmna)
+					{
+						PrintError("MAIN-CPU attempted to write to WORD-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+					}
+					else
+					{
+						clownmdemu->state->word_ram[address & 0x1FFFF] &= ~mask;
+						clownmdemu->state->word_ram[address & 0x1FFFF] |= value & mask;
+					}
 				}
 			}
 			else if ((address & 0x10000) == 0)
@@ -649,7 +680,11 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			if ((low_byte & (1 << 1)) != 0)
 			{
 				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
-				clownmdemu->state->mcd_has_word_ram = cc_true;
+
+				clownmdemu->state->word_ram_dmna = cc_true;
+
+				if (!clownmdemu->state->word_ram_1m_mode)
+					clownmdemu->state->word_ram_ret = cc_false;
 			}
 
 			clownmdemu->state->prg_ram_bank = (low_byte >> 6) & 3;
@@ -874,14 +909,38 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	else if (address < 0xC0000 / 2)
 	{
 		/* WORD-RAM */
-		if (!clownmdemu->state->mcd_has_word_ram)
+		if (clownmdemu->state->word_ram_1m_mode)
 		{
+			/* TODO. */
+			PrintError("SUB-CPU attempted to read from the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->mcd_m68k.program_counter);
+		}
+		else if (!clownmdemu->state->word_ram_dmna)
+		{
+			/* TODO: According to Page 24 of MEGA-CD HARDWARE MANUAL, this should cause the CPU to hang, just like the Z80 accessing the ROM during a DMA transfer. */
 			PrintError("SUB-CPU attempted to read from WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->mcd_m68k.program_counter);
 		}
 		else
 		{
 			value = clownmdemu->state->word_ram[address & 0x1FFFF];
 		}
+	}
+	else if (address < 0xE0000 / 2)
+	{
+		/* WORD-RAM */
+		if (!clownmdemu->state->word_ram_1m_mode)
+		{
+			/* TODO. */
+			PrintError("SUB-CPU attempted to read from the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->state->mcd_m68k.program_counter);
+		}
+		else
+		{
+			value = clownmdemu->state->word_ram[(address & 0xFFFF) * 2 + !clownmdemu->state->word_ram_ret];
+		}
+	}
+	else if (address == 0xFF8002 / 2)
+	{
+		/* Memory mode / Write protect */
+		value = ((cc_u16f)clownmdemu->state->word_ram_dmna << 1) | ((cc_u16f)clownmdemu->state->word_ram_ret << 0);
 	}
 	else if (address == 0xFF800E / 2)
 	{
@@ -934,7 +993,12 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	else if (address < 0xC0000 / 2)
 	{
 		/* WORD-RAM */
-		if (!clownmdemu->state->mcd_has_word_ram)
+		if (clownmdemu->state->word_ram_1m_mode)
+		{
+			/* TODO. */
+			PrintError("SUB-CPU attempted to write to the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->mcd_m68k.program_counter);
+		}
+		else if (!clownmdemu->state->word_ram_dmna)
 		{
 			PrintError("SUB-CPU attempted to write to WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->mcd_m68k.program_counter);
 		}
@@ -944,11 +1008,34 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 			clownmdemu->state->word_ram[address & 0x1FFFF] |= value & mask;
 		}
 	}
+	else if (address < 0xE0000 / 2)
+	{
+		/* WORD-RAM */
+		if (!clownmdemu->state->word_ram_1m_mode)
+		{
+			/* TODO. */
+			PrintError("SUB-CPU attempted to write to the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->state->mcd_m68k.program_counter);
+		}
+		else
+		{
+			clownmdemu->state->word_ram[(address & 0xFFFF) * 2 + !clownmdemu->state->word_ram_ret] &= ~mask;
+			clownmdemu->state->word_ram[(address & 0xFFFF) * 2 + !clownmdemu->state->word_ram_ret] |= value & mask;
+		}
+	}
 	else if (address == 0xFF8002 / 2)
 	{
 		/* Memory mode / Write protect */
-		if (do_low_byte && (value & (1 << 0)) != 0)
-			clownmdemu->state->mcd_has_word_ram = cc_false;
+		if (do_low_byte)
+		{
+			const cc_bool ret = (value & (1 << 0)) != 0;
+
+			if (ret || clownmdemu->state->word_ram_1m_mode)
+			{
+				SyncM68k(clownmdemu, callback_user_data, target_cycle);
+				clownmdemu->state->word_ram_dmna = cc_false;
+				clownmdemu->state->word_ram_ret = ret;
+			}
+		}
 	}
 	else if (address == 0xFF800E / 2)
 	{
@@ -1014,7 +1101,11 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->m68k_has_mcd_m68k_bus = cc_true;
 	state->mcd_m68k_reset = cc_false;
 	state->prg_ram_bank = 0;
-	state->mcd_has_word_ram = cc_true;
+
+	/* Page 24 of MEGA-CD HARDWARE MANUAL confirms this. */
+	state->word_ram_1m_mode = cc_false;
+	state->word_ram_dmna = cc_false;
+	state->word_ram_ret = cc_true;
 }
 
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state)

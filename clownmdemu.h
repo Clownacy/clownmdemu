@@ -158,7 +158,8 @@ typedef struct ClownMDEmu_State
 	cc_bool m68k_has_mcd_m68k_bus;
 	cc_bool mcd_m68k_reset;
 	cc_u8l prg_ram_bank;
-	cc_bool mcd_has_word_ram;
+	cc_bool word_ram_1m_mode;
+	cc_bool word_ram_dmna, word_ram_ret;
 	cc_u16l mcd_communication_flag;
 	cc_u16l mcd_communication_command[8];
 	cc_u16l mcd_communication_status[8];
