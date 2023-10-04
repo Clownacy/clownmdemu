@@ -160,6 +160,7 @@ typedef struct ClownMDEmu_State
 	cc_u8l prg_ram_bank;
 	cc_bool word_ram_1m_mode;
 	cc_bool word_ram_dmna, word_ram_ret;
+	cc_bool cd_boot;
 	cc_u16l mcd_communication_flag;
 	cc_u16l mcd_communication_command[8];
 	cc_u16l mcd_communication_status[8];
@@ -189,13 +190,15 @@ typedef struct ClownMDEmu_Callbacks
 	cc_bool (*input_requested)(const void *user_data, cc_u8f player_id, ClownMDEmu_Button button_id);
 	void (*fm_audio_to_be_generated)(const void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*psg_audio_to_be_generated)(const void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples));
+	void (*cd_seeked)(const void *user_data, cc_u32f sector_index);
+	const cc_u8l* (*cd_sector_read)(const void *user_data);
 } ClownMDEmu_Callbacks;
 
 void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant);
 void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state);
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
-void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks, const cc_bool cd_boot);
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg));
 
 #ifdef __cplusplus

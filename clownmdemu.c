@@ -31,9 +31,55 @@ typedef struct CPUCallbackUserData
 	cc_u32f psg_current_cycle;
 } CPUCallbackUserData;
 
-/* This is the 'bios.kos' file that can be found in the 'SUB-CPU BIOS' directory. */
 /* TODO: Please, anything but this... */
-static const cc_u16l subcpu_bios[] = {
+/* This is the 'bios.bin' file that can be found in the 'SUB-CPU BIOS' directory. */
+static const cc_u16l subcpu_bios_uncompressed[] = {
+	0x0000, 0x5000, 0x0000, 0x010A,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0108,
+	0x0000, 0x0134, 0x0000, 0x0108,
+	0x0000, 0x0108, 0x0000, 0x0108,
+	0x0000, 0x0108, 0x0000, 0x0108,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x0000, 0x0100, 0x0000, 0x0100,
+	0x4E71, 0x4E71, 0x6000, 0xFFFA,
+	0x4E73, 0x41FA, 0x5EF4, 0x0C90,
+	0x4D41, 0x494E, 0x66F4, 0xD1E8,
+	0x0018, 0x3010, 0x4EB0, 0x0000,
+	0x46FC, 0x2700, 0x41FA, 0x5EDA,
+	0xD1E8, 0x0018, 0x3028, 0x0002,
+	0x4EF0, 0x0000, 0x41FA, 0x5ECA,
+	0x0C90, 0x4D41, 0x494E, 0x660C,
+	0xD1E8, 0x0018, 0x3028, 0x0004,
+	0x4EB0, 0x0000, 0x4E73
+};
+
+/* This is the 'bios.kos' file that can be found in the 'SUB-CPU BIOS' directory. */
+static const cc_u16l subcpu_bios_compressed[] = {
 	0x0F63, 0x0000, 0x5000, 0xFF01,
 	0x0AFC, 0x0063, 0xB2FC, 0xF85A,
 	0x08FC, 0x34F8, 0xFCF8, 0x1200,
@@ -48,12 +94,51 @@ static const cc_u16l subcpu_bios[] = {
 	0xD4BC, 0x00F0, 0x0000
 };
 
+static cc_u32f ReadU32BE(const cc_u8l* const bytes)
+{
+	cc_u8f i;
+	cc_u32f value;
+
+	value = 0;
+
+	for (i = 0; i < 4; ++i)
+		value |= (cc_u32f)bytes[i] << (8 * (4 - 1 - i));
+
+	return value;
+}
+
+static void BytesTo68kRAM(cc_u16l* const ram, const cc_u8l* const bytes, const size_t total_bytes)
+{
+	cc_u32f i;
+
+	for (i = 0; i < total_bytes; i += 2)
+		ram[i / 2] = (bytes[i + 0] << 8) | bytes[i + 1];
+}
+
+static void CDSectorTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u16l* const ram)
+{
+	const cc_u8l* const sector_bytes = callbacks->cd_sector_read(callbacks->user_data);
+
+	BytesTo68kRAM(ram, sector_bytes, 0x800);
+}
+
+static void CDSectorsTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u16l* const ram, const cc_u32f start, const cc_u32f length)
+{
+	cc_u32f i;
+
+	callbacks->cd_seeked(callbacks->user_data, start / 0x800);
+
+	for (i = 0; i < CC_DIVIDE_CEILING(length, 0x800); ++i)
+		CDSectorTo68kRAM(callbacks, &ram[i * 0x800]);
+}
+
 static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte);
 static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value);
 static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address);
 static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f value);
 static cc_u16f MCDM68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte);
 static void MCDM68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value);
+static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value, const cc_u32f target_cycle);
 
 static void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 {
@@ -232,7 +317,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 
 	if (address < 0x800000 / 2)
 	{
-		if ((address & 0x200000) == 0)
+		if (((address & 0x200000) == 0) != clownmdemu->state->cd_boot)
 		{
 			/* Cartridge */
 			if (do_high_byte)
@@ -274,15 +359,77 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 				/* Mega CD BIOS */
 				const cc_u16f local_address = address & 0xFFFF;
 
-				if (local_address >= 0xB000 && local_address < 0xB000 + CC_COUNT_OF(subcpu_bios))
+				if (local_address >= 0xB000 && local_address < 0xB000 + CC_COUNT_OF(subcpu_bios_compressed))
 				{
 					/* Kosinski-compressed SUB-CPU payload. */
-					value = subcpu_bios[local_address - 0xB000];
+					value = subcpu_bios_compressed[local_address - 0xB000];
 				}
 				else if (local_address == 0xB037)
 				{
 					/* SUB-CPU payload magic number (used by ROM-hacks that use 'Mode 1'). */
 					value = ('E' << 8) | ('G' << 0);
+				}
+				else if (local_address <= 0x80)
+				{
+				#define VECTOR_ENTRY(x) (x) >> 16, (x) & 0xFFFF
+					/* Vector table */
+					static const cc_u16l vector_table[] = {
+						VECTOR_ENTRY(0x00FFFD00), /* Stack pointer */
+						VECTOR_ENTRY(0x00FFFD00), /* Entry point */
+						VECTOR_ENTRY(0x00000100), /* Bus error */
+						VECTOR_ENTRY(0x00FFFD7E), /* Address error */
+						VECTOR_ENTRY(0x00FFFD7E), /* Illegal instruction */
+						VECTOR_ENTRY(0x00FFFD84), /* Divide by zero */
+						VECTOR_ENTRY(0x00000100), /* CHK exception */
+						VECTOR_ENTRY(0x00FFFD8E), /* TRAPV exception */
+						VECTOR_ENTRY(0x00FFFD9C), /* Privilage violation */
+						VECTOR_ENTRY(0x00FFFDA2), /* TRACE exception */
+						VECTOR_ENTRY(0x00000100), /* LINE-A emulator */
+						VECTOR_ENTRY(0x00000100), /* LINE-F emulator */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Spurious interrupt */
+						VECTOR_ENTRY(0x00000100), /* Level 1 interrupt */
+						VECTOR_ENTRY(0x00FFFD12), /* Level 2 interrupt */
+						VECTOR_ENTRY(0x00000100), /* Level 3 interrupt */
+						VECTOR_ENTRY(0x00FFFD0C), /* Level 4 interrupt */
+						VECTOR_ENTRY(0x00000100), /* Level 5 interrupt */
+						VECTOR_ENTRY(0x00FFFD06), /* Level 6 interrupt */
+						VECTOR_ENTRY(0x00000100), /* Level 7 interrupt */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 0),  /* TRAP #0 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 1),  /* TRAP #1 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 2),  /* TRAP #2 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 3),  /* TRAP #3 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 4),  /* TRAP #4 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 5),  /* TRAP #5 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 6),  /* TRAP #6 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 7),  /* TRAP #7 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 8),  /* TRAP #8 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 9),  /* TRAP #9 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 10), /* TRAP #10 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 11), /* TRAP #11 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 12), /* TRAP #12 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 13), /* TRAP #13 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 14), /* TRAP #14 handler */
+						VECTOR_ENTRY(0x00FFFD18 + 6 * 15), /* TRAP #15 handler */
+					};
+
+					value = vector_table[local_address];
+				}
+				else if (local_address == 0x80)
+				{
+					/* rte (used by interrupts) */
+					value = 0x4E73;
 				}
 			}
 			else
@@ -487,7 +634,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 
 	if (address < 0x800000 / 2)
 	{
-		if ((address & 0x200000) == 0)
+		if (((address & 0x200000) == 0) != clownmdemu->state->cd_boot)
 		{
 			/* Cartridge */
 			if (do_high_byte)
@@ -888,6 +1035,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+	const ClownMDEmu_Callbacks* const frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
 	cc_u16f value = 0;
 
 	(void)do_high_byte;
@@ -896,9 +1044,56 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	if (/*address >= 0 &&*/ address < 0x80000 / 2)
 	{
 		/* PRG-RAM */
-		if (address == 0x5F22 / 2)
+		if (address == 0x5F22 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F22)
 		{
 			PrintError("BIOS CALL DETECTED");
+
+			/* TODO: None of this shit is accurate at all. */
+			switch (clownmdemu->mcd_m68k->data_registers[0])
+			{
+				case 0x20:
+				{
+					/* ROMREADN */
+					cc_u32f starting_sector;
+					starting_sector = MCDM68kReadCallbackWithCycle(user_data, ((clownmdemu->mcd_m68k->address_registers[0] + 0) & 0xFFFFFF) / 2, cc_true, cc_true, target_cycle) << 16;
+					starting_sector |= MCDM68kReadCallbackWithCycle(user_data, ((clownmdemu->mcd_m68k->address_registers[0] + 2) & 0xFFFFFF) / 2, cc_true, cc_true, target_cycle) << 0;
+
+					frontend_callbacks->cd_seeked(frontend_callbacks->user_data, starting_sector);
+					break;
+				}
+
+				case 0x8A:
+					/* CDCSTAT */
+					clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
+					break;
+
+				case 0x8B:
+					/* CDCREAD */
+					clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
+					/* TODO: clownmdemu->mcd_m68k->data_registers[0] = sector_header_bullshit_goes_here;*/
+					break;
+
+				case 0x8C:
+				{
+					/* CDCTRN */
+					cc_u32f i;
+					const cc_u8l* const sector_bytes = frontend_callbacks->cd_sector_read(frontend_callbacks->user_data);
+
+					for (i = 0; i < 0x800; ++i)
+					{
+						const cc_u32f address = clownmdemu->mcd_m68k->address_registers[0] + i;
+						const cc_bool odd_address = (address & 1) != 0;
+
+						MCDM68kWriteCallbackWithCycle(user_data, (address & 0xFFFFFF) / 2, !odd_address, odd_address, (cc_u16f)sector_bytes[i] << (odd_address ? 0 : 8), target_cycle);
+					}
+
+					clownmdemu->mcd_m68k->address_registers[0] = (clownmdemu->mcd_m68k->address_registers[0] + 0x800) & 0xFFFFFFFF;
+					clownmdemu->mcd_m68k->address_registers[1] = (clownmdemu->mcd_m68k->address_registers[1] + 4) & 0xFFFFFFFF;
+					clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
+					break;
+				}
+			}
+
 			value = 0x4E75; /* 'rts' instruction */
 		}
 		else
@@ -1106,6 +1301,8 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->word_ram_1m_mode = cc_false;
 	state->word_ram_dmna = cc_false;
 	state->word_ram_ret = cc_true;
+
+	state->cd_boot = cc_false;
 }
 
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state)
@@ -1214,10 +1411,62 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	SyncPSG(&cpu_callback_user_data, cycles_per_frame);
 }
 
-void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
+void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks, const cc_bool cd_boot)
 {
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 	CPUCallbackUserData callback_user_data;
+
+	clownmdemu->state->cd_boot = cd_boot;
+
+	if (cd_boot)
+	{
+		/* Boot from CD ("Mode 2"). */
+		cc_u8f i;
+		const cc_u8l *sector_bytes;
+		cc_u32f ip_start, ip_length, sp_start, sp_length;
+
+		/* Read first sector. */
+		callbacks->cd_seeked(callbacks->user_data, 0);
+		sector_bytes = callbacks->cd_sector_read(callbacks->user_data);
+		ip_start = ReadU32BE(&sector_bytes[0x30]);
+		ip_length = ReadU32BE(&sector_bytes[0x34]);
+		sp_start = ReadU32BE(&sector_bytes[0x40]);
+		sp_length = ReadU32BE(&sector_bytes[0x44]);
+
+		/* Don't allow overflowing the PRG-RAM array. */
+		sp_length = CC_MIN((CC_COUNT_OF(clownmdemu->state->prg_ram) - 0x6000 / 2) / 0x800, sp_length);
+
+		/* Read Initial Program. */
+		BytesTo68kRAM(clownmdemu->state->word_ram, &sector_bytes[0x200], 0x600);
+
+		/* Load additional Initial Program data if necessary. */
+		if (ip_start != 0x200 || ip_length != 0x600)
+			CDSectorsTo68kRAM(callbacks, &clownmdemu->state->word_ram[0x600 / 2], 0x800, 32 * 0x800);
+
+		/* This is what the Mega CD's BIOS does. */
+		memcpy(clownmdemu->state->m68k_ram, clownmdemu->state->word_ram, 0x8000);
+
+		/* Read Sub Program. */
+		CDSectorsTo68kRAM(callbacks, &clownmdemu->state->prg_ram[0x6000 / 2], sp_start, sp_length);
+
+		/* Load SUB-CPU BIOS. */
+		memcpy(clownmdemu->state->prg_ram, subcpu_bios_uncompressed, sizeof(subcpu_bios_uncompressed));
+
+		/* Allow SUB-CPU to execute. */
+		clownmdemu->state->m68k_has_mcd_m68k_bus = cc_false;
+
+		/* Construct MAIN-CPU vector jump table. */
+		for (i = 0; i < 30; ++i)
+		{
+			clownmdemu->state->m68k_ram[0xFD00 / 2 + 3 * i + 0] = 0x4EF9;
+			clownmdemu->state->m68k_ram[0xFD00 / 2 + 3 * i + 1] = 0x0000;
+			clownmdemu->state->m68k_ram[0xFD00 / 2 + 3 * i + 2] = 0x0100; /* Points to an RTE instruction. */
+		}
+
+		/* Set correct entry point. */
+		clownmdemu->state->m68k_ram[0xFD00 / 2 + 1] = 0x00FF;
+		clownmdemu->state->m68k_ram[0xFD00 / 2 + 2] = 0x0584; /* TODO: Fix whatever's breaking this dumb "security code" so that we don't have to skip it. */
+	}
 
 	callback_user_data.data_and_callbacks.data = clownmdemu;
 	callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
