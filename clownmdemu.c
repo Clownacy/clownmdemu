@@ -34,64 +34,69 @@ typedef struct CPUCallbackUserData
 /* TODO: Please, anything but this... */
 /* This is the 'bios.bin' file that can be found in the 'SUB-CPU BIOS' directory. */
 static const cc_u16l subcpu_bios_uncompressed[] = {
-	0x0000, 0x5000, 0x0000, 0x010A,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0108,
-	0x0000, 0x0134, 0x0000, 0x0108,
-	0x0000, 0x0108, 0x0000, 0x0108,
-	0x0000, 0x0108, 0x0000, 0x0108,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x0000, 0x0100, 0x0000, 0x0100,
-	0x4E71, 0x4E71, 0x6000, 0xFFFA,
-	0x4E73, 0x41FA, 0x5EF4, 0x0C90,
-	0x4D41, 0x494E, 0x66F4, 0xD1E8,
-	0x0018, 0x3010, 0x4EB0, 0x0000,
-	0x46FC, 0x2700, 0x41FA, 0x5EDA,
-	0xD1E8, 0x0018, 0x3028, 0x0002,
-	0x4EF0, 0x0000, 0x41FA, 0x5ECA,
-	0x0C90, 0x4D41, 0x494E, 0x660C,
-	0xD1E8, 0x0018, 0x3028, 0x0004,
-	0x4EB0, 0x0000, 0x4E73
+	0x6000, 0x00FE, 0x0000, 0x0110,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x010E,
+	0x0000, 0x013E, 0x0000, 0x010E,
+	0x0000, 0x010E, 0x0000, 0x010E,
+	0x0000, 0x010E, 0x0000, 0x010E,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x0000, 0x0104, 0x0000, 0x0104,
+	0x7000, 0x6002, 0x7001, 0x4E71,
+	0x4E71, 0x6000, 0xFFFA, 0x4E73,
+	0x4FF8, 0x5000, 0x41FA, 0x5EEA,
+	0x0C90, 0x4D41, 0x494E, 0x66F0,
+	0xD1E8, 0x0018, 0x3010, 0x4EB0,
+	0x0000, 0x46FC, 0x2000, 0x41FA,
+	0x5ED0, 0xD1E8, 0x0018, 0x3028,
+	0x0002, 0x4EF0, 0x0000, 0x48E7,
+	0xFFFE, 0x41FA, 0x5EBC, 0x0C90,
+	0x4D41, 0x494E, 0x660C, 0xD1E8,
+	0x0018, 0x3028, 0x0004, 0x4EB0,
+	0x0000, 0x4CDF, 0x7FFF, 0x4E73
 };
 
 /* This is the 'bios.kos' file that can be found in the 'SUB-CPU BIOS' directory. */
 static const cc_u16l subcpu_bios_compressed[] = {
-	0x0F63, 0x0000, 0x5000, 0xFF01,
-	0x0AFC, 0x0063, 0xB2FC, 0xF85A,
-	0x08FC, 0x34F8, 0xFCF8, 0x1200,
-	0xC3FF, 0xFCF8, 0x7B4E, 0x71FE,
-	0x6000, 0xFFFA, 0x4E73, 0x41FA,
-	0x5EFF, 0xFFF4, 0x0C90, 0x4D41,
-	0x494E, 0x66F4, 0xD1E8, 0x0018,
-	0x3010, 0x4EF0, 0x98B0, 0xDE46,
-	0xFC27, 0x00E6, 0xDA7F, 0x6AEE,
-	0x2800, 0x024E, 0xF000, 0xF0CA,
-	0xD6FD, 0x0C13, 0x08E8, 0xFD04,
-	0xD4BC, 0x00F0, 0x0000
+	0x0F63, 0x6000, 0x00FE, 0xFD01,
+	0x10FC, 0x0463, 0xB2FC, 0xF85A,
+	0x0EFC, 0x3EF8, 0xFCF8, 0x1204,
+	0xFFF0, 0xFCF8, 0x7B70, 0x0060,
+	0x0270, 0x014E, 0x71FE, 0x6000,
+	0xFFFF, 0xFFFA, 0x4E73, 0x4FF8,
+	0x5000, 0x41FA, 0x5EEA, 0x0C90,
+	0x4D41, 0x49FF, 0xC34E, 0x66F0,
+	0xD1E8, 0x0018, 0x3010, 0x4EB0,
+	0xD446, 0x297F, 0xFC20, 0xE6D0,
+	0xEE28, 0x0002, 0x4EF0, 0x786C,
+	0xEC48, 0xE7FF, 0xFEEC, 0xBCD2,
+	0xFD0C, 0xD32F, 0xE4FD, 0x04D0,
+	0x4CDF, 0x7FFF, 0x4E73, 0x00F0,
+	0x0000
 };
 
 static cc_u32f ReadU32BE(const cc_u8l* const bytes)
@@ -107,12 +112,31 @@ static cc_u32f ReadU32BE(const cc_u8l* const bytes)
 	return value;
 }
 
+static cc_u8f To2DigitBCD(const cc_u8f value)
+{
+	const cc_u8f lower_digit = value % 10;
+	const cc_u8f upper_digit = (value / 10) % 10;
+	return (upper_digit << 4) | (lower_digit << 0);
+}
+
+static cc_u32f GetCDSectorHeader(const ClownMDEmu* const clownmdemu)
+{
+	const cc_u32f frames = To2DigitBCD(clownmdemu->state->current_cd_sector % 75);
+	const cc_u32f seconds = To2DigitBCD((clownmdemu->state->current_cd_sector / 75) % 60);
+	const cc_u32f minutes = To2DigitBCD(clownmdemu->state->current_cd_sector / (75 * 60));
+
+	return ((cc_u32f)0x01 << (8 * 0))
+	     | (frames  << (8 * 1))
+	     | (seconds << (8 * 2))
+	     | (minutes << (8 * 3));
+}
+
 static void BytesTo68kRAM(cc_u16l* const ram, const cc_u8l* const bytes, const size_t total_bytes)
 {
-	cc_u32f i;
+	size_t i;
 
-	for (i = 0; i < total_bytes; i += 2)
-		ram[i / 2] = (bytes[i + 0] << 8) | bytes[i + 1];
+	for (i = 0; i < total_bytes / 2; ++i)
+		ram[i] = ((cc_u16f)bytes[i * 2 + 0] << 8) | bytes[i * 2 + 1];
 }
 
 static void CDSectorTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u16l* const ram)
@@ -129,7 +153,7 @@ static void CDSectorsTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u1
 	callbacks->cd_seeked(callbacks->user_data, start / 0x800);
 
 	for (i = 0; i < CC_DIVIDE_CEILING(length, 0x800); ++i)
-		CDSectorTo68kRAM(callbacks, &ram[i * 0x800]);
+		CDSectorTo68kRAM(callbacks, &ram[i * 0x800 / 2]);
 }
 
 static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte);
@@ -551,22 +575,55 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address == 0xA12002 / 2)
 	{
 		/* Memory mode / Write protect */
-		value = ((cc_u16f)clownmdemu->state->prg_ram_bank << 6) | ((cc_u16f)clownmdemu->state->word_ram_dmna << 1) | ((cc_u16f)clownmdemu->state->word_ram_ret << 0);
+		value = ((cc_u16f)clownmdemu->state->prg_ram_bank << 6) | ((cc_u16f)clownmdemu->state->word_ram_dmna << 1) | ((cc_u16f)clownmdemu->state->word_ram_1m_mode << 2) | ((cc_u16f)clownmdemu->state->word_ram_ret << 0);
+	}
+	else if (address == 0xA12004 / 2)
+	{
+		/* CDC mode */
+		PrintError("MAIN-CPU attempted to read from CDC mode register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+	}
+	else if (address == 0xA12006 / 2)
+	{
+		/* H-INT vector */
+		PrintError("MAIN-CPU attempted to read from H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+	}
+	else if (address == 0xA12008 / 2)
+	{
+		/* CDC host data */
+		PrintError("MAIN-CPU attempted to read from CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+	}
+	else if (address == 0xA1200C / 2)
+	{
+		/* Stop watch */
+		PrintError("MAIN-CPU attempted to read from stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
 	}
 	else if (address == 0xA1200E / 2)
 	{
 		/* Communication flag */
+		SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 		value = clownmdemu->state->mcd_communication_flag;
 	}
 	else if (address >= 0xA12010 / 2 && address < 0xA12020 / 2)
 	{
 		/* Communication command */
+		SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 		value = clownmdemu->state->mcd_communication_command[address - 0xA12010 / 2];
 	}
 	else if (address >= 0xA12020 / 2 && address < 0xA12030 / 2)
 	{
 		/* Communication status */
+		SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 		value = clownmdemu->state->mcd_communication_status[address - 0xA12020 / 2];
+	}
+	else if (address == 0xA12030 / 2)
+	{
+		/* Timer W/INT3 */
+		PrintError("MAIN-CPU attempted to read from Timer W/INT3 register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+	}
+	else if (address == 0xA12032 / 2)
+	{
+		/* Interrupt mask control */
+		PrintError("MAIN-CPU attempted to read from interrupt mask control register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
 	}
 	else if (address == 0xC00000 / 2 || address == 0xC00002 / 2 || address == 0xC00004 / 2 || address == 0xC00006 / 2)
 	{
@@ -837,11 +894,34 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			clownmdemu->state->prg_ram_bank = (low_byte >> 6) & 3;
 		}
 	}
+	else if (address == 0xA12004 / 2)
+	{
+		/* CDC mode */
+		PrintError("MAIN-CPU attempted to write to CDC mode register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+	}
+	else if (address == 0xA12006 / 2)
+	{
+		/* H-INT vector */
+		PrintError("MAIN-CPU attempted to write to H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+	}
+	else if (address == 0xA12008 / 2)
+	{
+		/* CDC host data */
+		PrintError("MAIN-CPU attempted to write to CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+	}
+	else if (address == 0xA1200C / 2)
+	{
+		/* Stop watch */
+		PrintError("MAIN-CPU attempted to write to stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+	}
 	else if (address == 0xA1200E / 2)
 	{
 		/* Communication flag */
 		if (do_high_byte)
+		{
+			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 			clownmdemu->state->mcd_communication_flag = (clownmdemu->state->mcd_communication_flag & 0x00FF) | (value & 0xFF00);
+		}
 
 		if (do_low_byte)
 			PrintError("MAIN-CPU attempted to write to SUB-CPU's communication flag at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
@@ -849,6 +929,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	else if (address >= 0xA12010 / 2 && address < 0xA12020 / 2)
 	{
 		/* Communication command */
+		SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 		clownmdemu->state->mcd_communication_command[address - 0xA12010 / 2] &= ~mask;
 		clownmdemu->state->mcd_communication_command[address - 0xA12010 / 2] |= value & mask;
 	}
@@ -856,6 +937,16 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	{
 		/* Communication status */
 		PrintError("MAIN-CPU attempted to write to SUB-CPU's communication status at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+	}
+	else if (address == 0xA12030 / 2)
+	{
+		/* Timer W/INT3 */
+		PrintError("MAIN-CPU attempted to write to Timer W/INT3 register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+	}
+	else if (address == 0xA12032 / 2)
+	{
+		/* Interrupt mask control */
+		PrintError("MAIN-CPU attempted to write to interrupt mask control register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
 	}
 	else if (address == 0xC00000 / 2 || address == 0xC00002 / 2 || address == 0xC00004 / 2 || address == 0xC00006 / 2)
 	{
@@ -1044,12 +1135,92 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	if (/*address >= 0 &&*/ address < 0x80000 / 2)
 	{
 		/* PRG-RAM */
-		if (address == 0x5F22 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F22)
+		if (address == 0x5F10 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F10)
 		{
-			PrintError("BIOS CALL DETECTED");
-
+			/* Wait for V-sync. */
+			clownmdemu->state->mcd_waiting_for_vint = cc_true;
+			value = 0x4E71; /* 'nop' instruction */
+		}
+		else if (address == 0x5F12 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F12)
+		{
+			/* Wait for V-sync. */
+			value = clownmdemu->state->mcd_waiting_for_vint ? 0x60FE : 0x4E75; /* 'bra.s *' or 'rts' instruction. */
+		}
+		else if (address == 0x5F16 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F16)
+		{
+			/* BRAM call! */
 			/* TODO: None of this shit is accurate at all. */
-			switch (clownmdemu->mcd_m68k->data_registers[0])
+			const cc_u16f command = clownmdemu->mcd_m68k->data_registers[0] & 0xFFFF;
+
+			switch (command)
+			{
+				case 0x00:
+					/* BRMINIT */
+					clownmdemu->mcd_m68k->status_register &= ~1; /* Formatted RAM is present. */
+					/* Size of Backup RAM. */
+					clownmdemu->mcd_m68k->data_registers[0] &= 0xFFFF0000;
+					clownmdemu->mcd_m68k->data_registers[0] |= 0x100; /* Maximum officially-allowed size. */
+					/* "Display strings". */
+					/*clownmdemu->mcd_m68k->address_registers[1] = I have no idea; */
+					break;
+
+				case 0x01:
+					/* BRMSTAT */
+					clownmdemu->mcd_m68k->data_registers[0] &= 0xFFFF0000;
+					clownmdemu->mcd_m68k->data_registers[1] &= 0xFFFF0000;
+					break;
+
+				case 0x02:
+					/* BRMSERCH */
+					clownmdemu->mcd_m68k->status_register |= 1; /* File not found */
+					break;
+
+				case 0x03:
+					/* BRMREAD */
+					clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
+					clownmdemu->mcd_m68k->data_registers[0] &= 0xFFFF0000;
+					clownmdemu->mcd_m68k->data_registers[1] &= 0xFFFFFF00;
+					break;
+
+				case 0x04:
+					/* BRMWRITE */
+					clownmdemu->mcd_m68k->status_register |= 1; /* Error */
+					break;
+
+				case 0x05:
+					/* BRMDEL */
+					clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
+					break;
+
+				case 0x06:
+					/* BRMFORMAT */
+					clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
+					break;
+
+				case 0x07:
+					/* BRMDIR */
+					clownmdemu->mcd_m68k->status_register |= 1; /* Error */
+					break;
+
+				case 0x08:
+					/* BRMVERIFY */
+					clownmdemu->mcd_m68k->status_register &= ~1; /* Okay */
+					break;
+
+				default:
+					PrintError("UNRECOGNISED BRAM CALL DETECTED (0x%02" CC_PRIXFAST16 ")", command);
+					break;
+			}
+
+			value = 0x4E75; /* 'rts' instruction */
+		}
+		else if (address == 0x5F22 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F22)
+		{
+			/* BIOS call! */
+			/* TODO: None of this shit is accurate at all. */
+			const cc_u16f command = clownmdemu->mcd_m68k->data_registers[0] & 0xFFFF;
+
+			switch (command)
 			{
 				case 0x20:
 				{
@@ -1059,6 +1230,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 					starting_sector |= MCDM68kReadCallbackWithCycle(user_data, ((clownmdemu->mcd_m68k->address_registers[0] + 2) & 0xFFFFFF) / 2, cc_true, cc_true, target_cycle) << 0;
 
 					frontend_callbacks->cd_seeked(frontend_callbacks->user_data, starting_sector);
+					clownmdemu->state->current_cd_sector = starting_sector;
 					break;
 				}
 
@@ -1070,7 +1242,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 				case 0x8B:
 					/* CDCREAD */
 					clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
-					/* TODO: clownmdemu->mcd_m68k->data_registers[0] = sector_header_bullshit_goes_here;*/
+					clownmdemu->mcd_m68k->data_registers[0] = GetCDSectorHeader(clownmdemu);
 					break;
 
 				case 0x8C:
@@ -1078,20 +1250,34 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 					/* CDCTRN */
 					cc_u32f i;
 					const cc_u8l* const sector_bytes = frontend_callbacks->cd_sector_read(frontend_callbacks->user_data);
+					const cc_u32f sector_header = GetCDSectorHeader(clownmdemu);
 
-					for (i = 0; i < 0x800; ++i)
+					++clownmdemu->state->current_cd_sector;
+
+					for (i = 0; i < 0x800; i += 2)
 					{
 						const cc_u32f address = clownmdemu->mcd_m68k->address_registers[0] + i;
-						const cc_bool odd_address = (address & 1) != 0;
 
-						MCDM68kWriteCallbackWithCycle(user_data, (address & 0xFFFFFF) / 2, !odd_address, odd_address, (cc_u16f)sector_bytes[i] << (odd_address ? 0 : 8), target_cycle);
+						MCDM68kWriteCallbackWithCycle(user_data, (address & 0xFFFFFF) / 2, cc_true, cc_true, ((cc_u16f)sector_bytes[i + 0] << 8) | ((cc_u16f)sector_bytes[i + 1] << 0), target_cycle);
 					}
+
+					MCDM68kWriteCallbackWithCycle(user_data, ((clownmdemu->mcd_m68k->address_registers[1] + 0) & 0xFFFFFF) / 2, cc_true, cc_true, sector_header >> 16, target_cycle);
+					MCDM68kWriteCallbackWithCycle(user_data, ((clownmdemu->mcd_m68k->address_registers[1] + 2) & 0xFFFFFF) / 2, cc_true, cc_true, sector_header >> 0, target_cycle);
 
 					clownmdemu->mcd_m68k->address_registers[0] = (clownmdemu->mcd_m68k->address_registers[0] + 0x800) & 0xFFFFFFFF;
 					clownmdemu->mcd_m68k->address_registers[1] = (clownmdemu->mcd_m68k->address_registers[1] + 4) & 0xFFFFFFFF;
 					clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
 					break;
 				}
+
+				case 0x8D:
+					/* CDCACK */
+					/* TODO: Anything. */
+					break;
+
+				default:
+					PrintError("UNRECOGNISED BIOS CALL DETECTED (0x%02" CC_PRIXFAST16 ")", command);
+					break;
 			}
 
 			value = 0x4E75; /* 'rts' instruction */
@@ -1135,22 +1321,55 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	else if (address == 0xFF8002 / 2)
 	{
 		/* Memory mode / Write protect */
-		value = ((cc_u16f)clownmdemu->state->word_ram_dmna << 1) | ((cc_u16f)clownmdemu->state->word_ram_ret << 0);
+		value = ((cc_u16f)clownmdemu->state->word_ram_1m_mode << 2) | ((cc_u16f)clownmdemu->state->word_ram_dmna << 1) | ((cc_u16f)clownmdemu->state->word_ram_ret << 0);
+	}
+	else if (address == 0xFF8004 / 2)
+	{
+		/* CDC mode / device destination */
+		value = 0x4000;
+	}
+	else if (address == 0xFF8006 / 2)
+	{
+		/* H-INT vector */
+		PrintError("SUB-CPU attempted to read from H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+	}
+	else if (address == 0xFF8008 / 2)
+	{
+		/* CDC host data */
+		PrintError("SUB-CPU attempted to read from CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+	}
+	else if (address == 0xFF800C / 2)
+	{
+		/* Stop watch */
+		PrintError("SUB-CPU attempted to read from stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
 	else if (address == 0xFF800E / 2)
 	{
 		/* Communication flag */
+		SyncM68k(clownmdemu, callback_user_data, target_cycle);
 		value = clownmdemu->state->mcd_communication_flag;
 	}
 	else if (address >= 0xFF8010 / 2 && address < 0xFF8020 / 2)
 	{
 		/* Communication command */
+		SyncM68k(clownmdemu, callback_user_data, target_cycle);
 		value = clownmdemu->state->mcd_communication_command[address - 0xFF8010 / 2];
 	}
 	else if (address >= 0xFF8020 / 2 && address < 0xFF8030 / 2)
 	{
 		/* Communication status */
+		SyncM68k(clownmdemu, callback_user_data, target_cycle);
 		value = clownmdemu->state->mcd_communication_status[address - 0xFF8020 / 2];
+	}
+	else if (address == 0xFF8030 / 2)
+	{
+		/* Timer W/INT3 */
+		PrintError("SUB-CPU attempted to read from Timer W/INT3 register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+	}
+	else if (address == 0xFF8032 / 2)
+	{
+		/* Interrupt mask control */
+		value = clownmdemu->state->mcd_vint_enabled << 2;
 	}
 	else
 	{
@@ -1224,13 +1443,36 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 		{
 			const cc_bool ret = (value & (1 << 0)) != 0;
 
+			SyncM68k(clownmdemu, callback_user_data, target_cycle);
+
+			clownmdemu->state->word_ram_1m_mode = (value & (1 << 2)) != 0;
+
 			if (ret || clownmdemu->state->word_ram_1m_mode)
 			{
-				SyncM68k(clownmdemu, callback_user_data, target_cycle);
 				clownmdemu->state->word_ram_dmna = cc_false;
 				clownmdemu->state->word_ram_ret = ret;
 			}
 		}
+	}
+	else if (address == 0xFF8004 / 2)
+	{
+		/* CDC mode / device destination */
+		PrintError("SUB-CPU attempted to write to CDC mode/destination register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+	}
+	else if (address == 0xFF8006 / 2)
+	{
+		/* H-INT vector */
+		PrintError("SUB-CPU attempted to write to H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+	}
+	else if (address == 0xFF8008 / 2)
+	{
+		/* CDC host data */
+		PrintError("SUB-CPU attempted to write to CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+	}
+	else if (address == 0xFF800C / 2)
+	{
+		/* Stop watch */
+		PrintError("SUB-CPU attempted to write to stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
 	else if (address == 0xFF800E / 2)
 	{
@@ -1239,7 +1481,10 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 			PrintError("SUB-CPU attempted to write to MAIN-CPU's communication flag at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 
 		if (do_low_byte)
+		{
+			SyncM68k(clownmdemu, callback_user_data, target_cycle);
 			clownmdemu->state->mcd_communication_flag = (clownmdemu->state->mcd_communication_flag & 0xFF00) | (value & 0x00FF);
+		}
 	}
 	else if (address >= 0xFF8010 / 2 && address < 0xFF8020 / 2)
 	{
@@ -1249,8 +1494,19 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	else if (address >= 0xFF8020 / 2 && address < 0xFF8030 / 2)
 	{
 		/* Communication status */
+		SyncM68k(clownmdemu, callback_user_data, target_cycle);
 		clownmdemu->state->mcd_communication_status[address - 0xFF8020 / 2] &= ~mask;
-		clownmdemu->state->mcd_communication_status[address - 0xFF8020 / 2] |= value & mask & mask;
+		clownmdemu->state->mcd_communication_status[address - 0xFF8020 / 2] |= value & mask;
+	}
+	else if (address == 0xFF8030 / 2)
+	{
+		/* Timer W/INT3 */
+		PrintError("SUB-CPU attempted to write to Timer W/INT3 register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+	}
+	else if (address == 0xFF8032 / 2)
+	{
+		/* Interrupt mask control */
+		clownmdemu->state->mcd_vint_enabled = (value & (1 << 2)) != 0;
 	}
 	else
 	{
@@ -1297,12 +1553,15 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->mcd_m68k_reset = cc_false;
 	state->prg_ram_bank = 0;
 
+	state->word_ram_1m_mode = cc_true; /* Confirmed by my Visual Sound Test homebrew. */
 	/* Page 24 of MEGA-CD HARDWARE MANUAL confirms this. */
-	state->word_ram_1m_mode = cc_false;
 	state->word_ram_dmna = cc_false;
 	state->word_ram_ret = cc_true;
 
 	state->cd_boot = cc_false;
+	state->current_cd_sector = 0;
+	state->mcd_waiting_for_vint = cc_false;
+	state->mcd_vint_enabled = cc_true;
 }
 
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state)
@@ -1332,7 +1591,7 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
 	cc_u16f scanline;
-	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
+	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks, mcd_m68k_read_write_callbacks;
 	CPUCallbackUserData cpu_callback_user_data;
 	cc_u8f h_int_counter;
 
@@ -1352,6 +1611,10 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
 	m68k_read_write_callbacks.user_data = &cpu_callback_user_data;
+
+	mcd_m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
+	mcd_m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
+	mcd_m68k_read_write_callbacks.user_data = &cpu_callback_user_data;
 
 	/* Reload H-Int counter at the top of the screen, just like real hardware does */
 	h_int_counter = clownmdemu->state->vdp.h_int_interval;
@@ -1399,6 +1662,18 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 				Z80_Interrupt(&clownmdemu->z80);
 			}
 
+			if (clownmdemu->state->cd_boot)
+			{
+				/* Normally the BIOS does this, but since we're doing HLE, we have to do it. */
+				/* TODO: Wait, Sonic CD does this manually?! */
+				if (clownmdemu->state->mcd_vint_enabled)
+				{
+					SyncMCDM68k(clownmdemu, &cpu_callback_user_data, current_cycle);
+					clownmdemu->state->mcd_waiting_for_vint = cc_false;
+					Clown68000_Interrupt(clownmdemu->mcd_m68k, &mcd_m68k_read_write_callbacks, 2);
+				}
+			}
+
 			/* Flag that we have entered the V-blank region */
 			clownmdemu->state->vdp.currently_in_vblank = cc_true;
 		}
@@ -1424,6 +1699,7 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 		cc_u8f i;
 		const cc_u8l *sector_bytes;
 		cc_u32f ip_start, ip_length, sp_start, sp_length;
+		cc_u8l region;
 
 		/* Read first sector. */
 		callbacks->cd_seeked(callbacks->user_data, 0);
@@ -1432,9 +1708,10 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 		ip_length = ReadU32BE(&sector_bytes[0x34]);
 		sp_start = ReadU32BE(&sector_bytes[0x40]);
 		sp_length = ReadU32BE(&sector_bytes[0x44]);
+		region = sector_bytes[0x1F0];
 
 		/* Don't allow overflowing the PRG-RAM array. */
-		sp_length = CC_MIN((CC_COUNT_OF(clownmdemu->state->prg_ram) - 0x6000 / 2) / 0x800, sp_length);
+		sp_length = CC_MIN(CC_COUNT_OF(clownmdemu->state->prg_ram) * 2 - 0x6000, sp_length);
 
 		/* Read Initial Program. */
 		BytesTo68kRAM(clownmdemu->state->word_ram, &sector_bytes[0x200], 0x600);
@@ -1455,6 +1732,10 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 		/* Allow SUB-CPU to execute. */
 		clownmdemu->state->m68k_has_mcd_m68k_bus = cc_false;
 
+		/* Give WORD-RAM to the SUB-CPU. */
+		clownmdemu->state->word_ram_dmna = cc_true;
+		clownmdemu->state->word_ram_ret = cc_false;
+
 		/* Construct MAIN-CPU vector jump table. */
 		for (i = 0; i < 30; ++i)
 		{
@@ -1465,7 +1746,19 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 
 		/* Set correct entry point. */
 		clownmdemu->state->m68k_ram[0xFD00 / 2 + 1] = 0x00FF;
-		clownmdemu->state->m68k_ram[0xFD00 / 2 + 2] = 0x0584; /* TODO: Fix whatever's breaking this dumb "security code" so that we don't have to skip it. */
+
+		switch (region)
+		{
+			/* TODO: 'E'. */
+			case 'U':
+				clownmdemu->state->m68k_ram[0xFD00 / 2 + 2] = 0x0584; /* TODO: Fix whatever's breaking this dumb "security code" so that we don't have to skip it. */
+				break;
+
+			default:
+			case 'J':
+				clownmdemu->state->m68k_ram[0xFD00 / 2 + 2] = 342; /* TODO: Fix whatever's breaking this dumb "security code" so that we don't have to skip it. */
+				break;
+		}
 	}
 
 	callback_user_data.data_and_callbacks.data = clownmdemu;
