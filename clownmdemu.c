@@ -660,7 +660,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	}
 	else
 	{
-		PrintError("Attempted to read invalid 68k address 0x%" CC_PRIXFAST32, address * 2);
+		PrintError("Attempted to read invalid 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->state->m68k.program_counter);
 	}
 
 	return value;
@@ -700,7 +700,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 				frontend_callbacks->cartridge_written(frontend_callbacks->user_data, (address & 0x1FFFFF) * 2 + 1, low_byte);
 
 			/* TODO - This is temporary, just to catch possible bugs in the 68k emulator */
-			PrintError("Attempted to write to ROM address 0x%" CC_PRIXFAST32, address * 2);
+			PrintError("Attempted to write to ROM address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->state->m68k.program_counter);
 		}
 		else
 		{
@@ -986,7 +986,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	}
 	else
 	{
-		PrintError("Attempted to write invalid 68k address 0x%" CC_PRIXFAST32, address * 2);
+		PrintError("Attempted to write invalid 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->state->m68k.program_counter);
 	}
 }
 
@@ -1044,7 +1044,7 @@ static cc_u16f Z80ReadCallbackWithCycle(const void *user_data, cc_u16f address, 
 	}
 	else
 	{
-		PrintError("Attempted to read invalid Z80 address 0x%" CC_PRIXFAST16, address);
+		PrintError("Attempted to read invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->state->z80.program_counter);
 	}
 
 	return value;
@@ -1109,7 +1109,7 @@ static void Z80WriteCallbackWithCycle(const void *user_data, cc_u16f address, cc
 	}
 	else
 	{
-		PrintError("Attempted to write invalid Z80 address 0x%" CC_PRIXFAST16, address);
+		PrintError("Attempted to write invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->state->z80.program_counter);
 	}
 }
 
@@ -1373,7 +1373,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	}
 	else
 	{
-		PrintError("Attempted to read invalid MCD 68k address 0x%" CC_PRIXFAST32, address * 2);
+		PrintError("Attempted to read invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->mcd_m68k->program_counter);
 	}
 
 	return value;
@@ -1510,7 +1510,7 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	}
 	else
 	{
-		PrintError("Attempted to write invalid MCD 68k address 0x%" CC_PRIXFAST32, address * 2);
+		PrintError("Attempted to write invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->mcd_m68k->program_counter);
 	}
 }
 
