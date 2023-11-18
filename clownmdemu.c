@@ -1747,16 +1747,21 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 		/* Set correct entry point. */
 		clownmdemu->state->m68k_ram[0xFD00 / 2 + 1] = 0x00FF;
 
+		/* Skip "security code". */
+		/* TODO: Fix whatever's breaking this dumb "security code" so that we don't have to skip it. */
 		switch (region)
 		{
-			/* TODO: 'E'. */
+			case 'E':
+				clownmdemu->state->m68k_ram[0xFD00 / 2 + 2] = 1390;
+				break;
+
 			case 'U':
-				clownmdemu->state->m68k_ram[0xFD00 / 2 + 2] = 0x0584; /* TODO: Fix whatever's breaking this dumb "security code" so that we don't have to skip it. */
+				clownmdemu->state->m68k_ram[0xFD00 / 2 + 2] = 0x0584;
 				break;
 
 			default:
 			case 'J':
-				clownmdemu->state->m68k_ram[0xFD00 / 2 + 2] = 342; /* TODO: Fix whatever's breaking this dumb "security code" so that we don't have to skip it. */
+				clownmdemu->state->m68k_ram[0xFD00 / 2 + 2] = 342;
 				break;
 		}
 	}
