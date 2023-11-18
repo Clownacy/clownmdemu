@@ -202,7 +202,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state);
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks, const cc_bool cd_boot);
-void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg));
+void ClownMDEmu_SetErrorCallback(void (*error_callback)(void *user_data, const char *format, va_list arg), const void *user_data);
 
 #ifdef __cplusplus
 }

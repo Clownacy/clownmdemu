@@ -1777,8 +1777,8 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 	Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 }
 
-void ClownMDEmu_SetErrorCallback(void (*error_callback)(const char *format, va_list arg))
+void ClownMDEmu_SetErrorCallback(void (*error_callback)(void *user_data, const char *format, va_list arg), const void* const user_data)
 {
-	SetErrorCallback(error_callback);
-	Clown68000_SetErrorCallback(error_callback);
+	SetErrorCallback(error_callback, user_data);
+	Clown68000_SetErrorCallback(error_callback, user_data);
 }
