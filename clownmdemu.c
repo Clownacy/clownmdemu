@@ -141,7 +141,7 @@ static void BytesTo68kRAM(cc_u16l* const ram, const cc_u8l* const bytes, const s
 
 static void CDSectorTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u16l* const ram)
 {
-	const cc_u8l* const sector_bytes = callbacks->cd_sector_read(callbacks->user_data);
+	const cc_u8l* const sector_bytes = callbacks->cd_sector_read((void*)callbacks->user_data);
 
 	BytesTo68kRAM(ram, sector_bytes, 0x800);
 }
@@ -150,7 +150,7 @@ static void CDSectorsTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u1
 {
 	cc_u32f i;
 
-	callbacks->cd_seeked(callbacks->user_data, start / 0x800);
+	callbacks->cd_seeked((void*)callbacks->user_data, start / 0x800);
 
 	for (i = 0; i < CC_DIVIDE_CEILING(length, 0x800); ++i)
 		CDSectorTo68kRAM(callbacks, &ram[i * 0x800 / 2]);
@@ -266,7 +266,7 @@ static void GenerateFMAudio(const void *user_data, cc_u32f total_frames)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	callback_user_data->data_and_callbacks.frontend_callbacks->fm_audio_to_be_generated(callback_user_data->data_and_callbacks.frontend_callbacks->user_data, total_frames, FMCallbackWrapper);
+	callback_user_data->data_and_callbacks.frontend_callbacks->fm_audio_to_be_generated((void*)callback_user_data->data_and_callbacks.frontend_callbacks->user_data, total_frames, FMCallbackWrapper);
 }
 
 static cc_u8f SyncFM(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
@@ -293,7 +293,7 @@ static void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target
 
 	if (samples_to_generate != 0)
 	{
-		other_state->data_and_callbacks.frontend_callbacks->psg_audio_to_be_generated(other_state->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate, GeneratePSGAudio);
+		other_state->data_and_callbacks.frontend_callbacks->psg_audio_to_be_generated((void*)other_state->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate, GeneratePSGAudio);
 
 		other_state->psg_current_cycle = psg_target_cycle;
 	}
@@ -301,7 +301,7 @@ static void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target
 
 /* VDP memory access callback */
 
-static cc_u16f VDPReadCallback(const void *user_data, cc_u32f address)
+static cc_u16f VDPReadCallback(void *user_data, cc_u32f address)
 {
 	DataAndCallbacks *data_and_callbacks = (DataAndCallbacks*)user_data;
 	ClownMDEmu_State *state = data_and_callbacks->data->state;
@@ -311,8 +311,8 @@ static cc_u16f VDPReadCallback(const void *user_data, cc_u32f address)
 	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
 	{
 		/* Cartridge. */
-		value |= frontend_callbacks->cartridge_read(frontend_callbacks->user_data, address + 0) << 8;
-		value |= frontend_callbacks->cartridge_read(frontend_callbacks->user_data, address + 1) << 0;
+		value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, address + 0) << 8;
+		value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, address + 1) << 0;
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
@@ -345,9 +345,9 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 		{
 			/* Cartridge */
 			if (do_high_byte)
-				value |= frontend_callbacks->cartridge_read(frontend_callbacks->user_data, (address & 0x1FFFFF) * 2 + 0) << 8;
+				value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, (address & 0x1FFFFF) * 2 + 0) << 8;
 			if (do_low_byte)
-				value |= frontend_callbacks->cartridge_read(frontend_callbacks->user_data, (address & 0x1FFFFF) * 2 + 1) << 0;
+				value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, (address & 0x1FFFFF) * 2 + 1) << 0;
 		}
 		else
 		{
@@ -515,19 +515,19 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 
 					if ((value & 0x40) != 0)
 					{
-						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_C) << 5;
-						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_B) << 4;
-						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_RIGHT) << 3;
-						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_LEFT) << 2;
-						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
-						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
+						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_C) << 5;
+						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_B) << 4;
+						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_RIGHT) << 3;
+						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_LEFT) << 2;
+						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
+						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
 					}
 					else
 					{
-						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_START) << 5;
-						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_A) << 4;
-						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
-						value |= !frontend_callbacks->input_requested(frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
+						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_START) << 5;
+						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_A) << 4;
+						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
+						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
 					}
 				}
 
@@ -695,9 +695,9 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		{
 			/* Cartridge */
 			if (do_high_byte)
-				frontend_callbacks->cartridge_written(frontend_callbacks->user_data, (address & 0x1FFFFF) * 2 + 0, high_byte);
+				frontend_callbacks->cartridge_written((void*)frontend_callbacks->user_data, (address & 0x1FFFFF) * 2 + 0, high_byte);
 			if (do_low_byte)
-				frontend_callbacks->cartridge_written(frontend_callbacks->user_data, (address & 0x1FFFFF) * 2 + 1, low_byte);
+				frontend_callbacks->cartridge_written((void*)frontend_callbacks->user_data, (address & 0x1FFFFF) * 2 + 1, low_byte);
 
 			/* TODO - This is temporary, just to catch possible bugs in the 68k emulator */
 			PrintError("Attempted to write to ROM address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->state->m68k.program_counter);
@@ -1229,7 +1229,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 					starting_sector = MCDM68kReadCallbackWithCycle(user_data, ((clownmdemu->mcd_m68k->address_registers[0] + 0) & 0xFFFFFF) / 2, cc_true, cc_true, target_cycle) << 16;
 					starting_sector |= MCDM68kReadCallbackWithCycle(user_data, ((clownmdemu->mcd_m68k->address_registers[0] + 2) & 0xFFFFFF) / 2, cc_true, cc_true, target_cycle) << 0;
 
-					frontend_callbacks->cd_seeked(frontend_callbacks->user_data, starting_sector);
+					frontend_callbacks->cd_seeked((void*)frontend_callbacks->user_data, starting_sector);
 					clownmdemu->state->current_cd_sector = starting_sector;
 					break;
 				}
@@ -1249,7 +1249,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 				{
 					/* CDCTRN */
 					cc_u32f i;
-					const cc_u8l* const sector_bytes = frontend_callbacks->cd_sector_read(frontend_callbacks->user_data);
+					const cc_u8l* const sector_bytes = frontend_callbacks->cd_sector_read((void*)frontend_callbacks->user_data);
 					const cc_u32f sector_header = GetCDSectorHeader(clownmdemu);
 
 					++clownmdemu->state->current_cd_sector;
@@ -1702,8 +1702,8 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 		cc_u8l region;
 
 		/* Read first sector. */
-		callbacks->cd_seeked(callbacks->user_data, 0);
-		sector_bytes = callbacks->cd_sector_read(callbacks->user_data);
+		callbacks->cd_seeked((void*)callbacks->user_data, 0);
+		sector_bytes = callbacks->cd_sector_read((void*)callbacks->user_data);
 		ip_start = ReadU32BE(&sector_bytes[0x30]);
 		ip_length = ReadU32BE(&sector_bytes[0x34]);
 		sp_start = ReadU32BE(&sector_bytes[0x40]);

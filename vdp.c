@@ -25,7 +25,7 @@ static cc_u16f VRAMReadWord(const VDP_State* const state, const cc_u16f address)
 	return (state->vram[address ^ 0] << 8) | state->vram[address ^ 1];
 }
 
-static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_updated_callback)(const void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data)
+static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data)
 {
 	switch (state->access.selected_buffer)
 	{
@@ -70,15 +70,15 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 
 			/* Create normal colour */
 			/* (repeat the upper bit in the lower bit so that the full 4-bit colour range is covered) */
-			colour_updated_callback(colour_updated_callback_user_data, SHADOW_HIGHLIGHT_NORMAL + index_wrapped, colour | ((colour & 0x888) >> 3));
+			colour_updated_callback((void*)colour_updated_callback_user_data, SHADOW_HIGHLIGHT_NORMAL + index_wrapped, colour | ((colour & 0x888) >> 3));
 
 			/* Create shadow colour */
 			/* (divide by two and leave in lower half of colour range) */
-			colour_updated_callback(colour_updated_callback_user_data, SHADOW_HIGHLIGHT_SHADOW + index_wrapped, colour >> 1);
+			colour_updated_callback((void*)colour_updated_callback_user_data, SHADOW_HIGHLIGHT_SHADOW + index_wrapped, colour >> 1);
 
 			/* Create highlight colour */
 			/* (divide by two and move to upper half of colour range) */
-			colour_updated_callback(colour_updated_callback_user_data, SHADOW_HIGHLIGHT_HIGHLIGHT + index_wrapped, 0x888 + (colour >> 1));
+			colour_updated_callback((void*)colour_updated_callback_user_data, SHADOW_HIGHLIGHT_HIGHLIGHT + index_wrapped, 0x888 + (colour >> 1));
 
 			break;
 		}
@@ -277,7 +277,7 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 	}
 }
 
-void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_rendered_callback)(const void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height), const void *scanline_rendered_callback_user_data)
+void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_rendered_callback)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height), const void *scanline_rendered_callback_user_data)
 {
 	cc_u16f i;
 
@@ -625,7 +625,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 	}
 
 	/* Send pixels to the frontend to be displayed */
-	scanline_rendered_callback(scanline_rendered_callback_user_data, scanline, plane_metapixels + 16, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) << tile_height_power);
+	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels + 16, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) << tile_height_power);
 }
 
 cc_u16f VDP_ReadData(const VDP *vdp)
@@ -660,7 +660,7 @@ cc_u16f VDP_ReadControl(const VDP *vdp)
 	return (vdp->state->currently_in_vblank << 3) | (1 << 2); /* The H-blank bit is forced for now so Sonic 2's two-player mode works */
 }
 
-void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(const void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data)
+void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data)
 {
 	if (vdp->state->access.read_mode)
 	{
@@ -697,7 +697,7 @@ void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback
 }
 
 /* TODO - Retention of partial commands */
-void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(const void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data, cc_u16f (*read_callback)(const void *user_data, cc_u32f address), const void *read_callback_user_data)
+void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data, cc_u16f (*read_callback)(void *user_data, cc_u32f address), const void *read_callback_user_data)
 {
 	if (vdp->state->access.write_pending)
 	{
@@ -742,7 +742,7 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 			{
 				do
 				{
-					WriteAndIncrement(vdp->state, read_callback(read_callback_user_data, ((cc_u32f)vdp->state->dma.source_address_high << 17) | ((cc_u32f)vdp->state->dma.source_address_low << 1)), colour_updated_callback, colour_updated_callback_user_data);
+					WriteAndIncrement(vdp->state, read_callback((void*)read_callback_user_data, ((cc_u32f)vdp->state->dma.source_address_high << 17) | ((cc_u32f)vdp->state->dma.source_address_low << 1)), colour_updated_callback, colour_updated_callback_user_data);
 
 					/* Emulate the 128KiB DMA wrap-around bug */
 					++vdp->state->dma.source_address_low;
