@@ -36,7 +36,7 @@ set_target_properties(clownmdemu PROPERTIES
 
 add_subdirectory("clown68000" EXCLUDE_FROM_ALL)
 
-target_link_libraries(clownmdemu PRIVATE clown68000)
+target_link_libraries(clownmdemu PRIVATE clown68000-interpreter)
 
 if(CC_USE_C99_INTEGERS)
 	target_compile_definitions(clownmdemu PUBLIC CC_USE_C99_INTEGERS)
