@@ -393,11 +393,11 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 					/* SUB-CPU payload magic number (used by ROM-hacks that use 'Mode 1'). */
 					value = ('E' << 8) | ('G' << 0);
 				}
-				else if (local_address <= 0x80)
+				else if (local_address < 0x80)
 				{
 				#define VECTOR_ENTRY(x) (x) >> 16, (x) & 0xFFFF
 					/* Vector table */
-					static const cc_u16l vector_table[] = {
+					static const cc_u16l vector_table[0x80] = {
 						VECTOR_ENTRY(0x00FFFD00), /* Stack pointer */
 						VECTOR_ENTRY(0x00FFFD00), /* Entry point */
 						VECTOR_ENTRY(0x00000100), /* Bus error */
@@ -446,6 +446,22 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 						VECTOR_ENTRY(0x00FFFD18 + 6 * 13), /* TRAP #13 handler */
 						VECTOR_ENTRY(0x00FFFD18 + 6 * 14), /* TRAP #14 handler */
 						VECTOR_ENTRY(0x00FFFD18 + 6 * 15), /* TRAP #15 handler */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
+						VECTOR_ENTRY(0x00000100), /* Unused */
 					};
 
 					value = vector_table[local_address];
