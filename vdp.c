@@ -309,9 +309,6 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		 * ***** */
 
 		#define MAX_SPRITE_WIDTH (8 * 4)
-		/* TODO: Verify these two on actual hardware. Do they differ in H32 mode? */
-		#define WINDOW_PLANE_WIDTH 64
-		#define WINDOW_PLANE_HEIGHT 32
 
 		const cc_u16f tile_height_mask = (1 << tile_height_power) - 1;
 		const cc_u16f tile_size = (8 << tile_height_power) / 2;
@@ -319,6 +316,9 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		/* Back these two up before we overwrite them. */
 		const cc_u16l plane_width_copy = state->plane_width;
 		const cc_u16l plane_height_copy = state->plane_height;
+
+		const cc_u16l window_plane_width = state->h40_enabled ? 64 : 32;
+		const cc_u16l window_plane_height = 32;
 
 		cc_u16f sprite_limit = state->h40_enabled ? 20 : 16;
 		cc_u16f pixel_limit = state->h40_enabled ? 320 : 256;
@@ -339,8 +339,8 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 
 			/* The window plane has a hardcoded size, unlike the other planes. */
 			/* Sonic 3's 'Data Select' menu background relies on this. */
-			state->plane_width = rendering_window_plane ? WINDOW_PLANE_WIDTH : plane_width_copy;
-			state->plane_height = rendering_window_plane ? WINDOW_PLANE_HEIGHT : plane_height_copy;
+			state->plane_width = rendering_window_plane ? window_plane_width : plane_width_copy;
+			state->plane_height = rendering_window_plane ? window_plane_height : plane_height_copy;
 
 			if (rendering_window_plane || !vdp->configuration->planes_disabled[i])
 			{
@@ -450,8 +450,8 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 			cc_u8l *metapixels_pointer = &plane_metapixels[16 + start * 8];
 
 			/* The window plane has a hardcoded size, unlike the other planes. */
-			state->plane_width = WINDOW_PLANE_WIDTH;
-			state->plane_height = WINDOW_PLANE_HEIGHT;
+			state->plane_width = window_plane_width;
+			state->plane_height = window_plane_height;
 
 			/* Render tiles */
 			for (i = start; i < end; ++i)
@@ -643,8 +643,6 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		}
 
 		#undef MAX_SPRITE_WIDTH
-		#undef WINDOW_PLANE_WIDTH
-		#undef WINDOW_PLANE_HEIGHT
 	}
 
 	/* Send pixels to the frontend to be displayed */
