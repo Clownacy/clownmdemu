@@ -311,9 +311,16 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		 * ***** */
 
 		#define MAX_SPRITE_WIDTH (8 * 4)
+		/* TODO: Verify these two on actual hardware. Do they differ in H32 mode? */
+		#define WINDOW_PLANE_WIDTH 64
+		#define WINDOW_PLANE_HEIGHT 32
 
 		const cc_u16f tile_height_mask = (1 << tile_height_power) - 1;
 		const cc_u16f tile_size = (8 << tile_height_power) / 2;
+
+		/* Back these two up before we overwrite them. */
+		const cc_u16l plane_width_copy = state->plane_width;
+		const cc_u16l plane_height_copy = state->plane_height;
 
 		cc_u16f sprite_limit = state->h40_enabled ? 20 : 16;
 		cc_u16f pixel_limit = state->h40_enabled ? 320 : 256;
@@ -331,6 +338,13 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 			/* Notably, we allow Plane A to render in the Window Plane's place when the latter is disabled. */
 			/* TODO: Test if this works properly in Interlace Mode 2. */
 			const cc_bool rendering_window_plane = i == 0 && (scanline < state->window_vertical_boundary) != state->window_aligned_bottom && !vdp->configuration->window_disabled;
+
+			/* The window plane has a hardcoded size, unlike the other planes. */
+			/* Sonic 3's 'Data Select' menu background relies on this. */
+			state->plane_width = rendering_window_plane ? WINDOW_PLANE_WIDTH : plane_width_copy;
+			state->plane_height = rendering_window_plane ? WINDOW_PLANE_HEIGHT : plane_height_copy;
+			state->plane_width_bitmask = state->plane_width - 1;
+			state->plane_height_bitmask = state->plane_height - 1;
 
 			if (rendering_window_plane || !vdp->configuration->planes_disabled[i])
 			{
@@ -436,10 +450,22 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 			/* Obtain the pointer used to write metapixels to the buffer */
 			cc_u8l *metapixels_pointer = &plane_metapixels[16 + start * 8];
 
+			/* The window plane has a hardcoded size, unlike the other planes. */
+			state->plane_width = WINDOW_PLANE_WIDTH;
+			state->plane_height = WINDOW_PLANE_HEIGHT;
+			state->plane_width_bitmask = state->plane_width - 1;
+			state->plane_height_bitmask = state->plane_height - 1;
+
 			/* Render tiles */
 			for (i = start; i < end; ++i)
 				RenderTile(vdp, scanline, i, scanline >> tile_height_power, state->window_address, tile_height_mask, tile_size, &metapixels_pointer);
 		}
+
+		/* Restore the plane size, since we meddled with it earlier for the window plane. */
+		state->plane_width = plane_width_copy;
+		state->plane_height = plane_height_copy;
+		state->plane_width_bitmask = state->plane_width - 1;
+		state->plane_height_bitmask = state->plane_height - 1;
 
 		/* ************ *
 		 * Draw sprites *
@@ -622,6 +648,8 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		}
 
 		#undef MAX_SPRITE_WIDTH
+		#undef WINDOW_PLANE_WIDTH
+		#undef WINDOW_PLANE_HEIGHT
 	}
 
 	/* Send pixels to the frontend to be displayed */
