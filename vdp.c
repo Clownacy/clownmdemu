@@ -219,8 +219,6 @@ void VDP_State_Initialise(VDP_State *state)
 
 	state->plane_width = 32;
 	state->plane_height = 32;
-	state->plane_width_bitmask = state->plane_width - 1;
-	state->plane_height_bitmask = state->plane_height - 1;
 
 	state->display_enabled = cc_false;
 	state->v_int_enabled = cc_false;
@@ -343,8 +341,6 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 			/* Sonic 3's 'Data Select' menu background relies on this. */
 			state->plane_width = rendering_window_plane ? WINDOW_PLANE_WIDTH : plane_width_copy;
 			state->plane_height = rendering_window_plane ? WINDOW_PLANE_HEIGHT : plane_height_copy;
-			state->plane_width_bitmask = state->plane_width - 1;
-			state->plane_height_bitmask = state->plane_height - 1;
 
 			if (rendering_window_plane || !vdp->configuration->planes_disabled[i])
 			{
@@ -379,6 +375,9 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 
 				{
 					cc_u16f j;
+
+					const cc_u16l plane_width_bitmask = state->plane_width - 1;
+					const cc_u16l plane_height_bitmask = state->plane_height - 1;
 
 					const cc_u16f plane_address = i == 0 ? (rendering_window_plane ? state->window_address : state->plane_a_address) : state->plane_b_address;
 
@@ -427,8 +426,8 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 							const cc_u16f pixel_y_in_plane = vscroll + scanline;
 
 							/* Get the coordinates of the tile in the plane */
-							const cc_u16f tile_x = (plane_x_offset + j) & state->plane_width_bitmask;
-							const cc_u16f tile_y = (pixel_y_in_plane >> tile_height_power) & state->plane_height_bitmask;
+							const cc_u16f tile_x = (plane_x_offset + j) & plane_width_bitmask;
+							const cc_u16f tile_y = (pixel_y_in_plane >> tile_height_power) & plane_height_bitmask;
 
 							RenderTile(vdp, pixel_y_in_plane, tile_x, tile_y, plane_address, tile_height_mask, tile_size, &metapixels_pointer);
 						}
@@ -453,8 +452,6 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 			/* The window plane has a hardcoded size, unlike the other planes. */
 			state->plane_width = WINDOW_PLANE_WIDTH;
 			state->plane_height = WINDOW_PLANE_HEIGHT;
-			state->plane_width_bitmask = state->plane_width - 1;
-			state->plane_height_bitmask = state->plane_height - 1;
 
 			/* Render tiles */
 			for (i = start; i < end; ++i)
@@ -464,8 +461,6 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		/* Restore the plane size, since we meddled with it earlier for the window plane. */
 		state->plane_width = plane_width_copy;
 		state->plane_height = plane_height_copy;
-		state->plane_width_bitmask = state->plane_width - 1;
-		state->plane_height_bitmask = state->plane_height - 1;
 
 		/* ************ *
 		 * Draw sprites *
@@ -943,9 +938,6 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 							vdp->state->plane_height = 128;
 							break;
 					}
-
-					vdp->state->plane_width_bitmask = vdp->state->plane_width - 1;
-					vdp->state->plane_height_bitmask = vdp->state->plane_height - 1;
 				}
 
 				break;
