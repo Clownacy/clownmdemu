@@ -699,71 +699,31 @@ void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback
 /* TODO - Retention of partial commands */
 void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data, cc_u16f (*read_callback)(void *user_data, cc_u32f address), const void *read_callback_user_data)
 {
-	if (vdp->state->access.write_pending)
+	/* Sonic Crackers contains a good test for some logic here:
+	   When you a level is started, an animated graphic appears. The tiles for this graphic are
+	   uploaded using DMA transfers, however the DMA transfer routine is bugged: immediately after
+	   performing the DMA transfer, the code attempts to reupload the first word of tile data (this
+	   is presumably to work around a known bug in early Mega Drives that causes the first word of
+	   a DMA transfer to be corrupt), however, it accidentally skips writing the first word of the
+	   address command to the address port, causing the second word to be interpreted as the first
+	   instead. With only one word written, the VDP sets its latch flag, expecting to receive the
+	   second half of the address command as the next written word. After this, a word is written
+	   to the data port. With the address command incomplete, the address will not have yet been
+	   updated, causing the word to be written to whatever the address was before. The DMA transfer
+	   routine will loop and begin to prepare another DMA transfer, starting by writing a register
+	   command for the DMA length. On a real Mega Drive, this command succeeds, showing that
+	   register commands are exempt from the effects of the latch flag. Likewise, when the address
+	   command to fire the DMA transfer is written, its first word is not treated as the second
+	   word of the previous incomplete address command, showing that the latch flag had been
+	   cleared by the register commands, and that the latch flag is cleared upon any command being
+	   written to the VDP, whether it is an address command or a register command. */
+	const cc_bool write_pending = vdp->state->access.write_pending;
+
+	vdp->state->access.write_pending = cc_false;
+
+	if ((value & 0xC000) == 0x8000)
 	{
-		/* This command is setting up for a memory access (part 2) */
-		const cc_u16f destination_address = (vdp->state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
-		const cc_u16f access_mode = ((vdp->state->access.cached_write >> 14) & 3) | ((value >> 2) & 0x3C);
-
-		vdp->state->access.write_pending = cc_false;
-
-		vdp->state->access.index = (cc_u16l)destination_address;
-		vdp->state->access.read_mode = (access_mode & 1) == 0;
-
-		if (vdp->state->dma.enabled)
-			vdp->state->dma.pending = (access_mode & 0x20) != 0;
-
-		switch ((access_mode >> 1) & 7)
-		{
-			case 0: /* VRAM */
-				vdp->state->access.selected_buffer = VDP_ACCESS_VRAM;
-				break;
-
-			case 4: /* CRAM (read) */
-			case 1: /* CRAM (write) */
-				vdp->state->access.selected_buffer = VDP_ACCESS_CRAM;
-				break;
-
-			case 2: /* VSRAM */
-				vdp->state->access.selected_buffer = VDP_ACCESS_VSRAM;
-				break;
-
-			default: /* Invalid */
-				PrintError("Invalid VDP access mode specified (0x%" CC_PRIXFAST16 ")", access_mode);
-				break;
-		}
-
-		if (vdp->state->dma.pending && vdp->state->dma.mode != VDP_DMA_MODE_FILL)
-		{
-			/* Firing DMA */
-			vdp->state->dma.pending = cc_false;
-
-			if (vdp->state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
-			{
-				do
-				{
-					WriteAndIncrement(vdp->state, read_callback((void*)read_callback_user_data, ((cc_u32f)vdp->state->dma.source_address_high << 17) | ((cc_u32f)vdp->state->dma.source_address_low << 1)), colour_updated_callback, colour_updated_callback_user_data);
-
-					/* Emulate the 128KiB DMA wrap-around bug */
-					++vdp->state->dma.source_address_low;
-					vdp->state->dma.source_address_low &= 0xFFFF;
-				} while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
-			}
-			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
-			{
-				/* TODO */
-				PrintError("DMA copy attempted, but not currently supported!");
-			}
-		}
-	}
-	else if ((value & 0xC000) != 0x8000)
-	{
-		/* This command is setting up for a memory access (part 1) */
-		vdp->state->access.write_pending = cc_true;
-		vdp->state->access.cached_write = (cc_u16l)value;
-	}
-	else
-	{
+		/* This is a "register set" command. */
 		const cc_u16f reg = (value >> 8) & 0x3F;
 		const cc_u16f data = value & 0xFF;
 
@@ -1026,5 +986,66 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 				PrintError("Attempted to set invalid VDP register (0x%" CC_PRIXFAST16 ")", reg);
 				break;
 		}
+	}
+	else if (write_pending)
+	{
+		/* This is an "address set" command (part 2). */
+		const cc_u16f destination_address = (vdp->state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
+		const cc_u16f access_mode = ((vdp->state->access.cached_write >> 14) & 3) | ((value >> 2) & 0x3C);
+
+		vdp->state->access.index = (cc_u16l)destination_address;
+		vdp->state->access.read_mode = (access_mode & 1) == 0;
+
+		if (vdp->state->dma.enabled)
+			vdp->state->dma.pending = (access_mode & 0x20) != 0;
+
+		switch ((access_mode >> 1) & 7)
+		{
+			case 0: /* VRAM */
+				vdp->state->access.selected_buffer = VDP_ACCESS_VRAM;
+				break;
+
+			case 4: /* CRAM (read) */
+			case 1: /* CRAM (write) */
+				vdp->state->access.selected_buffer = VDP_ACCESS_CRAM;
+				break;
+
+			case 2: /* VSRAM */
+				vdp->state->access.selected_buffer = VDP_ACCESS_VSRAM;
+				break;
+
+			default: /* Invalid */
+				PrintError("Invalid VDP access mode specified (0x%" CC_PRIXFAST16 ")", access_mode);
+				break;
+		}
+
+		if (vdp->state->dma.pending && vdp->state->dma.mode != VDP_DMA_MODE_FILL)
+		{
+			/* Firing DMA */
+			vdp->state->dma.pending = cc_false;
+
+			if (vdp->state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
+			{
+				do
+				{
+					WriteAndIncrement(vdp->state, read_callback((void*)read_callback_user_data, ((cc_u32f)vdp->state->dma.source_address_high << 17) | ((cc_u32f)vdp->state->dma.source_address_low << 1)), colour_updated_callback, colour_updated_callback_user_data);
+
+					/* Emulate the 128KiB DMA wrap-around bug */
+					++vdp->state->dma.source_address_low;
+					vdp->state->dma.source_address_low &= 0xFFFF;
+				} while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
+			}
+			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
+			{
+				/* TODO */
+				PrintError("DMA copy attempted, but not currently supported!");
+			}
+		}
+	}
+	else
+	{
+		/* This is an "address set" command (part 1). */
+		vdp->state->access.write_pending = cc_true;
+		vdp->state->access.cached_write = (cc_u16l)value;
 	}
 }
