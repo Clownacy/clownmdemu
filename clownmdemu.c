@@ -1555,17 +1555,20 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->countdowns.z80 = 0;
 	state->countdowns.mcd_m68k = 0;
 
-	state->m68k_has_z80_bus = cc_true;
-	state->z80_reset = cc_true;
-
-	/* The standard Sega SDK bootcode uses this to detect soft-resets */
-	for (i = 0; i < CC_COUNT_OF(state->joypads); ++i)
-		state->joypads[i].control = 0;
-
 	Z80_State_Initialise(&state->z80);
 	VDP_State_Initialise(&state->vdp);
 	FM_State_Initialise(&state->fm);
 	PSG_State_Initialise(&state->psg);
+
+	for (i = 0; i < CC_COUNT_OF(state->joypads); ++i)
+	{
+		state->joypads[i].control = 0; /* The standard Sega SDK bootcode uses this to detect soft-resets */
+		state->joypads[i].data = 0;
+	}
+
+	state->z80_bank = 0;
+	state->m68k_has_z80_bus = cc_true;
+	state->z80_reset = cc_true;
 
 	state->m68k_has_mcd_m68k_bus = cc_true;
 	state->mcd_m68k_reset = cc_false;
@@ -1577,6 +1580,15 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->word_ram_ret = cc_true;
 
 	state->cd_boot = cc_false;
+
+	state->mcd_communication_flag = 0;
+
+	for (i = 0; i < CC_COUNT_OF(state->mcd_communication_command); ++i)
+		state->mcd_communication_command[i] = 0;
+
+	for (i = 0; i < CC_COUNT_OF(state->mcd_communication_status); ++i)
+		state->mcd_communication_status[i] = 0;
+
 	state->current_cd_sector = 0;
 	state->mcd_waiting_for_vint = cc_false;
 	state->mcd_vint_enabled = cc_true;
