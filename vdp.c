@@ -62,7 +62,7 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 			const cc_u16f index_wrapped = (state->access.index / 2) % CC_COUNT_OF(state->cram);
 
 			/* Store regular Mega Drive-format colour (with garbage bits intact) */
-			state->cram[index_wrapped] = (cc_u16l)value;
+			state->cram[index_wrapped] = colour;
 
 			/* Now let's precompute the shadow/normal/highlight colours in
 			   RGB444 (so we don't have to calculate them during blitting)
@@ -84,7 +84,7 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 		}
 
 		case VDP_ACCESS_VSRAM:
-			state->vsram[(state->access.index / 2) % CC_COUNT_OF(state->vsram)] = (cc_u16l)value;
+			state->vsram[(state->access.index / 2) % CC_COUNT_OF(state->vsram)] = (cc_u16l)(value & 0x7FF);
 			break;
 	}
 
