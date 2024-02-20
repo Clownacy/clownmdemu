@@ -742,11 +742,21 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 	   cleared by the register commands, and that the latch flag is cleared upon any command being
 	   written to the VDP, whether it is an address command or a register command. */
 
-	if ((value & 0xC000) == 0x8000)
+	if (vdp->state->access.write_pending)
+	{
+		/* This is an "address set" command (part 2). */
+		vdp->state->access.write_pending = cc_false;
+		vdp->state->access.destination_address = (vdp->state->access.destination_address & 0x3FFF) | ((value & 3) << 14);
+		vdp->state->access.access_mode = (vdp->state->access.access_mode & 3) | ((value >> 2) & 0x3C);
+	}
+	else if ((value & 0xC000) == 0x8000)
 	{
 		/* This is a "register set" command. */
 		const cc_u16f reg = (value >> 8) & 0x1F;
 		const cc_u16f data = value & 0xFF;
+
+		/* This is relied upon by Sonic 3D Blast (the opening FMV will have broken colours otherwise). */
+		vdp->state->access.access_mode = 0;
 
 		/* This command is setting a register */
 		switch (reg)
@@ -1007,73 +1017,61 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 	}
 	else
 	{
-		/* This is an "address set" command. */
+		/* This is an "address set" command (part 1). */
+		vdp->state->access.write_pending = cc_true;
+		vdp->state->access.destination_address = (value & 0x3FFF) | (vdp->state->access.destination_address & (3 << 14));
+		vdp->state->access.access_mode = ((value >> 14) & 3) | (vdp->state->access.access_mode & 0x3C);
+	}
 
-		if (vdp->state->access.write_pending)
+	vdp->state->access.index = (cc_u16l)vdp->state->access.destination_address;
+	vdp->state->access.read_mode = (vdp->state->access.access_mode & 1) == 0;
+
+	if (vdp->state->dma.enabled)
+		vdp->state->dma.pending = (vdp->state->access.access_mode & 0x20) != 0;
+
+	/* Clear DMA bit now that we're done with it. */
+	vdp->state->access.access_mode &= ~0x20;
+
+	switch ((vdp->state->access.access_mode >> 1) & 7)
+	{
+		case 0: /* VRAM */
+			vdp->state->access.selected_buffer = VDP_ACCESS_VRAM;
+			break;
+
+		case 4: /* CRAM (read) */
+		case 1: /* CRAM (write) */
+			vdp->state->access.selected_buffer = VDP_ACCESS_CRAM;
+			break;
+
+		case 2: /* VSRAM */
+			vdp->state->access.selected_buffer = VDP_ACCESS_VSRAM;
+			break;
+
+		default: /* Invalid */
+			PrintError("Invalid VDP access mode specified (0x%" CC_PRIXFAST16 ")", vdp->state->access.access_mode);
+			break;
+	}
+
+	if (vdp->state->dma.pending && vdp->state->dma.mode != VDP_DMA_MODE_FILL)
+	{
+		/* Firing DMA */
+		vdp->state->dma.pending = cc_false;
+
+		if (vdp->state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
 		{
-			/* Part 2. */
-			vdp->state->access.write_pending = cc_false;
-			vdp->state->access.destination_address = (vdp->state->access.destination_address & 0x3FFF) | ((value & 3) << 14);
-			vdp->state->access.access_mode = (vdp->state->access.access_mode & 3) | ((value >> 2) & 0x3C);
-		}
-		else
-		{
-			/* Part 1. */
-			vdp->state->access.write_pending = cc_true;
-			vdp->state->access.destination_address = (value & 0x3FFF) | (vdp->state->access.destination_address & (3 << 14));
-			vdp->state->access.access_mode = ((value >> 14) & 3) | (vdp->state->access.access_mode & 0x3C);
-		}
-
-		vdp->state->access.index = (cc_u16l)vdp->state->access.destination_address;
-		vdp->state->access.read_mode = (vdp->state->access.access_mode & 1) == 0;
-
-		if (vdp->state->dma.enabled)
-			vdp->state->dma.pending = (vdp->state->access.access_mode & 0x20) != 0;
-
-		/* Clear DMA bit now that we're done with it. */
-		vdp->state->access.access_mode &= ~0x20;
-
-		switch ((vdp->state->access.access_mode >> 1) & 7)
-		{
-			case 0: /* VRAM */
-				vdp->state->access.selected_buffer = VDP_ACCESS_VRAM;
-				break;
-
-			case 4: /* CRAM (read) */
-			case 1: /* CRAM (write) */
-				vdp->state->access.selected_buffer = VDP_ACCESS_CRAM;
-				break;
-
-			case 2: /* VSRAM */
-				vdp->state->access.selected_buffer = VDP_ACCESS_VSRAM;
-				break;
-
-			default: /* Invalid */
-				PrintError("Invalid VDP access mode specified (0x%" CC_PRIXFAST16 ")", vdp->state->access.access_mode);
-				break;
-		}
-
-		if (vdp->state->dma.pending && vdp->state->dma.mode != VDP_DMA_MODE_FILL)
-		{
-			/* Firing DMA */
-			vdp->state->dma.pending = cc_false;
-
-			if (vdp->state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
+			do
 			{
-				do
-				{
-					WriteAndIncrement(vdp->state, read_callback((void*)read_callback_user_data, ((cc_u32f)vdp->state->dma.source_address_high << 17) | ((cc_u32f)vdp->state->dma.source_address_low << 1)), colour_updated_callback, colour_updated_callback_user_data);
+				WriteAndIncrement(vdp->state, read_callback((void*)read_callback_user_data, ((cc_u32f)vdp->state->dma.source_address_high << 17) | ((cc_u32f)vdp->state->dma.source_address_low << 1)), colour_updated_callback, colour_updated_callback_user_data);
 
-					/* Emulate the 128KiB DMA wrap-around bug */
-					++vdp->state->dma.source_address_low;
-					vdp->state->dma.source_address_low &= 0xFFFF;
-				} while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
-			}
-			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
-			{
-				/* TODO */
-				PrintError("DMA copy attempted, but not currently supported!");
-			}
+				/* Emulate the 128KiB DMA wrap-around bug */
+				++vdp->state->dma.source_address_low;
+				vdp->state->dma.source_address_low &= 0xFFFF;
+			} while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
+		}
+		else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
+		{
+			/* TODO */
+			PrintError("DMA copy attempted, but not currently supported!");
 		}
 	}
 }
