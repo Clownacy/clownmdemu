@@ -730,8 +730,8 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 	{
 		/* This is an "address set" command (part 2). */
 		vdp->state->access.write_pending = cc_false;
-		vdp->state->access.destination_address = (vdp->state->access.destination_address & 0x3FFF) | ((value & 3) << 14);
-		vdp->state->access.access_mode = (vdp->state->access.access_mode & 3) | ((value >> 2) & 0x3C);
+		vdp->state->access.address_register = (vdp->state->access.address_register & 0x3FFF) | ((value & 3) << 14);
+		vdp->state->access.code_register = (vdp->state->access.code_register & 3) | ((value >> 2) & 0x3C);
 	}
 	else if ((value & 0xC000) == 0x8000)
 	{
@@ -740,7 +740,7 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 		const cc_u16f data = value & 0xFF;
 
 		/* This is relied upon by Sonic 3D Blast (the opening FMV will have broken colours otherwise). */
-		vdp->state->access.access_mode = 0;
+		vdp->state->access.code_register = 0;
 
 		/* This command is setting a register */
 		switch (reg)
@@ -1003,20 +1003,20 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 	{
 		/* This is an "address set" command (part 1). */
 		vdp->state->access.write_pending = cc_true;
-		vdp->state->access.destination_address = (value & 0x3FFF) | (vdp->state->access.destination_address & (3 << 14));
-		vdp->state->access.access_mode = ((value >> 14) & 3) | (vdp->state->access.access_mode & 0x3C);
+		vdp->state->access.address_register = (value & 0x3FFF) | (vdp->state->access.address_register & (3 << 14));
+		vdp->state->access.code_register = ((value >> 14) & 3) | (vdp->state->access.code_register & 0x3C);
 	}
 
-	vdp->state->access.index = (cc_u16l)vdp->state->access.destination_address;
-	vdp->state->access.read_mode = (vdp->state->access.access_mode & 1) == 0;
+	vdp->state->access.index = (cc_u16l)vdp->state->access.address_register;
+	vdp->state->access.read_mode = (vdp->state->access.code_register & 1) == 0;
 
 	if (vdp->state->dma.enabled)
-		vdp->state->dma.pending = (vdp->state->access.access_mode & 0x20) != 0;
+		vdp->state->dma.pending = (vdp->state->access.code_register & 0x20) != 0;
 
 	/* Clear DMA bit now that we're done with it. */
-	vdp->state->access.access_mode &= ~0x20;
+	vdp->state->access.code_register &= ~0x20;
 
-	switch ((vdp->state->access.access_mode >> 1) & 7)
+	switch ((vdp->state->access.code_register >> 1) & 7)
 	{
 		case 0: /* VRAM */
 			vdp->state->access.selected_buffer = VDP_ACCESS_VRAM;
@@ -1032,7 +1032,7 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 			break;
 
 		default: /* Invalid */
-			PrintError("Invalid VDP access mode specified (0x%" CC_PRIXFAST16 ")", vdp->state->access.access_mode);
+			PrintError("Invalid VDP access mode specified (0x%" CC_PRIXFAST16 ")", vdp->state->access.code_register);
 			break;
 	}
 
