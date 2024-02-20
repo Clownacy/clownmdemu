@@ -726,22 +726,6 @@ void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback
 /* TODO - Retention of partial commands */
 void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data, cc_u16f (*read_callback)(void *user_data, cc_u32f address), const void *read_callback_user_data)
 {
-	/* Sonic Crackers contains a good test for some logic here:
-	   When a level is started, an animated graphic appears. The tiles for this graphic are
-	   uploaded using DMA transfers, however the DMA transfer routine is bugged: immediately after
-	   performing the DMA transfer, the routine attempts to reupload the first word of tile data
-	   (this is presumably to work around a known bug in early Mega Drives that causes the first
-	   word of a DMA transfer to be corrupt), however, it accidentally only writes half of the
-	   address command. With only one word written, the VDP sets its latch flag, expecting to
-	   receive the second half of the address command as the next written word. The DMA transfer
-	   routine will loop and begin to prepare another DMA transfer, starting by writing a register
-	   command for the DMA length. On a real Mega Drive, this command succeeds, showing that
-	   register commands are exempt from the effects of the latch flag. Likewise, when the address
-	   command to fire the DMA transfer is written, its first word is not treated as the second
-	   word of the previous incomplete address command, showing that the latch flag had been
-	   cleared by the register commands, and that the latch flag is cleared upon any command being
-	   written to the VDP, whether it is an address command or a register command. */
-
 	if (vdp->state->access.write_pending)
 	{
 		/* This is an "address set" command (part 2). */
