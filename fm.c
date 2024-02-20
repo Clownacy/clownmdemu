@@ -205,7 +205,7 @@ void FM_DoData(const FM *fm, cc_u8f data)
 					/* Oddly, the YM2608 manual describes these timers being twice as fast as they are here. */
 					state->raw_timer_a_value &= 3;
 					state->raw_timer_a_value |= data << 2;
-					/* The '+1' is so that the timer afters when it tries to go BELOW 0. */
+					/* The '+1' is so that the timer expires when it tries to go BELOW 0. */
 					state->timers[0].value = FM_SAMPLE_RATE_DIVIDER * (1 + (0x400 - state->raw_timer_a_value));
 					break;
 
