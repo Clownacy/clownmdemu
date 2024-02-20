@@ -71,7 +71,8 @@ typedef struct VDP_State
 	struct
 	{
 		cc_bool write_pending;
-		cc_u16l cached_write;
+		cc_u16l destination_address;
+		cc_u16l access_mode;
 
 		VDP_Access selected_buffer;
 

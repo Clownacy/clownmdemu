@@ -1005,21 +1005,35 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 				break;
 		}
 	}
-	else if (vdp->state->access.write_pending)
+	else
 	{
-		/* This is an "address set" command (part 2). */
-		const cc_u16f destination_address = (vdp->state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
-		const cc_u16f access_mode = ((vdp->state->access.cached_write >> 14) & 3) | ((value >> 2) & 0x3C);
+		/* This is an "address set" command. */
 
-		vdp->state->access.write_pending = cc_false;
+		if (vdp->state->access.write_pending)
+		{
+			/* Part 2. */
+			vdp->state->access.write_pending = cc_false;
+			vdp->state->access.destination_address = (vdp->state->access.destination_address & 0x3FFF) | ((value & 3) << 14);
+			vdp->state->access.access_mode = (vdp->state->access.access_mode & 3) | ((value >> 2) & 0x3C);
+		}
+		else
+		{
+			/* Part 1. */
+			vdp->state->access.write_pending = cc_true;
+			vdp->state->access.destination_address = (value & 0x3FFF) | (vdp->state->access.destination_address & (3 << 14));
+			vdp->state->access.access_mode = ((value >> 14) & 3) | (vdp->state->access.access_mode & 0x3C);
+		}
 
-		vdp->state->access.index = (cc_u16l)destination_address;
-		vdp->state->access.read_mode = (access_mode & 1) == 0;
+		vdp->state->access.index = (cc_u16l)vdp->state->access.destination_address;
+		vdp->state->access.read_mode = (vdp->state->access.access_mode & 1) == 0;
 
 		if (vdp->state->dma.enabled)
-			vdp->state->dma.pending = (access_mode & 0x20) != 0;
+			vdp->state->dma.pending = (vdp->state->access.access_mode & 0x20) != 0;
 
-		switch ((access_mode >> 1) & 7)
+		/* Clear DMA bit now that we're done with it. */
+		vdp->state->access.access_mode &= ~0x20;
+
+		switch ((vdp->state->access.access_mode >> 1) & 7)
 		{
 			case 0: /* VRAM */
 				vdp->state->access.selected_buffer = VDP_ACCESS_VRAM;
@@ -1035,7 +1049,7 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 				break;
 
 			default: /* Invalid */
-				PrintError("Invalid VDP access mode specified (0x%" CC_PRIXFAST16 ")", access_mode);
+				PrintError("Invalid VDP access mode specified (0x%" CC_PRIXFAST16 ")", vdp->state->access.access_mode);
 				break;
 		}
 
@@ -1061,11 +1075,5 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 				PrintError("DMA copy attempted, but not currently supported!");
 			}
 		}
-	}
-	else
-	{
-		/* This is an "address set" command (part 1). */
-		vdp->state->access.write_pending = cc_true;
-		vdp->state->access.cached_write = (cc_u16l)value;
 	}
 }
