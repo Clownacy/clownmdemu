@@ -707,7 +707,7 @@ void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback
 
 			do
 			{
-				vdp->state->vram[vdp->state->access.index % CC_COUNT_OF(vdp->state->vram)] = value >> 8;
+				vdp->state->vram[(vdp->state->access.index ^ 1) % CC_COUNT_OF(vdp->state->vram)] = value >> 8;
 				vdp->state->access.index += vdp->state->access.increment;
 
 				/* Yes, even DMA fills do this, according to
