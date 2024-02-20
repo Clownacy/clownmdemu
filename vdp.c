@@ -744,7 +744,7 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 	if ((value & 0xC000) == 0x8000)
 	{
 		/* This is a "register set" command. */
-		const cc_u16f reg = (value >> 8) & 0x3F;
+		const cc_u16f reg = (value >> 8) & 0x1F;
 		const cc_u16f data = value & 0xFF;
 
 		/* This command is setting a register */
