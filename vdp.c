@@ -653,6 +653,8 @@ cc_u16f VDP_ReadData(const VDP *vdp)
 {
 	cc_u16f value = 0;
 
+	vdp->state->access.write_pending = cc_false;
+
 	if (!vdp->state->access.read_mode)
 	{
 		/* According to GENESIS SOFTWARE DEVELOPMENT MANUAL (COMPLEMENT) section 4.1,
@@ -685,6 +687,8 @@ cc_u16f VDP_ReadControl(const VDP *vdp)
 
 void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data)
 {
+	vdp->state->access.write_pending = cc_false;
+
 	if (vdp->state->access.read_mode)
 	{
 		/* Invalid input, but defined behaviour */
@@ -737,9 +741,6 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 	   word of the previous incomplete address command, showing that the latch flag had been
 	   cleared by the register commands, and that the latch flag is cleared upon any command being
 	   written to the VDP, whether it is an address command or a register command. */
-	const cc_bool write_pending = vdp->state->access.write_pending;
-
-	vdp->state->access.write_pending = cc_false;
 
 	if ((value & 0xC000) == 0x8000)
 	{
@@ -1004,11 +1005,13 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 				break;
 		}
 	}
-	else if (write_pending)
+	else if (vdp->state->access.write_pending)
 	{
 		/* This is an "address set" command (part 2). */
 		const cc_u16f destination_address = (vdp->state->access.cached_write & 0x3FFF) | ((value & 3) << 14);
 		const cc_u16f access_mode = ((vdp->state->access.cached_write >> 14) & 3) | ((value >> 2) & 0x3C);
+
+		vdp->state->access.write_pending = cc_false;
 
 		vdp->state->access.index = (cc_u16l)destination_address;
 		vdp->state->access.read_mode = (access_mode & 1) == 0;
