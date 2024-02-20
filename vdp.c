@@ -671,6 +671,8 @@ cc_u16f VDP_ReadData(const VDP *vdp)
 cc_u16f VDP_ReadControl(const VDP *vdp)
 {
 	/* TODO */
+	const cc_bool currently_in_hblank = cc_true;
+	const cc_bool fifo_empty = cc_true;
 
 	/* Reading from the control port aborts the VDP waiting for a second command word to be written.
 	   This doesn't appear to be documented in the official SDK manuals we have, but the official
@@ -678,7 +680,7 @@ cc_u16f VDP_ReadControl(const VDP *vdp)
 	vdp->state->access.write_pending = cc_false;
 
 	/* Output the 'V-blanking' and 'H-blanking' bits */
-	return (vdp->state->currently_in_vblank << 3) | (1 << 2); /* The H-blank bit is forced for now so Sonic 2's two-player mode works */
+	return 0x3400 | (fifo_empty << 9) | (vdp->state->currently_in_vblank << 3) | (currently_in_hblank << 2); /* The H-blank bit is forced for now so Sonic 2's two-player mode works */
 }
 
 void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data)
@@ -976,10 +978,10 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 
 			case 23:
 				/* DMA SOURCE ADDRESS HIGH */
-				if (data & 0x80)
+				if ((data & 0x80) != 0)
 				{
 					vdp->state->dma.source_address_high = data & 0x3F;
-					vdp->state->dma.mode = data & 0x40 ? VDP_DMA_MODE_COPY : VDP_DMA_MODE_FILL;
+					vdp->state->dma.mode = (data & 0x40) != 0 ? VDP_DMA_MODE_COPY : VDP_DMA_MODE_FILL;
 				}
 				else
 				{

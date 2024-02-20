@@ -34,7 +34,7 @@ typedef enum VDP_Access
 
 typedef enum VDP_DMAMode
 {
-	VDP_DMA_MODE_MEMORY_TO_VRAM,
+	VDP_DMA_MODE_MEMORY_TO_VRAM, /* TODO: This isn't limited to VRAM. */
 	VDP_DMA_MODE_FILL,
 	VDP_DMA_MODE_COPY
 } VDP_DMAMode;
