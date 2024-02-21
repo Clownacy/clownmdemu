@@ -73,18 +73,14 @@ typedef struct VDP_State
 		cc_bool write_pending;
 		cc_u16l address_register;
 		cc_u16l code_register;
+		cc_u16l increment;
 
 		VDP_Access selected_buffer;
-
-		cc_bool read_mode;
-		cc_u16l index;
-		cc_u16l increment;
 	} access;
 
 	struct
 	{
 		cc_bool enabled;
-		cc_bool pending;
 		VDP_DMAMode mode;
 		cc_u8l source_address_high;
 		cc_u16l source_address_low;

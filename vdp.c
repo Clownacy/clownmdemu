@@ -20,6 +20,21 @@ enum
 /* Some of the logic here is based on research done by Nemesis:
    https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016 */
 
+static cc_bool IsDMAPending(const VDP_State* const state)
+{
+	return (state->access.code_register & 0x20) != 0;
+}
+
+static void ClearDMAPending(VDP_State* const state)
+{
+	state->access.code_register &= ~0x20;
+}
+
+static cc_bool IsInReadMode(const VDP_State* const state)
+{
+	return (state->access.code_register & 1) == 0;
+}
+
 static cc_u16f VRAMReadWord(const VDP_State* const state, const cc_u16f address)
 {
 	return (state->vram[address ^ 0] << 8) | state->vram[address ^ 1];
@@ -37,7 +52,7 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 		case VDP_ACCESS_VRAM:
 		{
 			/* Update sprite cache if we're writing to the sprite table */
-			const cc_u16f index_wrapped = state->access.index % CC_COUNT_OF(state->vram);
+			const cc_u16f index_wrapped = state->access.address_register % CC_COUNT_OF(state->vram);
 			const cc_u16f sprite_table_index = index_wrapped - state->sprite_table_address;
 
 			/* TODO: Use bytes instead of words for the cache. Or maybe just handle odd addresses better. */
@@ -59,7 +74,7 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 			const cc_u16f colour = value & 0xEEE;
 
 			/* Fit index to within CRAM */
-			const cc_u16f index_wrapped = (state->access.index / 2) % CC_COUNT_OF(state->cram);
+			const cc_u16f index_wrapped = (state->access.address_register / 2) % CC_COUNT_OF(state->cram);
 
 			/* Store regular Mega Drive-format colour (with garbage bits intact) */
 			state->cram[index_wrapped] = colour;
@@ -84,11 +99,11 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 		}
 
 		case VDP_ACCESS_VSRAM:
-			state->vsram[(state->access.index / 2) % CC_COUNT_OF(state->vsram)] = (cc_u16l)(value & 0x7FF);
+			state->vsram[(state->access.address_register / 2) % CC_COUNT_OF(state->vsram)] = (cc_u16l)(value & 0x7FF);
 			break;
 	}
 
-	state->access.index += state->access.increment;
+	state->access.address_register += state->access.increment;
 }
 
 static cc_u16f ReadAndIncrement(VDP_State *state)
@@ -102,19 +117,19 @@ static cc_u16f ReadAndIncrement(VDP_State *state)
 			assert(0);
 			/* Fallthrough */
 		case VDP_ACCESS_VRAM:
-			value = VRAMReadWord(state, state->access.index % CC_COUNT_OF(state->vram));
+			value = VRAMReadWord(state, state->access.address_register % CC_COUNT_OF(state->vram));
 			break;
 
 		case VDP_ACCESS_CRAM:
-			value = state->cram[(state->access.index / 2) % CC_COUNT_OF(state->cram)];
+			value = state->cram[(state->access.address_register / 2) % CC_COUNT_OF(state->cram)];
 			break;
 
 		case VDP_ACCESS_VSRAM:
-			value = state->vsram[(state->access.index / 2) % CC_COUNT_OF(state->vsram)];
+			value = state->vsram[(state->access.address_register / 2) % CC_COUNT_OF(state->vsram)];
 			break;
 	}
 
-	state->access.index += state->access.increment;
+	state->access.address_register += state->access.increment;
 
 	return value;
 }
@@ -200,14 +215,12 @@ void VDP_Constant_Initialise(VDP_Constant *constant)
 void VDP_State_Initialise(VDP_State *state)
 {
 	state->access.write_pending = cc_false;
-
-	state->access.read_mode = cc_false;
+	state->access.address_register = 0;
+	state->access.code_register = 0;
 	state->access.selected_buffer = VDP_ACCESS_VRAM;
-	state->access.index = 0;
 	state->access.increment = 0;
 
 	state->dma.enabled = cc_false;
-	state->dma.pending = cc_false;
 	state->dma.source_address_high = 0;
 	state->dma.source_address_low = 0;
 
@@ -655,7 +668,7 @@ cc_u16f VDP_ReadData(const VDP *vdp)
 
 	vdp->state->access.write_pending = cc_false;
 
-	if (!vdp->state->access.read_mode)
+	if (!IsInReadMode(vdp->state))
 	{
 		/* According to GENESIS SOFTWARE DEVELOPMENT MANUAL (COMPLEMENT) section 4.1,
 		   this should cause the 68k to hang */
@@ -689,30 +702,30 @@ void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback
 {
 	vdp->state->access.write_pending = cc_false;
 
-	if (vdp->state->access.read_mode)
+	if (IsInReadMode(vdp->state))
 	{
 		/* Invalid input, but defined behaviour */
 		PrintError("Data was written to the VDP data port while the VDP was in read mode");
 
 		/* According to GENESIS SOFTWARE DEVELOPMENT MANUAL (COMPLEMENT) section 4.1,
 		   data should not be written, but the address should be incremented */
-		vdp->state->access.index += vdp->state->access.increment;
+		vdp->state->access.address_register += vdp->state->access.increment;
 	}
 	else
 	{
 		/* Write the value to memory */
 		WriteAndIncrement(vdp->state, value, colour_updated_callback, colour_updated_callback_user_data);
 
-		if (vdp->state->dma.pending)
+		if (IsDMAPending(vdp->state))
 		{
 			/* Perform DMA fill */
 			/* TODO: https://gendev.spritesmind.net/forum/viewtopic.php?p=31857&sid=34ef0ab3215fa6ceb29e12db824c3427#p31857 */
-			vdp->state->dma.pending = cc_false;
+			ClearDMAPending(vdp->state);
 
 			do
 			{
-				vdp->state->vram[(vdp->state->access.index ^ 1) % CC_COUNT_OF(vdp->state->vram)] = value >> 8;
-				vdp->state->access.index += vdp->state->access.increment;
+				vdp->state->vram[(vdp->state->access.address_register ^ 1) % CC_COUNT_OF(vdp->state->vram)] = value >> 8;
+				vdp->state->access.address_register += vdp->state->access.increment;
 
 				/* Yes, even DMA fills do this, according to
 				   'https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016'. */
@@ -729,9 +742,11 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 	if (vdp->state->access.write_pending)
 	{
 		/* This is an "address set" command (part 2). */
+		const cc_u16f code_bitmask = vdp->state->dma.enabled ? 0x3C : 0x1C;
+
 		vdp->state->access.write_pending = cc_false;
 		vdp->state->access.address_register = (vdp->state->access.address_register & 0x3FFF) | ((value & 3) << 14);
-		vdp->state->access.code_register = (vdp->state->access.code_register & 3) | ((value >> 2) & 0x3C);
+		vdp->state->access.code_register = (vdp->state->access.code_register & ~code_bitmask) | ((value >> 2) & code_bitmask);
 	}
 	else if ((value & 0xC000) == 0x8000)
 	{
@@ -740,6 +755,7 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 		const cc_u16f data = value & 0xFF;
 
 		/* This is relied upon by Sonic 3D Blast (the opening FMV will have broken colours otherwise). */
+		/* TODO: Does the DMA enable bit prevent this from clearing bit 5? */
 		vdp->state->access.code_register = 0;
 
 		/* This command is setting a register */
@@ -1007,15 +1023,6 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 		vdp->state->access.code_register = ((value >> 14) & 3) | (vdp->state->access.code_register & 0x3C);
 	}
 
-	vdp->state->access.index = (cc_u16l)vdp->state->access.address_register;
-	vdp->state->access.read_mode = (vdp->state->access.code_register & 1) == 0;
-
-	if (vdp->state->dma.enabled)
-		vdp->state->dma.pending = (vdp->state->access.code_register & 0x20) != 0;
-
-	/* Clear DMA bit now that we're done with it. */
-	vdp->state->access.code_register &= ~0x20;
-
 	switch ((vdp->state->access.code_register >> 1) & 7)
 	{
 		case 0: /* VRAM */
@@ -1036,10 +1043,10 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 			break;
 	}
 
-	if (vdp->state->dma.pending && vdp->state->dma.mode != VDP_DMA_MODE_FILL)
+	if (IsDMAPending(vdp->state) && vdp->state->dma.mode != VDP_DMA_MODE_FILL)
 	{
 		/* Firing DMA */
-		vdp->state->dma.pending = cc_false;
+		ClearDMAPending(vdp->state);
 
 		if (vdp->state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
 		{
