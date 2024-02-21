@@ -1061,21 +1061,21 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 		/* Firing DMA */
 		ClearDMAPending(vdp->state);
 
-		if (vdp->state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
+		do
 		{
-			do
+			if (vdp->state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
 			{
 				WriteAndIncrement(vdp->state, read_callback((void*)read_callback_user_data, ((cc_u32f)vdp->state->dma.source_address_high << 17) | ((cc_u32f)vdp->state->dma.source_address_low << 1)), colour_updated_callback, colour_updated_callback_user_data);
+			}
+			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
+			{
+				vdp->state->vram[(vdp->state->access.address_register ^ 1) % CC_COUNT_OF(vdp->state->vram)] = vdp->state->vram[vdp->state->dma.source_address_low ^ 1];
+				vdp->state->access.address_register += vdp->state->access.increment;
+			}
 
-				/* Emulate the 128KiB DMA wrap-around bug */
-				++vdp->state->dma.source_address_low;
-				vdp->state->dma.source_address_low &= 0xFFFF;
-			} while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
-		}
-		else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
-		{
-			/* TODO */
-			PrintError("DMA copy attempted, but not currently supported!");
-		}
+			/* Emulate the 128KiB DMA wrap-around bug */
+			++vdp->state->dma.source_address_low;
+			vdp->state->dma.source_address_low &= 0xFFFF;
+		} while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
 	}
 }
