@@ -232,10 +232,10 @@ void VDP_State_Initialise(VDP_State *state)
 	state->sprite_table_address = 0;
 	state->hscroll_address = 0;
 
-	state->window_aligned_right = cc_false;
-	state->window_aligned_bottom = cc_false;
-	state->window_horizontal_boundary = 0;
-	state->window_vertical_boundary = 0;
+	state->window.aligned_right = cc_false;
+	state->window.aligned_bottom = cc_false;
+	state->window.horizontal_boundary = 0;
+	state->window.vertical_boundary = 0;
 
 	state->plane_width = 32;
 	state->plane_height = 32;
@@ -357,7 +357,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		{
 			/* Notably, we allow Plane A to render in the Window Plane's place when the latter is disabled. */
 			/* TODO: Test if this works properly in Interlace Mode 2. */
-			const cc_bool rendering_window_plane = i == 0 && (scanline < state->window_vertical_boundary) != state->window_aligned_bottom && !vdp->configuration->window_disabled;
+			const cc_bool rendering_window_plane = i == 0 && (scanline < state->window.vertical_boundary) != state->window.aligned_bottom && !vdp->configuration->window_disabled;
 
 			/* The window plane has a hardcoded size, unlike the other planes. */
 			/* Sonic 3's 'Data Select' menu background relies on this. */
@@ -465,8 +465,8 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 		{
 			/* TODO: Emulate the bug where the tiles to the right of the window plane distort
 			   if Plane A is scrolled horizontally by an amount that is not a multiple of 16. */
-			const cc_u16f start = state->window_aligned_right ? state->window_horizontal_boundary : 0;
-			const cc_u16f end = state->window_aligned_right ? CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, 8) : state->window_horizontal_boundary;
+			const cc_u16f start = state->window.aligned_right ? state->window.horizontal_boundary : 0;
+			const cc_u16f end = state->window.aligned_right ? CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, 8) : state->window.horizontal_boundary;
 
 			/* Obtain the pointer used to write metapixels to the buffer */
 			cc_u8l *metapixels_pointer = &plane_metapixels[16 + start * 8];
@@ -962,14 +962,14 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 
 			case 17:
 				/* WINDOW H POSITION */
-				vdp->state->window_aligned_right = (data & 0x80) != 0;
-				vdp->state->window_horizontal_boundary = (data & 0x1F) * 2; /* Measured in tiles. */
+				vdp->state->window.aligned_right = (data & 0x80) != 0;
+				vdp->state->window.horizontal_boundary = (data & 0x1F) * 2; /* Measured in tiles. */
 				break;
 
 			case 18:
 				/* WINDOW V POSITION */
-				vdp->state->window_aligned_bottom = (data & 0x80) != 0;
-				vdp->state->window_vertical_boundary = (data & 0x1F) * 8; /* Measured in scanlines. */
+				vdp->state->window.aligned_bottom = (data & 0x80) != 0;
+				vdp->state->window.vertical_boundary = (data & 0x1F) * 8; /* Measured in scanlines. */
 				break;
 
 			case 19:

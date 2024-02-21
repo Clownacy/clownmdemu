@@ -93,10 +93,13 @@ typedef struct VDP_State
 	cc_u16l sprite_table_address;
 	cc_u16l hscroll_address;
 
-	cc_bool window_aligned_right;
-	cc_bool window_aligned_bottom;
-	cc_u8l window_horizontal_boundary;
-	cc_u8l window_vertical_boundary;
+	struct
+	{
+		cc_bool aligned_right;
+		cc_bool aligned_bottom;
+		cc_u8l horizontal_boundary;
+		cc_u8l vertical_boundary;
+	} window;
 
 	cc_u16l plane_width;
 	cc_u16l plane_height;
