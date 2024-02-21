@@ -707,7 +707,6 @@ cc_u16f VDP_ReadControl(const VDP *vdp)
 	   boot code makes use of this feature. */
 	vdp->state->access.write_pending = cc_false;
 
-	/* Output the 'V-blanking' and 'H-blanking' bits */
 	return 0x3400 | (fifo_empty << 9) | (vdp->state->currently_in_vblank << 3) | (currently_in_hblank << 2); /* The H-blank bit is forced for now so Sonic 2's two-player mode works */
 }
 
@@ -918,6 +917,7 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 
 				if ((width_index == 3 && height_index != 0) || (height_index == 3 && width_index != 0))
 				{
+					/* TODO: So... what should happen? */
 					PrintError("Selected plane size exceeds 64x64/32x128/128x32");
 				}
 				else
@@ -933,6 +933,7 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 							break;
 
 						case 2:
+							/* TODO: I swear some dumb Electronic Arts game uses this. */
 							PrintError("Prohibited plane width selected");
 							break;
 
@@ -952,6 +953,7 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 							break;
 
 						case 2:
+							/* TODO: I swear some dumb Electronic Arts game uses this. */
 							PrintError("Prohibited plane height selected");
 							break;
 
