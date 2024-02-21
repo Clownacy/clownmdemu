@@ -221,14 +221,21 @@ void VDP_State_Initialise(VDP_State *state)
 	state->access.increment = 0;
 
 	state->dma.enabled = cc_false;
+	state->dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
 	state->dma.source_address_high = 0;
 	state->dma.source_address_low = 0;
+	state->dma.length = 0;
 
 	state->plane_a_address = 0;
 	state->plane_b_address = 0;
 	state->window_address = 0;
 	state->sprite_table_address = 0;
 	state->hscroll_address = 0;
+
+	state->window_aligned_right = cc_false;
+	state->window_aligned_bottom = cc_false;
+	state->window_horizontal_boundary = 0;
+	state->window_vertical_boundary = 0;
 
 	state->plane_width = 32;
 	state->plane_height = 32;
@@ -247,6 +254,8 @@ void VDP_State_Initialise(VDP_State *state)
 
 	state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
+
+	/* TODO: Wipe all of the buffers. */
 
 	state->sprite_row_cache.needs_updating = cc_true;
 }
