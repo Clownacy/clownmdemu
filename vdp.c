@@ -255,9 +255,13 @@ void VDP_State_Initialise(VDP_State *state)
 	state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
 
-	/* TODO: Wipe all of the buffers. */
+	memset(state->vram, 0, sizeof(state->vram));
+	memset(state->cram, 0, sizeof(state->cram));
+	memset(state->vsram, 0, sizeof(state->vsram));
+	memset(state->sprite_table_cache, 0, sizeof(state->sprite_table_cache));
 
 	state->sprite_row_cache.needs_updating = cc_true;
+	memset(state->sprite_row_cache.rows, 0, sizeof(state->sprite_row_cache.rows));
 }
 
 static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f tile_x, const cc_u16f tile_y, const cc_u16f plane_address, const cc_u16f tile_height_mask, const cc_u16f tile_size, cc_u8l** const metapixels_pointer)
