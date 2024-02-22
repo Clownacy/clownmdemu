@@ -863,36 +863,33 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	else if (address == 0xA12000 / 2)
 	{
 		/* RESET, HALT */
-		if (do_low_byte)
+		Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
+
+		const cc_bool interrupt = (high_byte & (1 << 0)) != 0;
+		const cc_bool bus_request = (low_byte & (1 << 1)) != 0;
+		const cc_bool reset = (low_byte & (1 << 0)) != 0;
+
+		m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
+		m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
+		m68k_read_write_callbacks.user_data = callback_user_data;
+
+		if (clownmdemu->state->m68k_has_mcd_m68k_bus != bus_request)
+			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
+
+		if (!clownmdemu->state->mcd_m68k_reset && reset)
 		{
-			Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
-
-			const cc_bool interrupt = (high_byte & (1 << 0)) != 0;
-			const cc_bool bus_request = (low_byte & (1 << 1)) != 0;
-			const cc_bool reset = (low_byte & (1 << 0)) != 0;
-
-			m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
-			m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
-			m68k_read_write_callbacks.user_data = callback_user_data;
-
-			if (clownmdemu->state->m68k_has_mcd_m68k_bus != bus_request)
-				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
-
-			if (!clownmdemu->state->mcd_m68k_reset && reset)
-			{
-				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
-				Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
-			}
-
-			if (interrupt)
-			{
-				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
-				Clown68000_Interrupt(clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 2);
-			}
-
-			clownmdemu->state->m68k_has_mcd_m68k_bus = bus_request;
-			clownmdemu->state->mcd_m68k_reset = reset;
+			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
+			Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 		}
+
+		if (interrupt)
+		{
+			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
+			Clown68000_Interrupt(clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 2);
+		}
+
+		clownmdemu->state->m68k_has_mcd_m68k_bus = bus_request;
+		clownmdemu->state->mcd_m68k_reset = reset;
 	}
 	else if (address == 0xA12002 / 2)
 	{
