@@ -54,16 +54,19 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 			/* Update sprite cache if we're writing to the sprite table */
 			const cc_u16f index_wrapped = state->access.address_register % CC_COUNT_OF(state->vram);
 			const cc_u16f sprite_table_index = index_wrapped - state->sprite_table_address;
+			const cc_u8l upper_byte = (cc_u8l)(value >> 8);
+			const cc_u8l lower_byte = (cc_u8l)(value & 0xFF);
 
-			/* TODO: Use bytes instead of words for the cache. Or maybe just handle odd addresses better. */
 			if (sprite_table_index < (state->h40_enabled ? 80u : 64u) * 8u && (sprite_table_index & 4) == 0)
 			{
-				state->sprite_table_cache[sprite_table_index / 8][(sprite_table_index & 2) >> 1] = (cc_u16l)value;
+				cc_u8l* const cache_bytes = state->sprite_table_cache[sprite_table_index / 8];
+				cache_bytes[(sprite_table_index & 3) ^ 0] = upper_byte;
+				cache_bytes[(sprite_table_index & 3) ^ 1] = lower_byte;
 				state->sprite_row_cache.needs_updating = cc_true;
 			}
 
-			state->vram[index_wrapped ^ 0] = (cc_u8l)(value >> 8);
-			state->vram[index_wrapped ^ 1] = (cc_u8l)(value & 0xFF);
+			state->vram[index_wrapped ^ 0] = upper_byte;
+			state->vram[index_wrapped ^ 1] = lower_byte;
 
 			break;
 		}
@@ -514,11 +517,11 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 			do
 			{
 				/* Decode sprite data */
-				const cc_u16l *cached_sprite = state->sprite_table_cache[sprite_index];
-				const cc_u16f y = cached_sprite[0] & 0x3FF;
-				const cc_u16f width = ((cached_sprite[1] >> 10) & 3) + 1;
-				const cc_u16f height = ((cached_sprite[1] >> 8) & 3) + 1;
-				const cc_u16f link = cached_sprite[1] & 0x7F;
+				const cc_u8l *cached_sprite = state->sprite_table_cache[sprite_index];
+				const cc_u16f y = ((cached_sprite[0] & 3) << 8) | cached_sprite[1];
+				const cc_u16f width = ((cached_sprite[2] >> 2) & 3) + 1;
+				const cc_u16f height = (cached_sprite[2] & 3) + 1;
+				const cc_u16f link = cached_sprite[3] & 0x7F;
 
 				const cc_u16f blank_lines = 128 << state->double_resolution_enabled;
 

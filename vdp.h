@@ -127,7 +127,7 @@ typedef struct VDP_State
 	/* TODO: Add a toggle for Model 1 and Model 2 behaviour. */
 	cc_u16l vsram[64];
 
-	cc_u16l sprite_table_cache[80][2];
+	cc_u8l sprite_table_cache[80][4];
 
 	struct
 	{
