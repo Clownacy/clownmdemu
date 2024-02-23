@@ -132,6 +132,7 @@ typedef struct VDP_State
 	cc_u8l background_colour;
 	cc_u8l h_int_interval;
 	cc_bool currently_in_vblank;
+	cc_bool allow_sprite_masking;
 
 	VDP_HScrollMode hscroll_mode;
 	VDP_VScrollMode vscroll_mode;

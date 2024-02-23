@@ -249,6 +249,7 @@ void VDP_State_Initialise(VDP_State *state)
 	state->background_colour = 0;
 	state->h_int_interval = 0;
 	state->currently_in_vblank = cc_false;
+	state->allow_sprite_masking = cc_false;
 
 	state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
@@ -545,7 +546,13 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 
 		if (!vdp->configuration->sprites_disabled)
 		{
+			cc_bool masked;
+
+			masked = cc_false;
+
 			/* Render sprites */
+			/* This has been verified with Nemesis's sprite masking and overflow test ROM:
+			   https://segaretro.org/Sprite_Masking_and_Overflow_Test_ROM */
 			for (i = 0; i < state->sprite_row_cache.rows[scanline].total; ++i)
 			{
 				struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &state->sprite_row_cache.rows[scanline].sprites[i];
@@ -561,17 +568,18 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 
 				cc_u16f y_in_sprite = sprite_row_cache_entry->y_in_sprite;
 
-				/* TODO - sprites only mask if another sprite rendered before them on the
-				   current scanline, or if the previous scanline reached its pixel limit */
 				/* This is a masking sprite: prevent all remaining sprites from being drawn */
 				if (x == 0)
-					break;
+					masked = state->allow_sprite_masking;
+				else
+					/* Enable sprite masking after successfully drawing a sprite. */
+					state->allow_sprite_masking = cc_true;
 
-				/* Prevent out-of-buffer writes. */
-				if (x + width * 8 <= 0x80u || x >= 0x80u + (state->h40_enabled ? 40 : 32) * 8)
+				/* Skip rendering when possible or required. */
+				if (masked || x + width * 8 <= 0x80u || x >= 0x80u + (state->h40_enabled ? 40 : 32) * 8)
 				{
 					if (pixel_limit <= width * 8)
-						break;
+						goto PixelLimitReached;
 
 					pixel_limit -= width * 8;
 				}
@@ -609,7 +617,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 							*metapixels_pointer++ |= palette_line_index & mask;
 
 							if (--pixel_limit == 0)
-								goto DoneWithSprites;
+								goto PixelLimitReached;
 						}
 					}
 				}
@@ -618,7 +626,10 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 					break;
 			}
 
-		DoneWithSprites:;
+			/* Prevent sprite masking when ending a scanline without reaching the pixel limit. */
+			state->allow_sprite_masking = cc_false;
+
+		PixelLimitReached:;
 		}
 
 		/* ************************************ *
