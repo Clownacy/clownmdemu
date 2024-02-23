@@ -248,7 +248,7 @@ void VDP_State_Initialise(VDP_State *state)
 
 	state->background_colour = 0;
 	state->h_int_interval = 0;
-	state->currently_in_vblank = 0;
+	state->currently_in_vblank = cc_false;
 
 	state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
@@ -567,11 +567,19 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 				if (x == 0)
 					break;
 
-				if (x + width * 8 > 128 && x < 128u + (state->h40_enabled ? 40 : 32) * 8)
+				/* Prevent out-of-buffer writes. */
+				if (x + width * 8 <= 0x80u || x >= 0x80u + (state->h40_enabled ? 40 : 32) * 8)
+				{
+					if (pixel_limit <= width * 8)
+						break;
+
+					pixel_limit -= width * 8;
+				}
+				else
 				{
 					cc_u16f j;
 
-					cc_u8l *metapixels_pointer = sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + x - 128];
+					cc_u8l *metapixels_pointer = sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + x - 0x80];
 
 					y_in_sprite = tile.y_flip ? (height << tile_height_power) - y_in_sprite - 1 : y_in_sprite;
 
@@ -604,13 +612,6 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 								goto DoneWithSprites;
 						}
 					}
-				}
-				else
-				{
-					if (pixel_limit <= width * 8)
-						break;
-
-					pixel_limit -= width * 8;
 				}
 
 				if (--sprite_limit == 0)
