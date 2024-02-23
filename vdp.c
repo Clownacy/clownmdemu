@@ -35,11 +35,6 @@ static cc_bool IsInReadMode(const VDP_State* const state)
 	return (state->access.code_register & 1) == 0;
 }
 
-static cc_u16f VRAMReadWord(const VDP_State* const state, const cc_u16f address)
-{
-	return (state->vram[address ^ 0] << 8) | state->vram[address ^ 1];
-}
-
 static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data)
 {
 	switch (state->access.selected_buffer)
@@ -120,7 +115,7 @@ static cc_u16f ReadAndIncrement(VDP_State *state)
 			assert(0);
 			/* Fallthrough */
 		case VDP_ACCESS_VRAM:
-			value = VRAMReadWord(state, state->access.address_register % CC_COUNT_OF(state->vram));
+			value = VDP_ReadVRAMWord(state, state->access.address_register % CC_COUNT_OF(state->vram));
 			break;
 
 		case VDP_ACCESS_CRAM:
@@ -271,21 +266,16 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 {
 	cc_u16f i;
 
-	const cc_u16f tile_metadata = VRAMReadWord(vdp->state, plane_address + (tile_y * vdp->state->plane_width + tile_x) * 2);
-	const cc_bool tile_priority = (tile_metadata & 0x8000) != 0;
-	const cc_u16f tile_palette_line = (tile_metadata >> 13) & 3;
-	const cc_bool tile_y_flip = (tile_metadata & 0x1000) != 0;
-	const cc_bool tile_x_flip = (tile_metadata & 0x0800) != 0;
-	const cc_u16f tile_index = tile_metadata & 0x7FF;
+	const VDP_TileMetadata tile = VDP_DecomposeTileMetadata(VDP_ReadVRAMWord(vdp->state, plane_address + (tile_y * vdp->state->plane_width + tile_x) * 2));
 
 	/* Get the Y coordinate of the pixel in the tile */
-	const cc_u16f pixel_y_in_tile = (pixel_y_in_plane & tile_height_mask) ^ (tile_y_flip ? tile_height_mask : 0);
+	const cc_u16f pixel_y_in_tile = (pixel_y_in_plane & tile_height_mask) ^ (tile.y_flip ? tile_height_mask : 0);
 
 	/* Get raw tile data that contains the desired metapixel */
-	const cc_u8l* const tile_data = &vdp->state->vram[tile_index * tile_size + pixel_y_in_tile * 4];
+	const cc_u8l* const tile_data = &vdp->state->vram[tile.tile_index * tile_size + pixel_y_in_tile * 4];
 
-	const cc_u8f byte_index_xor = tile_x_flip ? 7 : 0;
-	const cc_u8f metapixel_upper_bits = (tile_priority << 2) | tile_palette_line;
+	const cc_u8f byte_index_xor = tile.x_flip ? 7 : 0;
+	const cc_u8f metapixel_upper_bits = (tile.priority << 2) | tile.palette_line;
 
 	const cc_u8l (* const blit_lookup)[1 << 4] = vdp->constant->blit_lookup[metapixel_upper_bits];
 
@@ -389,15 +379,15 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 							assert(0);
 							/* Fallthrough */
 						case VDP_HSCROLL_MODE_FULL:
-							hscroll = VRAMReadWord(state, state->hscroll_address + i * 2);
+							hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + i * 2);
 							break;
 
 						case VDP_HSCROLL_MODE_1CELL:
-							hscroll = VRAMReadWord(state, state->hscroll_address + (scanline >> tile_height_power << tile_height_power) * 4 + i * 2);
+							hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + (scanline >> tile_height_power << tile_height_power) * 4 + i * 2);
 							break;
 
 						case VDP_HSCROLL_MODE_1LINE:
-							hscroll = VRAMReadWord(state, state->hscroll_address + (scanline >> state->double_resolution_enabled) * 4 + i * 2);
+							hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + (scanline >> state->double_resolution_enabled) * 4 + i * 2);
 							break;
 					}
 				}
@@ -516,12 +506,8 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 
 			do
 			{
-				VDP_CachedSprite cached_sprite;
-
+				const VDP_CachedSprite cached_sprite = VDP_GetCachedSprite(state, sprite_index);
 				const cc_u16f blank_lines = 128 << state->double_resolution_enabled;
-
-				/* Decode sprite data */
-				VDP_GetCachedSprite(vdp, &cached_sprite, sprite_index);
 
 				/* This loop only processes rows that are on-screen, and haven't been drawn yet */
 				for (i = CC_MAX(blank_lines + scanline, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_height_power), cached_sprite.y + (cached_sprite.height << tile_height_power)); ++i)
@@ -568,17 +554,10 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 				const cc_u16f sprite_index = state->sprite_table_address + sprite_row_cache_entry->table_index * 8;
 				const cc_u16f width = sprite_row_cache_entry->width;
 				const cc_u16f height = sprite_row_cache_entry->height;
-				const cc_u16f tile_metadata = VRAMReadWord(state, sprite_index + 4);
-				const cc_u16f x = VRAMReadWord(state, sprite_index + 6) & 0x1FF;
+				const VDP_TileMetadata tile = VDP_DecomposeTileMetadata(VDP_ReadVRAMWord(state, sprite_index + 4));
+				const cc_u16f x = VDP_ReadVRAMWord(state, sprite_index + 6) & 0x1FF;
 
-				/* Decode tile metadata */
-				const cc_bool tile_priority = (tile_metadata & 0x8000) != 0;
-				const cc_u16f tile_palette_line = (tile_metadata >> 13) & 3;
-				const cc_bool tile_y_flip = (tile_metadata & 0x1000) != 0;
-				const cc_bool tile_x_flip = (tile_metadata & 0x0800) != 0;
-				const cc_u16f tile_index_base = tile_metadata & 0x7FF;
-
-				const cc_u8f metapixel_high_bits = (tile_priority << 2) | tile_palette_line;
+				const cc_u8f metapixel_high_bits = (tile.priority << 2) | tile.palette_line;
 
 				cc_u16f y_in_sprite = sprite_row_cache_entry->y_in_sprite;
 
@@ -594,14 +573,14 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 
 					cc_u8l *metapixels_pointer = sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + x - 128];
 
-					y_in_sprite = tile_y_flip ? (height << tile_height_power) - y_in_sprite - 1 : y_in_sprite;
+					y_in_sprite = tile.y_flip ? (height << tile_height_power) - y_in_sprite - 1 : y_in_sprite;
 
 					for (j = 0; j < width; ++j)
 					{
 						cc_u16f k;
 
-						const cc_u16f x_in_sprite = tile_x_flip ? width - j - 1 : j;
-						const cc_u16f tile_index = tile_index_base + (y_in_sprite >> tile_height_power) + x_in_sprite * height;
+						const cc_u16f x_in_sprite = tile.x_flip ? width - j - 1 : j;
+						const cc_u16f tile_index = tile.tile_index + (y_in_sprite >> tile_height_power) + x_in_sprite * height;
 						const cc_u16f pixel_y_in_tile = y_in_sprite & tile_height_mask;
 
 						/* Get raw tile data that contains the desired metapixel */
@@ -610,7 +589,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 						for (k = 0; k < 8; ++k)
 						{
 							/* Get the X coordinate of the pixel in the tile */
-							const cc_u8f pixel_x_in_tile = k ^ (tile_x_flip ? 7 : 0);
+							const cc_u8f pixel_x_in_tile = k ^ (tile.x_flip ? 7 : 0);
 
 							/* Obtain the index into the palette line */
 							const cc_u8f nibble_shift = (~pixel_x_in_tile & 1) << 2;
@@ -1083,13 +1062,34 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 	}
 }
 
-void VDP_GetCachedSprite(const VDP* const vdp, VDP_CachedSprite* const cached_sprite, const cc_u16f sprite_index)
+cc_u16f VDP_ReadVRAMWord(const VDP_State* const state, const cc_u16f address)
 {
-	const VDP_State* const state = vdp->state;
+	return (state->vram[address ^ 0] << 8) | state->vram[address ^ 1];
+}
+
+VDP_TileMetadata VDP_DecomposeTileMetadata(const cc_u16f packed_tile_metadata)
+{
+	VDP_TileMetadata tile_metadata;
+
+	tile_metadata.tile_index = packed_tile_metadata & 0x7FF;
+	tile_metadata.palette_line = (packed_tile_metadata >> 13) & 3;
+	tile_metadata.x_flip = (packed_tile_metadata & 0x800) != 0;
+	tile_metadata.y_flip = (packed_tile_metadata & 0x1000) != 0;
+	tile_metadata.priority = (packed_tile_metadata & 0x8000) != 0;
+
+	return tile_metadata;
+}
+
+VDP_CachedSprite VDP_GetCachedSprite(const VDP_State* const state, const cc_u16f sprite_index)
+{
+	VDP_CachedSprite cached_sprite;
+
 	const cc_u8l* const bytes = state->sprite_table_cache[sprite_index];
 
-	cached_sprite->y = ((bytes[0] & 3) << 8) | bytes[1];
-	cached_sprite->width = ((bytes[2] >> 2) & 3) + 1;
-	cached_sprite->height = (bytes[2] & 3) + 1;
-	cached_sprite->link = bytes[3] & 0x7F;
+	cached_sprite.y = ((bytes[0] & 3) << 8) | bytes[1];
+	cached_sprite.width = ((bytes[2] >> 2) & 3) + 1;
+	cached_sprite.height = (bytes[2] & 3) + 1;
+	cached_sprite.link = bytes[3] & 0x7F;
+
+	return cached_sprite;
 }

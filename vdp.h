@@ -52,6 +52,15 @@ typedef enum VDP_VScrollMode
 	VDP_VSCROLL_MODE_2CELL
 } VDP_VScrollMode;
 
+typedef struct VDP_TileMetadata
+{
+	cc_u16f tile_index;
+	cc_u8f palette_line;
+	cc_bool x_flip;
+	cc_bool y_flip;
+	cc_bool priority;
+} VDP_TileMetadata;
+
 typedef struct VDP_CachedSprite
 {
 	cc_u16f y;
@@ -160,7 +169,9 @@ cc_u16f VDP_ReadControl(const VDP *vdp);
 void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data);
 void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data, cc_u16f(*read_callback)(void *user_data, cc_u32f address), const void *read_callback_user_data);
 
-void VDP_GetCachedSprite(const VDP *vdp, VDP_CachedSprite *cached_sprite, cc_u16f sprite_index);
+cc_u16f VDP_ReadVRAMWord(const VDP_State *state, cc_u16f address);
+VDP_TileMetadata VDP_DecomposeTileMetadata(cc_u16f packed_tile_metadata);
+VDP_CachedSprite VDP_GetCachedSprite(const VDP_State *state, cc_u16f sprite_index);
 
 #ifdef __cplusplus
 }
