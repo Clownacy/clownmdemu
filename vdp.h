@@ -52,6 +52,14 @@ typedef enum VDP_VScrollMode
 	VDP_VSCROLL_MODE_2CELL
 } VDP_VScrollMode;
 
+typedef struct VDP_CachedSprite
+{
+	cc_u16f y;
+	cc_u8f width;
+	cc_u8f height;
+	cc_u8f link;
+} VDP_CachedSprite;
+
 typedef struct VDP_SpriteRowCacheEntry
 {
 	cc_u8l table_index;
@@ -151,6 +159,8 @@ cc_u16f VDP_ReadData(const VDP *vdp);
 cc_u16f VDP_ReadControl(const VDP *vdp);
 void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data);
 void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data, cc_u16f(*read_callback)(void *user_data, cc_u32f address), const void *read_callback_user_data);
+
+void VDP_GetCachedSprite(const VDP *vdp, VDP_CachedSprite *cached_sprite, cc_u16f sprite_index);
 
 #ifdef __cplusplus
 }

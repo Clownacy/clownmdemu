@@ -516,17 +516,15 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 
 			do
 			{
-				/* Decode sprite data */
-				const cc_u8l *cached_sprite = state->sprite_table_cache[sprite_index];
-				const cc_u16f y = ((cached_sprite[0] & 3) << 8) | cached_sprite[1];
-				const cc_u16f width = ((cached_sprite[2] >> 2) & 3) + 1;
-				const cc_u16f height = (cached_sprite[2] & 3) + 1;
-				const cc_u16f link = cached_sprite[3] & 0x7F;
+				VDP_CachedSprite cached_sprite;
 
 				const cc_u16f blank_lines = 128 << state->double_resolution_enabled;
 
+				/* Decode sprite data */
+				VDP_GetCachedSprite(vdp, &cached_sprite, sprite_index);
+
 				/* This loop only processes rows that are on-screen, and haven't been drawn yet */
-				for (i = CC_MAX(blank_lines + scanline, y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_height_power), y + (height << tile_height_power)); ++i)
+				for (i = CC_MAX(blank_lines + scanline, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_height_power), cached_sprite.y + (cached_sprite.height << tile_height_power)); ++i)
 				{
 					struct VDP_SpriteRowCacheRow *row = &state->sprite_row_cache.rows[i - blank_lines];
 
@@ -536,13 +534,13 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 						struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &row->sprites[row->total++];
 
 						sprite_row_cache_entry->table_index = (cc_u8l)sprite_index;
-						sprite_row_cache_entry->width = (cc_u8l)width;
-						sprite_row_cache_entry->height = (cc_u8l)height;
-						sprite_row_cache_entry->y_in_sprite = (cc_u8l)(i - y);
+						sprite_row_cache_entry->width = (cc_u8l)cached_sprite.width;
+						sprite_row_cache_entry->height = (cc_u8l)cached_sprite.height;
+						sprite_row_cache_entry->y_in_sprite = (cc_u8l)(i - cached_sprite.y);
 					}
 				}
 
-				if (link >= max_sprites)
+				if (cached_sprite.link >= max_sprites)
 				{
 					/* Invalid link - bail before it can cause a crash.
 						According to Nemesis, this is actually what real hardware does too:
@@ -550,7 +548,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 					break;
 				}
 
-				sprite_index = link;
+				sprite_index = cached_sprite.link;
 			}
 			while (sprite_index != 0 && --sprites_remaining != 0);
 		}
@@ -1083,4 +1081,15 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 			vdp->state->dma.source_address_low &= 0xFFFF;
 		} while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
 	}
+}
+
+void VDP_GetCachedSprite(const VDP* const vdp, VDP_CachedSprite* const cached_sprite, const cc_u16f sprite_index)
+{
+	const VDP_State* const state = vdp->state;
+	const cc_u8l* const bytes = state->sprite_table_cache[sprite_index];
+
+	cached_sprite->y = ((bytes[0] & 3) << 8) | bytes[1];
+	cached_sprite->width = ((bytes[2] >> 2) & 3) + 1;
+	cached_sprite->height = (bytes[2] & 3) + 1;
+	cached_sprite->link = bytes[3] & 0x7F;
 }
