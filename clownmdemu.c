@@ -670,6 +670,8 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	{
 		/* PSG */
 		/* TODO - What's supposed to happen here, if you read from the PSG? */
+		/* TODO: It freezes the 68k, that's what:
+		   https://forums.sonicretro.org/index.php?posts/1066059/ */
 	}
 	else if (address >= 0xE00000 / 2 && address <= 0xFFFFFF / 2)
 	{
