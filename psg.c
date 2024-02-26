@@ -145,9 +145,12 @@ void PSG_Update(const PSG *psg, cc_s16l *sample_buffer, size_t total_samples)
 			for (j = 0; j < total_samples; ++j)
 			{
 				/* This countdown is responsible for the channel's frequency. */
+				if (tone->countdown != 0)
+					--tone->countdown;
+
 				/* Curiously, the phase never changes if the frequency is at its maximum.
 				   This can be exploited to play PCM samples. After Burner II relies on this. */
-				if (tone->countdown != 0 && --tone->countdown == 0)
+				if (tone->countdown_master != 0 && tone->countdown == 0)
 				{
 					/* Reset the countdown. */
 					tone->countdown = tone->countdown_master;
