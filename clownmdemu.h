@@ -152,9 +152,15 @@ typedef struct ClownMDEmu_State
 		cc_u8l control;
 		cc_u8l data;
 	} joypads[3];
+
+	cc_u16l current_scanline;
+
+	/* Z80 */
 	cc_u16l z80_bank;
 	cc_bool m68k_has_z80_bus;
 	cc_bool z80_reset;
+
+	/* Mega CD */
 	cc_bool m68k_has_mcd_m68k_bus;
 	cc_bool mcd_m68k_reset;
 	cc_u8l prg_ram_bank;

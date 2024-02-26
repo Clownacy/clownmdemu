@@ -664,7 +664,10 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address == 0xC00008 / 2)
 	{
 		/* H/V COUNTER */
-		/* TODO */
+		/* TODO: H counter. */
+		/* TODO: Double-resolution mode. */
+		/* TODO: The V counter emulation is incredibly inaccurate: the timing is likely wrong, and it should be incremented while in the blanking areas too. */
+		value = clownmdemu->state->current_scanline << 8;
 	}
 	else if (address >= 0xC00010 / 2 && address <= 0xC00016 / 2)
 	{
@@ -1619,7 +1622,6 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
-	cc_u16f scanline;
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks, mcd_m68k_read_write_callbacks;
 	CPUCallbackUserData cpu_callback_user_data;
 	cc_u8f h_int_counter;
@@ -1650,8 +1652,9 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 
 	clownmdemu->state->vdp.currently_in_vblank = cc_false;
 
-	for (scanline = 0; scanline < television_vertical_resolution; ++scanline)
+	for (clownmdemu->state->current_scanline = 0; clownmdemu->state->current_scanline < television_vertical_resolution; ++clownmdemu->state->current_scanline)
 	{
+		const cc_u16f scanline = clownmdemu->state->current_scanline;
 		const cc_u32f current_cycle = cycles_per_scanline * (1 + scanline);
 
 		/* Sync the 68k, since it's the one thing that can influence the VDP */
