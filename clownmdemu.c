@@ -1557,6 +1557,11 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->countdowns.z80 = 0;
 	state->countdowns.mcd_m68k = 0;
 
+	memset(state->m68k_ram, 0, sizeof(state->m68k_ram));
+	memset(state->z80_ram, 0, sizeof(state->z80_ram));
+	memset(state->prg_ram, 0, sizeof(state->prg_ram));
+	memset(state->word_ram, 0, sizeof(state->word_ram));
+
 	Z80_State_Initialise(&state->z80);
 	VDP_State_Initialise(&state->vdp);
 	FM_State_Initialise(&state->fm);
