@@ -1787,6 +1787,7 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 
 		/* Skip "security code". */
 		/* TODO: Fix whatever's breaking this dumb "security code" so that we don't have to skip it. */
+		/* TODO: According to Devon, the security code uses those mysterious undocumented public functions in the MAIN-CPU BIOS. */
 		switch (region)
 		{
 			case 'E':
