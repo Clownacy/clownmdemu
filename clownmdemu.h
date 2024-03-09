@@ -170,9 +170,10 @@ typedef struct ClownMDEmu_State
 	cc_u16l mcd_communication_flag;
 	cc_u16l mcd_communication_command[8];
 	cc_u16l mcd_communication_status[8];
-	cc_u32l current_cd_sector;
+	cc_u32l current_cd_sector, total_buffered_sectors;
 	cc_bool mcd_waiting_for_vint;
 	cc_bool mcd_vint_enabled;
+	cc_bool cdc_ready;
 } ClownMDEmu_State;
 
 typedef struct ClownMDEmu

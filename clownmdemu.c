@@ -1140,6 +1140,124 @@ static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f val
 	Z80WriteCallbackWithCycle(user_data, address, value, callback_user_data->z80_current_cycle);
 }
 
+static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, const cc_u32f target_cycle);
+
+static cc_u16f MCDM68kReadWord(const void* const user_data, const cc_u32f address, const cc_u32f target_cycle)
+{
+	assert(address % 2 == 0);
+
+	return MCDM68kReadCallbackWithCycle(user_data, (address & 0xFFFFFF) / 2, cc_true, cc_true, target_cycle);
+}
+
+static cc_u16f MCDM68kReadLongword(const void* const user_data, const cc_u32f address, const cc_u32f target_cycle)
+{
+	cc_u32f longword;
+	longword = (cc_u32f)MCDM68kReadWord(user_data, address + 0, target_cycle) << 16;
+	longword |= (cc_u32f)MCDM68kReadWord(user_data, address + 2, target_cycle) << 0;
+	return longword;
+}
+
+static void MCDM68kWriteWord(const void* const user_data, const cc_u32f address, const cc_u16f value, const cc_u32f target_cycle)
+{
+	assert(address % 2 == 0);
+
+	MCDM68kWriteCallbackWithCycle(user_data, (address & 0xFFFFFF) / 2, cc_true, cc_true, value, target_cycle);
+}
+
+static void MCDM68kWriteLongword(const void* const user_data, const cc_u32f address, const cc_u32f value, const cc_u32f target_cycle)
+{
+	assert(value <= 0xFFFFFFFF);
+	MCDM68kWriteWord(user_data, address + 0, value >> 16, target_cycle);
+	MCDM68kWriteWord(user_data, address + 2, value & 0xFFFF, target_cycle);
+}
+
+static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const user_data, const ClownMDEmu_Callbacks* const frontend_callbacks, const cc_u32f target_cycle)
+{
+	/* TODO: None of this shit is accurate at all. */
+	const cc_u16f command = clownmdemu->mcd_m68k->data_registers[0] & 0xFFFF;
+
+	switch (command)
+	{
+		case 0x20:
+		{
+			/* ROMREADN */
+			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 0, target_cycle);
+			const cc_u32f total_sectors = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 4, target_cycle);
+
+			frontend_callbacks->cd_seeked((void*)frontend_callbacks->user_data, starting_sector);
+			clownmdemu->state->current_cd_sector = starting_sector;
+			clownmdemu->state->total_buffered_sectors = total_sectors;
+			break;
+		}
+
+		case 0x8A:
+			/* CDCSTAT */
+			clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
+			break;
+
+		case 0x8B:
+			/* CDCREAD */
+			if (clownmdemu->state->total_buffered_sectors == 0)
+			{
+				/* Sonic Megamix 4.0b relies on this. */
+				clownmdemu->mcd_m68k->status_register |= 1; /* Set carry flag to signal that a sector has not been prepared. */
+			}
+			else
+			{
+				--clownmdemu->state->total_buffered_sectors;
+				clownmdemu->state->cdc_ready = cc_true;
+
+				clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that a sector has been prepared. */
+				clownmdemu->mcd_m68k->data_registers[0] = GetCDSectorHeader(clownmdemu);
+			}
+
+			break;
+
+		case 0x8C:
+		{
+			/* CDCTRN */
+			if (!clownmdemu->state->cdc_ready)
+			{
+				clownmdemu->mcd_m68k->status_register |= 1; /* Set carry flag to signal that there's not a sector ready. */
+			}
+			else
+			{
+				cc_u32f i;
+				const cc_u8l* const sector_bytes = frontend_callbacks->cd_sector_read((void*)frontend_callbacks->user_data);
+				const cc_u32f sector_header = GetCDSectorHeader(clownmdemu);
+
+				clownmdemu->state->cdc_ready = cc_false;
+				++clownmdemu->state->current_cd_sector;
+
+				for (i = 0; i < 0x800; i += 2)
+				{
+					const cc_u32f address = clownmdemu->mcd_m68k->address_registers[0] + i;
+					const cc_u16f sector_word = ((cc_u16f)sector_bytes[i + 0] << 8) | ((cc_u16f)sector_bytes[i + 1] << 0);
+
+					MCDM68kWriteWord(user_data, address, sector_word, target_cycle);
+				}
+
+				MCDM68kWriteLongword(user_data, clownmdemu->mcd_m68k->address_registers[1], sector_header, target_cycle);
+
+				clownmdemu->mcd_m68k->address_registers[0] = (clownmdemu->mcd_m68k->address_registers[0] + 0x800) & 0xFFFFFFFF;
+				clownmdemu->mcd_m68k->address_registers[1] = (clownmdemu->mcd_m68k->address_registers[1] + 4) & 0xFFFFFFFF;
+				clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
+			}
+
+			break;
+		}
+
+		case 0x8D:
+			/* CDCACK */
+			/* TODO: Anything. */
+			break;
+
+		default:
+			PrintError("UNRECOGNISED BIOS CALL DETECTED (0x%02" CC_PRIXFAST16 ")", command);
+			break;
+	}
+}
+
 /* MCD 68k (SUB-CPU) memory access callbacks */
 
 static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, const cc_u32f target_cycle)
@@ -1236,69 +1354,10 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 		}
 		else if (address == 0x5F22 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F22)
 		{
+			static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const user_data, const ClownMDEmu_Callbacks* const frontend_callbacks, const cc_u32f target_cycle);
+
 			/* BIOS call! */
-			/* TODO: None of this shit is accurate at all. */
-			const cc_u16f command = clownmdemu->mcd_m68k->data_registers[0] & 0xFFFF;
-
-			switch (command)
-			{
-				case 0x20:
-				{
-					/* ROMREADN */
-					cc_u32f starting_sector;
-					starting_sector = MCDM68kReadCallbackWithCycle(user_data, ((clownmdemu->mcd_m68k->address_registers[0] + 0) & 0xFFFFFF) / 2, cc_true, cc_true, target_cycle) << 16;
-					starting_sector |= MCDM68kReadCallbackWithCycle(user_data, ((clownmdemu->mcd_m68k->address_registers[0] + 2) & 0xFFFFFF) / 2, cc_true, cc_true, target_cycle) << 0;
-
-					frontend_callbacks->cd_seeked((void*)frontend_callbacks->user_data, starting_sector);
-					clownmdemu->state->current_cd_sector = starting_sector;
-					break;
-				}
-
-				case 0x8A:
-					/* CDCSTAT */
-					clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
-					break;
-
-				case 0x8B:
-					/* CDCREAD */
-					clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
-					clownmdemu->mcd_m68k->data_registers[0] = GetCDSectorHeader(clownmdemu);
-					break;
-
-				case 0x8C:
-				{
-					/* CDCTRN */
-					cc_u32f i;
-					const cc_u8l* const sector_bytes = frontend_callbacks->cd_sector_read((void*)frontend_callbacks->user_data);
-					const cc_u32f sector_header = GetCDSectorHeader(clownmdemu);
-
-					++clownmdemu->state->current_cd_sector;
-
-					for (i = 0; i < 0x800; i += 2)
-					{
-						const cc_u32f address = clownmdemu->mcd_m68k->address_registers[0] + i;
-
-						MCDM68kWriteCallbackWithCycle(user_data, (address & 0xFFFFFF) / 2, cc_true, cc_true, ((cc_u16f)sector_bytes[i + 0] << 8) | ((cc_u16f)sector_bytes[i + 1] << 0), target_cycle);
-					}
-
-					MCDM68kWriteCallbackWithCycle(user_data, ((clownmdemu->mcd_m68k->address_registers[1] + 0) & 0xFFFFFF) / 2, cc_true, cc_true, sector_header >> 16, target_cycle);
-					MCDM68kWriteCallbackWithCycle(user_data, ((clownmdemu->mcd_m68k->address_registers[1] + 2) & 0xFFFFFF) / 2, cc_true, cc_true, sector_header >> 0, target_cycle);
-
-					clownmdemu->mcd_m68k->address_registers[0] = (clownmdemu->mcd_m68k->address_registers[0] + 0x800) & 0xFFFFFFFF;
-					clownmdemu->mcd_m68k->address_registers[1] = (clownmdemu->mcd_m68k->address_registers[1] + 4) & 0xFFFFFFFF;
-					clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
-					break;
-				}
-
-				case 0x8D:
-					/* CDCACK */
-					/* TODO: Anything. */
-					break;
-
-				default:
-					PrintError("UNRECOGNISED BIOS CALL DETECTED (0x%02" CC_PRIXFAST16 ")", command);
-					break;
-			}
+			MegaCDBIOSCall(clownmdemu, user_data, frontend_callbacks, target_cycle);
 
 			value = 0x4E75; /* 'rts' instruction */
 		}
