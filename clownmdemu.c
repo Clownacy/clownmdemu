@@ -558,27 +558,6 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 					parameters.frontend_callbacks = frontend_callbacks;
 
 					value = IOPort_ReadData(&clownmdemu->state->io_ports[joypad_index], 0, &parameters); /* TODO: Cycles. */
-				#if 0
-					/* TODO: Trash. */
-					value |= clownmdemu->state->joypads[joypad_index].data;
-
-					if ((value & 0x40) != 0)
-					{
-						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_C) << 5;
-						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_B) << 4;
-						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_RIGHT) << 3;
-						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_LEFT) << 2;
-						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
-						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
-					}
-					else
-					{
-						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_START) << 5;
-						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_A) << 4;
-						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
-						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
-					}
-				#endif
 				}
 
 				break;
