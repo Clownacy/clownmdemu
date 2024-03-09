@@ -139,15 +139,12 @@ typedef struct ClownMDEmu_State
 		cc_u16f z80;
 		cc_u16f mcd_m68k;
 	} countdowns;
-	Clown68000_State m68k;
-	cc_u16l m68k_ram[0x8000];
-	VDP_State vdp;
-	FM_State fm;
-	PSG_State psg;
-	IOPort io_ports[3];
-	Controller controllers[2];
 
-	cc_u16l current_scanline;
+	struct
+	{
+		Clown68000_State state;
+		cc_u16l ram[0x8000];
+	} m68k;
 
 	struct
 	{
@@ -157,6 +154,14 @@ typedef struct ClownMDEmu_State
 		cc_bool m68k_has_bus;
 		cc_bool reset_held;
 	} z80;
+
+	VDP_State vdp;
+	FM_State fm;
+	PSG_State psg;
+	IOPort io_ports[3];
+	Controller controllers[2];
+
+	cc_u16l current_scanline;
 
 	struct
 	{

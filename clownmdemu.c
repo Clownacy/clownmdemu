@@ -338,7 +338,7 @@ static cc_u16f VDPReadCallback(void *user_data, cc_u32f address)
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
 		/* 68k RAM. */
-		value = state->m68k_ram[(address & 0xFFFF) / 2];
+		value = state->m68k.ram[(address & 0xFFFF) / 2];
 	}
 	else
 	{
@@ -380,7 +380,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 					if ((address & 0x10000) != 0)
 					{
 						/* TODO */
-						PrintError("MAIN-CPU attempted to read from that weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+						PrintError("MAIN-CPU attempted to read from that weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 					}
 					else
 					{
@@ -391,7 +391,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 				{
 					if (clownmdemu->state->mega_cd.word_ram.dmna)
 					{
-						PrintError("MAIN-CPU attempted to read from WORD-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+						PrintError("MAIN-CPU attempted to read from WORD-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 					}
 					else
 					{
@@ -498,7 +498,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 				/* PRG-RAM */
 				if (!clownmdemu->state->mega_cd.m68k.bus_requested)
 				{
-					PrintError("MAIN-CPU attempted to read from PRG-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+					PrintError("MAIN-CPU attempted to read from PRG-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 				}
 				else
 				{
@@ -512,16 +512,16 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 		/* Z80 RAM and YM2612 */
 		if (!clownmdemu->state->z80.m68k_has_bus)
 		{
-			PrintError("68k attempted to read Z80 memory/YM2612 ports without Z80 bus at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+			PrintError("68k attempted to read Z80 memory/YM2612 ports without Z80 bus at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 		}
 		else if (clownmdemu->state->z80.reset_held)
 		{
 			/* TODO: Does this actually bother real hardware? */
-			PrintError("68k attempted to read Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+			PrintError("68k attempted to read Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 		}
 		else if (do_high_byte && do_low_byte)
 		{
-			PrintError("68k attempted to perform word-sized read of Z80 memory/YM2612 ports at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+			PrintError("68k attempted to perform word-sized read of Z80 memory/YM2612 ports at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 		}
 		else
 		{
@@ -713,11 +713,11 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address >= 0xE00000 / 2 && address <= 0xFFFFFF / 2)
 	{
 		/* 68k RAM */
-		value = clownmdemu->state->m68k_ram[address & 0x7FFF];
+		value = clownmdemu->state->m68k.ram[address & 0x7FFF];
 	}
 	else
 	{
-		PrintError("Attempted to read invalid 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->state->m68k.program_counter);
+		PrintError("Attempted to read invalid 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->state->m68k.state.program_counter);
 	}
 
 	return value;
@@ -757,7 +757,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 				frontend_callbacks->cartridge_written((void*)frontend_callbacks->user_data, (address & 0x1FFFFF) * 2 + 1, low_byte);
 
 			/* TODO - This is temporary, just to catch possible bugs in the 68k emulator */
-			PrintError("Attempted to write to ROM address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->state->m68k.program_counter);
+			PrintError("Attempted to write to ROM address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->state->m68k.state.program_counter);
 		}
 		else
 		{
@@ -769,7 +769,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 					if ((address & 0x10000) != 0)
 					{
 						/* TODO */
-						PrintError("MAIN-CPU attempted to write to that weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+						PrintError("MAIN-CPU attempted to write to that weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 					}
 					else
 					{
@@ -781,7 +781,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 				{
 					if (clownmdemu->state->mega_cd.word_ram.dmna)
 					{
-						PrintError("MAIN-CPU attempted to write to WORD-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+						PrintError("MAIN-CPU attempted to write to WORD-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 					}
 					else
 					{
@@ -793,14 +793,14 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			else if ((address & 0x10000) == 0)
 			{
 				/* Mega CD BIOS */
-				PrintError("MAIN-CPU attempted to write to BIOS (0x%" CC_PRIXFAST32 ") at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->state->m68k.program_counter);
+				PrintError("MAIN-CPU attempted to write to BIOS (0x%" CC_PRIXFAST32 ") at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->state->m68k.state.program_counter);
 			}
 			else
 			{
 				/* PRG-RAM */
 				if (!clownmdemu->state->mega_cd.m68k.bus_requested)
 				{
-					PrintError("MAIN-CPU attempted to write to PRG-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+					PrintError("MAIN-CPU attempted to write to PRG-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 				}
 				else
 				{
@@ -815,16 +815,16 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		/* Z80 RAM and YM2612 */
 		if (!clownmdemu->state->z80.m68k_has_bus)
 		{
-			PrintError("68k attempted to write Z80 memory/YM2612 ports without Z80 bus at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+			PrintError("68k attempted to write Z80 memory/YM2612 ports without Z80 bus at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 		}
 		else if (clownmdemu->state->z80.reset_held)
 		{
 			/* TODO: Does this actually bother real hardware? */
-			PrintError("68k attempted to write Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+			PrintError("68k attempted to write Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 		}
 		else if (do_high_byte && do_low_byte)
 		{
-			PrintError("68k attempted to perform word-sized write of Z80 memory/YM2612 ports at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
+			PrintError("68k attempted to perform word-sized write of Z80 memory/YM2612 ports at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 		}
 		else
 		{
@@ -1044,12 +1044,12 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	else if (address >= 0xE00000 / 2 && address <= 0xFFFFFF / 2)
 	{
 		/* 68k RAM */
-		clownmdemu->state->m68k_ram[address & 0x7FFF] &= ~mask;
-		clownmdemu->state->m68k_ram[address & 0x7FFF] |= value & mask;
+		clownmdemu->state->m68k.ram[address & 0x7FFF] &= ~mask;
+		clownmdemu->state->m68k.ram[address & 0x7FFF] |= value & mask;
 	}
 	else
 	{
-		PrintError("Attempted to write invalid 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->state->m68k.program_counter);
+		PrintError("Attempted to write invalid 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->state->m68k.state.program_counter);
 	}
 }
 
@@ -1734,7 +1734,15 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->countdowns.z80 = 0;
 	state->countdowns.mcd_m68k = 0;
 
-	memset(state->m68k_ram, 0, sizeof(state->m68k_ram));
+	/* M68K */
+	memset(state->m68k.ram, 0, sizeof(state->m68k.ram));
+
+	/* Z80 */
+	Z80_State_Initialise(&state->z80.state);
+	memset(state->z80.ram, 0, sizeof(state->z80.ram));
+	state->z80.bank = 0;
+	state->z80.m68k_has_bus = cc_true;
+	state->z80.reset_held = cc_true;
 
 	VDP_State_Initialise(&state->vdp);
 	FM_State_Initialise(&state->fm);
@@ -1751,13 +1759,6 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 
 	Controller_Initialise(&state->controllers[0], FrontendController1Callback);
 	Controller_Initialise(&state->controllers[1], FrontendController2Callback);
-
-	/* Z80 */
-	Z80_State_Initialise(&state->z80.state);
-	memset(state->z80.ram, 0, sizeof(state->z80.ram));
-	state->z80.bank = 0;
-	state->z80.m68k_has_bus = cc_true;
-	state->z80.reset_held = cc_true;
 
 	/* Mega CD */
 	memset(state->mega_cd.prg_ram.buffer, 0, sizeof(state->mega_cd.prg_ram.buffer));
@@ -1796,7 +1797,7 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 	clownmdemu->constant = constant;
 	clownmdemu->state = state;
 
-	clownmdemu->m68k = &state->m68k;
+	clownmdemu->m68k = &state->m68k.state;
 
 	clownmdemu->z80.constant = &constant->z80;
 	clownmdemu->z80.state = &state->z80.state;
@@ -1948,7 +1949,7 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 			CDSectorsTo68kRAM(callbacks, &clownmdemu->state->mega_cd.word_ram.buffer[0x600 / 2], 0x800, 32 * 0x800);
 
 		/* This is what the Mega CD's BIOS does. */
-		memcpy(clownmdemu->state->m68k_ram, clownmdemu->state->mega_cd.word_ram.buffer, 0x8000);
+		memcpy(clownmdemu->state->m68k.ram, clownmdemu->state->mega_cd.word_ram.buffer, 0x8000);
 
 		/* Read Sub Program. */
 		CDSectorsTo68kRAM(callbacks, &clownmdemu->state->mega_cd.prg_ram.buffer[0x6000 / 2], sp_start, sp_length);
@@ -1966,13 +1967,13 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 		/* Construct MAIN-CPU vector jump table. */
 		for (i = 0; i < 30; ++i)
 		{
-			clownmdemu->state->m68k_ram[0xFD00 / 2 + 3 * i + 0] = 0x4EF9;
-			clownmdemu->state->m68k_ram[0xFD00 / 2 + 3 * i + 1] = 0x0000;
-			clownmdemu->state->m68k_ram[0xFD00 / 2 + 3 * i + 2] = 0x0100; /* Points to an RTE instruction. */
+			clownmdemu->state->m68k.ram[0xFD00 / 2 + 3 * i + 0] = 0x4EF9;
+			clownmdemu->state->m68k.ram[0xFD00 / 2 + 3 * i + 1] = 0x0000;
+			clownmdemu->state->m68k.ram[0xFD00 / 2 + 3 * i + 2] = 0x0100; /* Points to an RTE instruction. */
 		}
 
 		/* Set correct entry point. */
-		clownmdemu->state->m68k_ram[0xFD00 / 2 + 1] = 0x00FF;
+		clownmdemu->state->m68k.ram[0xFD00 / 2 + 1] = 0x00FF;
 
 		/* Skip "security code". */
 		/* TODO: Fix whatever's breaking this dumb "security code" so that we don't have to skip it. */
@@ -1980,16 +1981,16 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 		switch (region)
 		{
 			case 'E':
-				clownmdemu->state->m68k_ram[0xFD00 / 2 + 2] = 1390;
+				clownmdemu->state->m68k.ram[0xFD00 / 2 + 2] = 1390;
 				break;
 
 			case 'U':
-				clownmdemu->state->m68k_ram[0xFD00 / 2 + 2] = 0x0584;
+				clownmdemu->state->m68k.ram[0xFD00 / 2 + 2] = 0x0584;
 				break;
 
 			default:
 			case 'J':
-				clownmdemu->state->m68k_ram[0xFD00 / 2 + 2] = 342;
+				clownmdemu->state->m68k.ram[0xFD00 / 2 + 2] = 342;
 				break;
 		}
 	}
