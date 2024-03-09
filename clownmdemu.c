@@ -226,7 +226,7 @@ static void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* con
 
 		if (z80_countdown == 0)
 		{
-			const cc_bool z80_not_running = clownmdemu->state->m68k_has_z80_bus || !clownmdemu->state->mcd_m68k_reset;
+			const cc_bool z80_not_running = clownmdemu->state->m68k_has_z80_bus || !clownmdemu->state->z80_reset;
 
 			z80_countdown = CLOWNMDEMU_Z80_CLOCK_DIVIDER * (z80_not_running ? 1 : Z80_DoCycle(&clownmdemu->z80, &z80_read_write_callbacks));
 		}
