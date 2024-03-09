@@ -31,6 +31,12 @@ typedef struct CPUCallbackUserData
 	cc_u32f psg_current_cycle;
 } CPUCallbackUserData;
 
+typedef struct IOPortToController_Parameters
+{
+	Controller *controller;
+	const ClownMDEmu_Callbacks *frontend_callbacks;
+} IOPortToController_Parameters;
+
 /* TODO: Please, anything but this... */
 /* This is the 'bios.bin' file that can be found in the 'SUB-CPU BIOS' directory. */
 static const cc_u16l subcpu_bios_uncompressed[] = {
@@ -525,8 +531,15 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 			case 0xA10004 / 2:
 				if (do_low_byte)
 				{
+					IOPortToController_Parameters parameters;
+
 					const cc_u16f joypad_index = address - 0xA10002 / 2;
 
+					parameters.controller = &clownmdemu->state->controllers[joypad_index];
+					parameters.frontend_callbacks = frontend_callbacks;
+
+					value = IOPort_ReadData(&clownmdemu->state->io_ports[joypad_index], 0, &parameters); /* TODO: Cycles. */
+				#if 0
 					value |= clownmdemu->state->joypads[joypad_index].data;
 
 					if ((value & 0x40) != 0)
@@ -545,6 +558,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_DOWN) << 1;
 						value |= !frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, CLOWNMDEMU_BUTTON_UP) << 0;
 					}
+				#endif
 				}
 
 				break;
@@ -560,7 +574,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 				{
 					const cc_u16f joypad_index = address - 0xA10008 / 2;
 
-					value = clownmdemu->state->joypads[joypad_index].control;
+					value = IOPort_ReadControl(&clownmdemu->state->io_ports[joypad_index]);
 				}
 
 				break;
@@ -810,9 +824,14 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			case 0xA10006 / 2:
 				if (do_low_byte)
 				{
+					IOPortToController_Parameters parameters;
+
 					const cc_u16f joypad_index = address - 0xA10002 / 2;
 
-					clownmdemu->state->joypads[joypad_index].data = low_byte & clownmdemu->state->joypads[joypad_index].control;
+					parameters.controller = &clownmdemu->state->controllers[joypad_index];
+					parameters.frontend_callbacks = frontend_callbacks;
+
+					IOPort_WriteData(&clownmdemu->state->io_ports[joypad_index], low_byte, 0, &parameters); /* TODO: Cycles. */
 				}
 
 				break;
@@ -824,7 +843,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 				{
 					const cc_u16f joypad_index = address - 0xA10008 / 2;
 
-					clownmdemu->state->joypads[joypad_index].control = low_byte;
+					IOPort_WriteControl(&clownmdemu->state->io_ports[joypad_index], low_byte);
 				}
 
 				break;
@@ -1608,6 +1627,81 @@ void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant)
 	PSG_Constant_Initialise(&constant->psg);
 }
 
+static cc_bool FrontendControllerCallbackCommon(void* const user_data, const Controller_Button button, const cc_u8f joypad_index)
+{
+	ClownMDEmu_Button frontend_button;
+
+	const ClownMDEmu_Callbacks *frontend_callbacks = (const ClownMDEmu_Callbacks*)user_data;
+
+	switch (button)
+	{
+		case CONTROLLER_BUTTON_UP:
+			frontend_button = CLOWNMDEMU_BUTTON_UP;
+			break;
+
+		case CONTROLLER_BUTTON_DOWN:
+			frontend_button = CLOWNMDEMU_BUTTON_DOWN;
+			break;
+
+		case CONTROLLER_BUTTON_LEFT:
+			frontend_button = CLOWNMDEMU_BUTTON_LEFT;
+			break;
+
+		case CONTROLLER_BUTTON_RIGHT:
+			frontend_button = CLOWNMDEMU_BUTTON_RIGHT;
+			break;
+
+		case CONTROLLER_BUTTON_A:
+			frontend_button = CLOWNMDEMU_BUTTON_A;
+			break;
+
+		case CONTROLLER_BUTTON_B:
+			frontend_button = CLOWNMDEMU_BUTTON_B;
+			break;
+
+		case CONTROLLER_BUTTON_C:
+			frontend_button = CLOWNMDEMU_BUTTON_C;
+			break;
+
+		case CONTROLLER_BUTTON_START:
+			frontend_button = CLOWNMDEMU_BUTTON_START;
+			break;
+
+		/* TODO: These buttons. */
+		case CONTROLLER_BUTTON_X:
+		case CONTROLLER_BUTTON_Y:
+		case CONTROLLER_BUTTON_Z:
+		case CONTROLLER_BUTTON_MODE:
+			return cc_false;
+	}
+
+	return frontend_callbacks->input_requested((void*)frontend_callbacks->user_data, joypad_index, frontend_button);
+}
+
+static cc_bool FrontendController1Callback(void* const user_data, const Controller_Button button)
+{
+	return FrontendControllerCallbackCommon(user_data, button, 0);
+}
+
+static cc_bool FrontendController2Callback(void* const user_data, const Controller_Button button)
+{
+	return FrontendControllerCallbackCommon(user_data, button, 1);
+}
+
+static cc_u8f IOPortToController_ReadCallback(void* const user_data, const cc_u16f cycles)
+{
+	const IOPortToController_Parameters *parameters = (const IOPortToController_Parameters*)user_data;
+
+	return Controller_Read(parameters->controller, cycles, parameters->frontend_callbacks);
+}
+
+static void IOPortToController_WriteCallback(void* const user_data, const cc_u8f value, const cc_u16f cycles)
+{
+	const IOPortToController_Parameters *parameters = (const IOPortToController_Parameters*)user_data;
+
+	Controller_Write(parameters->controller, value, cycles);
+}
+
 void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 {
 	cc_u16f i;
@@ -1626,11 +1720,17 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	FM_State_Initialise(&state->fm);
 	PSG_State_Initialise(&state->psg);
 
-	for (i = 0; i < CC_COUNT_OF(state->joypads); ++i)
+	for (i = 0; i < CC_COUNT_OF(state->io_ports); ++i)
 	{
-		state->joypads[i].control = 0; /* The standard Sega SDK bootcode uses this to detect soft-resets */
-		state->joypads[i].data = 0;
+		/* The standard Sega SDK bootcode uses this to detect soft-resets. */
+		IOPort_Initialise(&state->io_ports[i]);
 	}
+
+	IOPort_SetCallbacks(&state->io_ports[0], IOPortToController_ReadCallback, IOPortToController_WriteCallback);
+	IOPort_SetCallbacks(&state->io_ports[1], IOPortToController_ReadCallback, IOPortToController_WriteCallback);
+
+	Controller_Initialise(&state->controllers[0], FrontendController1Callback);
+	Controller_Initialise(&state->controllers[1], FrontendController2Callback);
 
 	state->z80_bank = 0;
 	state->m68k_has_z80_bus = cc_true;
@@ -1658,6 +1758,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->current_cd_sector = 0;
 	state->mcd_waiting_for_vint = cc_false;
 	state->mcd_vint_enabled = cc_true;
+	state->cdc_ready = cc_false;
 }
 
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state)

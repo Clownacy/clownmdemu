@@ -6,7 +6,9 @@
 
 #include "clowncommon/clowncommon.h"
 
+#include "controller.h"
 #include "fm.h"
+#include "io_port.h"
 #include "clown68000/interpreter/clown68000.h"
 #include "psg.h"
 #include "vdp.h"
@@ -147,11 +149,8 @@ typedef struct ClownMDEmu_State
 	VDP_State vdp;
 	FM_State fm;
 	PSG_State psg;
-	struct
-	{
-		cc_u8l control;
-		cc_u8l data;
-	} joypads[3];
+	IOPort io_ports[3];
+	Controller controllers[2];
 
 	cc_u16l current_scanline;
 
