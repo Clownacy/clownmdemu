@@ -226,7 +226,7 @@ static void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* con
 
 		if (z80_countdown == 0)
 		{
-			const cc_bool z80_not_running = clownmdemu->state->m68k_has_z80_bus || !clownmdemu->state->z80_reset;
+			const cc_bool z80_not_running = clownmdemu->state->m68k_has_z80_bus || clownmdemu->state->z80_reset;
 
 			z80_countdown = CLOWNMDEMU_Z80_CLOCK_DIVIDER * (z80_not_running ? 1 : Z80_DoCycle(&clownmdemu->z80, &z80_read_write_callbacks));
 		}
@@ -895,7 +895,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		{
 			const cc_bool new_z80_reset = (high_byte & 1) == 0;
 
-			if (!clownmdemu->state->z80_reset && new_z80_reset)
+			if (clownmdemu->state->z80_reset && !new_z80_reset)
 			{
 				SyncZ80(clownmdemu, callback_user_data, target_cycle);
 				Z80_Reset(&clownmdemu->z80);
