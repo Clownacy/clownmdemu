@@ -180,7 +180,7 @@ static void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* co
 	m68k_read_write_callbacks.user_data = other_state;
 
 	/* Store this in a local variable to make the upcoming code faster. */
-	m68k_countdown = clownmdemu->state->countdowns.m68k;
+	m68k_countdown = clownmdemu->state->m68k.cycle_countdown;
 
 	while (other_state->m68k_current_cycle < target_cycle)
 	{
@@ -200,7 +200,7 @@ static void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* co
 	}
 
 	/* Store this back in memory for later. */
-	clownmdemu->state->countdowns.m68k = m68k_countdown;
+	clownmdemu->state->m68k.cycle_countdown = m68k_countdown;
 }
 
 static void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
@@ -213,7 +213,7 @@ static void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* con
 	z80_read_write_callbacks.user_data = other_state;
 
 	/* Store this in a local variables to make the upcoming code faster. */
-	z80_countdown = clownmdemu->state->countdowns.z80;
+	z80_countdown = clownmdemu->state->z80.cycle_countdown;
 
 	while (other_state->z80_current_cycle < target_cycle)
 	{
@@ -235,7 +235,7 @@ static void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* con
 	}
 
 	/* Store this back in memory for later. */
-	clownmdemu->state->countdowns.z80 = z80_countdown;
+	clownmdemu->state->z80.cycle_countdown = z80_countdown;
 }
 
 static void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
@@ -248,7 +248,7 @@ static void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData*
 	m68k_read_write_callbacks.user_data = other_state;
 
 	/* Store this in a local variable to make the upcoming code faster. */
-	m68k_countdown = clownmdemu->state->countdowns.mcd_m68k;
+	m68k_countdown = clownmdemu->state->mega_cd.m68k.cycle_countdown;
 
 	while (other_state->mcd_m68k_current_cycle < target_cycle)
 	{
@@ -271,7 +271,7 @@ static void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData*
 	}
 
 	/* Store this back in memory for later. */
-	clownmdemu->state->countdowns.mcd_m68k = m68k_countdown;
+	clownmdemu->state->mega_cd.m68k.cycle_countdown = m68k_countdown;
 }
 
 static void FMCallbackWrapper(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames)
@@ -1730,16 +1730,14 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 {
 	cc_u16f i;
 
-	state->countdowns.m68k = 0;
-	state->countdowns.z80 = 0;
-	state->countdowns.mcd_m68k = 0;
-
 	/* M68K */
 	memset(state->m68k.ram, 0, sizeof(state->m68k.ram));
+	state->m68k.cycle_countdown = 0;
 
 	/* Z80 */
 	Z80_State_Initialise(&state->z80.state);
 	memset(state->z80.ram, 0, sizeof(state->z80.ram));
+	state->z80.cycle_countdown = 0;
 	state->z80.bank = 0;
 	state->z80.m68k_has_bus = cc_true;
 	state->z80.reset_held = cc_true;
@@ -1761,6 +1759,10 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	Controller_Initialise(&state->controllers[1], FrontendController2Callback);
 
 	/* Mega CD */
+	state->mega_cd.m68k.cycle_countdown = 0;
+	state->mega_cd.m68k.bus_requested = cc_true;
+	state->mega_cd.m68k.reset_held = cc_false;
+
 	memset(state->mega_cd.prg_ram.buffer, 0, sizeof(state->mega_cd.prg_ram.buffer));
 	state->mega_cd.prg_ram.bank = 0;
 
@@ -1769,9 +1771,6 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	/* Page 24 of MEGA-CD HARDWARE MANUAL confirms this. */
 	state->mega_cd.word_ram.dmna = cc_false;
 	state->mega_cd.word_ram.ret = cc_true;
-
-	state->mega_cd.m68k.bus_requested = cc_true;
-	state->mega_cd.m68k.reset_held = cc_false;
 
 	state->mega_cd.communication.flag = 0;
 

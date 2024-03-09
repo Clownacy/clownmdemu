@@ -135,21 +135,16 @@ typedef struct ClownMDEmu_State
 {
 	struct
 	{
-		cc_u16f m68k;
-		cc_u16f z80;
-		cc_u16f mcd_m68k;
-	} countdowns;
-
-	struct
-	{
 		Clown68000_State state;
 		cc_u16l ram[0x8000];
+		cc_u16f cycle_countdown;
 	} m68k;
 
 	struct
 	{
 		Z80_State state;
 		cc_u8l ram[0x2000];
+		cc_u16f cycle_countdown;
 		cc_u16l bank;
 		cc_bool m68k_has_bus;
 		cc_bool reset_held;
@@ -168,6 +163,7 @@ typedef struct ClownMDEmu_State
 		struct
 		{
 			Clown68000_State state;
+			cc_u16f cycle_countdown;
 			cc_bool bus_requested;
 			cc_bool reset_held;
 		} m68k;
