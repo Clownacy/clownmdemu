@@ -602,7 +602,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address == 0xA12000 / 2)
 	{
 		/* RESET, HALT */
-		value = ((cc_u16f)clownmdemu->state->m68k_has_mcd_m68k_bus << 1) | (1 << 0); /* Always show that the reset was successful. */
+		value = ((cc_u16f)clownmdemu->state->m68k_has_mcd_m68k_bus << 1) | ((cc_u16f)clownmdemu->state->mcd_m68k_reset << 0);
 	}
 	else if (address == 0xA12002 / 2)
 	{
