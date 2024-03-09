@@ -1739,7 +1739,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	/* Mega CD */
 	state->mega_cd.m68k.cycle_countdown = 0;
 	state->mega_cd.m68k.bus_requested = cc_true;
-	state->mega_cd.m68k.reset_held = cc_false; /* TODO: Didn't Devon say that this should be true? Nothing boots if I do that. */
+	state->mega_cd.m68k.reset_held = cc_false; /* TODO: Didn't Devon say that this should be true? Nothing boots if I do that. Maybe a real BIOS manually releases the reset. */
 
 	memset(state->mega_cd.prg_ram.buffer, 0, sizeof(state->mega_cd.prg_ram.buffer));
 	state->mega_cd.prg_ram.bank = 0;
