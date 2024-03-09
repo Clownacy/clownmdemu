@@ -608,6 +608,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address == 0xA11100 / 2)
 	{
 		/* Z80 BUSREQ */
+		/* TODO: On real hardware, it seems that bus requests do not complete if a reset is being held. */
 		const cc_bool z80_running = !clownmdemu->state->m68k_has_z80_bus;
 
 		value = z80_running << 8;
