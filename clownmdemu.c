@@ -186,6 +186,8 @@ static void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* co
 	{
 		const cc_u32f cycles_to_do = CC_MIN(m68k_countdown, target_cycle - other_state->m68k_current_cycle);
 
+		assert(target_cycle >= other_state->m68k_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
+
 		m68k_countdown -= cycles_to_do;
 
 		if (m68k_countdown == 0)
@@ -215,7 +217,10 @@ static void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* con
 
 	while (other_state->z80_current_cycle < target_cycle)
 	{
+		/* TODO: We repeat this code in each SyncXXXX function, so maybe we should de-duplicate it somehow? */
 		const cc_u32f cycles_to_do = CC_MIN(z80_countdown, target_cycle - other_state->z80_current_cycle);
+
+		assert(target_cycle >= other_state->z80_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
 
 		z80_countdown -= cycles_to_do;
 
@@ -248,6 +253,8 @@ static void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData*
 	while (other_state->mcd_m68k_current_cycle < target_cycle)
 	{
 		const cc_u32f cycles_to_do = CC_MIN(m68k_countdown, target_cycle - other_state->mcd_m68k_current_cycle);
+
+		assert(target_cycle >= other_state->mcd_m68k_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
 
 		m68k_countdown -= cycles_to_do;
 
@@ -285,6 +292,8 @@ static cc_u8f SyncFM(CPUCallbackUserData* const other_state, const cc_u32f targe
 
 	const cc_u32f cycles_to_do = fm_target_cycle - other_state->fm_current_cycle;
 
+	assert(fm_target_cycle >= other_state->fm_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
+
 	other_state->fm_current_cycle = fm_target_cycle;
 
 	return FM_Update(&other_state->data_and_callbacks.data->fm, cycles_to_do, GenerateFMAudio, other_state);
@@ -300,6 +309,8 @@ static void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target
 	const cc_u32f psg_target_cycle = target_cycle / (CLOWNMDEMU_Z80_CLOCK_DIVIDER * CLOWNMDEMU_PSG_SAMPLE_RATE_DIVIDER);
 
 	const size_t samples_to_generate = psg_target_cycle - other_state->psg_current_cycle;
+
+	assert(psg_target_cycle >= other_state->psg_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
 
 	if (samples_to_generate != 0)
 	{
