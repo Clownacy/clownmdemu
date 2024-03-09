@@ -226,7 +226,7 @@ static void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* con
 
 		if (z80_countdown == 0)
 		{
-			const cc_bool z80_not_running = clownmdemu->state->m68k_has_z80_bus || clownmdemu->state->z80_reset;
+			const cc_bool z80_not_running = clownmdemu->state->z80.m68k_has_bus || clownmdemu->state->z80.reset_held;
 
 			z80_countdown = CLOWNMDEMU_Z80_CLOCK_DIVIDER * (z80_not_running ? 1 : Z80_DoCycle(&clownmdemu->z80, &z80_read_write_callbacks));
 		}
@@ -510,12 +510,13 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if ((address >= 0xA00000 / 2 && address <= 0xA01FFF / 2) || address == 0xA04000 / 2 || address == 0xA04002 / 2)
 	{
 		/* Z80 RAM and YM2612 */
-		if (!clownmdemu->state->m68k_has_z80_bus)
+		if (!clownmdemu->state->z80.m68k_has_bus)
 		{
 			PrintError("68k attempted to read Z80 memory/YM2612 ports without Z80 bus at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 		}
-		else if (clownmdemu->state->z80_reset)
+		else if (clownmdemu->state->z80.reset_held)
 		{
+			/* TODO: Does this actually bother real hardware? */
 			PrintError("68k attempted to read Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 		}
 		else if (do_high_byte && do_low_byte)
@@ -609,7 +610,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	{
 		/* Z80 BUSREQ */
 		/* TODO: On real hardware, it seems that bus requests do not complete if a reset is being held. */
-		const cc_bool z80_running = !clownmdemu->state->m68k_has_z80_bus;
+		const cc_bool z80_running = !clownmdemu->state->z80.m68k_has_bus;
 
 		value = z80_running << 8;
 	}
@@ -812,12 +813,13 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	else if ((address >= 0xA00000 / 2 && address <= 0xA01FFF / 2) || address == 0xA04000 / 2 || address == 0xA04002 / 2)
 	{
 		/* Z80 RAM and YM2612 */
-		if (!clownmdemu->state->m68k_has_z80_bus)
+		if (!clownmdemu->state->z80.m68k_has_bus)
 		{
 			PrintError("68k attempted to write Z80 memory/YM2612 ports without Z80 bus at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 		}
-		else if (clownmdemu->state->z80_reset)
+		else if (clownmdemu->state->z80.reset_held)
 		{
+			/* TODO: Does this actually bother real hardware? */
 			PrintError("68k attempted to write Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 		}
 		else if (do_high_byte && do_low_byte)
@@ -883,10 +885,10 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		{
 			const cc_bool bus_request = (high_byte & 1) != 0;
 
-			if (clownmdemu->state->m68k_has_z80_bus != bus_request)
+			if (clownmdemu->state->z80.m68k_has_bus != bus_request)
 				SyncZ80(clownmdemu, callback_user_data, target_cycle);
 
-			clownmdemu->state->m68k_has_z80_bus = bus_request;
+			clownmdemu->state->z80.m68k_has_bus = bus_request;
 		}
 	}
 	else if (address == 0xA11200 / 2)
@@ -894,16 +896,16 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		/* Z80 RESET */
 		if (do_high_byte)
 		{
-			const cc_bool new_z80_reset = (high_byte & 1) == 0;
+			const cc_bool new_reset_held = (high_byte & 1) == 0;
 
-			if (clownmdemu->state->z80_reset && !new_z80_reset)
+			if (clownmdemu->state->z80.reset_held && !new_reset_held)
 			{
 				SyncZ80(clownmdemu, callback_user_data, target_cycle);
 				Z80_Reset(&clownmdemu->z80);
 				FM_State_Initialise(&clownmdemu->state->fm);
 			}
 
-			clownmdemu->state->z80_reset = new_z80_reset;
+			clownmdemu->state->z80.reset_held = new_reset_held;
 		}
 	}
 	else if (address == 0xA12000 / 2)
@@ -1074,7 +1076,7 @@ static cc_u16f Z80ReadCallbackWithCycle(const void *user_data, cc_u16f address, 
 
 	if (address < 0x2000)
 	{
-		value = clownmdemu->state->z80_ram[address];
+		value = clownmdemu->state->z80.ram[address];
 	}
 	else if (address >= 0x4000 && address <= 0x4003)
 	{
@@ -1094,7 +1096,7 @@ static cc_u16f Z80ReadCallbackWithCycle(const void *user_data, cc_u16f address, 
 	else if (address >= 0x8000)
 	{
 		/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
-		const cc_u32f m68k_address = ((cc_u32f)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE);
+		const cc_u32f m68k_address = ((cc_u32f)clownmdemu->state->z80.bank * 0x8000) + (address & 0x7FFE);
 
 		SyncM68k(clownmdemu, callback_user_data, target_cycle);
 
@@ -1105,7 +1107,7 @@ static cc_u16f Z80ReadCallbackWithCycle(const void *user_data, cc_u16f address, 
 	}
 	else
 	{
-		PrintError("Attempted to read invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->state->z80.program_counter);
+		PrintError("Attempted to read invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->state->z80.state.program_counter);
 	}
 
 	return value;
@@ -1125,7 +1127,7 @@ static void Z80WriteCallbackWithCycle(const void *user_data, cc_u16f address, cc
 
 	if (address < 0x2000)
 	{
-		clownmdemu->state->z80_ram[address] = value;
+		clownmdemu->state->z80.ram[address] = value;
 	}
 	else if (address >= 0x4000 && address <= 0x4003)
 	{
@@ -1142,8 +1144,8 @@ static void Z80WriteCallbackWithCycle(const void *user_data, cc_u16f address, cc
 	}
 	else if (address == 0x6000 || address == 0x6001)
 	{
-		clownmdemu->state->z80_bank >>= 1;
-		clownmdemu->state->z80_bank |= (value & 1) != 0 ? 0x100 : 0;
+		clownmdemu->state->z80.bank >>= 1;
+		clownmdemu->state->z80.bank |= (value & 1) != 0 ? 0x100 : 0;
 	}
 	else if (address == 0x7F11)
 	{
@@ -1159,7 +1161,7 @@ static void Z80WriteCallbackWithCycle(const void *user_data, cc_u16f address, cc
 
 		/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
 		/* TODO: Apparently the Z80 can access the IO ports and send a bus request to itself. */
-		const cc_u32f m68k_address = ((cc_u32f)clownmdemu->state->z80_bank * 0x8000) + (address & 0x7FFE);
+		const cc_u32f m68k_address = ((cc_u32f)clownmdemu->state->z80.bank * 0x8000) + (address & 0x7FFE);
 
 		SyncM68k(clownmdemu, callback_user_data, target_cycle);
 
@@ -1170,7 +1172,7 @@ static void Z80WriteCallbackWithCycle(const void *user_data, cc_u16f address, cc
 	}
 	else
 	{
-		PrintError("Attempted to write invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->state->z80.program_counter);
+		PrintError("Attempted to write invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->state->z80.state.program_counter);
 	}
 }
 
@@ -1733,11 +1735,9 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->countdowns.mcd_m68k = 0;
 
 	memset(state->m68k_ram, 0, sizeof(state->m68k_ram));
-	memset(state->z80_ram, 0, sizeof(state->z80_ram));
 	memset(state->prg_ram, 0, sizeof(state->prg_ram));
 	memset(state->word_ram, 0, sizeof(state->word_ram));
 
-	Z80_State_Initialise(&state->z80);
 	VDP_State_Initialise(&state->vdp);
 	FM_State_Initialise(&state->fm);
 	PSG_State_Initialise(&state->psg);
@@ -1754,9 +1754,12 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	Controller_Initialise(&state->controllers[0], FrontendController1Callback);
 	Controller_Initialise(&state->controllers[1], FrontendController2Callback);
 
-	state->z80_bank = 0;
-	state->m68k_has_z80_bus = cc_true;
-	state->z80_reset = cc_true;
+	/* Z80 */
+	Z80_State_Initialise(&state->z80.state);
+	memset(state->z80.ram, 0, sizeof(state->z80.ram));
+	state->z80.bank = 0;
+	state->z80.m68k_has_bus = cc_true;
+	state->z80.reset_held = cc_true;
 
 	state->m68k_has_mcd_m68k_bus = cc_true;
 	state->mcd_m68k_reset = cc_false;
@@ -1792,7 +1795,7 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 	clownmdemu->m68k = &state->m68k;
 
 	clownmdemu->z80.constant = &constant->z80;
-	clownmdemu->z80.state = &state->z80;
+	clownmdemu->z80.state = &state->z80.state;
 
 	clownmdemu->mcd_m68k = &state->mcd_m68k;
 

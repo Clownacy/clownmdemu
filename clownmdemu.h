@@ -140,10 +140,8 @@ typedef struct ClownMDEmu_State
 		cc_u16f mcd_m68k;
 	} countdowns;
 	Clown68000_State m68k;
-	Z80_State z80;
 	Clown68000_State mcd_m68k;
 	cc_u16l m68k_ram[0x8000];
-	cc_u8l z80_ram[0x2000];
 	cc_u16l prg_ram[0x40000];
 	cc_u16l word_ram[0x20000];
 	VDP_State vdp;
@@ -154,10 +152,14 @@ typedef struct ClownMDEmu_State
 
 	cc_u16l current_scanline;
 
-	/* Z80 */
-	cc_u16l z80_bank;
-	cc_bool m68k_has_z80_bus;
-	cc_bool z80_reset;
+	struct
+	{
+		Z80_State state;
+		cc_u8l ram[0x2000];
+		cc_u16l bank;
+		cc_bool m68k_has_bus;
+		cc_bool reset_held;
+	} z80;
 
 	/* Mega CD */
 	cc_bool m68k_has_mcd_m68k_bus;
