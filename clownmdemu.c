@@ -900,7 +900,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		if (clownmdemu->state->m68k_has_mcd_m68k_bus != bus_request)
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 
-		if (!clownmdemu->state->mcd_m68k_reset && reset)
+		if (clownmdemu->state->mcd_m68k_reset && !reset)
 		{
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 			Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
@@ -1737,7 +1737,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->z80_reset = cc_true;
 
 	state->m68k_has_mcd_m68k_bus = cc_true;
-	state->mcd_m68k_reset = cc_false;
+	state->mcd_m68k_reset = cc_true;
 	state->prg_ram_bank = 0;
 
 	state->word_ram_1m_mode = cc_true; /* Confirmed by my Visual Sound Test homebrew. */
