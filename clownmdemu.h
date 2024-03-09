@@ -140,10 +140,7 @@ typedef struct ClownMDEmu_State
 		cc_u16f mcd_m68k;
 	} countdowns;
 	Clown68000_State m68k;
-	Clown68000_State mcd_m68k;
 	cc_u16l m68k_ram[0x8000];
-	cc_u16l prg_ram[0x40000];
-	cc_u16l word_ram[0x20000];
 	VDP_State vdp;
 	FM_State fm;
 	PSG_State psg;
@@ -161,20 +158,43 @@ typedef struct ClownMDEmu_State
 		cc_bool reset_held;
 	} z80;
 
-	/* Mega CD */
-	cc_bool m68k_has_mcd_m68k_bus;
-	cc_bool mcd_m68k_reset;
-	cc_u8l prg_ram_bank;
-	cc_bool word_ram_1m_mode;
-	cc_bool word_ram_dmna, word_ram_ret;
-	cc_bool cd_boot;
-	cc_u16l mcd_communication_flag;
-	cc_u16l mcd_communication_command[8];
-	cc_u16l mcd_communication_status[8];
-	cc_u32l current_cd_sector, total_buffered_sectors;
-	cc_bool mcd_waiting_for_vint;
-	cc_bool mcd_vint_enabled;
-	cc_bool cdc_ready;
+	struct
+	{
+		struct
+		{
+			Clown68000_State state;
+			cc_bool bus_requested;
+			cc_bool reset_held;
+		} m68k;
+		struct
+		{
+			cc_u16l buffer[0x40000];
+			cc_u8l bank;
+		} prg_ram;
+		struct
+		{
+			cc_u16l buffer[0x20000];
+			cc_bool in_1m_mode;
+			cc_bool dmna, ret;
+		} word_ram;
+		struct
+		{
+			cc_u16l flag;
+			cc_u16l command[8]; /* The MAIN-CPU one. */
+			cc_u16l status[8];  /* The SUB-CPU one. */
+		} communication;
+		struct
+		{
+			cc_u32l current_sector, total_buffered_sectors;
+			cc_bool cdc_ready;
+		} cd;
+		struct
+		{
+			cc_bool enabled;
+			cc_bool being_waited_for;
+		} vertical_interrupt;
+		cc_bool boot_from_cd;
+	} mega_cd;
 } ClownMDEmu_State;
 
 typedef struct ClownMDEmu

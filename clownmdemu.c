@@ -127,9 +127,9 @@ static cc_u8f To2DigitBCD(const cc_u8f value)
 
 static cc_u32f GetCDSectorHeader(const ClownMDEmu* const clownmdemu)
 {
-	const cc_u32f frames = To2DigitBCD(clownmdemu->state->current_cd_sector % 75);
-	const cc_u32f seconds = To2DigitBCD((clownmdemu->state->current_cd_sector / 75) % 60);
-	const cc_u32f minutes = To2DigitBCD(clownmdemu->state->current_cd_sector / (75 * 60));
+	const cc_u32f frames = To2DigitBCD(clownmdemu->state->mega_cd.cd.current_sector % 75);
+	const cc_u32f seconds = To2DigitBCD((clownmdemu->state->mega_cd.cd.current_sector / 75) % 60);
+	const cc_u32f minutes = To2DigitBCD(clownmdemu->state->mega_cd.cd.current_sector / (75 * 60));
 
 	return ((cc_u32f)0x01 << (8 * 0))
 	     | (frames  << (8 * 1))
@@ -260,7 +260,7 @@ static void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData*
 
 		if (m68k_countdown == 0)
 		{
-			if (!clownmdemu->state->m68k_has_mcd_m68k_bus && clownmdemu->state->mcd_m68k_reset)
+			if (!clownmdemu->state->mega_cd.m68k.bus_requested && clownmdemu->state->mega_cd.m68k.reset_held)
 				Clown68000_DoCycle(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 
 			m68k_countdown = CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * 10; /* TODO: The '* 10' is a temporary hack until 68000 instruction durations are added. */
@@ -362,7 +362,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 
 	if (address < 0x800000 / 2)
 	{
-		if (((address & 0x200000) == 0) != clownmdemu->state->cd_boot)
+		if (((address & 0x200000) == 0) != clownmdemu->state->mega_cd.boot_from_cd)
 		{
 			/* Cartridge */
 			if (do_high_byte)
@@ -375,7 +375,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 			if ((address & 0x100000) != 0)
 			{
 				/* WORD-RAM */
-				if (clownmdemu->state->word_ram_1m_mode)
+				if (clownmdemu->state->mega_cd.word_ram.in_1m_mode)
 				{
 					if ((address & 0x10000) != 0)
 					{
@@ -384,18 +384,18 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 					}
 					else
 					{
-						value = clownmdemu->state->word_ram[(address & 0xFFFF) * 2 + clownmdemu->state->word_ram_ret];
+						value = clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + clownmdemu->state->mega_cd.word_ram.ret];
 					}
 				}
 				else
 				{
-					if (clownmdemu->state->word_ram_dmna)
+					if (clownmdemu->state->mega_cd.word_ram.dmna)
 					{
 						PrintError("MAIN-CPU attempted to read from WORD-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 					}
 					else
 					{
-						value = clownmdemu->state->word_ram[address & 0x1FFFF];
+						value = clownmdemu->state->mega_cd.word_ram.buffer[address & 0x1FFFF];
 					}
 				}
 			}
@@ -496,13 +496,13 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 			else
 			{
 				/* PRG-RAM */
-				if (!clownmdemu->state->m68k_has_mcd_m68k_bus)
+				if (!clownmdemu->state->mega_cd.m68k.bus_requested)
 				{
 					PrintError("MAIN-CPU attempted to read from PRG-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 				}
 				else
 				{
-					value = clownmdemu->state->prg_ram[0x10000 * clownmdemu->state->prg_ram_bank + (address & 0xFFFF)];
+					value = clownmdemu->state->mega_cd.prg_ram.buffer[0x10000 * clownmdemu->state->mega_cd.prg_ram.bank + (address & 0xFFFF)];
 				}
 			}
 		}
@@ -622,12 +622,12 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address == 0xA12000 / 2)
 	{
 		/* RESET, HALT */
-		value = ((cc_u16f)clownmdemu->state->m68k_has_mcd_m68k_bus << 1) | ((cc_u16f)clownmdemu->state->mcd_m68k_reset << 0);
+		value = ((cc_u16f)clownmdemu->state->mega_cd.m68k.bus_requested << 1) | ((cc_u16f)clownmdemu->state->mega_cd.m68k.reset_held << 0);
 	}
 	else if (address == 0xA12002 / 2)
 	{
 		/* Memory mode / Write protect */
-		value = ((cc_u16f)clownmdemu->state->prg_ram_bank << 6) | ((cc_u16f)clownmdemu->state->word_ram_dmna << 1) | ((cc_u16f)clownmdemu->state->word_ram_1m_mode << 2) | ((cc_u16f)clownmdemu->state->word_ram_ret << 0);
+		value = ((cc_u16f)clownmdemu->state->mega_cd.prg_ram.bank << 6) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.dmna << 1) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.in_1m_mode << 2) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.ret << 0);
 	}
 	else if (address == 0xA12004 / 2)
 	{
@@ -653,19 +653,19 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	{
 		/* Communication flag */
 		SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
-		value = clownmdemu->state->mcd_communication_flag;
+		value = clownmdemu->state->mega_cd.communication.flag;
 	}
 	else if (address >= 0xA12010 / 2 && address < 0xA12020 / 2)
 	{
 		/* Communication command */
 		SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
-		value = clownmdemu->state->mcd_communication_command[address - 0xA12010 / 2];
+		value = clownmdemu->state->mega_cd.communication.command[address - 0xA12010 / 2];
 	}
 	else if (address >= 0xA12020 / 2 && address < 0xA12030 / 2)
 	{
 		/* Communication status */
 		SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
-		value = clownmdemu->state->mcd_communication_status[address - 0xA12020 / 2];
+		value = clownmdemu->state->mega_cd.communication.status[address - 0xA12020 / 2];
 	}
 	else if (address == 0xA12030 / 2)
 	{
@@ -748,7 +748,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 
 	if (address < 0x800000 / 2)
 	{
-		if (((address & 0x200000) == 0) != clownmdemu->state->cd_boot)
+		if (((address & 0x200000) == 0) != clownmdemu->state->mega_cd.boot_from_cd)
 		{
 			/* Cartridge */
 			if (do_high_byte)
@@ -764,7 +764,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			if ((address & 0x100000) != 0)
 			{
 				/* WORD-RAM */
-				if (clownmdemu->state->word_ram_1m_mode)
+				if (clownmdemu->state->mega_cd.word_ram.in_1m_mode)
 				{
 					if ((address & 0x10000) != 0)
 					{
@@ -773,20 +773,20 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 					}
 					else
 					{
-						clownmdemu->state->word_ram[(address & 0xFFFF) * 2 + clownmdemu->state->word_ram_ret] &= ~mask;
-						clownmdemu->state->word_ram[(address & 0xFFFF) * 2 + clownmdemu->state->word_ram_ret] |= value & mask;
+						clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + clownmdemu->state->mega_cd.word_ram.ret] &= ~mask;
+						clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + clownmdemu->state->mega_cd.word_ram.ret] |= value & mask;
 					}
 				}
 				else
 				{
-					if (clownmdemu->state->word_ram_dmna)
+					if (clownmdemu->state->mega_cd.word_ram.dmna)
 					{
 						PrintError("MAIN-CPU attempted to write to WORD-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 					}
 					else
 					{
-						clownmdemu->state->word_ram[address & 0x1FFFF] &= ~mask;
-						clownmdemu->state->word_ram[address & 0x1FFFF] |= value & mask;
+						clownmdemu->state->mega_cd.word_ram.buffer[address & 0x1FFFF] &= ~mask;
+						clownmdemu->state->mega_cd.word_ram.buffer[address & 0x1FFFF] |= value & mask;
 					}
 				}
 			}
@@ -798,14 +798,14 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			else
 			{
 				/* PRG-RAM */
-				if (!clownmdemu->state->m68k_has_mcd_m68k_bus)
+				if (!clownmdemu->state->mega_cd.m68k.bus_requested)
 				{
 					PrintError("MAIN-CPU attempted to write to PRG-RAM while SUB-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.program_counter);
 				}
 				else
 				{
-					clownmdemu->state->prg_ram[0x10000 * clownmdemu->state->prg_ram_bank + (address & 0xFFFF)] &= ~mask;
-					clownmdemu->state->prg_ram[0x10000 * clownmdemu->state->prg_ram_bank + (address & 0xFFFF)] |= value & mask;
+					clownmdemu->state->mega_cd.prg_ram.buffer[0x10000 * clownmdemu->state->mega_cd.prg_ram.bank + (address & 0xFFFF)] &= ~mask;
+					clownmdemu->state->mega_cd.prg_ram.buffer[0x10000 * clownmdemu->state->mega_cd.prg_ram.bank + (address & 0xFFFF)] |= value & mask;
 				}
 			}
 		}
@@ -921,10 +921,10 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
 		m68k_read_write_callbacks.user_data = callback_user_data;
 
-		if (clownmdemu->state->m68k_has_mcd_m68k_bus != bus_request)
+		if (clownmdemu->state->mega_cd.m68k.bus_requested != bus_request)
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 
-		if (!clownmdemu->state->mcd_m68k_reset && reset)
+		if (!clownmdemu->state->mega_cd.m68k.reset_held && reset)
 		{
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 			Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
@@ -936,8 +936,8 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			Clown68000_Interrupt(clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 2);
 		}
 
-		clownmdemu->state->m68k_has_mcd_m68k_bus = bus_request;
-		clownmdemu->state->mcd_m68k_reset = reset;
+		clownmdemu->state->mega_cd.m68k.bus_requested = bus_request;
+		clownmdemu->state->mega_cd.m68k.reset_held = reset;
 	}
 	else if (address == 0xA12002 / 2)
 	{
@@ -948,13 +948,13 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			{
 				SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 
-				clownmdemu->state->word_ram_dmna = cc_true;
+				clownmdemu->state->mega_cd.word_ram.dmna = cc_true;
 
-				if (!clownmdemu->state->word_ram_1m_mode)
-					clownmdemu->state->word_ram_ret = cc_false;
+				if (!clownmdemu->state->mega_cd.word_ram.in_1m_mode)
+					clownmdemu->state->mega_cd.word_ram.ret = cc_false;
 			}
 
-			clownmdemu->state->prg_ram_bank = (low_byte >> 6) & 3;
+			clownmdemu->state->mega_cd.prg_ram.bank = (low_byte >> 6) & 3;
 		}
 	}
 	else if (address == 0xA12004 / 2)
@@ -983,7 +983,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		if (do_high_byte)
 		{
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
-			clownmdemu->state->mcd_communication_flag = (clownmdemu->state->mcd_communication_flag & 0x00FF) | (value & 0xFF00);
+			clownmdemu->state->mega_cd.communication.flag = (clownmdemu->state->mega_cd.communication.flag & 0x00FF) | (value & 0xFF00);
 		}
 
 		if (do_low_byte)
@@ -993,8 +993,8 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	{
 		/* Communication command */
 		SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
-		clownmdemu->state->mcd_communication_command[address - 0xA12010 / 2] &= ~mask;
-		clownmdemu->state->mcd_communication_command[address - 0xA12010 / 2] |= value & mask;
+		clownmdemu->state->mega_cd.communication.command[address - 0xA12010 / 2] &= ~mask;
+		clownmdemu->state->mega_cd.communication.command[address - 0xA12010 / 2] |= value & mask;
 	}
 	else if (address >= 0xA12020 / 2 && address < 0xA12030 / 2)
 	{
@@ -1228,8 +1228,8 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 			const cc_u32f total_sectors = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 4, target_cycle);
 
 			frontend_callbacks->cd_seeked((void*)frontend_callbacks->user_data, starting_sector);
-			clownmdemu->state->current_cd_sector = starting_sector;
-			clownmdemu->state->total_buffered_sectors = total_sectors;
+			clownmdemu->state->mega_cd.cd.current_sector = starting_sector;
+			clownmdemu->state->mega_cd.cd.total_buffered_sectors = total_sectors;
 			break;
 		}
 
@@ -1240,15 +1240,15 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 
 		case 0x8B:
 			/* CDCREAD */
-			if (clownmdemu->state->total_buffered_sectors == 0)
+			if (clownmdemu->state->mega_cd.cd.total_buffered_sectors == 0)
 			{
 				/* Sonic Megamix 4.0b relies on this. */
 				clownmdemu->mcd_m68k->status_register |= 1; /* Set carry flag to signal that a sector has not been prepared. */
 			}
 			else
 			{
-				--clownmdemu->state->total_buffered_sectors;
-				clownmdemu->state->cdc_ready = cc_true;
+				--clownmdemu->state->mega_cd.cd.total_buffered_sectors;
+				clownmdemu->state->mega_cd.cd.cdc_ready = cc_true;
 
 				clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that a sector has been prepared. */
 				clownmdemu->mcd_m68k->data_registers[0] = GetCDSectorHeader(clownmdemu);
@@ -1259,7 +1259,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 		case 0x8C:
 		{
 			/* CDCTRN */
-			if (!clownmdemu->state->cdc_ready)
+			if (!clownmdemu->state->mega_cd.cd.cdc_ready)
 			{
 				clownmdemu->mcd_m68k->status_register |= 1; /* Set carry flag to signal that there's not a sector ready. */
 			}
@@ -1269,8 +1269,8 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 				const cc_u8l* const sector_bytes = frontend_callbacks->cd_sector_read((void*)frontend_callbacks->user_data);
 				const cc_u32f sector_header = GetCDSectorHeader(clownmdemu);
 
-				clownmdemu->state->cdc_ready = cc_false;
-				++clownmdemu->state->current_cd_sector;
+				clownmdemu->state->mega_cd.cd.cdc_ready = cc_false;
+				++clownmdemu->state->mega_cd.cd.current_sector;
 
 				for (i = 0; i < 0x800; i += 2)
 				{
@@ -1319,13 +1319,13 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 		if (address == 0x5F10 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F10)
 		{
 			/* Wait for V-sync. */
-			clownmdemu->state->mcd_waiting_for_vint = cc_true;
+			clownmdemu->state->mega_cd.vertical_interrupt.being_waited_for = cc_true;
 			value = 0x4E71; /* 'nop' instruction */
 		}
 		else if (address == 0x5F12 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F12)
 		{
 			/* Wait for V-sync. */
-			value = clownmdemu->state->mcd_waiting_for_vint ? 0x60FE : 0x4E75; /* 'bra.s *' or 'rts' instruction. */
+			value = clownmdemu->state->mega_cd.vertical_interrupt.being_waited_for ? 0x60FE : 0x4E75; /* 'bra.s *' or 'rts' instruction. */
 		}
 		else if (address == 0x5F16 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F16)
 		{
@@ -1406,44 +1406,44 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 		}
 		else
 		{
-			value = clownmdemu->state->prg_ram[address];
+			value = clownmdemu->state->mega_cd.prg_ram.buffer[address];
 		}
 	}
 	else if (address < 0xC0000 / 2)
 	{
 		/* WORD-RAM */
-		if (clownmdemu->state->word_ram_1m_mode)
+		if (clownmdemu->state->mega_cd.word_ram.in_1m_mode)
 		{
 			/* TODO. */
-			PrintError("SUB-CPU attempted to read from the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->mcd_m68k.program_counter);
+			PrintError("SUB-CPU attempted to read from the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
 		}
-		else if (!clownmdemu->state->word_ram_dmna)
+		else if (!clownmdemu->state->mega_cd.word_ram.dmna)
 		{
 			/* TODO: According to Page 24 of MEGA-CD HARDWARE MANUAL, this should cause the CPU to hang, just like the Z80 accessing the ROM during a DMA transfer. */
-			PrintError("SUB-CPU attempted to read from WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->mcd_m68k.program_counter);
+			PrintError("SUB-CPU attempted to read from WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
 		}
 		else
 		{
-			value = clownmdemu->state->word_ram[address & 0x1FFFF];
+			value = clownmdemu->state->mega_cd.word_ram.buffer[address & 0x1FFFF];
 		}
 	}
 	else if (address < 0xE0000 / 2)
 	{
 		/* WORD-RAM */
-		if (!clownmdemu->state->word_ram_1m_mode)
+		if (!clownmdemu->state->mega_cd.word_ram.in_1m_mode)
 		{
 			/* TODO. */
-			PrintError("SUB-CPU attempted to read from the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->state->mcd_m68k.program_counter);
+			PrintError("SUB-CPU attempted to read from the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
 		}
 		else
 		{
-			value = clownmdemu->state->word_ram[(address & 0xFFFF) * 2 + !clownmdemu->state->word_ram_ret];
+			value = clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret];
 		}
 	}
 	else if (address == 0xFF8002 / 2)
 	{
 		/* Memory mode / Write protect */
-		value = ((cc_u16f)clownmdemu->state->word_ram_1m_mode << 2) | ((cc_u16f)clownmdemu->state->word_ram_dmna << 1) | ((cc_u16f)clownmdemu->state->word_ram_ret << 0);
+		value = ((cc_u16f)clownmdemu->state->mega_cd.word_ram.in_1m_mode << 2) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.dmna << 1) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.ret << 0);
 	}
 	else if (address == 0xFF8004 / 2)
 	{
@@ -1469,19 +1469,19 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	{
 		/* Communication flag */
 		SyncM68k(clownmdemu, callback_user_data, target_cycle);
-		value = clownmdemu->state->mcd_communication_flag;
+		value = clownmdemu->state->mega_cd.communication.flag;
 	}
 	else if (address >= 0xFF8010 / 2 && address < 0xFF8020 / 2)
 	{
 		/* Communication command */
 		SyncM68k(clownmdemu, callback_user_data, target_cycle);
-		value = clownmdemu->state->mcd_communication_command[address - 0xFF8010 / 2];
+		value = clownmdemu->state->mega_cd.communication.command[address - 0xFF8010 / 2];
 	}
 	else if (address >= 0xFF8020 / 2 && address < 0xFF8030 / 2)
 	{
 		/* Communication status */
 		SyncM68k(clownmdemu, callback_user_data, target_cycle);
-		value = clownmdemu->state->mcd_communication_status[address - 0xFF8020 / 2];
+		value = clownmdemu->state->mega_cd.communication.status[address - 0xFF8020 / 2];
 	}
 	else if (address == 0xFF8030 / 2)
 	{
@@ -1491,7 +1491,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	else if (address == 0xFF8032 / 2)
 	{
 		/* Interrupt mask control */
-		value = clownmdemu->state->mcd_vint_enabled << 2;
+		value = clownmdemu->state->mega_cd.vertical_interrupt.enabled << 2;
 	}
 	else
 	{
@@ -1523,39 +1523,39 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	if (/*address >= 0 &&*/ address < 0x80000 / 2)
 	{
 		/* PRG-RAM */
-		clownmdemu->state->prg_ram[address] &= ~mask;
-		clownmdemu->state->prg_ram[address] |= value & mask;
+		clownmdemu->state->mega_cd.prg_ram.buffer[address] &= ~mask;
+		clownmdemu->state->mega_cd.prg_ram.buffer[address] |= value & mask;
 	}
 	else if (address < 0xC0000 / 2)
 	{
 		/* WORD-RAM */
-		if (clownmdemu->state->word_ram_1m_mode)
+		if (clownmdemu->state->mega_cd.word_ram.in_1m_mode)
 		{
 			/* TODO. */
-			PrintError("SUB-CPU attempted to write to the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->mcd_m68k.program_counter);
+			PrintError("SUB-CPU attempted to write to the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
 		}
-		else if (!clownmdemu->state->word_ram_dmna)
+		else if (!clownmdemu->state->mega_cd.word_ram.dmna)
 		{
-			PrintError("SUB-CPU attempted to write to WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->mcd_m68k.program_counter);
+			PrintError("SUB-CPU attempted to write to WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
 		}
 		else
 		{
-			clownmdemu->state->word_ram[address & 0x1FFFF] &= ~mask;
-			clownmdemu->state->word_ram[address & 0x1FFFF] |= value & mask;
+			clownmdemu->state->mega_cd.word_ram.buffer[address & 0x1FFFF] &= ~mask;
+			clownmdemu->state->mega_cd.word_ram.buffer[address & 0x1FFFF] |= value & mask;
 		}
 	}
 	else if (address < 0xE0000 / 2)
 	{
 		/* WORD-RAM */
-		if (!clownmdemu->state->word_ram_1m_mode)
+		if (!clownmdemu->state->mega_cd.word_ram.in_1m_mode)
 		{
 			/* TODO. */
-			PrintError("SUB-CPU attempted to write to the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->state->mcd_m68k.program_counter);
+			PrintError("SUB-CPU attempted to write to the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
 		}
 		else
 		{
-			clownmdemu->state->word_ram[(address & 0xFFFF) * 2 + !clownmdemu->state->word_ram_ret] &= ~mask;
-			clownmdemu->state->word_ram[(address & 0xFFFF) * 2 + !clownmdemu->state->word_ram_ret] |= value & mask;
+			clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret] &= ~mask;
+			clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret] |= value & mask;
 		}
 	}
 	else if (address == 0xFF8002 / 2)
@@ -1567,12 +1567,12 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 
 			SyncM68k(clownmdemu, callback_user_data, target_cycle);
 
-			clownmdemu->state->word_ram_1m_mode = (value & (1 << 2)) != 0;
+			clownmdemu->state->mega_cd.word_ram.in_1m_mode = (value & (1 << 2)) != 0;
 
-			if (ret || clownmdemu->state->word_ram_1m_mode)
+			if (ret || clownmdemu->state->mega_cd.word_ram.in_1m_mode)
 			{
-				clownmdemu->state->word_ram_dmna = cc_false;
-				clownmdemu->state->word_ram_ret = ret;
+				clownmdemu->state->mega_cd.word_ram.dmna = cc_false;
+				clownmdemu->state->mega_cd.word_ram.ret = ret;
 			}
 		}
 	}
@@ -1605,7 +1605,7 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 		if (do_low_byte)
 		{
 			SyncM68k(clownmdemu, callback_user_data, target_cycle);
-			clownmdemu->state->mcd_communication_flag = (clownmdemu->state->mcd_communication_flag & 0xFF00) | (value & 0x00FF);
+			clownmdemu->state->mega_cd.communication.flag = (clownmdemu->state->mega_cd.communication.flag & 0xFF00) | (value & 0x00FF);
 		}
 	}
 	else if (address >= 0xFF8010 / 2 && address < 0xFF8020 / 2)
@@ -1617,8 +1617,8 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	{
 		/* Communication status */
 		SyncM68k(clownmdemu, callback_user_data, target_cycle);
-		clownmdemu->state->mcd_communication_status[address - 0xFF8020 / 2] &= ~mask;
-		clownmdemu->state->mcd_communication_status[address - 0xFF8020 / 2] |= value & mask;
+		clownmdemu->state->mega_cd.communication.status[address - 0xFF8020 / 2] &= ~mask;
+		clownmdemu->state->mega_cd.communication.status[address - 0xFF8020 / 2] |= value & mask;
 	}
 	else if (address == 0xFF8030 / 2)
 	{
@@ -1628,7 +1628,7 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	else if (address == 0xFF8032 / 2)
 	{
 		/* Interrupt mask control */
-		clownmdemu->state->mcd_vint_enabled = (value & (1 << 2)) != 0;
+		clownmdemu->state->mega_cd.vertical_interrupt.enabled = (value & (1 << 2)) != 0;
 	}
 	else
 	{
@@ -1735,8 +1735,6 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->countdowns.mcd_m68k = 0;
 
 	memset(state->m68k_ram, 0, sizeof(state->m68k_ram));
-	memset(state->prg_ram, 0, sizeof(state->prg_ram));
-	memset(state->word_ram, 0, sizeof(state->word_ram));
 
 	VDP_State_Initialise(&state->vdp);
 	FM_State_Initialise(&state->fm);
@@ -1761,29 +1759,35 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->z80.m68k_has_bus = cc_true;
 	state->z80.reset_held = cc_true;
 
-	state->m68k_has_mcd_m68k_bus = cc_true;
-	state->mcd_m68k_reset = cc_false;
-	state->prg_ram_bank = 0;
+	/* Mega CD */
+	memset(state->mega_cd.prg_ram.buffer, 0, sizeof(state->mega_cd.prg_ram.buffer));
+	state->mega_cd.prg_ram.bank = 0;
 
-	state->word_ram_1m_mode = cc_true; /* Confirmed by my Visual Sound Test homebrew. */
+	memset(state->mega_cd.word_ram.buffer, 0, sizeof(state->mega_cd.word_ram.buffer));
+	state->mega_cd.word_ram.in_1m_mode = cc_true; /* Confirmed by my Visual Sound Test homebrew. */
 	/* Page 24 of MEGA-CD HARDWARE MANUAL confirms this. */
-	state->word_ram_dmna = cc_false;
-	state->word_ram_ret = cc_true;
+	state->mega_cd.word_ram.dmna = cc_false;
+	state->mega_cd.word_ram.ret = cc_true;
 
-	state->cd_boot = cc_false;
+	state->mega_cd.m68k.bus_requested = cc_true;
+	state->mega_cd.m68k.reset_held = cc_false;
 
-	state->mcd_communication_flag = 0;
+	state->mega_cd.communication.flag = 0;
 
-	for (i = 0; i < CC_COUNT_OF(state->mcd_communication_command); ++i)
-		state->mcd_communication_command[i] = 0;
+	for (i = 0; i < CC_COUNT_OF(state->mega_cd.communication.command); ++i)
+		state->mega_cd.communication.command[i] = 0;
 
-	for (i = 0; i < CC_COUNT_OF(state->mcd_communication_status); ++i)
-		state->mcd_communication_status[i] = 0;
+	for (i = 0; i < CC_COUNT_OF(state->mega_cd.communication.status); ++i)
+		state->mega_cd.communication.status[i] = 0;
 
-	state->current_cd_sector = 0;
-	state->mcd_waiting_for_vint = cc_false;
-	state->mcd_vint_enabled = cc_true;
-	state->cdc_ready = cc_false;
+	state->mega_cd.cd.current_sector = 0;
+	state->mega_cd.cd.total_buffered_sectors = 0;
+	state->mega_cd.cd.cdc_ready = cc_false;
+
+	state->mega_cd.vertical_interrupt.enabled = cc_true;
+	state->mega_cd.vertical_interrupt.being_waited_for = cc_false;
+
+	state->mega_cd.boot_from_cd = cc_false;
 }
 
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state)
@@ -1797,7 +1801,7 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 	clownmdemu->z80.constant = &constant->z80;
 	clownmdemu->z80.state = &state->z80.state;
 
-	clownmdemu->mcd_m68k = &state->mcd_m68k;
+	clownmdemu->mcd_m68k = &state->mega_cd.m68k.state;
 
 	clownmdemu->vdp.configuration = &configuration->vdp;
 	clownmdemu->vdp.constant = &constant->vdp;
@@ -1885,14 +1889,14 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 				Z80_Interrupt(&clownmdemu->z80);
 			}
 
-			if (clownmdemu->state->cd_boot)
+			if (clownmdemu->state->mega_cd.boot_from_cd)
 			{
 				/* Normally the BIOS does this, but since we're doing HLE, we have to do it. */
 				/* TODO: Wait, Sonic CD does this manually?! */
-				if (clownmdemu->state->mcd_vint_enabled)
+				if (clownmdemu->state->mega_cd.vertical_interrupt.enabled)
 				{
 					SyncMCDM68k(clownmdemu, &cpu_callback_user_data, current_cycle);
-					clownmdemu->state->mcd_waiting_for_vint = cc_false;
+					clownmdemu->state->mega_cd.vertical_interrupt.being_waited_for = cc_false;
 					Clown68000_Interrupt(clownmdemu->mcd_m68k, &mcd_m68k_read_write_callbacks, 2);
 				}
 			}
@@ -1914,7 +1918,7 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 	CPUCallbackUserData callback_user_data;
 
-	clownmdemu->state->cd_boot = cd_boot;
+	clownmdemu->state->mega_cd.boot_from_cd = cd_boot;
 
 	if (cd_boot)
 	{
@@ -1934,30 +1938,30 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 		region = sector_bytes[0x1F0];
 
 		/* Don't allow overflowing the PRG-RAM array. */
-		sp_length = CC_MIN(CC_COUNT_OF(clownmdemu->state->prg_ram) * 2 - 0x6000, sp_length);
+		sp_length = CC_MIN(CC_COUNT_OF(clownmdemu->state->mega_cd.prg_ram.buffer) * 2 - 0x6000, sp_length);
 
 		/* Read Initial Program. */
-		BytesTo68kRAM(clownmdemu->state->word_ram, &sector_bytes[0x200], 0x600);
+		BytesTo68kRAM(clownmdemu->state->mega_cd.word_ram.buffer, &sector_bytes[0x200], 0x600);
 
 		/* Load additional Initial Program data if necessary. */
 		if (ip_start != 0x200 || ip_length != 0x600)
-			CDSectorsTo68kRAM(callbacks, &clownmdemu->state->word_ram[0x600 / 2], 0x800, 32 * 0x800);
+			CDSectorsTo68kRAM(callbacks, &clownmdemu->state->mega_cd.word_ram.buffer[0x600 / 2], 0x800, 32 * 0x800);
 
 		/* This is what the Mega CD's BIOS does. */
-		memcpy(clownmdemu->state->m68k_ram, clownmdemu->state->word_ram, 0x8000);
+		memcpy(clownmdemu->state->m68k_ram, clownmdemu->state->mega_cd.word_ram.buffer, 0x8000);
 
 		/* Read Sub Program. */
-		CDSectorsTo68kRAM(callbacks, &clownmdemu->state->prg_ram[0x6000 / 2], sp_start, sp_length);
+		CDSectorsTo68kRAM(callbacks, &clownmdemu->state->mega_cd.prg_ram.buffer[0x6000 / 2], sp_start, sp_length);
 
 		/* Load SUB-CPU BIOS. */
-		memcpy(clownmdemu->state->prg_ram, subcpu_bios_uncompressed, sizeof(subcpu_bios_uncompressed));
+		memcpy(clownmdemu->state->mega_cd.prg_ram.buffer, subcpu_bios_uncompressed, sizeof(subcpu_bios_uncompressed));
 
 		/* Allow SUB-CPU to execute. */
-		clownmdemu->state->m68k_has_mcd_m68k_bus = cc_false;
+		clownmdemu->state->mega_cd.m68k.bus_requested = cc_false;
 
 		/* Give WORD-RAM to the SUB-CPU. */
-		clownmdemu->state->word_ram_dmna = cc_true;
-		clownmdemu->state->word_ram_ret = cc_false;
+		clownmdemu->state->mega_cd.word_ram.dmna = cc_true;
+		clownmdemu->state->mega_cd.word_ram.ret = cc_false;
 
 		/* Construct MAIN-CPU vector jump table. */
 		for (i = 0; i < 30; ++i)
