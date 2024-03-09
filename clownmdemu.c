@@ -524,6 +524,9 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 		}
 		else
 		{
+			/* This is unnecessary, as the Z80 bus will have to have been requested, causing a sync. */
+			/*SyncZ80(clownmdemu, callback_user_data, target_cycle);*/
+
 			if (do_high_byte)
 				value = Z80ReadCallbackWithCycle(user_data, (address * 2 + 0) & 0xFFFF, target_cycle) << 8;
 			else /*if (do_low_byte)*/
@@ -822,7 +825,8 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		}
 		else
 		{
-			SyncZ80(clownmdemu, callback_user_data, target_cycle);
+			/* This is unnecessary, as the Z80 bus will have to have been requested, causing a sync. */
+			/*SyncZ80(clownmdemu, callback_user_data, target_cycle);*/
 
 			if (do_high_byte)
 				Z80WriteCallbackWithCycle(user_data, (address * 2 + 0) & 0xFFFF, high_byte, target_cycle);
