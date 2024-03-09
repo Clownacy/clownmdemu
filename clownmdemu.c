@@ -811,6 +811,8 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		}
 		else
 		{
+			SyncZ80(clownmdemu, callback_user_data, target_cycle);
+
 			if (do_high_byte)
 				Z80WriteCallbackWithCycle(user_data, (address * 2 + 0) & 0xFFFF, high_byte, target_cycle);
 			else /*if (do_low_byte)*/
