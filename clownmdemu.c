@@ -263,7 +263,7 @@ static void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData*
 
 		if (m68k_countdown == 0)
 		{
-			if (!clownmdemu->state->mega_cd.m68k.bus_requested && clownmdemu->state->mega_cd.m68k.reset_held)
+			if (!clownmdemu->state->mega_cd.m68k.bus_requested && !clownmdemu->state->mega_cd.m68k.reset_held)
 				Clown68000_DoCycle(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 
 			m68k_countdown = CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * 10; /* TODO: The '* 10' is a temporary hack until 68000 instruction durations are added. */
@@ -623,7 +623,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address == 0xA12000 / 2)
 	{
 		/* RESET, HALT */
-		value = ((cc_u16f)clownmdemu->state->mega_cd.m68k.bus_requested << 1) | ((cc_u16f)clownmdemu->state->mega_cd.m68k.reset_held << 0);
+		value = ((cc_u16f)clownmdemu->state->mega_cd.m68k.bus_requested << 1) | ((cc_u16f)!clownmdemu->state->mega_cd.m68k.reset_held << 0);
 	}
 	else if (address == 0xA12002 / 2)
 	{
@@ -916,7 +916,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 
 		const cc_bool interrupt = (high_byte & (1 << 0)) != 0;
 		const cc_bool bus_request = (low_byte & (1 << 1)) != 0;
-		const cc_bool reset = (low_byte & (1 << 0)) != 0;
+		const cc_bool reset = (low_byte & (1 << 0)) == 0;
 
 		m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
 		m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
@@ -925,7 +925,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		if (clownmdemu->state->mega_cd.m68k.bus_requested != bus_request)
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 
-		if (!clownmdemu->state->mega_cd.m68k.reset_held && reset)
+		if (clownmdemu->state->mega_cd.m68k.reset_held && !reset)
 		{
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 			Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
@@ -1760,7 +1760,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	/* Mega CD */
 	state->mega_cd.m68k.cycle_countdown = 0;
 	state->mega_cd.m68k.bus_requested = cc_true;
-	state->mega_cd.m68k.reset_held = cc_false;
+	state->mega_cd.m68k.reset_held = cc_true;
 
 	memset(state->mega_cd.prg_ram.buffer, 0, sizeof(state->mega_cd.prg_ram.buffer));
 	state->mega_cd.prg_ram.bank = 0;
