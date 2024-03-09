@@ -1754,7 +1754,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->z80_reset = cc_true;
 
 	state->m68k_has_mcd_m68k_bus = cc_true;
-	state->mcd_m68k_reset = cc_true;
+	state->mcd_m68k_reset = cc_false;
 	state->prg_ram_bank = 0;
 
 	state->word_ram_1m_mode = cc_true; /* Confirmed by my Visual Sound Test homebrew. */
