@@ -220,7 +220,11 @@ static void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* con
 		z80_countdown -= cycles_to_do;
 
 		if (z80_countdown == 0)
-			z80_countdown = CLOWNMDEMU_Z80_CLOCK_DIVIDER * (clownmdemu->state->m68k_has_z80_bus ? 1 : Z80_DoCycle(&clownmdemu->z80, &z80_read_write_callbacks));
+		{
+			const cc_bool z80_not_running = clownmdemu->state->m68k_has_z80_bus || !clownmdemu->state->mcd_m68k_reset;
+
+			z80_countdown = CLOWNMDEMU_Z80_CLOCK_DIVIDER * (z80_not_running ? 1 : Z80_DoCycle(&clownmdemu->z80, &z80_read_write_callbacks));
+		}
 
 		other_state->z80_current_cycle += cycles_to_do;
 	}
@@ -249,7 +253,7 @@ static void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData*
 
 		if (m68k_countdown == 0)
 		{
-			if (!clownmdemu->state->m68k_has_mcd_m68k_bus)
+			if (!clownmdemu->state->m68k_has_mcd_m68k_bus && clownmdemu->state->mcd_m68k_reset)
 				Clown68000_DoCycle(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 
 			m68k_countdown = CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * 10; /* TODO: The '* 10' is a temporary hack until 68000 instruction durations are added. */
@@ -874,7 +878,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		{
 			const cc_bool new_z80_reset = (high_byte & 1) == 0;
 
-			if (clownmdemu->state->z80_reset && !new_z80_reset)
+			if (!clownmdemu->state->z80_reset && new_z80_reset)
 			{
 				SyncZ80(clownmdemu, callback_user_data, target_cycle);
 				Z80_Reset(&clownmdemu->z80);
@@ -900,7 +904,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		if (clownmdemu->state->m68k_has_mcd_m68k_bus != bus_request)
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 
-		if (clownmdemu->state->mcd_m68k_reset && !reset)
+		if (!clownmdemu->state->mcd_m68k_reset && reset)
 		{
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 			Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
