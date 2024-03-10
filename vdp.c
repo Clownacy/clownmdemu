@@ -253,6 +253,8 @@ void VDP_State_Initialise(VDP_State *state)
 
 	state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
 	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
+	
+	state->dma_cycle_delay = cc_false;
 
 	memset(state->vram, 0, sizeof(state->vram));
 	memset(state->cram, 0, sizeof(state->cram));
@@ -1052,6 +1054,8 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 
 	if (IsDMAPending(vdp->state) && vdp->state->dma.mode != VDP_DMA_MODE_FILL)
 	{
+		cc_bool delayed = cc_false;
+		
 		/* Firing DMA */
 		ClearDMAPending(vdp->state);
 
@@ -1067,10 +1071,19 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 				vdp->state->access.address_register += vdp->state->access.increment;
 			}
 
-			/* Emulate the 128KiB DMA wrap-around bug */
-			++vdp->state->dma.source_address_low;
-			vdp->state->dma.source_address_low &= 0xFFFF;
+			/* Emulate the 128KiB DMA wrap-around bug and delay */
+			if (vdp->state->dma_cycle_delay && !delayed)
+			{
+				delayed = cc_true;
+			}
+			else
+			{
+				++vdp->state->dma.source_address_low;
+				vdp->state->dma.source_address_low &= 0xFFFF;
+			}
 		} while (--vdp->state->dma.length, vdp->state->dma.length &= 0xFFFF, vdp->state->dma.length != 0);
+
+		vdp->state->dma_cycle_delay = cc_false;
 	}
 }
 

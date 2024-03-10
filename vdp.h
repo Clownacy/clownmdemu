@@ -137,6 +137,8 @@ typedef struct VDP_State
 	VDP_HScrollMode hscroll_mode;
 	VDP_VScrollMode vscroll_mode;
 
+	cc_bool dma_cycle_delay;
+
 	cc_u8l vram[0x10000];
 	cc_u16l cram[4 * 16];
 	/* http://gendev.spritesmind.net/forum/viewtopic.php?p=36727#p36727 */

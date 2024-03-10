@@ -38,125 +38,7 @@ typedef struct IOPortToController_Parameters
 } IOPortToController_Parameters;
 
 /* TODO: Please, anything but this... */
-/* This is the 'bios.bin' file that can be found in the 'SUB-CPU BIOS' directory. */
-static const cc_u16l subcpu_bios_uncompressed[] = {
-	0x0000, 0x5E80, 0x0000, 0x010E,
-	0x0000, 0x0104, 0x0000, 0x5F40,
-	0x0000, 0x5F46, 0x0000, 0x5F4C,
-	0x0000, 0x5F52, 0x0000, 0x5F58,
-	0x0000, 0x5F5E, 0x0000, 0x5F64,
-	0x0000, 0x5F6A, 0x0000, 0x5F70,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0000,
-	0x0000, 0x0104, 0x0000, 0x5F76,
-	0x0000, 0x5F7C, 0x0000, 0x5F82,
-	0x0000, 0x5F88, 0x0000, 0x5F8E,
-	0x0000, 0x5F94, 0x0000, 0x5F9A,
-	0x0000, 0x5FA0, 0x0000, 0x5FA6,
-	0x0000, 0x5FAC, 0x0000, 0x5FB2,
-	0x0000, 0x5FB8, 0x0000, 0x5FBE,
-	0x0000, 0x5FC4, 0x0000, 0x5FCA,
-	0x0000, 0x5FD0, 0x0000, 0x5FD6,
-	0x0000, 0x5FDC, 0x0000, 0x5FE2,
-	0x0000, 0x5FE8, 0x0000, 0x5FEE,
-	0x0000, 0x5FF4, 0x0000, 0x5FFA,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x5345, 0x4741, 0x4E71, 0x4E71,
-	0x60FA, 0x4E73, 0x4E75, 0x7000,
-	0x11C0, 0x800F, 0x21C0, 0x8020,
-	0x21C0, 0x8024, 0x21C0, 0x8028,
-	0x21C0, 0x802C, 0x11C0, 0x8033,
-	0x41F8, 0x5F0A, 0x303C, 0x4EF9,
-	0x30C0, 0x20FC, 0x0000, 0x010C,
-	0x30C0, 0x20FC, 0x0000, 0x0222,
-	0x7206, 0x30C0, 0x20FC, 0x0000,
-	0x010C, 0x51C9, 0xFFF6, 0x7208,
-	0x30C0, 0x20FC, 0x0000, 0x0104,
-	0x51C9, 0xFFF6, 0x30C0, 0x20FC,
-	0x0000, 0x010A, 0x30C0, 0x20FC,
-	0x0000, 0x020A, 0x7214, 0x30C0,
-	0x20FC, 0x0000, 0x010A, 0x51C9,
-	0xFFF6, 0x41FA, 0x5E84, 0x0C90,
-	0x4D41, 0x494E, 0x66F4, 0x0038,
-	0x0014, 0x8033, 0xD1E8, 0x0018,
-	0x2208, 0x45F8, 0x5F2A, 0x7000,
-	0x3018, 0x6708, 0xD081, 0x24C0,
-	0x544A, 0x60F2, 0x4CFA, 0x7FFF,
-	0x002E, 0x46FC, 0x2200, 0x6100,
-	0x5D78, 0x46FC, 0x2000, 0x3038,
-	0x5EA2, 0x6100, 0x5D72, 0x31C0,
-	0x5EA2, 0x6100, 0x005E, 0x0C78,
-	0xFFFF, 0x5EA2, 0x66E8, 0x4CFA,
-	0x7FFF, 0x0004, 0x60D4, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x48E7, 0xFFFE, 0x3A7C,
-	0x0000, 0x6100, 0x5D20, 0x08B8,
-	0x0000, 0x5EA4, 0x4CDF, 0x7FFF,
-	0x4E73, 0x08F8, 0x0000, 0x5EA4,
-	0x0838, 0x0000, 0x5EA4, 0x66F8,
-	0x4E75
-};
-
-/* This is the 'bios.kos' file that can be found in the 'SUB-CPU BIOS' directory. */
-static const cc_u16l subcpu_bios_compressed[] = {
-	0x0F63, 0x0000, 0x5E80, 0xFC01,
-	0x0EFC, 0x0418, 0x63FC, 0x5F40,
-	0xFC46, 0xFC4C, 0x8C31, 0xFC52,
-	0xFC58, 0xFC5E, 0xC698, 0xFC64,
-	0xFC6A, 0xFC70, 0x648E, 0xD8FC,
-	0xF828, 0xFFA8, 0x7631, 0xC6FC,
-	0x7CFC, 0x82FC, 0x88FC, 0x1863,
-	0x8EFC, 0x94FC, 0x9AFC, 0xA08C,
-	0x31FC, 0xA6FC, 0xACFC, 0xB2C6,
-	0x18FC, 0xB8FC, 0xBEFC, 0xC463,
-	0x8CFC, 0xCAFC, 0xD0FC, 0xD631,
-	0xC6FC, 0xDCFC, 0xE2FC, 0xE8FC,
-	0x1893, 0xEEFC, 0xF4FC, 0xFAA0,
-	0x3FFC, 0xFCF8, 0x3B53, 0x4547,
-	0x414E, 0x71FE, 0x60FA, 0x4E73,
-	0x4EF0, 0x2175, 0x2111, 0xC080,
-	0x0F21, 0xFC20, 0xC618, 0xFC24,
-	0xFC28, 0xFC2C, 0xFF3F, 0xEC33,
-	0x41F8, 0x5F0A, 0x303C, 0x4EF9,
-	0x30C0, 0x20FC, 0xF6FD, 0xC80C,
-	0xF8FC, 0x0222, 0x7206, 0xEEFE,
-	0x51C9, 0xFFF6, 0x89C8, 0x7208,
-	0xF2A8, 0xF2F4, 0xFD5E, 0xFA0A,
-	0xD4FD, 0x0A72, 0x14EE, 0xFEE2,
-	0x41FA, 0x5E84, 0x3F1C, 0x0C90,
-	0x4D41, 0x494E, 0x6636, 0x3800,
-	0x14C2, 0x439C, 0xD126, 0x1822,
-	0x0845, 0x962A, 0xF8FF, 0x7830,
-	0x1867, 0x08D0, 0x8124, 0xC054,
-	0x4A60, 0xF2FF, 0x1F4C, 0xFA7F,
-	0xFF00, 0x2E46, 0xFC22, 0x0061,
-	0x005D, 0x78C2, 0xF1F8, 0x20E2,
-	0x385E, 0xA2F4, 0x7231, 0xE8C3,
-	0xC0F8, 0x3DF1, 0x0C78, 0xFFFF,
-	0xF666, 0xFCFE, 0xE8D6, 0x0460,
-	0xD400, 0xFFF8, 0x3248, 0xE7FF,
-	0xFE3A, 0xE978, 0x7C00, 0x9C20,
-	0x08B8, 0xABA4, 0x4CDF, 0x789A,
-	0xB24E, 0x7308, 0xF8F4, 0x0838,
-	0x5E00, 0xFA66, 0xF84E, 0x7500,
-	0xF000
-};
+#include "mcd_boot.c"
 
 static cc_u32f ReadU32BE(const cc_u8l* const bytes)
 {
@@ -380,7 +262,17 @@ static void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target
 
 static cc_u16f VDPReadCallback(void *user_data, cc_u32f address)
 {
-	/* TODO: This is a shell of its former self. Maybe find a way to remove it entirely? */
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+
+	if (address < 0x800000)
+	{
+		if (((address & 0x200000) == 0) != clownmdemu->state->mega_cd.boot_from_cd && (address & 0x200000) != 0)
+		{
+			/* Delay Word RAM DMAs*/
+			clownmdemu->vdp.state->dma_cycle_delay = cc_true;
+		}
+	}
 	return M68kReadCallback(user_data, address / 2, cc_true, cc_true);
 }
 
@@ -435,105 +327,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 			else if ((address & 0x10000) == 0)
 			{
 				/* Mega CD BIOS */
-				const cc_u16f local_address = address & 0xFFFF;
-
-				if (local_address >= 0xB000 && local_address < 0xB000 + CC_COUNT_OF(subcpu_bios_compressed))
-				{
-					/* Kosinski-compressed SUB-CPU payload. */
-					value = subcpu_bios_compressed[local_address - 0xB000];
-				}
-				else if (local_address < 0x80)
-				{
-				#define VECTOR_ENTRY(x) (x) >> 16, (x) & 0xFFFF
-					/* Vector table */
-					static const cc_u16l vector_table[0x80] = {
-						VECTOR_ENTRY(0x00FFFD00), /* Stack pointer */
-						VECTOR_ENTRY(0x00FFFD00), /* Entry point */
-						VECTOR_ENTRY(0x00000100), /* Bus error */
-						VECTOR_ENTRY(0x00FFFD7E), /* Address error */
-						VECTOR_ENTRY(0x00FFFD7E), /* Illegal instruction */
-						VECTOR_ENTRY(0x00FFFD84), /* Divide by zero */
-						VECTOR_ENTRY(0x00000100), /* CHK exception */
-						VECTOR_ENTRY(0x00FFFD8E), /* TRAPV exception */
-						VECTOR_ENTRY(0x00FFFD9C), /* Privilage violation */
-						VECTOR_ENTRY(0x00FFFDA2), /* TRACE exception */
-						VECTOR_ENTRY(0x00000100), /* LINE-A emulator */
-						VECTOR_ENTRY(0x00000100), /* LINE-F emulator */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Spurious interrupt */
-						VECTOR_ENTRY(0x00000100), /* Level 1 interrupt */
-						VECTOR_ENTRY(0x00FFFD12), /* Level 2 interrupt */
-						VECTOR_ENTRY(0x00000100), /* Level 3 interrupt */
-						VECTOR_ENTRY(0x00FFFD0C), /* Level 4 interrupt */
-						VECTOR_ENTRY(0x00000100), /* Level 5 interrupt */
-						VECTOR_ENTRY(0x00FFFD06), /* Level 6 interrupt */
-						VECTOR_ENTRY(0x00000100), /* Level 7 interrupt */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 0),  /* TRAP #0 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 1),  /* TRAP #1 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 2),  /* TRAP #2 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 3),  /* TRAP #3 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 4),  /* TRAP #4 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 5),  /* TRAP #5 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 6),  /* TRAP #6 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 7),  /* TRAP #7 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 8),  /* TRAP #8 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 9),  /* TRAP #9 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 10), /* TRAP #10 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 11), /* TRAP #11 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 12), /* TRAP #12 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 13), /* TRAP #13 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 14), /* TRAP #14 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 15), /* TRAP #15 handler */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-					};
-
-					value = vector_table[local_address];
-				}
-				else if (local_address >= 0x80 && local_address <= 0x81)
-				{
-					/* "SEGA" */
-					static const cc_u16l sega[2] = {
-						('S' << 8) | ('E' << 0),
-						('G' << 8) | ('A' << 0)
-					};
-					value = sega[local_address - 0x80];
-				}
-				else if (local_address == 0x82)
-				{
-					/* rte (used by interrupts) */
-					value = 0x4E73;
-				}
-				else if (local_address == 0xC0)
-				{
-					/* Set type to "Boot ROM" */
-					value = ('B' << 8) | ('R' << 0);
-				}
+				value = megacd_boot_rom[address & 0xFFFF];
 			}
 			else
 			{
@@ -1803,7 +1597,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	/* Mega CD */
 	state->mega_cd.m68k.cycle_countdown = 0;
 	state->mega_cd.m68k.bus_requested = cc_true;
-	state->mega_cd.m68k.reset_held = cc_false; /* TODO: Didn't Devon say that this should be true? Nothing boots if I do that. Maybe a real BIOS manually releases the reset. */
+	state->mega_cd.m68k.reset_held = cc_true;
 
 	memset(state->mega_cd.prg_ram.buffer, 0, sizeof(state->mega_cd.prg_ram.buffer));
 	state->mega_cd.prg_ram.bank = 0;
@@ -1991,50 +1785,9 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 		/* Read Sub Program. */
 		CDSectorsTo68kRAM(callbacks, &clownmdemu->state->mega_cd.prg_ram.buffer[0x6000 / 2], sp_start, sp_length);
 
-		/* Load SUB-CPU BIOS. */
-		memcpy(clownmdemu->state->mega_cd.prg_ram.buffer, subcpu_bios_uncompressed, sizeof(subcpu_bios_uncompressed));
-
-		/* Allow SUB-CPU to execute. */
-		clownmdemu->state->mega_cd.m68k.bus_requested = cc_false;
-
 		/* Give WORD-RAM to the SUB-CPU. */
 		clownmdemu->state->mega_cd.word_ram.dmna = cc_true;
 		clownmdemu->state->mega_cd.word_ram.ret = cc_false;
-
-		/* Construct MAIN-CPU vector jump table. */
-		for (i = 0; i < 30; ++i)
-		{
-			clownmdemu->state->m68k.ram[0xFD00 / 2 + 3 * i + 0] = 0x4EF9;
-			clownmdemu->state->m68k.ram[0xFD00 / 2 + 3 * i + 1] = 0x0000;
-			clownmdemu->state->m68k.ram[0xFD00 / 2 + 3 * i + 2] = 0x0104; /* Points to an RTE instruction. */
-		}
-
-		/* Set correct entry point. */
-		clownmdemu->state->m68k.ram[0xFD00 / 2 + 1] = 0x00FF;
-
-		/* Skip "security code". */
-		/* TODO: Fix whatever's breaking this dumb "security code" so that we don't have to skip it. */
-		/* TODO: According to Devon, the security code uses those mysterious undocumented public functions in the MAIN-CPU BIOS. */
-		switch (region)
-		{
-			case 'E':
-				clownmdemu->state->m68k.ram[0xFD00 / 2 + 2] = 1390;
-				break;
-
-			case 'U':
-				clownmdemu->state->m68k.ram[0xFD00 / 2 + 2] = 0x0584;
-				break;
-
-			default:
-			case 'J':
-				clownmdemu->state->m68k.ram[0xFD00 / 2 + 2] = 342;
-				break;
-		}
-	}
-	else
-	{
-		/* Set Sub CPU to reset state if not booting from CD */
-		clownmdemu->state->mega_cd.m68k.reset_held = cc_true;
 	}
 
 	callback_user_data.data_and_callbacks.data = clownmdemu;
@@ -2051,13 +1804,6 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 	m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
 	m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
 	Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
-
-	if (cd_boot)
-	{
-		/* Enable V-blank interrupt if booting from CD */
-		clownmdemu->m68k->status_register &= ~0x700;
-		clownmdemu->vdp.state->v_int_enabled = cc_true;
-	}
 }
 
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(void *user_data, const char *format, va_list arg), const void* const user_data)
