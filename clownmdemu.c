@@ -327,28 +327,8 @@ static void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target
 
 static cc_u16f VDPReadCallback(void *user_data, cc_u32f address)
 {
-	DataAndCallbacks *data_and_callbacks = (DataAndCallbacks*)user_data;
-	ClownMDEmu_State *state = data_and_callbacks->data->state;
-	const ClownMDEmu_Callbacks *frontend_callbacks = data_and_callbacks->frontend_callbacks;
-	cc_u16f value = 0;
-
-	if (/*address >= 0 &&*/ address < MAX_ROM_SIZE)
-	{
-		/* Cartridge. */
-		value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, address + 0) << 8;
-		value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, address + 1) << 0;
-	}
-	else if (address >= 0xE00000 && address <= 0xFFFFFF)
-	{
-		/* 68k RAM. */
-		value = state->m68k.ram[(address & 0xFFFF) / 2];
-	}
-	else
-	{
-		PrintError("VDP attempted to read invalid memory 0x%" CC_PRIXFAST32, address);
-	}
-
-	return value;
+	/* TODO: This is a shell of its former self. Maybe find a way to remove it entirely? */
+	return M68kReadCallback(user_data, address / 2, cc_true, cc_true);
 }
 
 /* 68k memory access callbacks */
@@ -1001,7 +981,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		else /*if (address == 0xC00004 || address == 0xC00006)*/
 		{
 			/* VDP control port */
-			VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, &callback_user_data->data_and_callbacks);
+			VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data);
 		}
 	}
 	else if (address == 0xC00008 / 2)
