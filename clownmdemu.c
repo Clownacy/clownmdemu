@@ -952,7 +952,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 		}
 
-		if (interrupt)
+		if (interrupt && clownmdemu->state->mega_cd.vertical_interrupt.enabled)
 		{
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 			Clown68000_Interrupt(clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 2);
