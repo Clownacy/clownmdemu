@@ -195,6 +195,7 @@ typedef struct ClownMDEmu_State
 			cc_bool being_waited_for;
 		} vertical_interrupt;
 		cc_bool boot_from_cd;
+		cc_bool irq1_pending;
 	} mega_cd;
 } ClownMDEmu_State;
 

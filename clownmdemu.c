@@ -1451,6 +1451,23 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 		/* Interrupt mask control */
 		value = clownmdemu->state->mega_cd.vertical_interrupt.enabled << 2;
 	}
+	else if (address == 0xFF8058 / 2)
+	{
+		/* Stamp data size */
+		/* TODO */
+		value = 0;
+	}
+	else if (address == 0xFF8064 / 2)
+	{
+		/* Image buffer vertical draw size */
+		/* TODO */
+		value = 0;
+	}
+	else if (address == 0xFF8066 / 2)
+	{
+		/* Trace vector base address */
+		/* TODO */
+	}
 	else
 	{
 		PrintError("Attempted to read invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->mcd_m68k->program_counter);
@@ -1587,6 +1604,22 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	{
 		/* Interrupt mask control */
 		clownmdemu->state->mega_cd.vertical_interrupt.enabled = (value & (1 << 2)) != 0;
+	}
+	else if (address == 0xFF8058 / 2)
+	{
+		/* Stamp data size */
+		/* TODO */
+	}
+	else if (address == 0xFF8064 / 2)
+	{
+		/* Image buffer vertical draw size */
+		/* TODO */
+	}
+	else if (address == 0xFF8066 / 2)
+	{
+		/* Trace vector base address */
+		/* TODO */
+		clownmdemu->state->mega_cd.irq1_pending = cc_true;
 	}
 	else
 	{
@@ -1746,6 +1779,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->mega_cd.vertical_interrupt.being_waited_for = cc_false;
 
 	state->mega_cd.boot_from_cd = cc_false;
+	state->mega_cd.irq1_pending = cc_false;
 }
 
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state)
@@ -1869,6 +1903,14 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	SyncMCDM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame);
 	SyncFM(&cpu_callback_user_data, cycles_per_frame);
 	SyncPSG(&cpu_callback_user_data, cycles_per_frame);
+
+	/* Fire IRQ1 if needed. */
+	/* TODO: This is a hack. Look into when this interrupt should actually be done. */
+	if (clownmdemu->state->mega_cd.irq1_pending)
+	{
+		clownmdemu->state->mega_cd.irq1_pending = cc_false;
+		Clown68000_Interrupt(clownmdemu->mcd_m68k, &mcd_m68k_read_write_callbacks, 1);
+	}
 }
 
 void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks, const cc_bool cd_boot)
