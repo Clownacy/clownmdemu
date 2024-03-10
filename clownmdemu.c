@@ -29,6 +29,7 @@ typedef struct CPUCallbackUserData
 	cc_u32f mcd_m68k_current_cycle;
 	cc_u32f fm_current_cycle;
 	cc_u32f psg_current_cycle;
+	cc_u32f mcd_pcm_current_cycle;
 } CPUCallbackUserData;
 
 typedef struct IOPortToController_Parameters
@@ -242,6 +243,11 @@ static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffe
 	PSG_Update(&clownmdemu->psg, sample_buffer, total_samples);
 }
 
+static void GenerateMCDPCMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples)
+{
+	MCD_PCM_Update(&clownmdemu->mcd_pcm, sample_buffer, total_samples);
+}
+
 static void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 {
 	const cc_u32f psg_target_cycle = target_cycle / (CLOWNMDEMU_Z80_CLOCK_DIVIDER * CLOWNMDEMU_PSG_SAMPLE_RATE_DIVIDER);
@@ -255,6 +261,22 @@ static void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target
 		other_state->data_and_callbacks.frontend_callbacks->psg_audio_to_be_generated((void*)other_state->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate, GeneratePSGAudio);
 
 		other_state->psg_current_cycle = psg_target_cycle;
+	}
+}
+
+static void SyncMCDPCM(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
+{
+	const cc_u32f mcd_pcm_target_cycle = target_cycle / CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER;
+
+	const size_t samples_to_generate = mcd_pcm_target_cycle - other_state->mcd_pcm_current_cycle;
+
+	assert(mcd_pcm_target_cycle >= other_state->mcd_pcm_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
+
+	if (samples_to_generate != 0)
+	{
+		other_state->data_and_callbacks.frontend_callbacks->mcd_pcm_audio_to_be_generated((void*)other_state->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate, GenerateMCDPCMAudio);
+
+		other_state->mcd_pcm_current_cycle = mcd_pcm_target_cycle;
 	}
 }
 
@@ -445,7 +467,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address == 0xA12000 / 2)
 	{
 		/* RESET, HALT */
-		value = ((cc_u16f)clownmdemu->state->mega_cd.irq.irq2_enabled << 15) |
+		value = ((cc_u16f)clownmdemu->state->mega_cd.irq.enabled[1] << 15) |
 		        ((cc_u16f)clownmdemu->state->mega_cd.m68k.bus_requested << 1) |
 		        ((cc_u16f)!clownmdemu->state->mega_cd.m68k.reset_held << 0);
 	}
@@ -755,7 +777,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 		}
 
-		if (interrupt && clownmdemu->state->mega_cd.irq.irq2_enabled)
+		if (interrupt && clownmdemu->state->mega_cd.irq.enabled[1])
 		{
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 			Clown68000_Interrupt(clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 2);
@@ -1253,6 +1275,20 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 			value = clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret];
 		}
 	}
+	else if (address >= 0xFF0000 / 2 && address < 0xFF8000 / 2)
+	{
+		if (address & 0x1000)
+		{
+			/* PCM wave RAM */
+			PrintError("SUB-CPU attempted to read from PCM wave RAM at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		}
+		else
+		{
+			/* PCM register */
+			SyncMCDPCM(callback_user_data, target_cycle);
+			value = (cc_u16f)MCD_PCM_ReadRegister(&clownmdemu->mcd_pcm, address & 0xFFF);
+		}
+	}
 	else if (address == 0xFF8002 / 2)
 	{
 		/* Memory mode / Write protect */
@@ -1304,12 +1340,12 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	else if (address == 0xFF8032 / 2)
 	{
 		/* Interrupt mask control */
-		value = ((cc_u16f)(clownmdemu->state->mega_cd.irq.irq1_enabled << 1)) |
-		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.irq2_enabled << 2)) |
-		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.irq3_enabled << 3)) |
-		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.irq4_enabled << 4)) |
-		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.irq5_enabled << 5)) |
-		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.irq6_enabled << 6));
+		value = ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[0] << 1)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[1] << 2)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[2] << 3)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[3] << 4)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[4] << 5)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[5] << 6));
 	}
 	else if (address == 0xFF8058 / 2)
 	{
@@ -1393,6 +1429,23 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 			clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret] |= value & mask;
 		}
 	}
+	else if (address >= 0xFF0000 / 2 && address < 0xFF8000 / 2)
+	{
+		if (do_low_byte)
+		{
+			SyncMCDPCM(callback_user_data, target_cycle);
+			if (address & 0x1000)
+			{
+				/* PCM wave RAM */
+				MCD_PCM_WriteWaveRAM(&clownmdemu->mcd_pcm, address & 0xFFF, (cc_u8f)value);
+			}
+			else
+			{
+				/* PCM register */
+				MCD_PCM_WriteRegister(&clownmdemu->mcd_pcm, address & 0xFFF, (cc_u8f)value);
+			}
+		}
+	}
 	else if (address == 0xFF8002 / 2)
 	{
 		/* Memory mode / Write protect */
@@ -1465,14 +1518,14 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 		/* Interrupt mask control */
 		if (do_low_byte)
 		{
-			clownmdemu->state->mega_cd.irq.irq1_enabled = (value & (1 << 1)) != 0;
-			clownmdemu->state->mega_cd.irq.irq2_enabled = (value & (1 << 2)) != 0;
-			clownmdemu->state->mega_cd.irq.irq3_enabled = (value & (1 << 3)) != 0;
-			clownmdemu->state->mega_cd.irq.irq4_enabled = (value & (1 << 4)) != 0;
-			clownmdemu->state->mega_cd.irq.irq5_enabled = (value & (1 << 5)) != 0;
-			clownmdemu->state->mega_cd.irq.irq6_enabled = (value & (1 << 6)) != 0;
+			clownmdemu->state->mega_cd.irq.enabled[0] = (value & (1 << 1)) != 0;
+			clownmdemu->state->mega_cd.irq.enabled[1] = (value & (1 << 2)) != 0;
+			clownmdemu->state->mega_cd.irq.enabled[2] = (value & (1 << 3)) != 0;
+			clownmdemu->state->mega_cd.irq.enabled[3] = (value & (1 << 4)) != 0;
+			clownmdemu->state->mega_cd.irq.enabled[4] = (value & (1 << 5)) != 0;
+			clownmdemu->state->mega_cd.irq.enabled[5] = (value & (1 << 6)) != 0;
 
-			if (!clownmdemu->state->mega_cd.irq.irq1_enabled)
+			if (!clownmdemu->state->mega_cd.irq.enabled[0])
 				clownmdemu->state->mega_cd.irq.irq1_pending = cc_false;
 		}
 	}
@@ -1490,7 +1543,7 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	{
 		/* Trace vector base address */
 		/* TODO */
-		if (clownmdemu->state->mega_cd.irq.irq1_enabled)
+		if (clownmdemu->state->mega_cd.irq.enabled[0])
 			clownmdemu->state->mega_cd.irq.irq1_pending = cc_true;
 	}
 	else
@@ -1647,13 +1700,11 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->mega_cd.cd.total_buffered_sectors = 0;
 	state->mega_cd.cd.cdc_ready = cc_false;
 	
-	state->mega_cd.irq.irq1_enabled = cc_false;
-	state->mega_cd.irq.irq2_enabled = cc_false;
-	state->mega_cd.irq.irq3_enabled = cc_false;
-	state->mega_cd.irq.irq4_enabled = cc_false;
-	state->mega_cd.irq.irq5_enabled = cc_false;
-	state->mega_cd.irq.irq6_enabled = cc_false;
+	for (i = 0; i < CC_COUNT_OF(state->mega_cd.irq.enabled); ++i)
+		state->mega_cd.irq.enabled[i] = cc_false;
 	state->mega_cd.irq.irq1_pending = cc_false;
+	
+	MCD_PCM_State_Initialise(&state->mega_cd.pcm);
 
 	state->mega_cd.boot_from_cd = cc_false;
 
@@ -1682,6 +1733,8 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 	clownmdemu->psg.configuration = &configuration->psg;
 	clownmdemu->psg.constant = &constant->psg;
 	clownmdemu->psg.state = &state->psg;
+
+	clownmdemu->mcd_pcm.state = &state->mega_cd.pcm;
 }
 
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
@@ -1702,6 +1755,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	cpu_callback_user_data.mcd_m68k_current_cycle = 0;
 	cpu_callback_user_data.fm_current_cycle = 0;
 	cpu_callback_user_data.psg_current_cycle = 0;
+	cpu_callback_user_data.mcd_pcm_current_cycle = 0;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
@@ -1769,6 +1823,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	SyncMCDM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame);
 	SyncFM(&cpu_callback_user_data, cycles_per_frame);
 	SyncPSG(&cpu_callback_user_data, cycles_per_frame);
+	SyncMCDPCM(&cpu_callback_user_data, cycles_per_frame);
 
 	/* Fire IRQ1 if needed. */
 	/* TODO: This is a hack. Look into when this interrupt should actually be done. */

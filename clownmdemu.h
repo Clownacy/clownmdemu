@@ -13,6 +13,7 @@
 #include "psg.h"
 #include "vdp.h"
 #include "z80.h"
+#include "mcd_pcm.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -167,38 +168,41 @@ typedef struct ClownMDEmu_State
 			cc_bool bus_requested;
 			cc_bool reset_held;
 		} m68k;
+
 		struct
 		{
 			cc_u16l buffer[0x40000];
 			cc_u8l bank;
 		} prg_ram;
+
 		struct
 		{
 			cc_u16l buffer[0x20000];
 			cc_bool in_1m_mode;
 			cc_bool dmna, ret;
 		} word_ram;
+
 		struct
 		{
 			cc_u16l flag;
 			cc_u16l command[8]; /* The MAIN-CPU one. */
 			cc_u16l status[8];  /* The SUB-CPU one. */
 		} communication;
+
 		struct
 		{
 			cc_u32l current_sector, total_buffered_sectors;
 			cc_bool cdc_ready;
 		} cd;
+
 		struct
 		{
-			cc_bool irq1_enabled;
-			cc_bool irq2_enabled;
-			cc_bool irq3_enabled;
-			cc_bool irq4_enabled;
-			cc_bool irq5_enabled;
-			cc_bool irq6_enabled;
+			cc_bool enabled[6];
 			cc_bool irq1_pending;
 		} irq;
+
+		MCD_PCM_State pcm;
+
 		cc_bool boot_from_cd;
 		cc_u16l hblank_address;
 	} mega_cd;
@@ -215,6 +219,7 @@ typedef struct ClownMDEmu
 	VDP vdp;
 	FM fm;
 	PSG psg;
+	MCD_PCM mcd_pcm;
 } ClownMDEmu;
 
 typedef struct ClownMDEmu_Callbacks
@@ -228,6 +233,7 @@ typedef struct ClownMDEmu_Callbacks
 	cc_bool (*input_requested)(void *user_data, cc_u8f player_id, ClownMDEmu_Button button_id);
 	void (*fm_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*psg_audio_to_be_generated)(void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples));
+	void (*mcd_pcm_audio_to_be_generated)(void *user_data, size_t total_samples, void (*generate_mcd_pcm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples));
 	void (*cd_seeked)(void *user_data, cc_u32f sector_index);
 	const cc_u8l* (*cd_sector_read)(void *user_data);
 } ClownMDEmu_Callbacks;
