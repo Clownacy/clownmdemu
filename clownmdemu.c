@@ -327,7 +327,14 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 			else if ((address & 0x10000) == 0)
 			{
 				/* Mega CD BIOS */
-				value = megacd_boot_rom[address & 0xFFFF];
+				if ((address & 0xFFFF) == 0x72 / 2)
+				{
+					return clownmdemu->state->mega_cd.hblank_address;
+				}
+				else
+				{
+					value = megacd_boot_rom[address & 0xFFFF];
+				}
 			}
 			else
 			{
@@ -453,7 +460,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address == 0xA12006 / 2)
 	{
 		/* H-INT vector */
-		PrintError("MAIN-CPU attempted to read from H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+		value = clownmdemu->state->mega_cd.hblank_address;
 	}
 	else if (address == 0xA12008 / 2)
 	{
@@ -746,7 +753,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 		}
 
-		if (interrupt && clownmdemu->state->mega_cd.vertical_interrupt.enabled)
+		if (interrupt && (clownmdemu->state->mega_cd.irq_mask & (1 << 2)))
 		{
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 			Clown68000_Interrupt(clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 2);
@@ -781,7 +788,8 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	else if (address == 0xA12006 / 2)
 	{
 		/* H-INT vector */
-		PrintError("MAIN-CPU attempted to write to H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+		clownmdemu->state->mega_cd.hblank_address &= ~mask;
+		clownmdemu->state->mega_cd.hblank_address |= value & mask;
 	}
 	else if (address == 0xA12008 / 2)
 	{
@@ -1294,7 +1302,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	else if (address == 0xFF8032 / 2)
 	{
 		/* Interrupt mask control */
-		value = clownmdemu->state->mega_cd.vertical_interrupt.enabled << 2;
+		value = clownmdemu->state->mega_cd.irq_mask;
 	}
 	else if (address == 0xFF8058 / 2)
 	{
@@ -1332,6 +1340,9 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+
+	const cc_u16f high_byte = (value >> 8) & 0xFF;
+	const cc_u16f low_byte = (value >> 0) & 0xFF;
 
 	cc_u16f mask = 0;
 
@@ -1448,7 +1459,8 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	else if (address == 0xFF8032 / 2)
 	{
 		/* Interrupt mask control */
-		clownmdemu->state->mega_cd.vertical_interrupt.enabled = (value & (1 << 2)) != 0;
+		if (do_low_byte)
+			clownmdemu->state->mega_cd.irq_mask = low_byte;
 	}
 	else if (address == 0xFF8058 / 2)
 	{
@@ -1464,7 +1476,8 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	{
 		/* Trace vector base address */
 		/* TODO */
-		clownmdemu->state->mega_cd.irq1_pending = cc_true;
+		if (clownmdemu->state->mega_cd.irq_mask & (1 << 1))
+			clownmdemu->state->mega_cd.irq1_pending = cc_true;
 	}
 	else
 	{
@@ -1620,10 +1633,11 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->mega_cd.cd.total_buffered_sectors = 0;
 	state->mega_cd.cd.cdc_ready = cc_false;
 
-	state->mega_cd.vertical_interrupt.enabled = cc_true;
-
 	state->mega_cd.boot_from_cd = cc_false;
 	state->mega_cd.irq1_pending = cc_false;
+	state->mega_cd.irq_mask = 0;
+
+	state->mega_cd.hblank_address = 0xFFFF;
 }
 
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state)

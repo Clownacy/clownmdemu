@@ -189,13 +189,10 @@ typedef struct ClownMDEmu_State
 			cc_u32l current_sector, total_buffered_sectors;
 			cc_bool cdc_ready;
 		} cd;
-		struct
-		{
-			cc_bool enabled;
-			cc_bool being_waited_for;
-		} vertical_interrupt;
 		cc_bool boot_from_cd;
 		cc_bool irq1_pending;
+		cc_u8l irq_mask;
+		cc_u16l hblank_address;
 	} mega_cd;
 } ClownMDEmu_State;
 
