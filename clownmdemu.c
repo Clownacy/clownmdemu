@@ -445,7 +445,9 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address == 0xA12000 / 2)
 	{
 		/* RESET, HALT */
-		value = ((cc_u16f)clownmdemu->state->mega_cd.m68k.bus_requested << 1) | ((cc_u16f)!clownmdemu->state->mega_cd.m68k.reset_held << 0);
+		value = ((cc_u16f)clownmdemu->state->mega_cd.irq.irq2_enabled << 15) |
+		        ((cc_u16f)clownmdemu->state->mega_cd.m68k.bus_requested << 1) |
+		        ((cc_u16f)!clownmdemu->state->mega_cd.m68k.reset_held << 0);
 	}
 	else if (address == 0xA12002 / 2)
 	{
@@ -753,7 +755,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 		}
 
-		if (interrupt && (clownmdemu->state->mega_cd.irq_mask & (1 << 2)))
+		if (interrupt && clownmdemu->state->mega_cd.irq.irq2_enabled)
 		{
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 			Clown68000_Interrupt(clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 2);
@@ -1302,7 +1304,12 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	else if (address == 0xFF8032 / 2)
 	{
 		/* Interrupt mask control */
-		value = clownmdemu->state->mega_cd.irq_mask;
+		value = ((cc_u16f)(clownmdemu->state->mega_cd.irq.irq1_enabled << 1)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.irq2_enabled << 2)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.irq3_enabled << 3)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.irq4_enabled << 4)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.irq5_enabled << 5)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.irq6_enabled << 6));
 	}
 	else if (address == 0xFF8058 / 2)
 	{
@@ -1340,9 +1347,6 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
-
-	const cc_u16f high_byte = (value >> 8) & 0xFF;
-	const cc_u16f low_byte = (value >> 0) & 0xFF;
 
 	cc_u16f mask = 0;
 
@@ -1460,7 +1464,17 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	{
 		/* Interrupt mask control */
 		if (do_low_byte)
-			clownmdemu->state->mega_cd.irq_mask = low_byte;
+		{
+			clownmdemu->state->mega_cd.irq.irq1_enabled = (value & (1 << 1)) != 0;
+			clownmdemu->state->mega_cd.irq.irq2_enabled = (value & (1 << 2)) != 0;
+			clownmdemu->state->mega_cd.irq.irq3_enabled = (value & (1 << 3)) != 0;
+			clownmdemu->state->mega_cd.irq.irq4_enabled = (value & (1 << 4)) != 0;
+			clownmdemu->state->mega_cd.irq.irq5_enabled = (value & (1 << 5)) != 0;
+			clownmdemu->state->mega_cd.irq.irq6_enabled = (value & (1 << 6)) != 0;
+
+			if (!clownmdemu->state->mega_cd.irq.irq1_enabled)
+				clownmdemu->state->mega_cd.irq.irq1_pending = cc_false;
+		}
 	}
 	else if (address == 0xFF8058 / 2)
 	{
@@ -1476,8 +1490,8 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	{
 		/* Trace vector base address */
 		/* TODO */
-		if (clownmdemu->state->mega_cd.irq_mask & (1 << 1))
-			clownmdemu->state->mega_cd.irq1_pending = cc_true;
+		if (clownmdemu->state->mega_cd.irq.irq1_enabled)
+			clownmdemu->state->mega_cd.irq.irq1_pending = cc_true;
 	}
 	else
 	{
@@ -1632,10 +1646,16 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->mega_cd.cd.current_sector = 0;
 	state->mega_cd.cd.total_buffered_sectors = 0;
 	state->mega_cd.cd.cdc_ready = cc_false;
+	
+	state->mega_cd.irq.irq1_enabled = cc_false;
+	state->mega_cd.irq.irq2_enabled = cc_false;
+	state->mega_cd.irq.irq3_enabled = cc_false;
+	state->mega_cd.irq.irq4_enabled = cc_false;
+	state->mega_cd.irq.irq5_enabled = cc_false;
+	state->mega_cd.irq.irq6_enabled = cc_false;
+	state->mega_cd.irq.irq1_pending = cc_false;
 
 	state->mega_cd.boot_from_cd = cc_false;
-	state->mega_cd.irq1_pending = cc_false;
-	state->mega_cd.irq_mask = 0;
 
 	state->mega_cd.hblank_address = 0xFFFF;
 }
@@ -1752,9 +1772,9 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 
 	/* Fire IRQ1 if needed. */
 	/* TODO: This is a hack. Look into when this interrupt should actually be done. */
-	if (clownmdemu->state->mega_cd.irq1_pending)
+	if (clownmdemu->state->mega_cd.irq.irq1_pending)
 	{
-		clownmdemu->state->mega_cd.irq1_pending = cc_false;
+		clownmdemu->state->mega_cd.irq.irq1_pending = cc_false;
 		Clown68000_Interrupt(clownmdemu->mcd_m68k, &mcd_m68k_read_write_callbacks, 1);
 	}
 }
