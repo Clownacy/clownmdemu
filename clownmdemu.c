@@ -515,10 +515,24 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 
 					value = vector_table[local_address];
 				}
-				else if (local_address == 0x80)
+				else if (local_address >= 0x80 && local_address <= 0x81)
+				{
+					/* "SEGA" */
+					static const cc_u16l sega[2] = {
+						('S' << 8) | ('E' << 0),
+						('G' << 8) | ('A' << 0)
+					};
+					value = sega[local_address - 0x80];
+				}
+				else if (local_address == 0x82)
 				{
 					/* rte (used by interrupts) */
 					value = 0x4E73;
+				}
+				else if (local_address == 0xC0)
+				{
+					/* Set type to "Boot ROM" */
+					value = ('B' << 8) | ('R' << 0);
 				}
 			}
 			else
@@ -1992,7 +2006,7 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 		{
 			clownmdemu->state->m68k.ram[0xFD00 / 2 + 3 * i + 0] = 0x4EF9;
 			clownmdemu->state->m68k.ram[0xFD00 / 2 + 3 * i + 1] = 0x0000;
-			clownmdemu->state->m68k.ram[0xFD00 / 2 + 3 * i + 2] = 0x0100; /* Points to an RTE instruction. */
+			clownmdemu->state->m68k.ram[0xFD00 / 2 + 3 * i + 2] = 0x0104; /* Points to an RTE instruction. */
 		}
 
 		/* Set correct entry point. */
@@ -2017,6 +2031,11 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 				break;
 		}
 	}
+	else
+	{
+		/* Set Sub CPU to reset state if not booting from CD */
+		clownmdemu->state->mega_cd.m68k.reset_held = cc_true;
+	}
 
 	callback_user_data.data_and_callbacks.data = clownmdemu;
 	callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
@@ -2035,7 +2054,7 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 
 	if (cd_boot)
 	{
-		/* Enable V-BLANK interrupt in CD boot mode */
+		/* Enable V-blank interrupt if booting from CD */
 		clownmdemu->m68k->status_register &= ~0x700;
 		clownmdemu->vdp.state->v_int_enabled = cc_true;
 	}
