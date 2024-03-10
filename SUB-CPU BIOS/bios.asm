@@ -3,7 +3,7 @@
 	dc.l	$5F5E,           $5F64,           $5F6A,           $5F70
 	dc.l	ErrorTrap,       ErrorTrap,       ErrorTrap,       ErrorTrap
 	dc.l	ErrorTrap,       ErrorTrap,       ErrorTrap,       ErrorTrap
-	dc.l	ErrorTrap,       ErrorTrap,       ErrorTrap,       ErrorTrap
+	dc.l	ErrorTrap,       ErrorTrap,       ErrorTrap,       0		; Done to align "SEGA" at right spot when compressed
 	dc.l	ErrorTrap,       $5F76,           $5F7C,           $5F82
 	dc.l	$5F88,           $5F8E,           $5F94,           $5F9A
 	dc.l	$5FA0,           $5FA6,           $5FAC,           $5FB2
@@ -14,6 +14,8 @@
 	dc.l	ErrorTrap,       ErrorTrap,       ErrorTrap,       ErrorTrap
 	dc.l	ErrorTrap,       ErrorTrap,       ErrorTrap,       ErrorTrap
 	dc.l	ErrorTrap,       ErrorTrap,       ErrorTrap,       ErrorTrap
+
+	dc.b	"SEGA"
 
 ErrorTrap:
 	nop
