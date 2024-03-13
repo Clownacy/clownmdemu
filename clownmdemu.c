@@ -1117,7 +1117,8 @@ static void Z80WriteCallbackWithCycle(const void *user_data, cc_u16f address, cc
 	{
 		/* TODO: Apparently Mamono Hunter Youko needs the Z80 to be able to write to 68k RAM in order to boot?
 		   777 Casino also does weird stuff like this.
-		   http://gendev.spritesmind.net/forum/viewtopic.php?f=24&t=347&start=30 */
+		   http://gendev.spritesmind.net/forum/viewtopic.php?f=24&t=347&start=30
+		   http://gendev.spritesmind.net/forum/viewtopic.php?f=2&t=985 */
 
 		/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
 		/* TODO: Apparently the Z80 can access the IO ports and send a bus request to itself. */
