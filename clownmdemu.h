@@ -10,10 +10,10 @@
 #include "fm.h"
 #include "io_port.h"
 #include "clown68000/interpreter/clown68000.h"
+#include "pcm.h"
 #include "psg.h"
 #include "vdp.h"
 #include "z80.h"
-#include "mcd_pcm.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -201,7 +201,7 @@ typedef struct ClownMDEmu_State
 			cc_bool irq1_pending;
 		} irq;
 
-		MCD_PCM_State pcm;
+		PCM_State pcm;
 
 		cc_bool boot_from_cd;
 		cc_u16l hblank_address;
@@ -219,7 +219,7 @@ typedef struct ClownMDEmu
 	VDP vdp;
 	FM fm;
 	PSG psg;
-	MCD_PCM mcd_pcm;
+	PCM mcd_pcm;
 } ClownMDEmu;
 
 typedef struct ClownMDEmu_Callbacks

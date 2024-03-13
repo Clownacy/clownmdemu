@@ -245,7 +245,7 @@ static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffe
 
 static void GenerateMCDPCMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples)
 {
-	MCD_PCM_Update(&clownmdemu->mcd_pcm, sample_buffer, total_samples);
+	PCM_Update(&clownmdemu->mcd_pcm, sample_buffer, total_samples);
 }
 
 static void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
@@ -1287,7 +1287,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 		{
 			/* PCM register */
 			SyncMCDPCM(callback_user_data, target_cycle);
-			value = (cc_u16f)MCD_PCM_ReadRegister(&clownmdemu->mcd_pcm, address & 0xFFF);
+			value = (cc_u16f)PCM_ReadRegister(&clownmdemu->mcd_pcm, address & 0xFFF);
 		}
 	}
 	else if (address == 0xFF8002 / 2)
@@ -1438,12 +1438,12 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 			if (address & 0x1000)
 			{
 				/* PCM wave RAM */
-				MCD_PCM_WriteWaveRAM(&clownmdemu->mcd_pcm, address & 0xFFF, (cc_u8f)value);
+				PCM_WriteWaveRAM(&clownmdemu->mcd_pcm, address & 0xFFF, (cc_u8f)value);
 			}
 			else
 			{
 				/* PCM register */
-				MCD_PCM_WriteRegister(&clownmdemu->mcd_pcm, address & 0xFFF, (cc_u8f)value);
+				PCM_WriteRegister(&clownmdemu->mcd_pcm, address & 0xFFF, (cc_u8f)value);
 			}
 		}
 	}
@@ -1705,7 +1705,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 		state->mega_cd.irq.enabled[i] = cc_false;
 	state->mega_cd.irq.irq1_pending = cc_false;
 	
-	MCD_PCM_State_Initialise(&state->mega_cd.pcm);
+	PCM_State_Initialise(&state->mega_cd.pcm);
 
 	state->mega_cd.boot_from_cd = cc_false;
 

@@ -1,8 +1,8 @@
-#include "mcd_pcm.h"
+#include "pcm.h"
 
 #include "clowncommon/clowncommon.h"
 
-void MCD_PCM_State_Initialise(MCD_PCM_State *state)
+void PCM_State_Initialise(PCM_State *state)
 {
 	size_t i;
 
@@ -22,9 +22,9 @@ void MCD_PCM_State_Initialise(MCD_PCM_State *state)
 	state->current_channel = 0;
 }
 
-void MCD_PCM_WriteRegister(const MCD_PCM *pcm, cc_u16f reg, cc_u8f value)
+void PCM_WriteRegister(const PCM *pcm, cc_u16f reg, cc_u8f value)
 {
-	MCD_PCM_ChannelState *current_channel = &pcm->state->channels[pcm->state->current_channel];
+	PCM_ChannelState *current_channel = &pcm->state->channels[pcm->state->current_channel];
 	size_t i;
 
 	switch (reg)
@@ -80,9 +80,9 @@ void MCD_PCM_WriteRegister(const MCD_PCM *pcm, cc_u16f reg, cc_u8f value)
 	}
 }
 
-cc_u8f MCD_PCM_ReadRegister(const MCD_PCM *pcm, cc_u16f reg)
+cc_u8f PCM_ReadRegister(const PCM *pcm, cc_u16f reg)
 {
-	MCD_PCM_ChannelState *current_channel = &pcm->state->channels[pcm->state->current_channel];
+	PCM_ChannelState *current_channel = &pcm->state->channels[pcm->state->current_channel];
 	cc_u8f value = 0;
 	size_t i;
 
@@ -147,12 +147,12 @@ cc_u8f MCD_PCM_ReadRegister(const MCD_PCM *pcm, cc_u16f reg)
 	return value;
 }
 
-void MCD_PCM_WriteWaveRAM(const MCD_PCM *pcm, cc_u16f address, cc_u8f value)
+void PCM_WriteWaveRAM(const PCM *pcm, cc_u16f address, cc_u8f value)
 {
 	pcm->state->wave_ram[(pcm->state->current_wave_bank << 12) + (address & 0xFFFF)] = value;
 }
 
-void MCD_PCM_Update(const MCD_PCM *pcm, cc_s16l *sample_buffer, size_t total_samples)
+void PCM_Update(const PCM *pcm, cc_s16l *sample_buffer, size_t total_samples)
 {
 	cc_u8f wave_value;
 	size_t i;
