@@ -287,14 +287,15 @@ static cc_u16f VDPReadCallback(void *user_data, cc_u32f address)
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
 
-	if (address < 0x800000)
+	/* TODO: Dear God, I really need to hide this junk being macros or something. */
+	if (address < 0x800000 && ((address & 0x400000) != 0) != clownmdemu->state->mega_cd.boot_from_cd && (address & 0x200000) != 0)
 	{
-		if (((address & 0x200000) == 0) != clownmdemu->state->mega_cd.boot_from_cd && (address & 0x200000) != 0)
-		{
-			/* Delay Word RAM DMAs*/
-			clownmdemu->vdp.state->dma_cycle_delay = cc_true;
-		}
+		/* Delay Word RAM DMA transfers. */
+		/* TODO: Is there a less hacky-way to do this? Maybe we should do
+			the actual delayed read here instead of in the VDP emulator. */
+		clownmdemu->vdp.state->dma_cycle_delay = cc_true;
 	}
+
 	return M68kReadCallback(user_data, address / 2, cc_true, cc_true);
 }
 
