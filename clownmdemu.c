@@ -284,19 +284,26 @@ static void SyncMCDPCM(CPUCallbackUserData* const other_state, const cc_u32f tar
 
 static cc_u16f VDPReadCallback(void *user_data, cc_u32f address)
 {
+	cc_u16f value;
+
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+	const cc_u16f callback_value = M68kReadCallback(user_data, address / 2, cc_true, cc_true);
 
-	/* TODO: Dear God, I really need to hide this junk being macros or something. */
+	/* TODO: Dear God, I really need to hide this junk behind macros or something. */
 	if (address < 0x800000 && ((address & 0x400000) != 0) != clownmdemu->state->mega_cd.boot_from_cd && (address & 0x200000) != 0)
 	{
-		/* Delay Word RAM DMA transfers. */
-		/* TODO: Is there a less hacky-way to do this? Maybe we should do
-			the actual delayed read here instead of in the VDP emulator. */
-		clownmdemu->vdp.state->dma_cycle_delay = cc_true;
+		/* Delay Word RAM DMA transfers. This is a real bug on the Mega CD that games have to work around. */
+		/* This can easily be seen in Sonic CD's FMVs. */
+		value = clownmdemu->state->mega_cd.delayed_dma_word;
+		clownmdemu->state->mega_cd.delayed_dma_word = callback_value;
+	}
+	else
+	{
+		value = callback_value;
 	}
 
-	return M68kReadCallback(user_data, address / 2, cc_true, cc_true);
+	return value;
 }
 
 /* 68k memory access callbacks */
@@ -1709,8 +1716,8 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	PCM_State_Initialise(&state->mega_cd.pcm);
 
 	state->mega_cd.boot_from_cd = cc_false;
-
 	state->mega_cd.hblank_address = 0xFFFF;
+	state->mega_cd.delayed_dma_word = 0;
 }
 
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state)

@@ -205,6 +205,7 @@ typedef struct ClownMDEmu_State
 
 		cc_bool boot_from_cd;
 		cc_u16l hblank_address;
+		cc_u16l delayed_dma_word;
 	} mega_cd;
 } ClownMDEmu_State;
 
