@@ -69,6 +69,12 @@ and portability:
   - Do not rely on signed number representation. That is to say, do not assume
     that negative numbers are represented in binary as two's complement.
 
+- Use original code. No emulation components are taken from other emulators or
+  standalone libraries. For example, the rather than use something like
+  [Musashi](https://github.com/kstenerud/Musashi), the 68000 emulation core is
+  custom. Likewise, a custom YM2612 emulation core is used instead of
+  [Nuked-OPN2](https://github.com/nukeykt/Nuked-OPN2).
+
 clownmdemu itself is implemented as a library, with all platform-specific logic
 being relegated to a separate frontend program.
 
