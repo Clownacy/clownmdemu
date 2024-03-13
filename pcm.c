@@ -2,7 +2,7 @@
 
 #include "clowncommon/clowncommon.h"
 
-void PCM_State_Initialise(PCM_State *state)
+void PCM_State_Initialise(PCM_State* const state)
 {
 	size_t i;
 
@@ -22,72 +22,81 @@ void PCM_State_Initialise(PCM_State *state)
 	state->current_channel = 0;
 }
 
-void PCM_WriteRegister(const PCM *pcm, cc_u16f reg, cc_u8f value)
+void PCM_WriteRegister(const PCM* const pcm, const cc_u16f reg, const cc_u8f value)
 {
 	PCM_ChannelState *current_channel = &pcm->state->channels[pcm->state->current_channel];
-	size_t i;
 
 	switch (reg)
 	{
-		case 0x00:
+			size_t i;
+
+		case 0:
 			current_channel->volume = value;
 			break;
 			
-		case 0x01:
+		case 1:
 			current_channel->panning = value;
 			break;
 			
-		case 0x02:
+		case 2:
 			current_channel->frequency &= 0xFF00;
 			current_channel->frequency |= value;
 			break;
 			
-		case 0x03:
+		case 3:
 			current_channel->frequency &= 0x00FF;
-			current_channel->frequency |= value << 8;
+			current_channel->frequency |= (cc_u16f)value << 8;
 			break;
 			
-		case 0x04:
+		case 4:
 			current_channel->loop_address &= 0xFF00;
 			current_channel->loop_address |= value;
 			break;
 			
-		case 0x05:
+		case 5:
 			current_channel->loop_address &= 0x00FF;
-			current_channel->loop_address |= value << 8;
+			current_channel->loop_address |= (cc_u16f)value << 8;
 			break;
 
-		case 0x06:
+		case 6:
 			current_channel->start_address = value;
 			break;
 
-		case 0x07:
+		case 7:
 			pcm->state->sounding = (value & 0x80) != 0;
-			if (value & 0x40)
+
+			if ((value & 0x40) != 0)
 				pcm->state->current_channel = value & 7;
 			else
 				pcm->state->current_wave_bank = value & 0xF;
+
 			break;
 
-		case 0x08:
+		case 8:
 			for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
 			{
 				pcm->state->channels[i].disabled = (value >> i) & 1;
+
 				if (pcm->state->channels[i].disabled)
-					pcm->state->channels[i].address = pcm->state->channels[i].start_address << 19;
+					pcm->state->channels[i].address = (cc_u32f)pcm->state->channels[i].start_address << 19;
 			}
+
 			break;
 	}
 }
 
-cc_u8f PCM_ReadRegister(const PCM *pcm, cc_u16f reg)
+cc_u8f PCM_ReadRegister(const PCM* const pcm, const cc_u16f reg)
 {
-	PCM_ChannelState *current_channel = &pcm->state->channels[pcm->state->current_channel];
-	cc_u8f value = 0;
-	size_t i;
+	cc_u8f value;
+
+	PCM_ChannelState* const current_channel = &pcm->state->channels[pcm->state->current_channel];
+
+	value = 0;
 
 	switch (reg)
 	{
+			size_t i;
+
 		case 0x00:
 			value = current_channel->volume;
 			break;
@@ -119,6 +128,7 @@ cc_u8f PCM_ReadRegister(const PCM *pcm, cc_u16f reg)
 		case 0x08:
 			for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
 				value |= pcm->state->channels[i].disabled << i;
+
 			break;
 
 		case 0x10:
@@ -147,23 +157,25 @@ cc_u8f PCM_ReadRegister(const PCM *pcm, cc_u16f reg)
 	return value;
 }
 
-void PCM_WriteWaveRAM(const PCM *pcm, cc_u16f address, cc_u8f value)
+void PCM_WriteWaveRAM(const PCM* const pcm, const cc_u16f address, const cc_u8f value)
 {
 	pcm->state->wave_ram[(pcm->state->current_wave_bank << 12) + (address & 0xFFFF)] = value;
 }
 
-void PCM_Update(const PCM *pcm, cc_s16l *sample_buffer, size_t total_samples)
+void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t total_samples)
 {
-	cc_u8f wave_value;
 	size_t i;
-	size_t j;
 
 	for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
 	{
 		if (!pcm->state->channels[i].disabled)
 		{
+			size_t j;
+
 			for (j = 0; j < total_samples; ++j)
 			{
+				cc_u8f wave_value;
+
 				wave_value = pcm->state->wave_ram[(pcm->state->channels[i].address >> 11) & 0xFFFF];
 				pcm->state->channels[i].address += pcm->state->channels[i].frequency;
 				pcm->state->channels[i].address &= 0x7FFFFFF;
@@ -172,6 +184,8 @@ void PCM_Update(const PCM *pcm, cc_s16l *sample_buffer, size_t total_samples)
 				{
 					pcm->state->channels[i].address = pcm->state->channels[i].loop_address << 11;
 					wave_value = pcm->state->wave_ram[(pcm->state->channels[i].address >> 11) & 0xFFFF];
+
+					/* TODO: Actually output the audio. */
 				}
 			}
 		}
