@@ -1054,10 +1054,12 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 
 	if (IsDMAPending(vdp->state) && vdp->state->dma.mode != VDP_DMA_MODE_FILL)
 	{
-		cc_bool delayed = cc_false;
+		cc_bool delayed;
 		
 		/* Firing DMA */
 		ClearDMAPending(vdp->state);
+
+		delayed = cc_false;
 
 		do
 		{
@@ -1071,13 +1073,14 @@ void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callb
 				vdp->state->access.address_register += vdp->state->access.increment;
 			}
 
-			/* Emulate the 128KiB DMA wrap-around bug and delay */
 			if (vdp->state->dma_cycle_delay && !delayed)
 			{
+				/* Emulate the WORD-RAM DMA delay bug. */
 				delayed = cc_true;
 			}
 			else
 			{
+				/* Emulate the 128KiB DMA wrap-around bug. */
 				++vdp->state->dma.source_address_low;
 				vdp->state->dma.source_address_low &= 0xFFFF;
 			}
