@@ -43,7 +43,7 @@
 - 68k
   - Instruction cycle durations
   - Exceptions
-  - The RESET and STOP instructions
+  - The RESET instruction
 - VDP
   - Slot-based rendering
   - Interlacing in Interlace Mode 1 and Interlace Mode 2
