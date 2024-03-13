@@ -359,7 +359,9 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 				/* Mega CD BIOS */
 				if ((address & 0xFFFF) == 0x72 / 2)
 				{
-					return clownmdemu->state->mega_cd.hblank_address;
+					/* The Mega CD has this strange hack in its bug logic, which allows
+					   the H-Int interrupt address to be overridden with a register. */
+					value = clownmdemu->state->mega_cd.hblank_address;
 				}
 				else
 				{
