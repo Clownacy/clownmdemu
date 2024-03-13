@@ -24,6 +24,8 @@ add_library(clownmdemu STATIC
 	"fm_phase.h"
 	"io_port.c"
 	"io_port.h"
+	"mcd_pcm.c"
+	"mcd_pcm.h"
 	"psg.c"
 	"psg.h"
 	"vdp.c"

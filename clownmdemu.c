@@ -29,6 +29,7 @@ typedef struct CPUCallbackUserData
 	cc_u32f mcd_m68k_current_cycle;
 	cc_u32f fm_current_cycle;
 	cc_u32f psg_current_cycle;
+	cc_u32f mcd_pcm_current_cycle;
 } CPUCallbackUserData;
 
 typedef struct IOPortToController_Parameters
@@ -38,72 +39,7 @@ typedef struct IOPortToController_Parameters
 } IOPortToController_Parameters;
 
 /* TODO: Please, anything but this... */
-/* This is the 'bios.bin' file that can be found in the 'SUB-CPU BIOS' directory. */
-static const cc_u16l subcpu_bios_uncompressed[] = {
-	0x6000, 0x00FE, 0x0000, 0x0110,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x010E,
-	0x0000, 0x013E, 0x0000, 0x010E,
-	0x0000, 0x010E, 0x0000, 0x010E,
-	0x0000, 0x010E, 0x0000, 0x010E,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x0000, 0x0104, 0x0000, 0x0104,
-	0x7000, 0x6002, 0x7001, 0x4E71,
-	0x4E71, 0x6000, 0xFFFA, 0x4E73,
-	0x4FF8, 0x5000, 0x41FA, 0x5EEA,
-	0x0C90, 0x4D41, 0x494E, 0x66F0,
-	0xD1E8, 0x0018, 0x3010, 0x4EB0,
-	0x0000, 0x46FC, 0x2000, 0x41FA,
-	0x5ED0, 0xD1E8, 0x0018, 0x3028,
-	0x0002, 0x4EF0, 0x0000, 0x48E7,
-	0xFFFE, 0x41FA, 0x5EBC, 0x0C90,
-	0x4D41, 0x494E, 0x660C, 0xD1E8,
-	0x0018, 0x3028, 0x0004, 0x4EB0,
-	0x0000, 0x4CDF, 0x7FFF, 0x4E73
-};
-
-/* This is the 'bios.kos' file that can be found in the 'SUB-CPU BIOS' directory. */
-static const cc_u16l subcpu_bios_compressed[] = {
-	0x0F63, 0x6000, 0x00FE, 0xFD01,
-	0x10FC, 0x0463, 0xB2FC, 0xF85A,
-	0x0EFC, 0x3EF8, 0xFCF8, 0x1204,
-	0xFFF0, 0xFCF8, 0x7B70, 0x0060,
-	0x0270, 0x014E, 0x71FE, 0x6000,
-	0xFFFF, 0xFFFA, 0x4E73, 0x4FF8,
-	0x5000, 0x41FA, 0x5EEA, 0x0C90,
-	0x4D41, 0x49FF, 0xC34E, 0x66F0,
-	0xD1E8, 0x0018, 0x3010, 0x4EB0,
-	0xD446, 0x297F, 0xFC20, 0xE6D0,
-	0xEE28, 0x0002, 0x4EF0, 0x786C,
-	0xEC48, 0xE7FF, 0xFEEC, 0xBCD2,
-	0xFD0C, 0xD32F, 0xE4FD, 0x04D0,
-	0x4CDF, 0x7FFF, 0x4E73, 0x00F0,
-	0x0000
-};
+#include "mcd_boot.c"
 
 static cc_u32f ReadU32BE(const cc_u8l* const bytes)
 {
@@ -307,6 +243,11 @@ static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffe
 	PSG_Update(&clownmdemu->psg, sample_buffer, total_samples);
 }
 
+static void GenerateMCDPCMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples)
+{
+	MCD_PCM_Update(&clownmdemu->mcd_pcm, sample_buffer, total_samples);
+}
+
 static void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 {
 	const cc_u32f psg_target_cycle = target_cycle / (CLOWNMDEMU_Z80_CLOCK_DIVIDER * CLOWNMDEMU_PSG_SAMPLE_RATE_DIVIDER);
@@ -323,11 +264,37 @@ static void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target
 	}
 }
 
+static void SyncMCDPCM(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
+{
+	const cc_u32f mcd_pcm_target_cycle = target_cycle / CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER;
+
+	const size_t samples_to_generate = mcd_pcm_target_cycle - other_state->mcd_pcm_current_cycle;
+
+	assert(mcd_pcm_target_cycle >= other_state->mcd_pcm_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
+
+	if (samples_to_generate != 0)
+	{
+		other_state->data_and_callbacks.frontend_callbacks->mcd_pcm_audio_to_be_generated((void*)other_state->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate, GenerateMCDPCMAudio);
+
+		other_state->mcd_pcm_current_cycle = mcd_pcm_target_cycle;
+	}
+}
+
 /* VDP memory access callback */
 
 static cc_u16f VDPReadCallback(void *user_data, cc_u32f address)
 {
-	/* TODO: This is a shell of its former self. Maybe find a way to remove it entirely? */
+	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+
+	if (address < 0x800000)
+	{
+		if (((address & 0x200000) == 0) != clownmdemu->state->mega_cd.boot_from_cd && (address & 0x200000) != 0)
+		{
+			/* Delay Word RAM DMAs*/
+			clownmdemu->vdp.state->dma_cycle_delay = cc_true;
+		}
+	}
 	return M68kReadCallback(user_data, address / 2, cc_true, cc_true);
 }
 
@@ -382,95 +349,13 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 			else if ((address & 0x10000) == 0)
 			{
 				/* Mega CD BIOS */
-				const cc_u16f local_address = address & 0xFFFF;
-
-				if (local_address >= 0xB000 && local_address < 0xB000 + CC_COUNT_OF(subcpu_bios_compressed))
+				if ((address & 0xFFFF) == 0x72 / 2)
 				{
-					/* Kosinski-compressed SUB-CPU payload. */
-					value = subcpu_bios_compressed[local_address - 0xB000];
+					return clownmdemu->state->mega_cd.hblank_address;
 				}
-				else if (local_address == 0xB037)
+				else
 				{
-					/* SUB-CPU payload magic number (used by ROM-hacks that use 'Mode 1'). */
-					value = ('E' << 8) | ('G' << 0);
-				}
-				else if (local_address < 0x80)
-				{
-				#define VECTOR_ENTRY(x) (x) >> 16, (x) & 0xFFFF
-					/* Vector table */
-					static const cc_u16l vector_table[0x80] = {
-						VECTOR_ENTRY(0x00FFFD00), /* Stack pointer */
-						VECTOR_ENTRY(0x00FFFD00), /* Entry point */
-						VECTOR_ENTRY(0x00000100), /* Bus error */
-						VECTOR_ENTRY(0x00FFFD7E), /* Address error */
-						VECTOR_ENTRY(0x00FFFD7E), /* Illegal instruction */
-						VECTOR_ENTRY(0x00FFFD84), /* Divide by zero */
-						VECTOR_ENTRY(0x00000100), /* CHK exception */
-						VECTOR_ENTRY(0x00FFFD8E), /* TRAPV exception */
-						VECTOR_ENTRY(0x00FFFD9C), /* Privilage violation */
-						VECTOR_ENTRY(0x00FFFDA2), /* TRACE exception */
-						VECTOR_ENTRY(0x00000100), /* LINE-A emulator */
-						VECTOR_ENTRY(0x00000100), /* LINE-F emulator */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Spurious interrupt */
-						VECTOR_ENTRY(0x00000100), /* Level 1 interrupt */
-						VECTOR_ENTRY(0x00FFFD12), /* Level 2 interrupt */
-						VECTOR_ENTRY(0x00000100), /* Level 3 interrupt */
-						VECTOR_ENTRY(0x00FFFD0C), /* Level 4 interrupt */
-						VECTOR_ENTRY(0x00000100), /* Level 5 interrupt */
-						VECTOR_ENTRY(0x00FFFD06), /* Level 6 interrupt */
-						VECTOR_ENTRY(0x00000100), /* Level 7 interrupt */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 0),  /* TRAP #0 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 1),  /* TRAP #1 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 2),  /* TRAP #2 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 3),  /* TRAP #3 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 4),  /* TRAP #4 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 5),  /* TRAP #5 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 6),  /* TRAP #6 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 7),  /* TRAP #7 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 8),  /* TRAP #8 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 9),  /* TRAP #9 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 10), /* TRAP #10 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 11), /* TRAP #11 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 12), /* TRAP #12 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 13), /* TRAP #13 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 14), /* TRAP #14 handler */
-						VECTOR_ENTRY(0x00FFFD18 + 6 * 15), /* TRAP #15 handler */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-						VECTOR_ENTRY(0x00000100), /* Unused */
-					};
-
-					value = vector_table[local_address];
-				}
-				else if (local_address == 0x80)
-				{
-					/* rte (used by interrupts) */
-					value = 0x4E73;
+					value = megacd_boot_rom[address & 0xFFFF];
 				}
 			}
 			else
@@ -582,7 +467,9 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address == 0xA12000 / 2)
 	{
 		/* RESET, HALT */
-		value = ((cc_u16f)clownmdemu->state->mega_cd.m68k.bus_requested << 1) | ((cc_u16f)!clownmdemu->state->mega_cd.m68k.reset_held << 0);
+		value = ((cc_u16f)clownmdemu->state->mega_cd.irq.enabled[1] << 15) |
+		        ((cc_u16f)clownmdemu->state->mega_cd.m68k.bus_requested << 1) |
+		        ((cc_u16f)!clownmdemu->state->mega_cd.m68k.reset_held << 0);
 	}
 	else if (address == 0xA12002 / 2)
 	{
@@ -597,7 +484,7 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	else if (address == 0xA12006 / 2)
 	{
 		/* H-INT vector */
-		PrintError("MAIN-CPU attempted to read from H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+		value = clownmdemu->state->mega_cd.hblank_address;
 	}
 	else if (address == 0xA12008 / 2)
 	{
@@ -890,7 +777,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 			Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 		}
 
-		if (interrupt)
+		if (interrupt && clownmdemu->state->mega_cd.irq.enabled[1])
 		{
 			SyncMCDM68k(clownmdemu, callback_user_data, target_cycle);
 			Clown68000_Interrupt(clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 2);
@@ -925,7 +812,8 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	else if (address == 0xA12006 / 2)
 	{
 		/* H-INT vector */
-		PrintError("MAIN-CPU attempted to write to H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+		clownmdemu->state->mega_cd.hblank_address &= ~mask;
+		clownmdemu->state->mega_cd.hblank_address |= value & mask;
 	}
 	else if (address == 0xA12008 / 2)
 	{
@@ -1275,18 +1163,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	if (/*address >= 0 &&*/ address < 0x80000 / 2)
 	{
 		/* PRG-RAM */
-		if (address == 0x5F10 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F10)
-		{
-			/* Wait for V-sync. */
-			clownmdemu->state->mega_cd.vertical_interrupt.being_waited_for = cc_true;
-			value = 0x4E71; /* 'nop' instruction */
-		}
-		else if (address == 0x5F12 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F12)
-		{
-			/* Wait for V-sync. */
-			value = clownmdemu->state->mega_cd.vertical_interrupt.being_waited_for ? 0x60FE : 0x4E75; /* 'bra.s *' or 'rts' instruction. */
-		}
-		else if (address == 0x5F16 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F16)
+		if (address == 0x5F16 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F16)
 		{
 			/* BRAM call! */
 			/* TODO: None of this shit is accurate at all. */
@@ -1399,6 +1276,20 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 			value = clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret];
 		}
 	}
+	else if (address >= 0xFF0000 / 2 && address < 0xFF8000 / 2)
+	{
+		if (address & 0x1000)
+		{
+			/* PCM wave RAM */
+			PrintError("SUB-CPU attempted to read from PCM wave RAM at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		}
+		else
+		{
+			/* PCM register */
+			SyncMCDPCM(callback_user_data, target_cycle);
+			value = (cc_u16f)MCD_PCM_ReadRegister(&clownmdemu->mcd_pcm, address & 0xFFF);
+		}
+	}
 	else if (address == 0xFF8002 / 2)
 	{
 		/* Memory mode / Write protect */
@@ -1450,7 +1341,12 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	else if (address == 0xFF8032 / 2)
 	{
 		/* Interrupt mask control */
-		value = clownmdemu->state->mega_cd.vertical_interrupt.enabled << 2;
+		value = ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[0] << 1)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[1] << 2)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[2] << 3)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[3] << 4)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[4] << 5)) |
+		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[5] << 6));
 	}
 	else if (address == 0xFF8058 / 2)
 	{
@@ -1534,6 +1430,23 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 			clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret] |= value & mask;
 		}
 	}
+	else if (address >= 0xFF0000 / 2 && address < 0xFF8000 / 2)
+	{
+		if (do_low_byte)
+		{
+			SyncMCDPCM(callback_user_data, target_cycle);
+			if (address & 0x1000)
+			{
+				/* PCM wave RAM */
+				MCD_PCM_WriteWaveRAM(&clownmdemu->mcd_pcm, address & 0xFFF, (cc_u8f)value);
+			}
+			else
+			{
+				/* PCM register */
+				MCD_PCM_WriteRegister(&clownmdemu->mcd_pcm, address & 0xFFF, (cc_u8f)value);
+			}
+		}
+	}
 	else if (address == 0xFF8002 / 2)
 	{
 		/* Memory mode / Write protect */
@@ -1604,7 +1517,18 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	else if (address == 0xFF8032 / 2)
 	{
 		/* Interrupt mask control */
-		clownmdemu->state->mega_cd.vertical_interrupt.enabled = (value & (1 << 2)) != 0;
+		if (do_low_byte)
+		{
+			clownmdemu->state->mega_cd.irq.enabled[0] = (value & (1 << 1)) != 0;
+			clownmdemu->state->mega_cd.irq.enabled[1] = (value & (1 << 2)) != 0;
+			clownmdemu->state->mega_cd.irq.enabled[2] = (value & (1 << 3)) != 0;
+			clownmdemu->state->mega_cd.irq.enabled[3] = (value & (1 << 4)) != 0;
+			clownmdemu->state->mega_cd.irq.enabled[4] = (value & (1 << 5)) != 0;
+			clownmdemu->state->mega_cd.irq.enabled[5] = (value & (1 << 6)) != 0;
+
+			if (!clownmdemu->state->mega_cd.irq.enabled[0])
+				clownmdemu->state->mega_cd.irq.irq1_pending = cc_false;
+		}
 	}
 	else if (address == 0xFF8058 / 2)
 	{
@@ -1620,7 +1544,8 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 	{
 		/* Trace vector base address */
 		/* TODO */
-		clownmdemu->state->mega_cd.irq1_pending = cc_true;
+		if (clownmdemu->state->mega_cd.irq.enabled[0])
+			clownmdemu->state->mega_cd.irq.irq1_pending = cc_true;
 	}
 	else
 	{
@@ -1753,7 +1678,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	/* Mega CD */
 	state->mega_cd.m68k.cycle_countdown = 0;
 	state->mega_cd.m68k.bus_requested = cc_true;
-	state->mega_cd.m68k.reset_held = cc_false; /* TODO: Didn't Devon say that this should be true? Nothing boots if I do that. Maybe a real BIOS manually releases the reset. */
+	state->mega_cd.m68k.reset_held = cc_true;
 
 	memset(state->mega_cd.prg_ram.buffer, 0, sizeof(state->mega_cd.prg_ram.buffer));
 	state->mega_cd.prg_ram.bank = 0;
@@ -1775,12 +1700,16 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->mega_cd.cd.current_sector = 0;
 	state->mega_cd.cd.total_buffered_sectors = 0;
 	state->mega_cd.cd.cdc_ready = cc_false;
-
-	state->mega_cd.vertical_interrupt.enabled = cc_true;
-	state->mega_cd.vertical_interrupt.being_waited_for = cc_false;
+	
+	for (i = 0; i < CC_COUNT_OF(state->mega_cd.irq.enabled); ++i)
+		state->mega_cd.irq.enabled[i] = cc_false;
+	state->mega_cd.irq.irq1_pending = cc_false;
+	
+	MCD_PCM_State_Initialise(&state->mega_cd.pcm);
 
 	state->mega_cd.boot_from_cd = cc_false;
-	state->mega_cd.irq1_pending = cc_false;
+
+	state->mega_cd.hblank_address = 0xFFFF;
 }
 
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state)
@@ -1805,6 +1734,8 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 	clownmdemu->psg.configuration = &configuration->psg;
 	clownmdemu->psg.constant = &constant->psg;
 	clownmdemu->psg.state = &state->psg;
+
+	clownmdemu->mcd_pcm.state = &state->mega_cd.pcm;
 }
 
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
@@ -1825,6 +1756,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	cpu_callback_user_data.mcd_m68k_current_cycle = 0;
 	cpu_callback_user_data.fm_current_cycle = 0;
 	cpu_callback_user_data.psg_current_cycle = 0;
+	cpu_callback_user_data.mcd_pcm_current_cycle = 0;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
@@ -1882,18 +1814,6 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 				Z80_Interrupt(&clownmdemu->z80);
 			}
 
-			if (clownmdemu->state->mega_cd.boot_from_cd)
-			{
-				/* Normally the BIOS does this, but since we're doing HLE, we have to do it. */
-				/* TODO: Wait, Sonic CD does this manually?! */
-				if (clownmdemu->state->mega_cd.vertical_interrupt.enabled)
-				{
-					SyncMCDM68k(clownmdemu, &cpu_callback_user_data, current_cycle);
-					clownmdemu->state->mega_cd.vertical_interrupt.being_waited_for = cc_false;
-					Clown68000_Interrupt(clownmdemu->mcd_m68k, &mcd_m68k_read_write_callbacks, 2);
-				}
-			}
-
 			/* Flag that we have entered the V-blank region */
 			clownmdemu->state->vdp.currently_in_vblank = cc_true;
 		}
@@ -1904,12 +1824,13 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	SyncMCDM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame);
 	SyncFM(&cpu_callback_user_data, cycles_per_frame);
 	SyncPSG(&cpu_callback_user_data, cycles_per_frame);
+	SyncMCDPCM(&cpu_callback_user_data, cycles_per_frame);
 
 	/* Fire IRQ1 if needed. */
 	/* TODO: This is a hack. Look into when this interrupt should actually be done. */
-	if (clownmdemu->state->mega_cd.irq1_pending)
+	if (clownmdemu->state->mega_cd.irq.irq1_pending)
 	{
-		clownmdemu->state->mega_cd.irq1_pending = cc_false;
+		clownmdemu->state->mega_cd.irq.irq1_pending = cc_false;
 		Clown68000_Interrupt(clownmdemu->mcd_m68k, &mcd_m68k_read_write_callbacks, 1);
 	}
 }
@@ -1954,45 +1875,9 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 		/* Read Sub Program. */
 		CDSectorsTo68kRAM(callbacks, &clownmdemu->state->mega_cd.prg_ram.buffer[0x6000 / 2], sp_start, sp_length);
 
-		/* Load SUB-CPU BIOS. */
-		memcpy(clownmdemu->state->mega_cd.prg_ram.buffer, subcpu_bios_uncompressed, sizeof(subcpu_bios_uncompressed));
-
-		/* Allow SUB-CPU to execute. */
-		clownmdemu->state->mega_cd.m68k.bus_requested = cc_false;
-
 		/* Give WORD-RAM to the SUB-CPU. */
 		clownmdemu->state->mega_cd.word_ram.dmna = cc_true;
 		clownmdemu->state->mega_cd.word_ram.ret = cc_false;
-
-		/* Construct MAIN-CPU vector jump table. */
-		for (i = 0; i < 30; ++i)
-		{
-			clownmdemu->state->m68k.ram[0xFD00 / 2 + 3 * i + 0] = 0x4EF9;
-			clownmdemu->state->m68k.ram[0xFD00 / 2 + 3 * i + 1] = 0x0000;
-			clownmdemu->state->m68k.ram[0xFD00 / 2 + 3 * i + 2] = 0x0100; /* Points to an RTE instruction. */
-		}
-
-		/* Set correct entry point. */
-		clownmdemu->state->m68k.ram[0xFD00 / 2 + 1] = 0x00FF;
-
-		/* Skip "security code". */
-		/* TODO: Fix whatever's breaking this dumb "security code" so that we don't have to skip it. */
-		/* TODO: According to Devon, the security code uses those mysterious undocumented public functions in the MAIN-CPU BIOS. */
-		switch (region)
-		{
-			case 'E':
-				clownmdemu->state->m68k.ram[0xFD00 / 2 + 2] = 1390;
-				break;
-
-			case 'U':
-				clownmdemu->state->m68k.ram[0xFD00 / 2 + 2] = 0x0584;
-				break;
-
-			default:
-			case 'J':
-				clownmdemu->state->m68k.ram[0xFD00 / 2 + 2] = 342;
-				break;
-		}
 	}
 
 	callback_user_data.data_and_callbacks.data = clownmdemu;
