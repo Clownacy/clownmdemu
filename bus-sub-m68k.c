@@ -2,6 +2,7 @@
 
 #include <assert.h>
 
+#include "bus-main-m68k.h"
 #include "error.h"
 
 static cc_u8f To2DigitBCD(const cc_u8f value)
