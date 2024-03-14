@@ -5,7 +5,7 @@
 
 #include "clowncommon/clowncommon.h"
 
-#include "fm_channel.h"
+#include "fm-channel.h"
 
 /* 8 is chosen because there are 6 FM channels (of which the DAC can replace one) as well as the PSG.
    The PSG with all of its channels at maximum volume reaches the volume of a single FM channel at maximum.

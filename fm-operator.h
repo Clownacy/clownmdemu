@@ -3,8 +3,8 @@
 
 #include "clowncommon/clowncommon.h"
 
-#include "fm_phase.h"
-#include "fm_envelope.h"
+#include "fm-phase.h"
+#include "fm-envelope.h"
 
 typedef struct FM_Operator_Constant
 {

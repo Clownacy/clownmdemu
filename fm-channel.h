@@ -3,7 +3,7 @@
 
 #include "clowncommon/clowncommon.h"
 
-#include "fm_operator.h"
+#include "fm-operator.h"
 
 #define FM_CHANNEL_PARAMETERS_INITIALISE(CONSTANT, STATE) { \
 		(CONSTANT), \

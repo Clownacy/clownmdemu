@@ -8,7 +8,7 @@
 
 #include "controller.h"
 #include "fm.h"
-#include "io_port.h"
+#include "io-port.h"
 #include "clown68000/interpreter/clown68000.h"
 #include "pcm.h"
 #include "psg.h"

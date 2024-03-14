@@ -1,6 +1,6 @@
 /* Based on Nemesis's notes: http://gendev.spritesmind.net/forum/viewtopic.php?p=6114#p6114 */
 
-#include "fm_operator.h"
+#include "fm-operator.h"
 
 #include <math.h>
 

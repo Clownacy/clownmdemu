@@ -1,4 +1,4 @@
-#include "fm_channel.h"
+#include "fm-channel.h"
 
 #include <assert.h>
 
