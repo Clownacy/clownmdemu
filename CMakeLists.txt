@@ -5,9 +5,17 @@ option(CC_USE_C99_INTEGERS "Use C99 integer types instead of the original C89 on
 project(clownmdemu LANGUAGES C)
 
 add_library(clownmdemu STATIC
+	"bus-common.c"
+	"bus-common.h"
+	"bus-main-m68k.c"
+	"bus-main-m68k.h"
+	"bus-sub-m68k.c"
+	"bus-sub-m68k.h"
+	"bus-z80.c"
+	"bus-z80.h"
+	"clowncommon/clowncommon.h"
 	"clownmdemu.c"
 	"clownmdemu.h"
-	"clowncommon/clowncommon.h"
 	"controller.c"
 	"controller.h"
 	"error.c"
