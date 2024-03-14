@@ -82,7 +82,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 						if (is_vdp_dma)
 						{
-							/* Delay Word RAM DMA transfers. This is a real bug on the Mega CD that games have to work around. */
+							/* Delay WORD-RAM DMA transfers. This is a real bug on the Mega CD that games have to work around. */
 							/* This can easily be seen in Sonic CD's FMVs. */
 							const cc_u16f delayed_value = value;
 
