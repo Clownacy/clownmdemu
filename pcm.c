@@ -166,6 +166,8 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 {
 	size_t i;
 
+	(void)sample_buffer; /* TODO: Use this. */
+
 	for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
 	{
 		if (!pcm->state->channels[i].disabled)

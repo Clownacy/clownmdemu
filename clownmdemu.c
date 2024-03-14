@@ -109,6 +109,7 @@ static cc_bool FrontendControllerCallbackCommon(void* const user_data, const Con
 		case CONTROLLER_BUTTON_Y:
 		case CONTROLLER_BUTTON_Z:
 		case CONTROLLER_BUTTON_MODE:
+		case CONTROLLER_BUTTON_TOTAL:
 			return cc_false;
 	}
 
@@ -342,10 +343,9 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 	if (cd_boot)
 	{
 		/* Boot from CD ("Mode 2"). */
-		cc_u8f i;
 		const cc_u8l *sector_bytes;
 		cc_u32f ip_start, ip_length, sp_start, sp_length;
-		cc_u8l region;
+		/*cc_u8l region;*/
 
 		/* Read first sector. */
 		callbacks->cd_seeked((void*)callbacks->user_data, 0);
@@ -354,7 +354,7 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 		ip_length = ReadU32BE(&sector_bytes[0x34]);
 		sp_start = ReadU32BE(&sector_bytes[0x40]);
 		sp_length = ReadU32BE(&sector_bytes[0x44]);
-		region = sector_bytes[0x1F0];
+		/*region = sector_bytes[0x1F0];*/
 
 		/* Don't allow overflowing the PRG-RAM array. */
 		sp_length = CC_MIN(CC_COUNT_OF(clownmdemu->state->mega_cd.prg_ram.buffer) * 2 - 0x6000, sp_length);

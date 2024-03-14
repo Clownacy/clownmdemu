@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-static Controller_DoCycles(Controller* const controller, const cc_u16f cycles)
+static void Controller_DoCycles(Controller* const controller, const cc_u16f cycles)
 {
 	if (controller->countdown >= cycles)
 	{
