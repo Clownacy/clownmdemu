@@ -285,23 +285,20 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 		/* Interrupt mask control */
 		PrintError("MAIN-CPU attempted to read from interrupt mask control register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
 	}
-	else if (address == 0xC00000 / 2 || address == 0xC00002 / 2 || address == 0xC00004 / 2 || address == 0xC00006 / 2)
+	else if (address == 0xC00000 / 2 || address == 0xC00002 / 2)
 	{
-		if (address == 0xC00000 / 2 || address == 0xC00002 / 2)
-		{
-			/* VDP data port */
-			/* TODO - Reading from the data port causes real Mega Drives to crash (if the VDP isn't in read mode) */
-			value = VDP_ReadData(&clownmdemu->vdp);
-		}
-		else /*if (address == 0xC00004 || address == 0xC00006)*/
-		{
-			/* VDP control port */
-			value = VDP_ReadControl(&clownmdemu->vdp);
+		/* VDP data port */
+		/* TODO - Reading from the data port causes real Mega Drives to crash (if the VDP isn't in read mode) */
+		value = VDP_ReadData(&clownmdemu->vdp);
+	}
+	else if (address == 0xC00004 / 2 || address == 0xC00006 / 2)
+	{
+		/* VDP control port */
+		value = VDP_ReadControl(&clownmdemu->vdp);
 
-			/* Temporary stupid hack: shove the PAL bit in here. */
-			/* TODO: This should be moved to the VDP core once it becomes sensitive to PAL mode differences. */
-			value |= (clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL);
-		}
+		/* Temporary stupid hack: shove the PAL bit in here. */
+		/* TODO: This should be moved to the VDP core once it becomes sensitive to PAL mode differences. */
+		value |= (clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL);
 	}
 	else if (address == 0xC00008 / 2)
 	{
@@ -631,18 +628,15 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 		/* Interrupt mask control */
 		PrintError("MAIN-CPU attempted to write to interrupt mask control register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
 	}
-	else if (address == 0xC00000 / 2 || address == 0xC00002 / 2 || address == 0xC00004 / 2 || address == 0xC00006 / 2)
+	else if (address == 0xC00000 / 2 || address == 0xC00002 / 2)
 	{
-		if (address == 0xC00000 / 2 || address == 0xC00002 / 2)
-		{
-			/* VDP data port */
-			VDP_WriteData(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data);
-		}
-		else /*if (address == 0xC00004 || address == 0xC00006)*/
-		{
-			/* VDP control port */
-			VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data);
-		}
+		/* VDP data port */
+		VDP_WriteData(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data);
+	}
+	else if (address == 0xC00004 / 2 || address == 0xC00006 / 2)
+	{
+		/* VDP control port */
+		VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data);
 	}
 	else if (address == 0xC00008 / 2)
 	{
