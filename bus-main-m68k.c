@@ -7,7 +7,10 @@
 #include "error.h"
 #include "io-port.h"
 
-#include "mcd-boot.c"
+/* https://github.com/devon-artmeier/clownmdemu-mcd-boot */
+static const cc_u16l megacd_boot_rom[] = {
+#include "mega-cd-boot-rom.c"
+};
 
 static cc_u16f VDPReadCallback(void *user_data, cc_u32f address)
 {
