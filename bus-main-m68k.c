@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "bus-sub-m68k.h"
+#include "error.h"
 #include "io-port.h"
 
 #include "mcd-boot.c"

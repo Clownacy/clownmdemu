@@ -2,6 +2,8 @@
 
 #include <assert.h>
 
+#include "error.h"
+
 static cc_u8f To2DigitBCD(const cc_u8f value)
 {
 	const cc_u8f lower_digit = value % 10;
