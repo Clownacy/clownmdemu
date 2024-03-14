@@ -384,6 +384,7 @@ static cc_u16f M68kReadCallbackWithCycleWithDMA(const void *user_data, cc_u32f a
 		else if (clownmdemu->state->z80.reset_held)
 		{
 			/* TODO: Does this actually bother real hardware? */
+			/* TODO: According to Devon, yes it does. */
 			PrintError("68k attempted to read Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 		}
 		else if (do_high_byte && do_low_byte)
@@ -679,6 +680,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		else if (clownmdemu->state->z80.reset_held)
 		{
 			/* TODO: Does this actually bother real hardware? */
+			/* TODO: According to Devon, yes it does. */
 			PrintError("68k attempted to write Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 		}
 		else if (do_high_byte && do_low_byte)
@@ -1290,7 +1292,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	}
 	else if (address >= 0xFF0000 / 2 && address < 0xFF8000 / 2)
 	{
-		if (address & 0x1000)
+		if ((address & 0x1000) != 0)
 		{
 			/* PCM wave RAM */
 			PrintError("SUB-CPU attempted to read from PCM wave RAM at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
@@ -1353,12 +1355,12 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 	else if (address == 0xFF8032 / 2)
 	{
 		/* Interrupt mask control */
-		value = ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[0] << 1)) |
-		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[1] << 2)) |
-		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[2] << 3)) |
-		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[3] << 4)) |
-		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[4] << 5)) |
-		        ((cc_u16f)(clownmdemu->state->mega_cd.irq.enabled[5] << 6));
+		cc_u8f i;
+
+		value = 0;
+
+		for (i = 0; i < CC_COUNT_OF(clownmdemu->state->mega_cd.irq.enabled); ++i)
+			value |= (cc_u16f)clownmdemu->state->mega_cd.irq.enabled[i] << (1 + i);
 	}
 	else if (address == 0xFF8058 / 2)
 	{
@@ -1447,7 +1449,8 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 		if (do_low_byte)
 		{
 			SyncMCDPCM(callback_user_data, target_cycle);
-			if (address & 0x1000)
+
+			if ((address & 0x1000) != 0)
 			{
 				/* PCM wave RAM */
 				PCM_WriteWaveRAM(&clownmdemu->pcm, address & 0xFFF, (cc_u8f)value);
@@ -1531,12 +1534,10 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 		/* Interrupt mask control */
 		if (do_low_byte)
 		{
-			clownmdemu->state->mega_cd.irq.enabled[0] = (value & (1 << 1)) != 0;
-			clownmdemu->state->mega_cd.irq.enabled[1] = (value & (1 << 2)) != 0;
-			clownmdemu->state->mega_cd.irq.enabled[2] = (value & (1 << 3)) != 0;
-			clownmdemu->state->mega_cd.irq.enabled[3] = (value & (1 << 4)) != 0;
-			clownmdemu->state->mega_cd.irq.enabled[4] = (value & (1 << 5)) != 0;
-			clownmdemu->state->mega_cd.irq.enabled[5] = (value & (1 << 6)) != 0;
+			cc_u8f i;
+
+			for (i = 0; i < CC_COUNT_OF(clownmdemu->state->mega_cd.irq.enabled); ++i)
+				clownmdemu->state->mega_cd.irq.enabled[i] = (value & (1 << (1 + i))) != 0;
 
 			if (!clownmdemu->state->mega_cd.irq.enabled[0])
 				clownmdemu->state->mega_cd.irq.irq1_pending = cc_false;
@@ -1715,6 +1716,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	
 	for (i = 0; i < CC_COUNT_OF(state->mega_cd.irq.enabled); ++i)
 		state->mega_cd.irq.enabled[i] = cc_false;
+
 	state->mega_cd.irq.irq1_pending = cc_false;
 	
 	PCM_State_Initialise(&state->mega_cd.pcm);
