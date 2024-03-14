@@ -139,8 +139,8 @@ void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f addres
 		   http://gendev.spritesmind.net/forum/viewtopic.php?f=24&t=347&start=30
 		   http://gendev.spritesmind.net/forum/viewtopic.php?f=2&t=985 */
 
-		   /* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
-		   /* TODO: Apparently the Z80 can access the IO ports and send a bus request to itself. */
+		/* 68k ROM window (actually a window into the 68k's address space: you can access the PSG through it IIRC). */
+		/* TODO: Apparently the Z80 can access the IO ports and send a bus request to itself. */
 		const cc_u32f m68k_address = ((cc_u32f)clownmdemu->state->z80.bank * 0x8000) + (address & 0x7FFE);
 
 		SyncM68k(clownmdemu, callback_user_data, target_cycle);
