@@ -147,7 +147,7 @@ typedef struct ClownMDEmu_State
 		cc_u8l ram[0x2000];
 		cc_u16f cycle_countdown;
 		cc_u16l bank;
-		cc_bool m68k_has_bus;
+		cc_bool bus_requested;
 		cc_bool reset_held;
 	} z80;
 

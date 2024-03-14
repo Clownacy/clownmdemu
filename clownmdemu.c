@@ -166,7 +166,7 @@ static void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* con
 
 		if (z80_countdown == 0)
 		{
-			const cc_bool z80_not_running = clownmdemu->state->z80.m68k_has_bus || clownmdemu->state->z80.reset_held;
+			const cc_bool z80_not_running = clownmdemu->state->z80.bus_requested || clownmdemu->state->z80.reset_held;
 
 			z80_countdown = CLOWNMDEMU_Z80_CLOCK_DIVIDER * (z80_not_running ? 1 : Z80_DoCycle(&clownmdemu->z80, &z80_read_write_callbacks));
 		}
@@ -377,7 +377,7 @@ static cc_u16f M68kReadCallbackWithCycleWithDMA(const void *user_data, cc_u32f a
 	else if ((address >= 0xA00000 / 2 && address <= 0xA01FFF / 2) || address == 0xA04000 / 2 || address == 0xA04002 / 2)
 	{
 		/* Z80 RAM and YM2612 */
-		if (!clownmdemu->state->z80.m68k_has_bus)
+		if (!clownmdemu->state->z80.bus_requested)
 		{
 			PrintError("68k attempted to read Z80 memory/YM2612 ports without Z80 bus at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 		}
@@ -458,7 +458,8 @@ static cc_u16f M68kReadCallbackWithCycleWithDMA(const void *user_data, cc_u32f a
 	{
 		/* Z80 BUSREQ */
 		/* TODO: On real hardware, it seems that bus requests do not complete if a reset is being held. */
-		const cc_bool z80_running = !clownmdemu->state->z80.m68k_has_bus;
+		/* http://gendev.spritesmind.net/forum/viewtopic.php?f=2&t=2195 */
+		const cc_bool z80_running = !clownmdemu->state->z80.bus_requested;
 
 		value = z80_running << 8;
 	}
@@ -673,7 +674,7 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 	else if ((address >= 0xA00000 / 2 && address <= 0xA01FFF / 2) || address == 0xA04000 / 2 || address == 0xA04002 / 2)
 	{
 		/* Z80 RAM and YM2612 */
-		if (!clownmdemu->state->z80.m68k_has_bus)
+		if (!clownmdemu->state->z80.bus_requested)
 		{
 			PrintError("68k attempted to write Z80 memory/YM2612 ports without Z80 bus at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 		}
@@ -746,10 +747,10 @@ static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, c
 		{
 			const cc_bool bus_request = (high_byte & 1) != 0;
 
-			if (clownmdemu->state->z80.m68k_has_bus != bus_request)
+			if (clownmdemu->state->z80.bus_requested != bus_request)
 				SyncZ80(clownmdemu, callback_user_data, target_cycle);
 
-			clownmdemu->state->z80.m68k_has_bus = bus_request;
+			clownmdemu->state->z80.bus_requested = bus_request;
 		}
 	}
 	else if (address == 0xA11200 / 2)
@@ -1669,7 +1670,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	memset(state->z80.ram, 0, sizeof(state->z80.ram));
 	state->z80.cycle_countdown = 0;
 	state->z80.bank = 0;
-	state->z80.m68k_has_bus = cc_true;
+	state->z80.bus_requested = cc_true;
 	state->z80.reset_held = cc_true;
 
 	VDP_State_Initialise(&state->vdp);
