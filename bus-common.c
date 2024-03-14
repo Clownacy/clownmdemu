@@ -57,8 +57,7 @@ static void GeneratePCMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffe
 	PCM_Update(&clownmdemu->pcm, sample_buffer, total_samples);
 }
 
-/* TODO: Rename this... */
-void SyncMCDPCM(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
+void SyncPCM(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 {
 	const cc_u32f pcm_target_cycle = target_cycle / CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER;
 

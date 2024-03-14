@@ -32,6 +32,6 @@ typedef struct IOPortToController_Parameters
 
 cc_u8f SyncFM(CPUCallbackUserData *other_state, cc_u32f target_cycle);
 void SyncPSG(CPUCallbackUserData *other_state, cc_u32f target_cycle);
-void SyncMCDPCM(CPUCallbackUserData *other_state, cc_u32f target_cycle);
+void SyncPCM(CPUCallbackUserData *other_state, cc_u32f target_cycle);
 
 #endif /* BUS_COMMON */

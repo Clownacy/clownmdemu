@@ -310,7 +310,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		else
 		{
 			/* PCM register */
-			SyncMCDPCM(callback_user_data, target_cycle);
+			SyncPCM(callback_user_data, target_cycle);
 			value = (cc_u16f)PCM_ReadRegister(&clownmdemu->pcm, address & 0xFFF);
 		}
 	}
@@ -458,7 +458,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	{
 		if (do_low_byte)
 		{
-			SyncMCDPCM(callback_user_data, target_cycle);
+			SyncPCM(callback_user_data, target_cycle);
 
 			if ((address & 0x1000) != 0)
 			{

@@ -321,7 +321,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	SyncMCDM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame);
 	SyncFM(&cpu_callback_user_data, cycles_per_frame);
 	SyncPSG(&cpu_callback_user_data, cycles_per_frame);
-	SyncMCDPCM(&cpu_callback_user_data, cycles_per_frame);
+	SyncPCM(&cpu_callback_user_data, cycles_per_frame);
 
 	/* Fire IRQ1 if needed. */
 	/* TODO: This is a hack. Look into when this interrupt should actually be done. */
