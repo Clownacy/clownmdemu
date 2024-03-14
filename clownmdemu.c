@@ -98,15 +98,17 @@ static void CDSectorsTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u1
 		CDSectorTo68kRAM(callbacks, &ram[i * 0x800 / 2]);
 }
 
+static cc_u16f M68kReadCallbackWithCycleWithDMA(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u32f target_cycle, cc_bool is_vdp_dma);
+static cc_u16f M68kReadCallbackWithDMA(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_bool is_vdp_dma);
 static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte);
 static void M68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value);
-static cc_u16f Z80ReadCallbackWithCycle(const void *user_data, cc_u16f address, const cc_u32f target_cycle);
+static cc_u16f Z80ReadCallbackWithCycle(const void *user_data, cc_u16f address, cc_u32f target_cycle);
 static cc_u16f Z80ReadCallback(const void *user_data, cc_u16f address);
-static void Z80WriteCallbackWithCycle(const void *user_data, cc_u16f address, cc_u16f value, const cc_u32f target_cycle);
+static void Z80WriteCallbackWithCycle(const void *user_data, cc_u16f address, cc_u16f value, cc_u32f target_cycle);
 static void Z80WriteCallback(const void *user_data, cc_u16f address, cc_u16f value);
-static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, const cc_u32f target_cycle);
+static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u32f target_cycle);
 static cc_u16f MCDM68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte);
-static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value, const cc_u32f target_cycle);
+static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value, cc_u32f target_cycle);
 static void MCDM68kWriteCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value);
 
 static void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
@@ -284,31 +286,12 @@ static void SyncMCDPCM(CPUCallbackUserData* const other_state, const cc_u32f tar
 
 static cc_u16f VDPReadCallback(void *user_data, cc_u32f address)
 {
-	cc_u16f value;
-
-	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
-	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
-	const cc_u16f callback_value = M68kReadCallback(user_data, address / 2, cc_true, cc_true);
-
-	/* TODO: Dear God, I really need to hide this junk behind macros or something. */
-	if (address < 0x800000 && ((address & 0x400000) != 0) != clownmdemu->state->mega_cd.boot_from_cd && (address & 0x200000) != 0)
-	{
-		/* Delay Word RAM DMA transfers. This is a real bug on the Mega CD that games have to work around. */
-		/* This can easily be seen in Sonic CD's FMVs. */
-		value = clownmdemu->state->mega_cd.delayed_dma_word;
-		clownmdemu->state->mega_cd.delayed_dma_word = callback_value;
-	}
-	else
-	{
-		value = callback_value;
-	}
-
-	return value;
+	return M68kReadCallbackWithDMA(user_data, address / 2, cc_true, cc_true, cc_true);
 }
 
 /* 68k memory access callbacks */
 
-static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, const cc_u32f target_cycle)
+static cc_u16f M68kReadCallbackWithCycleWithDMA(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, const cc_u32f target_cycle, const cc_bool is_vdp_dma)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
@@ -340,6 +323,16 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 					else
 					{
 						value = clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + clownmdemu->state->mega_cd.word_ram.ret];
+
+						if (is_vdp_dma)
+						{
+							/* Delay Word RAM DMA transfers. This is a real bug on the Mega CD that games have to work around. */
+							/* This can easily be seen in Sonic CD's FMVs. */
+							const cc_u16f delayed_value = value;
+
+							value = clownmdemu->state->mega_cd.delayed_dma_word;
+							clownmdemu->state->mega_cd.delayed_dma_word = delayed_value;
+						}
 					}
 				}
 				else
@@ -580,11 +573,21 @@ static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address,
 	return value;
 }
 
-static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte)
+static cc_u16f M68kReadCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, const cc_u32f target_cycle)
+{
+	return M68kReadCallbackWithCycleWithDMA(user_data, address, do_high_byte, do_low_byte, target_cycle, cc_false);
+}
+
+static cc_u16f M68kReadCallbackWithDMA(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, const cc_bool is_vdp_dma)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	return M68kReadCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, callback_user_data->m68k_current_cycle);
+	return M68kReadCallbackWithCycleWithDMA(user_data, address, do_high_byte, do_low_byte, callback_user_data->m68k_current_cycle, is_vdp_dma);
+}
+
+static cc_u16f M68kReadCallback(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte)
+{
+	return M68kReadCallbackWithDMA(user_data, address, do_high_byte, do_low_byte, cc_false);
 }
 
 static void M68kWriteCallbackWithCycle(const void *user_data, cc_u32f address, cc_bool do_high_byte, cc_bool do_low_byte, cc_u16f value, const cc_u32f target_cycle)
