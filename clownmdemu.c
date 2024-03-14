@@ -38,7 +38,6 @@ typedef struct IOPortToController_Parameters
 	const ClownMDEmu_Callbacks *frontend_callbacks;
 } IOPortToController_Parameters;
 
-/* TODO: Please, anything but this... */
 #include "mcd_boot.c"
 
 static cc_u32f ReadU32BE(const cc_u8l* const bytes)
