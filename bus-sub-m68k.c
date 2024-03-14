@@ -259,8 +259,6 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		}
 		else if (address == 0x5F22 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F22)
 		{
-			static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const user_data, const ClownMDEmu_Callbacks* const frontend_callbacks, const cc_u32f target_cycle);
-
 			/* BIOS call! */
 			MegaCDBIOSCall(clownmdemu, user_data, frontend_callbacks, target_cycle);
 
