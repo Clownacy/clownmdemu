@@ -29,7 +29,7 @@ typedef struct CPUCallbackUserData
 	cc_u32f mcd_m68k_current_cycle;
 	cc_u32f fm_current_cycle;
 	cc_u32f psg_current_cycle;
-	cc_u32f mcd_pcm_current_cycle;
+	cc_u32f pcm_current_cycle;
 } CPUCallbackUserData;
 
 typedef struct IOPortToController_Parameters
@@ -244,9 +244,9 @@ static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffe
 	PSG_Update(&clownmdemu->psg, sample_buffer, total_samples);
 }
 
-static void GenerateMCDPCMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples)
+static void GeneratePCMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples)
 {
-	PCM_Update(&clownmdemu->mcd_pcm, sample_buffer, total_samples);
+	PCM_Update(&clownmdemu->pcm, sample_buffer, total_samples);
 }
 
 static void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
@@ -267,17 +267,17 @@ static void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target
 
 static void SyncMCDPCM(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 {
-	const cc_u32f mcd_pcm_target_cycle = target_cycle / CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER;
+	const cc_u32f pcm_target_cycle = target_cycle / CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER;
 
-	const size_t samples_to_generate = mcd_pcm_target_cycle - other_state->mcd_pcm_current_cycle;
+	const size_t samples_to_generate = pcm_target_cycle - other_state->pcm_current_cycle;
 
-	assert(mcd_pcm_target_cycle >= other_state->mcd_pcm_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
+	assert(pcm_target_cycle >= other_state->pcm_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
 
 	if (samples_to_generate != 0)
 	{
-		other_state->data_and_callbacks.frontend_callbacks->mcd_pcm_audio_to_be_generated((void*)other_state->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate, GenerateMCDPCMAudio);
+		other_state->data_and_callbacks.frontend_callbacks->pcm_audio_to_be_generated((void*)other_state->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate, GeneratePCMAudio);
 
-		other_state->mcd_pcm_current_cycle = mcd_pcm_target_cycle;
+		other_state->pcm_current_cycle = pcm_target_cycle;
 	}
 }
 
@@ -1299,7 +1299,7 @@ static cc_u16f MCDM68kReadCallbackWithCycle(const void *user_data, cc_u32f addre
 		{
 			/* PCM register */
 			SyncMCDPCM(callback_user_data, target_cycle);
-			value = (cc_u16f)PCM_ReadRegister(&clownmdemu->mcd_pcm, address & 0xFFF);
+			value = (cc_u16f)PCM_ReadRegister(&clownmdemu->pcm, address & 0xFFF);
 		}
 	}
 	else if (address == 0xFF8002 / 2)
@@ -1450,12 +1450,12 @@ static void MCDM68kWriteCallbackWithCycle(const void *user_data, cc_u32f address
 			if (address & 0x1000)
 			{
 				/* PCM wave RAM */
-				PCM_WriteWaveRAM(&clownmdemu->mcd_pcm, address & 0xFFF, (cc_u8f)value);
+				PCM_WriteWaveRAM(&clownmdemu->pcm, address & 0xFFF, (cc_u8f)value);
 			}
 			else
 			{
 				/* PCM register */
-				PCM_WriteRegister(&clownmdemu->mcd_pcm, address & 0xFFF, (cc_u8f)value);
+				PCM_WriteRegister(&clownmdemu->pcm, address & 0xFFF, (cc_u8f)value);
 			}
 		}
 	}
@@ -1747,7 +1747,7 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 	clownmdemu->psg.constant = &constant->psg;
 	clownmdemu->psg.state = &state->psg;
 
-	clownmdemu->mcd_pcm.state = &state->mega_cd.pcm;
+	clownmdemu->pcm.state = &state->mega_cd.pcm;
 }
 
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
@@ -1768,7 +1768,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	cpu_callback_user_data.mcd_m68k_current_cycle = 0;
 	cpu_callback_user_data.fm_current_cycle = 0;
 	cpu_callback_user_data.psg_current_cycle = 0;
-	cpu_callback_user_data.mcd_pcm_current_cycle = 0;
+	cpu_callback_user_data.pcm_current_cycle = 0;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;

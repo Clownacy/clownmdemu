@@ -220,7 +220,7 @@ typedef struct ClownMDEmu
 	VDP vdp;
 	FM fm;
 	PSG psg;
-	PCM mcd_pcm;
+	PCM pcm;
 } ClownMDEmu;
 
 typedef struct ClownMDEmu_Callbacks
@@ -234,7 +234,7 @@ typedef struct ClownMDEmu_Callbacks
 	cc_bool (*input_requested)(void *user_data, cc_u8f player_id, ClownMDEmu_Button button_id);
 	void (*fm_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*psg_audio_to_be_generated)(void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples));
-	void (*mcd_pcm_audio_to_be_generated)(void *user_data, size_t total_samples, void (*generate_mcd_pcm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples));
+	void (*pcm_audio_to_be_generated)(void *user_data, size_t total_samples, void (*generate_mcd_pcm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples));
 	void (*cd_seeked)(void *user_data, cc_u32f sector_index);
 	const cc_u8l* (*cd_sector_read)(void *user_data);
 } ClownMDEmu_Callbacks;
