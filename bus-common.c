@@ -6,12 +6,12 @@
 #include "pcm.h"
 #include "psg.h"
 
-static void FMCallbackWrapper(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames)
+static void FMCallbackWrapper(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
 	FM_OutputSamples(&clownmdemu->fm, sample_buffer, total_frames);
 }
 
-static void GenerateFMAudio(const void *user_data, cc_u32f total_frames)
+static void GenerateFMAudio(const void* const user_data, const cc_u32f total_frames)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
@@ -31,7 +31,7 @@ cc_u8f SyncFM(CPUCallbackUserData* const other_state, const cc_u32f target_cycle
 	return FM_Update(&other_state->data_and_callbacks.data->fm, cycles_to_do, GenerateFMAudio, other_state);
 }
 
-static void GeneratePSGAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples)
+static void GeneratePSGAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_samples)
 {
 	PSG_Update(&clownmdemu->psg, sample_buffer, total_samples);
 }
@@ -52,7 +52,7 @@ void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 	}
 }
 
-static void GeneratePCMAudio(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples)
+static void GeneratePCMAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_samples)
 {
 	PCM_Update(&clownmdemu->pcm, sample_buffer, total_samples);
 }
