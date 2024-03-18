@@ -69,8 +69,8 @@ and portability:
   - Do not rely on signed number representation. That is to say, do not assume
     that negative numbers are represented in binary as two's complement.
 
-- Use original code. No emulation components are taken from other emulators or
-  standalone libraries. For example, the rather than use something like
+- Use original code. No emulation components should be taken from other
+  emulators or libraries. For example, rather than use something like
   [Musashi](https://github.com/kstenerud/Musashi), the 68000 emulation core is
   custom. Likewise, a custom YM2612 emulation core is used instead of
   [Nuked-OPN2](https://github.com/nukeykt/Nuked-OPN2).
