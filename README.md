@@ -9,12 +9,12 @@ more information).
 
 # Frontends
 
-To actually play games with clownmdemu, you'll need to use a frontend.
+To actually run software with clownmdemu, you will need to use a frontend.
 Currently there are two official frontends:
 - The standalone frontend, which includes a variety of debugging menus:
   https://github.com/Clownacy/clownmdemu-frontend
 - The libretro frontend, for use with libretro implementations such as
-  RetroArch:
+  RetroArch and clownlibretro:
   https://github.com/Clownacy/clownmdemu-libretro
 
 
