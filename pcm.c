@@ -200,11 +200,11 @@ static cc_s16f PCM_UnsignedToSigned(const cc_u16f sample)
 {
 	cc_s16f signed_sample;
 
-	/* The real PCM chip allows samples to be -0x8000, but that is not compatible with non-two's-complement platforms, which this emulator supports. */
-	/* TODO: Is there any way to make this output unsigned so that it's up to the frontend to convert to signed instead? */
-	if (sample == 0)
+	/* The value could be -0x8000, but that is not compatible with non-two's-complement platforms, which this emulator supports. */
+	/* Because the input is always 10-bit, we don't actually have to worry about this. */
+	/*if (sample == 0)
 		signed_sample = -0x7FFF;
-	else if ((sample & 0x8000) != 0)
+	else*/ if ((sample & 0x8000) != 0)
 		signed_sample = (cc_s16f)(sample - 0x8000);
 	else
 		signed_sample = -(cc_s16f)(0x8000 - sample);
@@ -240,7 +240,7 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 
 					cc_u32f mixed_sample = mixed_samples[current_mixed_sample];
 
-					/* TODO: Check if this is how real hardware handles clipping, or of it's only done after mixing. */
+					/* TODO: Check if this is how real hardware handles clipping, or if it's only done after mixing. */
 					if (add_bit)
 					{
 						mixed_sample += scaled_absolute_sample;
@@ -266,7 +266,8 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 		for (current_mixed_sample = 0; current_mixed_sample < CC_COUNT_OF(mixed_samples); ++current_mixed_sample)
 		{
 			/* TODO: Just set, rather than add, and make the mixer reflect this too. */
-			*sample_pointer++ += (PCM_UnsignedToSigned(mixed_samples[current_mixed_sample] & ~0x3F)) / 3;
+			/* TODO: Better balancing. Maybe move balancing to the mixer instead of here. */
+			*sample_pointer++ += (PCM_UnsignedToSigned(mixed_samples[current_mixed_sample] >> 6)) * 0x10;
 		}
 	}
 }
