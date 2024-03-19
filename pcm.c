@@ -164,53 +164,68 @@ void PCM_WriteWaveRAM(const PCM* const pcm, const cc_u16f address, const cc_u8f 
 void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t total_frames)
 {
 	/* TODO: Sounding (ew). */
-	/* TODO: Invert these loops - that should be more cache-efficient. */
 	size_t i;
 
 	for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
 	{
-		if (!pcm->state->channels[i].disabled && pcm->state->sounding)
+		if (pcm->state->channels[i].disabled || !pcm->state->sounding)
 		{
-			cc_s16l *sample_pointer;
-			size_t j;
+			/* Reset wave addresses for non-sounding channels */
+			pcm->state->channels[i].address = (cc_u32f)pcm->state->channels[i].start_address << 19;
+		}
+	}
+	
+	size_t j;
+	cc_s16l *sample_pointer;
 
-			sample_pointer = sample_buffer;
+	sample_pointer = sample_buffer;
 
-			for (j = 0; j < total_frames; ++j)
+	for (i = 0; i < total_frames; ++i)
+	{
+		cc_s16l wave_left = 0;
+		cc_s16l wave_right = 0;
+
+		for (j = 0; j < CC_COUNT_OF(pcm->state->channels); ++j)
+		{
+			cc_s16f wave_value;
+
+			if (!pcm->state->channels[j].disabled && pcm->state->sounding)
 			{
-				cc_s16f wave_value;
-
 				/* Read sample and advance address. */
-				wave_value = pcm->state->wave_ram[(pcm->state->channels[i].address >> 11) & 0xFFFF];
-				pcm->state->channels[i].address += pcm->state->channels[i].frequency;
-				pcm->state->channels[i].address &= 0x7FFFFFF;
+				pcm->state->channels[j].address += pcm->state->channels[j].frequency;
+				pcm->state->channels[j].address &= 0x7FFFFFF;
+				wave_value = pcm->state->wave_ram[(pcm->state->channels[j].address >> 11) & 0xFFFF];
 
 				/* Handle looping. */
 				if (wave_value == 0xFF)
 				{
-					pcm->state->channels[i].address = pcm->state->channels[i].loop_address << 11;
-					wave_value = pcm->state->wave_ram[(pcm->state->channels[i].address >> 11) & 0xFFFF];
+					pcm->state->channels[j].address = pcm->state->channels[j].loop_address << 11;
+					wave_value = pcm->state->wave_ram[(pcm->state->channels[j].address >> 11) & 0xFFFF];
 				}
-
-				/* Convert from sign-magnitude to two's-complement. */
-				/* If we get another loop value, just interpret it as silence. */ /* TODO: What does real hardware do? */
-				/* Oddly, negative and positive values are actually swapped, according to the diagram in the 'MEGA-CD HARDWARE MANUAL - PCM SOUND SOURCE' document. */
-				if (wave_value == 0xFF)
-					wave_value = 0;
-				else if (wave_value >= 0x80)
-					wave_value -= 0x80;
-				else
-					wave_value = -wave_value;
-
-				/* Apply volume and panning */
-				/* TODO: Maybe try to find a better way to balance the output volume? */
-				*sample_pointer++ += ((cc_s32f)wave_value * pcm->state->channels[i].volume * (pcm->state->channels[i].panning & 0xF) * 0x1000) / 0x7698F;
-				*sample_pointer++ += ((cc_s32f)wave_value * pcm->state->channels[i].volume * (pcm->state->channels[i].panning >> 4) * 0x1000) / 0x7698F;
 			}
+			else
+			{
+				/* Only perform a read if sounding is off */
+				wave_value = pcm->state->wave_ram[(pcm->state->channels[j].address >> 11) & 0xFFFF];
+			}
+
+			/* Convert from sign-magnitude to two's-complement. */
+			/* If we get another loop value, just interpret it as silence. */ /* TODO: What does real hardware do? */
+			/* Oddly, negative and positive values are actually swapped, according to the diagram in the 'MEGA-CD HARDWARE MANUAL - PCM SOUND SOURCE' document. */
+			if (wave_value == 0xFF)
+				wave_value = 0;
+			else if (wave_value >= 0x80)
+				wave_value -= 0x80;
+			else
+				wave_value = -wave_value;
+
+			/* TODO: Maybe try to find a better way to balance the output volume? */
+			wave_left += ((cc_s32f)wave_value * pcm->state->channels[j].volume * (pcm->state->channels[j].panning & 0xF) * 0x1000) / 0x7698F;
+			wave_right += ((cc_s32f)wave_value * pcm->state->channels[j].volume * (pcm->state->channels[j].panning >> 4) * 0x1000) / 0x7698F;
 		}
-		else
-		{
-			pcm->state->channels[i].address = (cc_u32f)pcm->state->channels[i].start_address << 19;
-		}
+
+		/* Output mixed wave values */
+		*sample_pointer++ += wave_left;
+		*sample_pointer++ += wave_right;
 	}
 }
