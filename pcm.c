@@ -97,6 +97,8 @@ cc_u8f PCM_ReadRegister(const PCM* const pcm, const cc_u16f reg)
 
 	switch (reg)
 	{
+		size_t i;
+
 		case 0x00:
 			value = current_channel->volume;
 			break;
@@ -198,16 +200,17 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 				}
 
 				/* Convert from sign-magnitude to two's-complement. */
-				if ((wave_value & 0x80) != 0)
-					wave_value = 0x80 - wave_value;
+				if ((wave_value & 0x80) == 0)
+					wave_value = -wave_value;
+				else if (wave_value != 0xFF)
+					wave_value &= 0x7F;
+				else
+					wave_value = 0;
 
-				/* Amplify the sample to be audible. */
-				/* TODO: Find an accurate value. */
-				wave_value *= 0x20;
-
-				/* TODO: Panning, volume control. */
-				*sample_pointer++ += wave_value;
-				*sample_pointer++ += wave_value;
+				/* Apply volume and panning */
+				/* TODO: Maybe try to find a better way to balance the output volume? */
+				*sample_pointer++ += (wave_value * pcm->state->channels[i].volume * (pcm->state->channels[i].panning & 0xF) * 0x1000) / 0x7698F;
+				*sample_pointer++ += (wave_value * pcm->state->channels[i].volume * ((pcm->state->channels[i].panning >> 4) & 0xF) * 0x1000) / 0x7698F;
 			}
 		}
 	}

@@ -199,6 +199,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->mega_cd.cd.current_sector = 0;
 	state->mega_cd.cd.total_buffered_sectors = 0;
 	state->mega_cd.cd.cdc_ready = cc_false;
+	state->mega_cd.cd.cdc_delay = 0;
 	
 	for (i = 0; i < CC_COUNT_OF(state->mega_cd.irq.enabled); ++i)
 		state->mega_cd.irq.enabled[i] = cc_false;
