@@ -13,7 +13,7 @@ typedef struct PCM_ChannelState
 {
 	cc_bool disabled;
 	cc_u8l volume;
-	cc_u8l panning;
+	cc_u8l panning[2];
 	cc_u16l frequency;
 	cc_u16l loop_address;
 	cc_u8l start_address;

@@ -8,7 +8,8 @@ void PCM_State_Initialise(PCM_State* const state)
 	{
 		state->channels[i].disabled = cc_true;
 		state->channels[i].volume = 0;
-		state->channels[i].panning = 0;
+		state->channels[i].panning[0] = 0;
+		state->channels[i].panning[1] = 0;
 		state->channels[i].frequency = 0;
 		state->channels[i].loop_address = 0;
 		state->channels[i].start_address = 0;
@@ -31,7 +32,8 @@ void PCM_WriteRegister(const PCM* const pcm, const cc_u16f reg, const cc_u8f val
 			break;
 			
 		case 1:
-			current_channel->panning = value;
+			current_channel->panning[0] = value & 0xF;
+			current_channel->panning[1] = value >> 4;
 			break;
 			
 		case 2:
@@ -93,7 +95,7 @@ cc_u8f PCM_ReadRegister(const PCM* const pcm, const cc_u16f reg)
 			break;
 			
 		case 0x01:
-			value = current_channel->panning;
+			value = (current_channel->panning[0] << 0) | (current_channel->panning[1] << 8);
 			break;
 			
 		case 0x02:
@@ -234,7 +236,7 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 					/* Mask out direction bit and apply volume and panning. */
 					const cc_u8f absolute_sample = sample & 0x7F;
 					const cc_bool add_bit = (sample & 0x80) != 0;
-					const cc_u32f scaled_absolute_sample = ((cc_u32f)absolute_sample * channel->volume * ((channel->panning >> (4 * current_mixed_sample)) & 0xF)) >> 5;
+					const cc_u32f scaled_absolute_sample = ((cc_u32f)absolute_sample * channel->volume * channel->panning[current_mixed_sample]) >> 5;
 
 					cc_u32f mixed_sample = mixed_samples[current_mixed_sample];
 
