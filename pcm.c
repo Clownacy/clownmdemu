@@ -194,47 +194,77 @@ static cc_u8f PCM_UpdateAddressAndFetchSample(const PCM* const pcm, PCM_ChannelS
 	return wave_value;
 }
 
-static cc_s32f PCM_ProcessSample(const PCM* const pcm, const PCM_ChannelState* const channel, const cc_u8f sample, const cc_u8f panning)
+static cc_s16f PCM_UnsignedToSigned(const cc_u16f sample)
 {
-	/* Mask out direction bit and apply volume and panning. */
-	const cc_u8f absolute_sample = sample & 0x7F;
-	const cc_bool add_bit = (sample & 0x80) != 0;
-	const cc_s32f scaled_absolute_sample = (((cc_u32f)absolute_sample) * channel->volume * panning) >> 5;
+	cc_s16f signed_sample;
 
-	return add_bit ? scaled_absolute_sample : -scaled_absolute_sample;
+	/* The real PCM chip allows samples to be -0x8000, but that is not compatible with non-two's-complement platforms, which this emulator supports. */
+	/* TODO: Is there any way to make this output unsigned so that it's up to the frontend to convert to signed instead? */
+	if (sample == 0)
+		signed_sample = -0x7FFF;
+	else if ((sample & 0x8000) != 0)
+		signed_sample = (cc_s16f)(sample - 0x8000);
+	else
+		signed_sample = -(cc_s16f)(0x8000 - sample);
+
+	return signed_sample;
 }
 
 void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t total_frames)
 {
 	cc_s16l *sample_pointer = sample_buffer;
-	size_t i;
+	size_t current_frame;
 
-	for (i = 0; i < total_frames; ++i)
+	for (current_frame = 0; current_frame < total_frames; ++current_frame)
 	{
-		cc_s32f mixed_samples[2] = {0, 0};
-		cc_u8f j;
+		cc_u16f mixed_samples[2] = {0x8000, 0x8000};
+		cc_u8f current_channel;
 		cc_u8f current_mixed_sample;
 
-		for (j = 0; j < CC_COUNT_OF(pcm->state->channels); ++j)
+		for (current_channel = 0; current_channel < CC_COUNT_OF(pcm->state->channels); ++current_channel)
 		{
-			PCM_ChannelState* const channel = &pcm->state->channels[j];
+			PCM_ChannelState* const channel = &pcm->state->channels[current_channel];
 
-			const cc_u8f wave_value = PCM_UpdateAddressAndFetchSample(pcm, channel);
+			const cc_u8f sample = PCM_UpdateAddressAndFetchSample(pcm, channel);
 
 			if (PCM_IsChannelAudible(pcm, channel))
+			{
 				for (current_mixed_sample = 0; current_mixed_sample < CC_COUNT_OF(mixed_samples); ++current_mixed_sample)
-					mixed_samples[current_mixed_sample] += PCM_ProcessSample(pcm, channel, wave_value, (channel->panning >> (4 * current_mixed_sample)) & 0xF);
+				{
+					/* Mask out direction bit and apply volume and panning. */
+					const cc_u8f absolute_sample = sample & 0x7F;
+					const cc_bool add_bit = (sample & 0x80) != 0;
+					const cc_u32f scaled_absolute_sample = ((cc_u32f)absolute_sample * channel->volume * ((channel->panning >> (4 * current_mixed_sample)) & 0xF)) >> 5;
+
+					cc_u32f mixed_sample = mixed_samples[current_mixed_sample];
+
+					/* TODO: Check if this is how real hardware handles clipping, or of it's only done after mixing. */
+					if (add_bit)
+					{
+						mixed_sample += scaled_absolute_sample;
+
+						/* Handle overflow. */
+						if (mixed_sample > 0xFFFF)
+							mixed_sample = 0xFFFF;
+					}
+					else
+					{
+						mixed_sample -= scaled_absolute_sample;
+
+						/* Handle underflow. */
+						if (mixed_sample > 0xFFFF)
+							mixed_sample = 0x0000;
+					}
+
+					mixed_samples[current_mixed_sample] = mixed_sample;
+				}
+			}
 		}
 
 		for (current_mixed_sample = 0; current_mixed_sample < CC_COUNT_OF(mixed_samples); ++current_mixed_sample)
 		{
-			/* Perform clamping and output the sample. */
-
-			/* TODO: Check if this is applied during or after mixing all the channels. */
-			const cc_s16f clamped_sample = CC_CLAMP(-0x7FFF, 0x7FFF, mixed_samples[current_mixed_sample]);
-
 			/* TODO: Just set, rather than add, and make the mixer reflect this too. */
-			*sample_pointer++ += (clamped_sample & ~0x3F) / 3;
+			*sample_pointer++ += (PCM_UnsignedToSigned(mixed_samples[current_mixed_sample] & ~0x3F)) / 3;
 		}
 	}
 }
