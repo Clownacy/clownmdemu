@@ -438,6 +438,8 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
 	const cc_u32f address = address_word * 2;
 
+	const cc_u16f low_byte = (value >> 0) & 0xFF;
+
 	cc_u16f mask = 0;
 
 	if (do_high_byte)
@@ -488,19 +490,18 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		if (do_low_byte)
 		{
 			const cc_u16f masked_address = address_word & 0xFFF;
-			const cc_u8f masked_value = value & 0xFF;
 
 			SyncPCM(callback_user_data, target_cycle);
 
 			if ((address & 0x2000) != 0)
 			{
 				/* PCM wave RAM */
-				PCM_WriteWaveRAM(&clownmdemu->pcm, masked_address, masked_value);
+				PCM_WriteWaveRAM(&clownmdemu->pcm, masked_address, low_byte);
 			}
 			else
 			{
 				/* PCM register */
-				PCM_WriteRegister(&clownmdemu->pcm, masked_address, masked_value);
+				PCM_WriteRegister(&clownmdemu->pcm, masked_address, low_byte);
 			}
 		}
 	}
@@ -571,9 +572,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		if (do_low_byte) /* TODO: Does setting just the upper byte cause this to be updated anyway? */
 		{
 			/* Timer W/INT3 */
-			const cc_u8f masked_value = value & 0xFF;
-
-			clownmdemu->state->mega_cd.irq.irq3_countdown_master = clownmdemu->state->mega_cd.irq.irq3_countdown = masked_value == 0 ? 0 : (masked_value + 1) * CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER;
+			clownmdemu->state->mega_cd.irq.irq3_countdown_master = clownmdemu->state->mega_cd.irq.irq3_countdown = low_byte == 0 ? 0 : (low_byte + 1) * CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER;
 		}
 	}
 	else if (address == 0xFF8032)
