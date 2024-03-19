@@ -182,12 +182,14 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 
 	for (i = 0; i < total_frames; ++i)
 	{
-		cc_s16l wave_left = 0;
-		cc_s16l wave_right = 0;
+		cc_s32f wave_mix_left = 0;
+		cc_s32f wave_mix_right = 0;
 
 		for (j = 0; j < CC_COUNT_OF(pcm->state->channels); ++j)
 		{
-			cc_s16f wave_value;
+			cc_u8f wave_value;
+			cc_s32f wave_left;
+			cc_s32f wave_right;
 
 			if (!pcm->state->channels[j].disabled && pcm->state->sounding)
 			{
@@ -209,23 +211,22 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 				wave_value = pcm->state->wave_ram[(pcm->state->channels[j].address >> 11) & 0xFFFF];
 			}
 
-			/* Convert from sign-magnitude to two's-complement. */
-			/* If we get another loop value, just interpret it as silence. */ /* TODO: What does real hardware do? */
-			/* Oddly, negative and positive values are actually swapped, according to the diagram in the 'MEGA-CD HARDWARE MANUAL - PCM SOUND SOURCE' document. */
-			if (wave_value == 0xFF)
-				wave_value = 0;
-			else if (wave_value >= 0x80)
-				wave_value -= 0x80;
-			else
-				wave_value = -wave_value;
+			/* Mask out direction bit and apply volume and panning */
+			wave_left = (((cc_u32f)wave_value & 0x7F) * pcm->state->channels[j].volume * (pcm->state->channels[j].panning & 0xF)) >> 5;
+			wave_right = (((cc_u32f)wave_value & 0x7F) * pcm->state->channels[j].volume * (pcm->state->channels[j].panning >> 4)) >> 5;
 
-			/* TODO: Maybe try to find a better way to balance the output volume? */
-			wave_left += ((cc_s32f)wave_value * pcm->state->channels[j].volume * (pcm->state->channels[j].panning & 0xF) * 0x1000) / 0x7698F;
-			wave_right += ((cc_s32f)wave_value * pcm->state->channels[j].volume * (pcm->state->channels[j].panning >> 4) * 0x1000) / 0x7698F;
+			/* Mix result */
+			wave_mix_left += wave_left * ((wave_value & 0x80) != 0 ? 1 : -1);
+			wave_mix_right += wave_right * ((wave_value & 0x80) != 0 ? 1 : -1);
+			
+			/* Apply limiter */
+			/* TODO: Check if this is applied during or after mixing all the channels */
+			wave_mix_left = CC_MAX(CC_MIN(wave_mix_left, 0x7FFF), -0x8000);
+			wave_mix_right = CC_MAX(CC_MIN(wave_mix_right, 0x7FFF), -0x8000);
 		}
 
 		/* Output mixed wave values */
-		*sample_pointer++ += wave_left;
-		*sample_pointer++ += wave_right;
+		*sample_pointer++ += (wave_mix_left & ~0x3F) / 3;
+		*sample_pointer++ += (wave_mix_right & ~0x3F) / 3;
 	}
 }
