@@ -12,7 +12,7 @@ void SetErrorCallback(void (* const error_callback_)(void *user_data, const char
 	error_callback_user_data = (void*)user_data;
 }
 
-void PrintError(const char *format, ...)
+void PrintError(const char* const format, ...)
 {
 	if (error_callback != NULL)
 	{

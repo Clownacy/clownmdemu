@@ -115,12 +115,12 @@ The 9th DAC sample bit.
 
 #include "error.h"
 
-void FM_Constant_Initialise(FM_Constant *constant)
+void FM_Constant_Initialise(FM_Constant* const constant)
 {
 	FM_Channel_Constant_Initialise(&constant->channels);
 }
 
-void FM_State_Initialise(FM_State *state)
+void FM_State_Initialise(FM_State* const state)
 {
 	FM_ChannelMetadata *channel;
 	cc_u8f i;
@@ -157,7 +157,7 @@ void FM_State_Initialise(FM_State *state)
 	state->busy_flag_counter = 0;
 }
 
-void FM_Parameters_Initialise(FM *fm, const FM_Configuration *configuration, const FM_Constant *constant, FM_State *state)
+void FM_Parameters_Initialise(FM* const fm, const FM_Configuration* const configuration, const FM_Constant* const constant, FM_State* const state)
 {
 	cc_u16f i;
 
@@ -169,13 +169,13 @@ void FM_Parameters_Initialise(FM *fm, const FM_Configuration *configuration, con
 		FM_Channel_Parameters_Initialise(&fm->channels[i], &constant->channels, &state->channels[i].state);
 }
 
-void FM_DoAddress(const FM *fm, cc_u8f port, cc_u8f address)
+void FM_DoAddress(const FM* const fm, const cc_u8f port, const cc_u8f address)
 {
 	fm->state->port = port * 3;
 	fm->state->address = address;
 }
 
-void FM_DoData(const FM *fm, cc_u8f data)
+void FM_DoData(const FM* const fm, const cc_u8f data)
 {
 	FM_State* const state = fm->state;
 
@@ -370,16 +370,17 @@ void FM_DoData(const FM *fm, cc_u8f data)
 	}
 }
 
-void FM_OutputSamples(const FM *fm, cc_s16l *sample_buffer, cc_u32f total_frames)
+void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc_u32f total_frames)
 {
-	cc_u16f i;
-
 	FM_State* const state = fm->state;
 	const cc_s16l* const sample_buffer_end = &sample_buffer[total_frames * 2];
 
+	cc_u16f i;
+
+	/* TODO: Invert these loops - that should be more cache-efficient. */
 	for (i = 0; i < CC_COUNT_OF(state->channels); ++i)
 	{
-		FM_ChannelMetadata *channel_metadata = &state->channels[i];
+		const FM_ChannelMetadata* const channel_metadata = &state->channels[i];
 		const FM_Channel* const channel = &fm->channels[i];
 
 		const cc_bool left_enabled = channel_metadata->pan_left;
@@ -388,9 +389,7 @@ void FM_OutputSamples(const FM *fm, cc_s16l *sample_buffer, cc_u32f total_frames
 		const cc_bool fm_enabled = !is_dac && !fm->configuration->fm_channels_disabled[i];
 		const cc_s16f dac_sample = is_dac && !fm->configuration->dac_channel_disabled ? state->dac_sample : 0;
 
-		cc_s16l *sample_buffer_pointer;
-
-		sample_buffer_pointer = sample_buffer;
+		cc_s16l *sample_buffer_pointer = sample_buffer;
 
 		while (sample_buffer_pointer != sample_buffer_end)
 		{
@@ -408,12 +407,12 @@ void FM_OutputSamples(const FM *fm, cc_s16l *sample_buffer, cc_u32f total_frames
 	}
 }
 
-cc_u8f FM_Update(const FM *fm, cc_u32f cycles_to_do, void (*fm_audio_to_be_generated)(const void *user_data, cc_u32f total_frames), const void *user_data)
+cc_u8f FM_Update(const FM* const fm, const cc_u32f cycles_to_do, void (* const fm_audio_to_be_generated)(const void *user_data, cc_u32f total_frames), const void* const user_data)
 {
-	cc_u8f i;
-
 	FM_State* const state = fm->state;
 	const cc_u32f total_frames = (state->leftover_cycles + cycles_to_do) / FM_SAMPLE_RATE_DIVIDER;
+
+	cc_u8f i;
 
 	state->leftover_cycles = (state->leftover_cycles + cycles_to_do) % FM_SAMPLE_RATE_DIVIDER;
 

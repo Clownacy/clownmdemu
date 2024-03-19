@@ -28,8 +28,6 @@ void PCM_WriteRegister(const PCM* const pcm, const cc_u16f reg, const cc_u8f val
 
 	switch (reg)
 	{
-			size_t i;
-
 		case 0:
 			current_channel->volume = value;
 			break;
@@ -73,6 +71,9 @@ void PCM_WriteRegister(const PCM* const pcm, const cc_u16f reg, const cc_u8f val
 			break;
 
 		case 8:
+		{
+			size_t i;
+
 			for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
 			{
 				pcm->state->channels[i].disabled = ((value >> i) & 1) != 0;
@@ -82,6 +83,7 @@ void PCM_WriteRegister(const PCM* const pcm, const cc_u16f reg, const cc_u8f val
 			}
 
 			break;
+		}
 	}
 }
 
@@ -126,10 +128,14 @@ cc_u8f PCM_ReadRegister(const PCM* const pcm, const cc_u16f reg)
 			break;
 
 		case 0x08:
+		{
+			size_t i;
+
 			for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
 				value |= pcm->state->channels[i].disabled << i;
 
 			break;
+		}
 
 		case 0x10:
 		case 0x12:

@@ -35,7 +35,7 @@ static cc_bool IsInReadMode(const VDP_State* const state)
 	return (state->access.code_register & 1) == 0;
 }
 
-static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data)
+static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, void (* const colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void* const colour_updated_callback_user_data)
 {
 	switch (state->access.selected_buffer)
 	{
@@ -55,8 +55,10 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 			if (sprite_table_index < (state->h40_enabled ? 80u : 64u) * 8u && (sprite_table_index & 4) == 0)
 			{
 				cc_u8l* const cache_bytes = state->sprite_table_cache[sprite_table_index / 8];
+
 				cache_bytes[(sprite_table_index & 3) ^ 0] = upper_byte;
 				cache_bytes[(sprite_table_index & 3) ^ 1] = lower_byte;
+
 				state->sprite_row_cache.needs_updating = cc_true;
 			}
 
@@ -104,7 +106,7 @@ static void WriteAndIncrement(VDP_State *state, cc_u16f value, void (*colour_upd
 	state->access.address_register += state->access.increment;
 }
 
-static cc_u16f ReadAndIncrement(VDP_State *state)
+static cc_u16f ReadAndIncrement(VDP_State* const state)
 {
 	cc_u16f value;
 
@@ -132,24 +134,28 @@ static cc_u16f ReadAndIncrement(VDP_State *state)
 	return value;
 }
 
-void VDP_Constant_Initialise(VDP_Constant *constant)
+void VDP_Constant_Initialise(VDP_Constant* const constant)
 {
 	/* This essentially pre-computes the VDP's depth-test and alpha-test,
 	   generating a lookup table to eliminate the need to perform these
 	   every time a pixel is blitted. This provides a *massive* speed boost. */
-	const cc_u16f palette_line_index_mask = 0xF;
-	const cc_u16f colour_index_mask = 0x3F;
-	const cc_u16f priority_mask = 0x40;
-	const cc_u16f not_shadowed_mask = 0x80;
-
-	cc_u16f new_pixel_high, old_pixel, new_pixel_low;
+	cc_u16f new_pixel_high;
 
 	for (new_pixel_high = 0; new_pixel_high < CC_COUNT_OF(constant->blit_lookup); ++new_pixel_high)
 	{
+		cc_u16f old_pixel;
+
 		for (old_pixel = 0; old_pixel < CC_COUNT_OF(constant->blit_lookup[0]); ++old_pixel)
 		{
+			cc_u16f new_pixel_low;
+
 			for (new_pixel_low = 0; new_pixel_low < CC_COUNT_OF(constant->blit_lookup[0][0]); ++new_pixel_low)
 			{
+				const cc_u16f palette_line_index_mask = 0xF;
+				const cc_u16f colour_index_mask = 0x3F;
+				const cc_u16f priority_mask = 0x40;
+				const cc_u16f not_shadowed_mask = 0x80;
+
 				const cc_u16f old_palette_line_index = old_pixel & palette_line_index_mask;
 				const cc_u16f old_colour_index = old_pixel & colour_index_mask;
 				const cc_bool old_priority = (old_pixel & priority_mask) != 0;
@@ -210,7 +216,7 @@ void VDP_Constant_Initialise(VDP_Constant *constant)
 	}
 }
 
-void VDP_State_Initialise(VDP_State *state)
+void VDP_State_Initialise(VDP_State* const state)
 {
 	state->access.write_pending = cc_false;
 	state->access.address_register = 0;
@@ -265,8 +271,6 @@ void VDP_State_Initialise(VDP_State *state)
 
 static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f tile_x, const cc_u16f tile_y, const cc_u16f plane_address, const cc_u16f tile_height_mask, const cc_u16f tile_size, cc_u8l** const metapixels_pointer)
 {
-	cc_u16f i;
-
 	const VDP_TileMetadata tile = VDP_DecomposeTileMetadata(VDP_ReadVRAMWord(vdp->state, plane_address + (tile_y * vdp->state->plane_width + tile_x) * 2));
 
 	/* Get the Y coordinate of the pixel in the tile */
@@ -279,6 +283,8 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 	const cc_u8f metapixel_upper_bits = (tile.priority << 2) | tile.palette_line;
 
 	const cc_u8l (* const blit_lookup)[1 << 4] = vdp->constant->blit_lookup[metapixel_upper_bits];
+
+	cc_u16f i;
 
 	/* TODO - Unroll this loop? */
 	for (i = 0; i < 8; ++i)
@@ -295,8 +301,12 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 	}
 }
 
-void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_rendered_callback)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height), const void *scanline_rendered_callback_user_data)
+void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, void (* const scanline_rendered_callback)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height), const void* const scanline_rendered_callback_user_data)
 {
+	const VDP_Constant* const constant = vdp->constant;
+	VDP_State* const state = vdp->state;
+	const cc_u16f tile_height_power = state->double_resolution_enabled ? 4 : 3;
+
 	cc_u16f i;
 
 	/* The original hardware has a bug where if you use V-scroll and H-scroll at the same time,
@@ -311,10 +321,6 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 	   In both cases, these extra bytes exist to catch the 'overflow' values that are written
 	   outside the visible portion of the buffer. */
 	cc_u8l plane_metapixels[16 + CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, 8) * 8 + (16 - 1)];
-
-	const VDP_Constant* const constant = vdp->constant;
-	VDP_State* const state = vdp->state;
-	const cc_u16f tile_height_power = state->double_resolution_enabled ? 4 : 3;
 
 	assert(scanline < VDP_MAX_SCANLINES);
 
@@ -394,8 +400,6 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 				}
 
 				{
-					cc_u16f j;
-
 					const cc_u16l plane_width_bitmask = state->plane_width - 1;
 					const cc_u16l plane_height_bitmask = state->plane_height - 1;
 
@@ -412,6 +416,8 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 
 					/* Obtain the pointer used to write metapixels to the buffer */
 					cc_u8l *metapixels_pointer = plane_metapixels + hscroll_scroll_offset;
+
+					cc_u16f j;
 
 					/* Render tiles */
 					for (j = 0; j < CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, 8) + EXTRA_TILES; ++j)
@@ -546,9 +552,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 
 		if (!vdp->configuration->sprites_disabled)
 		{
-			cc_bool masked;
-
-			masked = cc_false;
+			cc_bool masked = cc_false;
 
 			/* Render sprites */
 			/* This has been verified with Nemesis's sprite masking and overflow test ROM:
@@ -585,22 +589,22 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 				}
 				else
 				{
-					cc_u16f j;
-
 					cc_u8l *metapixels_pointer = sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + x - 0x80];
+
+					cc_u16f j;
 
 					y_in_sprite = tile.y_flip ? (height << tile_height_power) - y_in_sprite - 1 : y_in_sprite;
 
 					for (j = 0; j < width; ++j)
 					{
-						cc_u16f k;
-
 						const cc_u16f x_in_sprite = tile.x_flip ? width - j - 1 : j;
 						const cc_u16f tile_index = tile.tile_index + (y_in_sprite >> tile_height_power) + x_in_sprite * height;
 						const cc_u16f pixel_y_in_tile = y_in_sprite & tile_height_mask;
 
 						/* Get raw tile data that contains the desired metapixel */
 						const cc_u8l* const tile_data = &state->vram[tile_index * tile_size + pixel_y_in_tile * 4];
+
+						cc_u16f k;
 
 						for (k = 0; k < 8; ++k)
 						{
@@ -667,7 +671,7 @@ void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_render
 	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels + 16, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) << tile_height_power);
 }
 
-cc_u16f VDP_ReadData(const VDP *vdp)
+cc_u16f VDP_ReadData(const VDP* const vdp)
 {
 	cc_u16f value = 0;
 
@@ -688,7 +692,7 @@ cc_u16f VDP_ReadData(const VDP *vdp)
 	return value;
 }
 
-cc_u16f VDP_ReadControl(const VDP *vdp)
+cc_u16f VDP_ReadControl(const VDP* const vdp)
 {
 	/* TODO */
 	const cc_bool currently_in_hblank = cc_true;
@@ -702,7 +706,7 @@ cc_u16f VDP_ReadControl(const VDP *vdp)
 	return 0x3400 | (fifo_empty << 9) | (vdp->state->currently_in_vblank << 3) | (currently_in_hblank << 2); /* The H-blank bit is forced for now so Sonic 2's two-player mode works */
 }
 
-void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data)
+void VDP_WriteData(const VDP* const vdp, const cc_u16f value, void (* const colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void* const colour_updated_callback_user_data)
 {
 	vdp->state->access.write_pending = cc_false;
 
@@ -741,7 +745,7 @@ void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback
 }
 
 /* TODO - Retention of partial commands */
-void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data, cc_u16f (*read_callback)(void *user_data, cc_u32f address), const void *read_callback_user_data)
+void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, void (* const colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void* const colour_updated_callback_user_data, cc_u16f (* const read_callback)(void *user_data, cc_u32f address), const void* const read_callback_user_data)
 {
 	if (vdp->state->access.write_pending)
 	{

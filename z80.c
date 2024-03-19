@@ -49,7 +49,7 @@ typedef struct Z80Instruction
 	cc_bool double_prefix_mode;
 } Z80Instruction;
 
-static cc_bool EvaluateCondition(cc_u8l flags, Z80_Condition condition)
+static cc_bool EvaluateCondition(const cc_u8l flags, const Z80_Condition condition)
 {
 	switch (condition)
 	{
@@ -84,7 +84,7 @@ static cc_bool EvaluateCondition(cc_u8l flags, Z80_Condition condition)
 	}
 }
 
-static cc_u16f MemoryRead(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, cc_u16f address)
+static cc_u16f MemoryRead(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks, const cc_u16f address)
 {
 	/* Memory accesses take 3 cycles. */
 	z80->state->cycles += 3;
@@ -92,7 +92,7 @@ static cc_u16f MemoryRead(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callb
 	return callbacks->read(callbacks->user_data, address);
 }
 
-static void MemoryWrite(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, cc_u16f address, cc_u16f data)
+static void MemoryWrite(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks, const cc_u16f address, const cc_u16f data)
 {
 	/* Memory accesses take 3 cycles. */
 	z80->state->cycles += 3;
@@ -100,7 +100,7 @@ static void MemoryWrite(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbac
 	callbacks->write(callbacks->user_data, address, data);
 }
 
-static cc_u16f InstructionMemoryRead(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
+static cc_u16f InstructionMemoryRead(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks)
 {
 	const cc_u16f data = MemoryRead(z80, callbacks, z80->state->program_counter);
 
@@ -110,7 +110,7 @@ static cc_u16f InstructionMemoryRead(const Z80 *z80, const Z80_ReadAndWriteCallb
 	return data;
 }
 
-static cc_u16f OpcodeFetch(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
+static cc_u16f OpcodeFetch(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks)
 {
 	/* Opcode fetches take an extra cycle. */
 	++z80->state->cycles;
@@ -122,7 +122,7 @@ static cc_u16f OpcodeFetch(const Z80 *z80, const Z80_ReadAndWriteCallbacks *call
 }
 
 /* TODO: Should the bytes be written in reverse order? */
-static cc_u16f MemoryRead16Bit(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, cc_u16f address)
+static cc_u16f MemoryRead16Bit(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks, const cc_u16f address)
 {
 	cc_u16f value;
 	value = MemoryRead(z80, callbacks, address + 0);
@@ -130,13 +130,13 @@ static cc_u16f MemoryRead16Bit(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 	return value;
 }
 
-static void MemoryWrite16Bit(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, cc_u16f address, cc_u16f value)
+static void MemoryWrite16Bit(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks, const cc_u16f address, const cc_u16f value)
 {
 	MemoryWrite(z80, callbacks, address + 0, value & 0xFF);
 	MemoryWrite(z80, callbacks, (address + 1) & 0xFFFF, value >> 8);
 }
 
-static cc_u16f ReadOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Z80Instruction *instruction, Z80_Operand operand)
+static cc_u16f ReadOperand(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks, const Z80Instruction* const instruction, Z80_Operand operand)
 {
 	cc_u16f value;
 
@@ -251,7 +251,7 @@ static cc_u16f ReadOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *call
 	return value;
 }
 
-static void WriteOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Z80Instruction *instruction, Z80_Operand operand, cc_u16f value)
+static void WriteOperand(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks, const Z80Instruction* const instruction, const Z80_Operand operand, const cc_u16f value)
 {
 	/* Handle double-prefix instructions. */
 	const Z80_Operand double_prefix_operand = z80->state->register_mode == Z80_REGISTER_MODE_IX ? Z80_OPERAND_IX_INDIRECT : Z80_OPERAND_IY_INDIRECT;
@@ -367,7 +367,7 @@ static void WriteOperand(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callba
 	}
 }
 
-static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, InstructionMode instruction_mode, Z80_RegisterMode register_mode, cc_u8l opcode)
+static void DecodeInstructionMetadata(Z80_InstructionMetadata* const metadata, const InstructionMode instruction_mode, const Z80_RegisterMode register_mode, const cc_u8l opcode)
 {
 	static const Z80_Operand registers[8] = {Z80_OPERAND_B, Z80_OPERAND_C, Z80_OPERAND_D, Z80_OPERAND_E, Z80_OPERAND_H, Z80_OPERAND_L, Z80_OPERAND_HL_INDIRECT, Z80_OPERAND_A};
 	static const Z80_Operand register_pairs_1[4] = {Z80_OPERAND_BC, Z80_OPERAND_DE, Z80_OPERAND_HL, Z80_OPERAND_SP};
@@ -889,7 +889,7 @@ static void DecodeInstructionMetadata(Z80_InstructionMetadata *metadata, Instruc
 	}
 }
 
-static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, Z80Instruction *instruction)
+static void DecodeInstruction(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks, Z80Instruction* const instruction)
 {
 	cc_u16f opcode;
 	cc_u16f displacement;
@@ -1069,7 +1069,7 @@ static void DecodeInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *c
 
 #define WRITE_DESTINATION WriteOperand(z80, callbacks, instruction, (Z80_Operand)instruction->metadata->operands[1], result_value)
 
-static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks, const Z80Instruction *instruction)
+static void ExecuteInstruction(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks, const Z80Instruction* const instruction)
 {
 	cc_u16f source_value;
 	cc_u16f destination_value;
@@ -2450,7 +2450,7 @@ static void ExecuteInstruction(const Z80 *z80, const Z80_ReadAndWriteCallbacks *
 	}
 }
 
-void Z80_Constant_Initialise(Z80_Constant *constant)
+void Z80_Constant_Initialise(Z80_Constant* const constant)
 {
 	cc_u16f i;
 
@@ -2486,7 +2486,7 @@ void Z80_Constant_Initialise(Z80_Constant *constant)
 	}
 }
 
-void Z80_State_Initialise(Z80_State *state)
+void Z80_State_Initialise(Z80_State* const state)
 {
 	Z80 z80;
 
@@ -2499,7 +2499,7 @@ void Z80_State_Initialise(Z80_State *state)
 	state->cycles = 1;
 }
 
-void Z80_Reset(const Z80 *z80)
+void Z80_Reset(const Z80* const z80)
 {
 	/* Revert back to a prefix-free mode. */
 	z80->state->register_mode = Z80_REGISTER_MODE_HL;
@@ -2512,12 +2512,12 @@ void Z80_Reset(const Z80 *z80)
 	z80->state->interrupt_pending = cc_false;
 }
 
-void Z80_Interrupt(const Z80 *z80)
+void Z80_Interrupt(const Z80* const z80)
 {
 	z80->state->interrupt_pending = cc_true;
 }
 
-cc_u16f Z80_DoCycle(const Z80 *z80, const Z80_ReadAndWriteCallbacks *callbacks)
+cc_u16f Z80_DoCycle(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks)
 {
 	/* Process new instruction. */
 	Z80Instruction instruction;
