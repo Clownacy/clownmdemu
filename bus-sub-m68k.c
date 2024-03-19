@@ -191,7 +191,7 @@ void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const 
 			if (!clownmdemu->state->mega_cd.m68k.bus_requested && !clownmdemu->state->mega_cd.m68k.reset_held)
 				Clown68000_DoCycle(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 
-			m68k_countdown = CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * 8; /* TODO: The '* 8' is a temporary hack until 68000 instruction durations are added. */
+			m68k_countdown = CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * 4; /* TODO: The '* 4' is a temporary hack until 68000 instruction durations are added. */
 			/* TODO: Handle the MCD's master clock! */
 		}
 
