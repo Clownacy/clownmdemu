@@ -161,6 +161,11 @@ void PCM_WriteWaveRAM(const PCM* const pcm, const cc_u16f address, const cc_u8f 
 	pcm->state->wave_ram[(pcm->state->current_wave_bank << 12) + (address & 0xFFF)] = value;
 }
 
+static cc_u8f PCM_FetchSample(const PCM* const pcm, const PCM_ChannelState* const channel)
+{
+	return pcm->state->wave_ram[(channel->address >> 11) & 0xFFFF];
+}
+
 void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t total_frames)
 {
 	size_t i;
@@ -178,27 +183,24 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 
 			cc_s16f wave_value;
 
-			if (!channel->disabled && pcm->state->sounding)
+			if (channel->disabled || !pcm->state->sounding)
+			{
+				channel->address = (cc_u32f)channel->start_address << 19;
+				wave_value = PCM_FetchSample(pcm, channel);
+			}
+			else
 			{
 				/* Read sample and advance address. */
 				channel->address += channel->frequency;
 				channel->address &= 0x7FFFFFF;
-				wave_value = pcm->state->wave_ram[(channel->address >> 11) & 0xFFFF];
+				wave_value = PCM_FetchSample(pcm, channel);
 
 				/* Handle looping. */
 				if (wave_value == 0xFF)
 				{
 					channel->address = channel->loop_address << 11;
-					wave_value = pcm->state->wave_ram[(channel->address >> 11) & 0xFFFF];
+					wave_value = PCM_FetchSample(pcm, channel);
 				}
-			}
-			else
-			{
-				/* Reset wave addresses for non-sounding channels */
-				channel->address = (cc_u32f)channel->start_address << 19;
-
-				/* Only perform a read if sounding is off */
-				wave_value = pcm->state->wave_ram[(channel->address >> 11) & 0xFFFF];
 			}
 
 			/* Convert from sign-magnitude to two's-complement. */
@@ -212,8 +214,8 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 				wave_value = -wave_value;
 
 			/* TODO: Maybe try to find a better way to balance the output volume? */
-			wave_left += ((cc_s32f)wave_value * channel->volume * (channel->panning & 0xF) * 0x1000) / 0x7698F;
-			wave_right += ((cc_s32f)wave_value * channel->volume * (channel->panning >> 4) * 0x1000) / 0x7698F;
+			wave_left += ((cc_s32f)wave_value * channel->volume * (channel->panning & 0xF) * 0x1000) / (0x7F * 0xFF * 0xF);
+			wave_right += ((cc_s32f)wave_value * channel->volume * (channel->panning >> 4) * 0x1000) / (0x7F * 0xFF * 0xF);
 		}
 
 		/* Output mixed wave values */
