@@ -162,6 +162,33 @@ static cc_u8f PCM_FetchSample(const PCM* const pcm, const PCM_ChannelState* cons
 	return pcm->state->wave_ram[(channel->address >> 11) & 0xFFFF];
 }
 
+static cc_u8f PCM_UpdateAddressAndFetchSample(const PCM* const pcm, PCM_ChannelState* const channel)
+{
+	cc_u8f wave_value;
+
+	if (channel->disabled || !pcm->state->sounding)
+	{
+		channel->address = (cc_u32f)channel->start_address << 19;
+		wave_value = PCM_FetchSample(pcm, channel);
+	}
+	else
+	{
+		/* Read sample and advance address. */
+		channel->address += channel->frequency;
+		channel->address &= 0x7FFFFFF;
+		wave_value = PCM_FetchSample(pcm, channel);
+
+		/* Handle looping. */
+		if (wave_value == 0xFF)
+		{
+			channel->address = channel->loop_address << 11;
+			wave_value = PCM_FetchSample(pcm, channel);
+		}
+	}
+
+	return wave_value;
+}
+
 void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t total_frames)
 {
 	size_t i;
@@ -177,33 +204,11 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 		{
 			PCM_ChannelState* const channel = &pcm->state->channels[j];
 
-			cc_u8f wave_value;
-			cc_s32f wave_left;
-			cc_s32f wave_right;
-
-			if (channel->disabled || !pcm->state->sounding)
-			{
-				channel->address = (cc_u32f)channel->start_address << 19;
-				wave_value = PCM_FetchSample(pcm, channel);
-			}
-			else
-			{
-				/* Read sample and advance address. */
-				channel->address += channel->frequency;
-				channel->address &= 0x7FFFFFF;
-				wave_value = PCM_FetchSample(pcm, channel);
-
-				/* Handle looping. */
-				if (wave_value == 0xFF)
-				{
-					channel->address = channel->loop_address << 11;
-					wave_value = PCM_FetchSample(pcm, channel);
-				}
-			}
+			const cc_u8f wave_value = PCM_UpdateAddressAndFetchSample(pcm, channel);
 
 			/* Mask out direction bit and apply volume and panning */
-			wave_left = (((cc_u32f)wave_value & 0x7F) * pcm->state->channels[j].volume * (pcm->state->channels[j].panning & 0xF)) >> 5;
-			wave_right = (((cc_u32f)wave_value & 0x7F) * pcm->state->channels[j].volume * (pcm->state->channels[j].panning >> 4)) >> 5;
+			const cc_s32f wave_left = (((cc_u32f)wave_value & 0x7F) * channel->volume * (channel->panning & 0xF)) >> 5;
+			const cc_s32f wave_right = (((cc_u32f)wave_value & 0x7F) * channel->volume * (channel->panning >> 4)) >> 5;
 
 			/* Mix result */
 			wave_mix_left += wave_left * ((wave_value & 0x80) != 0 ? 1 : -1);
@@ -211,8 +216,8 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 			
 			/* Apply limiter */
 			/* TODO: Check if this is applied during or after mixing all the channels */
-			wave_mix_left = CC_MAX(CC_MIN(wave_mix_left, 0x7FFF), -0x8000);
-			wave_mix_right = CC_MAX(CC_MIN(wave_mix_right, 0x7FFF), -0x8000);
+			wave_mix_left = CC_CLAMP(-0x8000, 0x7FFF, wave_mix_left);
+			wave_mix_right = CC_CLAMP(-0x8000, 0x7FFF, wave_mix_right);
 		}
 
 		/* Output mixed wave values */
