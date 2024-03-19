@@ -75,12 +75,7 @@ void PCM_WriteRegister(const PCM* const pcm, const cc_u16f reg, const cc_u8f val
 			size_t i;
 
 			for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
-			{
 				pcm->state->channels[i].disabled = ((value >> i) & 1) != 0;
-
-				if (pcm->state->channels[i].disabled)
-					pcm->state->channels[i].address = (cc_u32f)pcm->state->channels[i].start_address << 19;
-			}
 
 			break;
 		}
@@ -176,7 +171,7 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 
 	for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
 	{
-		if (!pcm->state->channels[i].disabled)
+		if (!pcm->state->channels[i].disabled && pcm->state->sounding)
 		{
 			cc_s16l *sample_pointer;
 			size_t j;
@@ -212,6 +207,10 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 				*sample_pointer++ += (wave_value * pcm->state->channels[i].volume * (pcm->state->channels[i].panning & 0xF) * 0x1000) / 0x7698F;
 				*sample_pointer++ += (wave_value * pcm->state->channels[i].volume * ((pcm->state->channels[i].panning >> 4) & 0xF) * 0x1000) / 0x7698F;
 			}
+		}
+		else
+		{
+			pcm->state->channels[i].address = (cc_u32f)pcm->state->channels[i].start_address << 19;
 		}
 	}
 }
