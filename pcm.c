@@ -194,7 +194,7 @@ static cc_u8f PCM_UpdateAddressAndFetchSample(const PCM* const pcm, PCM_ChannelS
 	return wave_value;
 }
 
-static PCM_ProcessSample(const PCM* const pcm, const PCM_ChannelState* const channel, const cc_u8f sample, const cc_u8f panning)
+static cc_s32f PCM_ProcessSample(const PCM* const pcm, const PCM_ChannelState* const channel, const cc_u8f sample, const cc_u8f panning)
 {
 	/* Mask out direction bit and apply volume and panning. */
 	const cc_u8f absolute_sample = sample & 0x7F;
@@ -211,9 +211,9 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 
 	for (i = 0; i < total_frames; ++i)
 	{
-		cc_s32f wave_mix_left = 0;
-		cc_s32f wave_mix_right = 0;
-		size_t j;
+		cc_s32f mixed_samples[2] = {0, 0};
+		cc_u8f j;
+		cc_u8f current_mixed_sample;
 
 		for (j = 0; j < CC_COUNT_OF(pcm->state->channels); ++j)
 		{
@@ -222,20 +222,19 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 			const cc_u8f wave_value = PCM_UpdateAddressAndFetchSample(pcm, channel);
 
 			if (PCM_IsChannelAudible(pcm, channel))
-			{
-				wave_mix_left += PCM_ProcessSample(pcm, channel, wave_value, channel->panning & 0xF);
-				wave_mix_right += PCM_ProcessSample(pcm, channel, wave_value, channel->panning >> 4);
-			}
+				for (current_mixed_sample = 0; current_mixed_sample < CC_COUNT_OF(mixed_samples); ++current_mixed_sample)
+					mixed_samples[current_mixed_sample] += PCM_ProcessSample(pcm, channel, wave_value, (channel->panning >> (4 * current_mixed_sample)) & 0xF);
 		}
 
-		/* Perform clamping. */
-		/* TODO: Check if this is applied during or after mixing all the channels */
-		wave_mix_left = CC_CLAMP(-0x7FFF, 0x7FFF, wave_mix_left);
-		wave_mix_right = CC_CLAMP(-0x7FFF, 0x7FFF, wave_mix_right);
+		for (current_mixed_sample = 0; current_mixed_sample < CC_COUNT_OF(mixed_samples); ++current_mixed_sample)
+		{
+			/* Perform clamping and output the sample. */
 
-		/* Output the samples. */
-		/* TODO: Just set, rather than add, and make the mixer reflect this too. */
-		*sample_pointer++ += (wave_mix_left & ~0x3F) / 3;
-		*sample_pointer++ += (wave_mix_right & ~0x3F) / 3;
+			/* TODO: Check if this is applied during or after mixing all the channels. */
+			const cc_s16f clamped_sample = CC_CLAMP(-0x7FFF, 0x7FFF, mixed_samples[current_mixed_sample]);
+
+			/* TODO: Just set, rather than add, and make the mixer reflect this too. */
+			*sample_pointer++ += (clamped_sample & ~0x3F) / 3;
+		}
 	}
 }
