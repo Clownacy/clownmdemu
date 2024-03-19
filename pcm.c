@@ -164,22 +164,13 @@ void PCM_WriteWaveRAM(const PCM* const pcm, const cc_u16f address, const cc_u8f 
 void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t total_frames)
 {
 	size_t i;
-	size_t j;
 	cc_s16l *sample_pointer = sample_buffer;
-
-	for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
-	{
-		if (pcm->state->channels[i].disabled || !pcm->state->sounding)
-		{
-			/* Reset wave addresses for non-sounding channels */
-			pcm->state->channels[i].address = (cc_u32f)pcm->state->channels[i].start_address << 19;
-		}
-	}
 
 	for (i = 0; i < total_frames; ++i)
 	{
 		cc_s16f wave_left = 0;
 		cc_s16f wave_right = 0;
+		size_t j;
 
 		for (j = 0; j < CC_COUNT_OF(pcm->state->channels); ++j)
 		{
@@ -203,6 +194,9 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 			}
 			else
 			{
+				/* Reset wave addresses for non-sounding channels */
+				channel->address = (cc_u32f)channel->start_address << 19;
+
 				/* Only perform a read if sounding is off */
 				wave_value = pcm->state->wave_ram[(channel->address >> 11) & 0xFFFF];
 			}
