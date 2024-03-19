@@ -52,22 +52,22 @@ void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 	}
 }
 
-static void GeneratePCMAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_samples)
+static void GeneratePCMAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	PCM_Update(&clownmdemu->pcm, sample_buffer, total_samples);
+	PCM_Update(&clownmdemu->pcm, sample_buffer, total_frames);
 }
 
 void SyncPCM(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 {
-	const cc_u32f pcm_target_cycle = target_cycle / CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER;
+	const cc_u32f pcm_target_cycle = target_cycle / (CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER);
 
-	const size_t samples_to_generate = pcm_target_cycle - other_state->pcm_current_cycle;
+	const size_t frames_to_generate = pcm_target_cycle - other_state->pcm_current_cycle;
 
 	assert(pcm_target_cycle >= other_state->pcm_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
 
-	if (samples_to_generate != 0)
+	if (frames_to_generate != 0)
 	{
-		other_state->data_and_callbacks.frontend_callbacks->pcm_audio_to_be_generated((void*)other_state->data_and_callbacks.frontend_callbacks->user_data, samples_to_generate, GeneratePCMAudio);
+		other_state->data_and_callbacks.frontend_callbacks->pcm_audio_to_be_generated((void*)other_state->data_and_callbacks.frontend_callbacks->user_data, frames_to_generate, GeneratePCMAudio);
 
 		other_state->pcm_current_cycle = pcm_target_cycle;
 	}

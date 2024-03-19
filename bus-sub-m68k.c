@@ -155,10 +155,26 @@ void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const 
 
 	while (other_state->mcd_m68k_current_cycle < target_cycle)
 	{
-		const cc_u32f cycles_to_do = CC_MIN(m68k_countdown, target_cycle - other_state->mcd_m68k_current_cycle);
+		const cc_u32f cycles_to_do_irq3 = clownmdemu->state->mega_cd.irq.irq3_countdown == 0 ? (cc_u32f)-1 : clownmdemu->state->mega_cd.irq.irq3_countdown;
+		const cc_u32f cycles_to_do = CC_MIN(cycles_to_do_irq3, CC_MIN(m68k_countdown, target_cycle - other_state->mcd_m68k_current_cycle));
 
 		assert(target_cycle >= other_state->mcd_m68k_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
 
+		/* Handle raising IRQ3. */
+		if (clownmdemu->state->mega_cd.irq.irq3_countdown != 0)
+		{
+			clownmdemu->state->mega_cd.irq.irq3_countdown -= cycles_to_do;
+
+			if (clownmdemu->state->mega_cd.irq.irq3_countdown == 0)
+			{
+				clownmdemu->state->mega_cd.irq.irq3_countdown = clownmdemu->state->mega_cd.irq.irq3_countdown_master;
+
+				if (clownmdemu->state->mega_cd.irq.enabled[2])
+					Clown68000_Interrupt(clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 3);
+			}
+		}
+
+		/* Handle updating the 68000. */
 		m68k_countdown -= cycles_to_do;
 
 		if (m68k_countdown == 0)
@@ -166,7 +182,7 @@ void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const 
 			if (!clownmdemu->state->mega_cd.m68k.bus_requested && !clownmdemu->state->mega_cd.m68k.reset_held)
 				Clown68000_DoCycle(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 
-			m68k_countdown = CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * 10; /* TODO: The '* 10' is a temporary hack until 68000 instruction durations are added. */
+			m68k_countdown = CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * 8; /* TODO: The '* 8' is a temporary hack until 68000 instruction durations are added. */
 			/* TODO: Handle the MCD's master clock! */
 		}
 
@@ -459,17 +475,20 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	{
 		if (do_low_byte)
 		{
+			const cc_u16f masked_address = address & 0xFFF;
+			const cc_u8f masked_value = value & 0xFF;
+
 			SyncPCM(callback_user_data, target_cycle);
 
 			if ((address & 0x1000) != 0)
 			{
 				/* PCM wave RAM */
-				PCM_WriteWaveRAM(&clownmdemu->pcm, address & 0xFFF, (cc_u8f)value);
+				PCM_WriteWaveRAM(&clownmdemu->pcm, masked_address, masked_value);
 			}
 			else
 			{
 				/* PCM register */
-				PCM_WriteRegister(&clownmdemu->pcm, address & 0xFFF, (cc_u8f)value);
+				PCM_WriteRegister(&clownmdemu->pcm, masked_address, masked_value);
 			}
 		}
 	}
@@ -537,8 +556,13 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	}
 	else if (address == 0xFF8030 / 2)
 	{
-		/* Timer W/INT3 */
-		PrintError("SUB-CPU attempted to write to Timer W/INT3 register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		if (do_low_byte) /* TODO: Does setting just the upper byte cause this to be updated anyway? */
+		{
+			/* Timer W/INT3 */
+			const cc_u8f masked_value = value & 0xFF;
+
+			clownmdemu->state->mega_cd.irq.irq3_countdown_master = clownmdemu->state->mega_cd.irq.irq3_countdown = masked_value == 0 ? 0 : (masked_value + 1) * CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER;
+		}
 	}
 	else if (address == 0xFF8032 / 2)
 	{

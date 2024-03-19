@@ -24,7 +24,7 @@ void PCM_State_Initialise(PCM_State* const state)
 
 void PCM_WriteRegister(const PCM* const pcm, const cc_u16f reg, const cc_u8f value)
 {
-	PCM_ChannelState *current_channel = &pcm->state->channels[pcm->state->current_channel];
+	PCM_ChannelState* const current_channel = &pcm->state->channels[pcm->state->current_channel];
 
 	switch (reg)
 	{
@@ -75,7 +75,7 @@ void PCM_WriteRegister(const PCM* const pcm, const cc_u16f reg, const cc_u8f val
 		case 8:
 			for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
 			{
-				pcm->state->channels[i].disabled = (value >> i) & 1;
+				pcm->state->channels[i].disabled = ((value >> i) & 1) != 0;
 
 				if (pcm->state->channels[i].disabled)
 					pcm->state->channels[i].address = (cc_u32f)pcm->state->channels[i].start_address << 19;
@@ -159,36 +159,51 @@ cc_u8f PCM_ReadRegister(const PCM* const pcm, const cc_u16f reg)
 
 void PCM_WriteWaveRAM(const PCM* const pcm, const cc_u16f address, const cc_u8f value)
 {
-	pcm->state->wave_ram[(pcm->state->current_wave_bank << 12) + (address & 0xFFFF)] = value;
+	pcm->state->wave_ram[(pcm->state->current_wave_bank << 12) + (address & 0xFFF)] = value;
 }
 
-void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t total_samples)
+void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t total_frames)
 {
+	/* TODO: Sounding (ew). */
+	/* TODO: Invert these loops - that should be more cache-efficient. */
 	size_t i;
-
-	(void)sample_buffer; /* TODO: Use this. */
 
 	for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
 	{
 		if (!pcm->state->channels[i].disabled)
 		{
+			cc_s16l *sample_pointer;
 			size_t j;
 
-			for (j = 0; j < total_samples; ++j)
-			{
-				cc_u8f wave_value;
+			sample_pointer = sample_buffer;
 
+			for (j = 0; j < total_frames; ++j)
+			{
+				cc_s16f wave_value;
+
+				/* Read sample and advance address. */
 				wave_value = pcm->state->wave_ram[(pcm->state->channels[i].address >> 11) & 0xFFFF];
 				pcm->state->channels[i].address += pcm->state->channels[i].frequency;
 				pcm->state->channels[i].address &= 0x7FFFFFF;
 
+				/* Handle looping. */
 				if (wave_value == 0xFF)
 				{
 					pcm->state->channels[i].address = pcm->state->channels[i].loop_address << 11;
 					wave_value = pcm->state->wave_ram[(pcm->state->channels[i].address >> 11) & 0xFFFF];
-
-					/* TODO: Actually output the audio. */
 				}
+
+				/* Convert from sign-magnitude to two's-complement. */
+				if ((wave_value & 0x80) != 0)
+					wave_value = 0x80 - wave_value;
+
+				/* Amplify the sample to be audible. */
+				/* TODO: Find an accurate value. */
+				wave_value *= 0x20;
+
+				/* TODO: Panning, volume control. */
+				*sample_pointer++ += wave_value;
+				*sample_pointer++ += wave_value;
 			}
 		}
 	}

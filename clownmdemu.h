@@ -78,6 +78,9 @@ extern "C" {
 #define CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER 4
 #define CLOWNMDEMU_MCD_M68K_CLOCK (CLOWNMDEMU_MCD_MASTER_CLOCK / CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER)
 
+#define CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER 0x180
+#define CLOWNMDEMU_PCM_SAMPLE_RATE (CLOWNMDEMU_MCD_M68K_CLOCK / CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER)
+
 /* The NTSC framerate is 59.94FPS (60 divided by 1.001) */
 #define CLOWNMDEMU_MULTIPLY_BY_NTSC_FRAMERATE(x) ((x) * (60 * 1000) / 1001)
 #define CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(x) (((x) / 60) + ((x) / (60 * 1000)))
@@ -199,6 +202,7 @@ typedef struct ClownMDEmu_State
 		{
 			cc_bool enabled[6];
 			cc_bool irq1_pending;
+			cc_u32l irq3_countdown, irq3_countdown_master;
 		} irq;
 
 		PCM_State pcm;
@@ -234,7 +238,7 @@ typedef struct ClownMDEmu_Callbacks
 	cc_bool (*input_requested)(void *user_data, cc_u8f player_id, ClownMDEmu_Button button_id);
 	void (*fm_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*psg_audio_to_be_generated)(void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples));
-	void (*pcm_audio_to_be_generated)(void *user_data, size_t total_samples, void (*generate_mcd_pcm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples));
+	void (*pcm_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_mcd_pcm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*cd_seeked)(void *user_data, cc_u32f sector_index);
 	const cc_u8l* (*cd_sector_read)(void *user_data);
 } ClownMDEmu_Callbacks;

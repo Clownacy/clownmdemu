@@ -204,7 +204,8 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 		state->mega_cd.irq.enabled[i] = cc_false;
 
 	state->mega_cd.irq.irq1_pending = cc_false;
-	
+	state->mega_cd.irq.irq3_countdown_master = state->mega_cd.irq.irq3_countdown = 0;
+
 	PCM_State_Initialise(&state->mega_cd.pcm);
 
 	state->mega_cd.boot_from_cd = cc_false;
