@@ -20,8 +20,7 @@ void PSG_Constant_Initialise(PSG_Constant* const constant)
 	{
 		/* Each volume level is 2 decibels lower than the last. */
 		/* The division by 4 is because there are 4 channels, so we want to prevent audio clipping. */
-		/* The division by 8 is to reduce the PSG's volume to the level of a single FM channel. */
-		const cc_s16l volume = (cc_s16l)(((double)0x7FFF / (4.0 * 8.0)) * pow(10.0, -2.0 * (double)i / 20.0));
+		const cc_s16l volume = (cc_s16l)(((double)0x7FFF / 4.0) * pow(10.0, -2.0 * (double)i / 20.0));
 
 		constant->volumes[i][0] = volume; /* Positive phase. */
 		constant->volumes[i][1] = -volume; /* Negative phase. */

@@ -198,16 +198,14 @@ static cc_u8f PCM_UpdateAddressAndFetchSample(const PCM* const pcm, PCM_ChannelS
 
 static cc_s16f PCM_UnsignedToSigned(const cc_u16f sample)
 {
+	const cc_u16f sign_bit_mask = 1u << (10 - 1); /* Samples are 10-bit. */
+
 	cc_s16f signed_sample;
 
-	/* The value could be -0x8000, but that is not compatible with non-two's-complement platforms, which this emulator supports. */
-	/* Because the input is always 10-bit, we don't actually have to worry about this. */
-	/*if (sample == 0)
-		signed_sample = -0x7FFF;
-	else*/ if ((sample & 0x8000) != 0)
-		signed_sample = (cc_s16f)(sample - 0x8000);
+	if ((sample & sign_bit_mask) != 0)
+		signed_sample = (cc_s16f)(sample - sign_bit_mask);
 	else
-		signed_sample = -(cc_s16f)(0x8000 - sample);
+		signed_sample = -(cc_s16f)(sign_bit_mask - sample);
 
 	return signed_sample;
 }
@@ -266,8 +264,7 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 		for (current_mixed_sample = 0; current_mixed_sample < CC_COUNT_OF(mixed_samples); ++current_mixed_sample)
 		{
 			/* TODO: Just set, rather than add, and make the mixer reflect this too. */
-			/* TODO: Better balancing. Maybe move balancing to the mixer instead of here. */
-			*sample_pointer++ += (PCM_UnsignedToSigned(mixed_samples[current_mixed_sample] >> 6)) * 0x10;
+			*sample_pointer++ += PCM_UnsignedToSigned(mixed_samples[current_mixed_sample] >> 6);
 		}
 	}
 }
