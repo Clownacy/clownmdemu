@@ -193,20 +193,22 @@ void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const 
 	clownmdemu->state->mega_cd.m68k.cycle_countdown = m68k_countdown;
 }
 
-cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u32f target_cycle)
+cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u32f target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
 	const ClownMDEmu_Callbacks* const frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
+	const cc_u32f address = address_word * 2;
+
 	cc_u16f value = 0;
 
 	(void)do_high_byte;
 	(void)do_low_byte;
 
-	if (/*address >= 0 &&*/ address < 0x80000 / 2)
+	if (/*address >= 0 &&*/ address < 0x80000)
 	{
 		/* PRG-RAM */
-		if (address == 0x5F16 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F16)
+		if (address == 0x5F16 && clownmdemu->mcd_m68k->program_counter == 0x5F16)
 		{
 			/* BRAM call! */
 			/* TODO: None of this shit is accurate at all. */
@@ -274,7 +276,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 
 			value = 0x4E75; /* 'rts' instruction */
 		}
-		else if (address == 0x5F22 / 2 && clownmdemu->mcd_m68k->program_counter == 0x5F22)
+		else if (address == 0x5F22 && clownmdemu->mcd_m68k->program_counter == 0x5F22)
 		{
 			/* BIOS call! */
 			MegaCDBIOSCall(clownmdemu, user_data, frontend_callbacks, target_cycle);
@@ -283,10 +285,10 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		}
 		else
 		{
-			value = clownmdemu->state->mega_cd.prg_ram.buffer[address];
+			value = clownmdemu->state->mega_cd.prg_ram.buffer[address_word];
 		}
 	}
-	else if (address < 0xC0000 / 2)
+	else if (address < 0xC0000)
 	{
 		/* WORD-RAM */
 		if (clownmdemu->state->mega_cd.word_ram.in_1m_mode)
@@ -301,10 +303,10 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		}
 		else
 		{
-			value = clownmdemu->state->mega_cd.word_ram.buffer[address & 0x1FFFF];
+			value = clownmdemu->state->mega_cd.word_ram.buffer[address_word & 0x1FFFF];
 		}
 	}
-	else if (address < 0xE0000 / 2)
+	else if (address < 0xE0000)
 	{
 		/* WORD-RAM */
 		if (!clownmdemu->state->mega_cd.word_ram.in_1m_mode)
@@ -314,12 +316,12 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		}
 		else
 		{
-			value = clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret];
+			value = clownmdemu->state->mega_cd.word_ram.buffer[(address_word & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret];
 		}
 	}
-	else if (address >= 0xFF0000 / 2 && address < 0xFF8000 / 2)
+	else if (address >= 0xFF0000 && address < 0xFF8000)
 	{
-		if ((address & 0x1000) != 0)
+		if ((address & 0x2000) != 0)
 		{
 			/* PCM wave RAM */
 			PrintError("SUB-CPU attempted to read from PCM wave RAM at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
@@ -328,58 +330,58 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		{
 			/* PCM register */
 			SyncPCM(callback_user_data, target_cycle);
-			value = (cc_u16f)PCM_ReadRegister(&clownmdemu->pcm, address & 0xFFF);
+			value = (cc_u16f)PCM_ReadRegister(&clownmdemu->pcm, address_word & 0xFFF);
 		}
 	}
-	else if (address == 0xFF8002 / 2)
+	else if (address == 0xFF8002)
 	{
 		/* Memory mode / Write protect */
 		value = ((cc_u16f)clownmdemu->state->mega_cd.word_ram.in_1m_mode << 2) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.dmna << 1) | ((cc_u16f)clownmdemu->state->mega_cd.word_ram.ret << 0);
 	}
-	else if (address == 0xFF8004 / 2)
+	else if (address == 0xFF8004)
 	{
 		/* CDC mode / device destination */
 		value = 0x4000;
 	}
-	else if (address == 0xFF8006 / 2)
+	else if (address == 0xFF8006)
 	{
 		/* H-INT vector */
 		PrintError("SUB-CPU attempted to read from H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
-	else if (address == 0xFF8008 / 2)
+	else if (address == 0xFF8008)
 	{
 		/* CDC host data */
 		PrintError("SUB-CPU attempted to read from CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
-	else if (address == 0xFF800C / 2)
+	else if (address == 0xFF800C)
 	{
 		/* Stop watch */
 		PrintError("SUB-CPU attempted to read from stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
-	else if (address == 0xFF800E / 2)
+	else if (address == 0xFF800E)
 	{
 		/* Communication flag */
 		SyncM68k(clownmdemu, callback_user_data, target_cycle);
 		value = clownmdemu->state->mega_cd.communication.flag;
 	}
-	else if (address >= 0xFF8010 / 2 && address < 0xFF8020 / 2)
+	else if (address >= 0xFF8010 && address < 0xFF8020)
 	{
 		/* Communication command */
 		SyncM68k(clownmdemu, callback_user_data, target_cycle);
-		value = clownmdemu->state->mega_cd.communication.command[address - 0xFF8010 / 2];
+		value = clownmdemu->state->mega_cd.communication.command[(address - 0xFF8010) / 2];
 	}
-	else if (address >= 0xFF8020 / 2 && address < 0xFF8030 / 2)
+	else if (address >= 0xFF8020 && address < 0xFF8030)
 	{
 		/* Communication status */
 		SyncM68k(clownmdemu, callback_user_data, target_cycle);
-		value = clownmdemu->state->mega_cd.communication.status[address - 0xFF8020 / 2];
+		value = clownmdemu->state->mega_cd.communication.status[(address - 0xFF8020) / 2];
 	}
-	else if (address == 0xFF8030 / 2)
+	else if (address == 0xFF8030)
 	{
 		/* Timer W/INT3 */
 		PrintError("SUB-CPU attempted to read from Timer W/INT3 register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
-	else if (address == 0xFF8032 / 2)
+	else if (address == 0xFF8032)
 	{
 		/* Interrupt mask control */
 		cc_u8f i;
@@ -389,26 +391,26 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		for (i = 0; i < CC_COUNT_OF(clownmdemu->state->mega_cd.irq.enabled); ++i)
 			value |= (cc_u16f)clownmdemu->state->mega_cd.irq.enabled[i] << (1 + i);
 	}
-	else if (address == 0xFF8058 / 2)
+	else if (address == 0xFF8058)
 	{
 		/* Stamp data size */
 		/* TODO */
 		value = 0;
 	}
-	else if (address == 0xFF8064 / 2)
+	else if (address == 0xFF8064)
 	{
 		/* Image buffer vertical draw size */
 		/* TODO */
 		value = 0;
 	}
-	else if (address == 0xFF8066 / 2)
+	else if (address == 0xFF8066)
 	{
 		/* Trace vector base address */
 		/* TODO */
 	}
 	else
 	{
-		PrintError("Attempted to read invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->mcd_m68k->program_counter);
+		PrintError("Attempted to read invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->mcd_m68k->program_counter);
 	}
 
 	return value;
@@ -421,10 +423,11 @@ cc_u16f MCDM68kReadCallback(const void* const user_data, const cc_u32f address, 
 	return MCDM68kReadCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, callback_user_data->mcd_m68k_current_cycle);
 }
 
-void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u16f value, const cc_u32f target_cycle)
+void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u16f value, const cc_u32f target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+	const cc_u32f address = address_word * 2;
 
 	cc_u16f mask = 0;
 
@@ -433,13 +436,13 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	if (do_low_byte)
 		mask |= 0x00FF;
 
-	if (/*address >= 0 &&*/ address < 0x80000 / 2)
+	if (/*address >= 0 &&*/ address < 0x80000)
 	{
 		/* PRG-RAM */
-		clownmdemu->state->mega_cd.prg_ram.buffer[address] &= ~mask;
-		clownmdemu->state->mega_cd.prg_ram.buffer[address] |= value & mask;
+		clownmdemu->state->mega_cd.prg_ram.buffer[address_word] &= ~mask;
+		clownmdemu->state->mega_cd.prg_ram.buffer[address_word] |= value & mask;
 	}
-	else if (address < 0xC0000 / 2)
+	else if (address < 0xC0000)
 	{
 		/* WORD-RAM */
 		if (clownmdemu->state->mega_cd.word_ram.in_1m_mode)
@@ -453,11 +456,11 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		}
 		else
 		{
-			clownmdemu->state->mega_cd.word_ram.buffer[address & 0x1FFFF] &= ~mask;
-			clownmdemu->state->mega_cd.word_ram.buffer[address & 0x1FFFF] |= value & mask;
+			clownmdemu->state->mega_cd.word_ram.buffer[address_word & 0x1FFFF] &= ~mask;
+			clownmdemu->state->mega_cd.word_ram.buffer[address_word & 0x1FFFF] |= value & mask;
 		}
 	}
-	else if (address < 0xE0000 / 2)
+	else if (address < 0xE0000)
 	{
 		/* WORD-RAM */
 		if (!clownmdemu->state->mega_cd.word_ram.in_1m_mode)
@@ -467,20 +470,20 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		}
 		else
 		{
-			clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret] &= ~mask;
-			clownmdemu->state->mega_cd.word_ram.buffer[(address & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret] |= value & mask;
+			clownmdemu->state->mega_cd.word_ram.buffer[(address_word & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret] &= ~mask;
+			clownmdemu->state->mega_cd.word_ram.buffer[(address_word & 0xFFFF) * 2 + !clownmdemu->state->mega_cd.word_ram.ret] |= value & mask;
 		}
 	}
-	else if (address >= 0xFF0000 / 2 && address < 0xFF8000 / 2)
+	else if (address >= 0xFF0000 && address < 0xFF8000)
 	{
 		if (do_low_byte)
 		{
-			const cc_u16f masked_address = address & 0xFFF;
+			const cc_u16f masked_address = address_word & 0xFFF;
 			const cc_u8f masked_value = value & 0xFF;
 
 			SyncPCM(callback_user_data, target_cycle);
 
-			if ((address & 0x1000) != 0)
+			if ((address & 0x2000) != 0)
 			{
 				/* PCM wave RAM */
 				PCM_WriteWaveRAM(&clownmdemu->pcm, masked_address, masked_value);
@@ -492,7 +495,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 			}
 		}
 	}
-	else if (address == 0xFF8002 / 2)
+	else if (address == 0xFF8002)
 	{
 		/* Memory mode / Write protect */
 		if (do_low_byte)
@@ -510,27 +513,27 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 			}
 		}
 	}
-	else if (address == 0xFF8004 / 2)
+	else if (address == 0xFF8004)
 	{
 		/* CDC mode / device destination */
 		PrintError("SUB-CPU attempted to write to CDC mode/destination register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
-	else if (address == 0xFF8006 / 2)
+	else if (address == 0xFF8006)
 	{
 		/* H-INT vector */
 		PrintError("SUB-CPU attempted to write to H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
-	else if (address == 0xFF8008 / 2)
+	else if (address == 0xFF8008)
 	{
 		/* CDC host data */
 		PrintError("SUB-CPU attempted to write to CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
-	else if (address == 0xFF800C / 2)
+	else if (address == 0xFF800C)
 	{
 		/* Stop watch */
 		PrintError("SUB-CPU attempted to write to stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
-	else if (address == 0xFF800E / 2)
+	else if (address == 0xFF800E)
 	{
 		/* Communication flag */
 		if (do_high_byte)
@@ -542,19 +545,19 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 			clownmdemu->state->mega_cd.communication.flag = (clownmdemu->state->mega_cd.communication.flag & 0xFF00) | (value & 0x00FF);
 		}
 	}
-	else if (address >= 0xFF8010 / 2 && address < 0xFF8020 / 2)
+	else if (address >= 0xFF8010 && address < 0xFF8020)
 	{
 		/* Communication command */
 		PrintError("SUB-CPU attempted to write to MAIN-CPU's communication command at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
-	else if (address >= 0xFF8020 / 2 && address < 0xFF8030 / 2)
+	else if (address >= 0xFF8020 && address < 0xFF8030)
 	{
 		/* Communication status */
 		SyncM68k(clownmdemu, callback_user_data, target_cycle);
-		clownmdemu->state->mega_cd.communication.status[address - 0xFF8020 / 2] &= ~mask;
-		clownmdemu->state->mega_cd.communication.status[address - 0xFF8020 / 2] |= value & mask;
+		clownmdemu->state->mega_cd.communication.status[(address - 0xFF8020) / 2] &= ~mask;
+		clownmdemu->state->mega_cd.communication.status[(address - 0xFF8020) / 2] |= value & mask;
 	}
-	else if (address == 0xFF8030 / 2)
+	else if (address == 0xFF8030)
 	{
 		if (do_low_byte) /* TODO: Does setting just the upper byte cause this to be updated anyway? */
 		{
@@ -564,7 +567,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 			clownmdemu->state->mega_cd.irq.irq3_countdown_master = clownmdemu->state->mega_cd.irq.irq3_countdown = masked_value == 0 ? 0 : (masked_value + 1) * CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER;
 		}
 	}
-	else if (address == 0xFF8032 / 2)
+	else if (address == 0xFF8032)
 	{
 		/* Interrupt mask control */
 		if (do_low_byte)
@@ -578,17 +581,17 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 				clownmdemu->state->mega_cd.irq.irq1_pending = cc_false;
 		}
 	}
-	else if (address == 0xFF8058 / 2)
+	else if (address == 0xFF8058)
 	{
 		/* Stamp data size */
 		/* TODO */
 	}
-	else if (address == 0xFF8064 / 2)
+	else if (address == 0xFF8064)
 	{
 		/* Image buffer vertical draw size */
 		/* TODO */
 	}
-	else if (address == 0xFF8066 / 2)
+	else if (address == 0xFF8066)
 	{
 		/* Trace vector base address */
 		/* TODO */
@@ -597,7 +600,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	}
 	else
 	{
-		PrintError("Attempted to write invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address * 2, clownmdemu->mcd_m68k->program_counter);
+		PrintError("Attempted to write invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->mcd_m68k->program_counter);
 	}
 }
 
