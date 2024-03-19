@@ -1,7 +1,5 @@
 #include "pcm.h"
 
-#include "clowncommon/clowncommon.h"
-
 void PCM_State_Initialise(PCM_State* const state)
 {
 	size_t i;
@@ -84,11 +82,9 @@ void PCM_WriteRegister(const PCM* const pcm, const cc_u16f reg, const cc_u8f val
 
 cc_u8f PCM_ReadRegister(const PCM* const pcm, const cc_u16f reg)
 {
-	cc_u8f value;
-
 	PCM_ChannelState* const current_channel = &pcm->state->channels[pcm->state->current_channel];
 
-	value = 0;
+	cc_u8f value = 0;
 
 	switch (reg)
 	{
