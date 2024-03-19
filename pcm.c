@@ -189,10 +189,20 @@ static cc_u8f PCM_UpdateAddressAndFetchSample(const PCM* const pcm, PCM_ChannelS
 	return wave_value;
 }
 
+static PCM_ProcessSample(const PCM* const pcm, const PCM_ChannelState* const channel, const cc_u8f sample, const cc_u8f panning)
+{
+	/* Mask out direction bit and apply volume and panning. */
+	const cc_u8f absolute_sample = sample & 0x7F;
+	const cc_bool add_bit = (sample & 0x80) != 0;
+	const cc_s32f scaled_absolute_sample = (((cc_u32f)absolute_sample) * channel->volume * panning) >> 5;
+
+	return add_bit ? scaled_absolute_sample : -scaled_absolute_sample;
+}
+
 void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	size_t i;
 	cc_s16l *sample_pointer = sample_buffer;
+	size_t i;
 
 	for (i = 0; i < total_frames; ++i)
 	{
@@ -206,21 +216,17 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 
 			const cc_u8f wave_value = PCM_UpdateAddressAndFetchSample(pcm, channel);
 
-			/* Mask out direction bit and apply volume and panning */
-			const cc_s32f wave_left = (((cc_u32f)wave_value & 0x7F) * channel->volume * (channel->panning & 0xF)) >> 5;
-			const cc_s32f wave_right = (((cc_u32f)wave_value & 0x7F) * channel->volume * (channel->panning >> 4)) >> 5;
-
-			/* Mix result */
-			wave_mix_left += wave_left * ((wave_value & 0x80) != 0 ? 1 : -1);
-			wave_mix_right += wave_right * ((wave_value & 0x80) != 0 ? 1 : -1);
-			
-			/* Apply limiter */
-			/* TODO: Check if this is applied during or after mixing all the channels */
-			wave_mix_left = CC_CLAMP(-0x8000, 0x7FFF, wave_mix_left);
-			wave_mix_right = CC_CLAMP(-0x8000, 0x7FFF, wave_mix_right);
+			wave_mix_left += PCM_ProcessSample(pcm, channel, wave_value, channel->panning & 0xF);
+			wave_mix_right += PCM_ProcessSample(pcm, channel, wave_value, channel->panning >> 4);
 		}
 
-		/* Output mixed wave values */
+		/* Perform clamping. */
+		/* TODO: Check if this is applied during or after mixing all the channels */
+		wave_mix_left = CC_CLAMP(-0x7FFF, 0x7FFF, wave_mix_left);
+		wave_mix_right = CC_CLAMP(-0x7FFF, 0x7FFF, wave_mix_right);
+
+		/* Output the samples. */
+		/* TODO: Just set, rather than add, and make the mixer reflect this too. */
 		*sample_pointer++ += (wave_mix_left & ~0x3F) / 3;
 		*sample_pointer++ += (wave_mix_right & ~0x3F) / 3;
 	}
