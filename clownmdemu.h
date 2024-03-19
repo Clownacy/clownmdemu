@@ -195,7 +195,7 @@ typedef struct ClownMDEmu_State
 		struct
 		{
 			cc_u32l current_sector, total_buffered_sectors;
-			cc_u32l cdc_delay;
+			cc_u8l cdc_delay;
 			cc_bool cdc_ready;
 		} cd;
 
