@@ -162,11 +162,16 @@ static cc_u8f PCM_FetchSample(const PCM* const pcm, const PCM_ChannelState* cons
 	return pcm->state->wave_ram[(channel->address >> 11) & 0xFFFF];
 }
 
+static cc_bool PCM_IsChannelAudible(const PCM* const pcm, const PCM_ChannelState* const channel)
+{
+	return !channel->disabled && pcm->state->sounding;
+}
+
 static cc_u8f PCM_UpdateAddressAndFetchSample(const PCM* const pcm, PCM_ChannelState* const channel)
 {
 	cc_u8f wave_value;
 
-	if (channel->disabled || !pcm->state->sounding)
+	if (!PCM_IsChannelAudible(pcm, channel))
 	{
 		channel->address = (cc_u32f)channel->start_address << 19;
 		wave_value = PCM_FetchSample(pcm, channel);
@@ -216,8 +221,11 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 
 			const cc_u8f wave_value = PCM_UpdateAddressAndFetchSample(pcm, channel);
 
-			wave_mix_left += PCM_ProcessSample(pcm, channel, wave_value, channel->panning & 0xF);
-			wave_mix_right += PCM_ProcessSample(pcm, channel, wave_value, channel->panning >> 4);
+			if (PCM_IsChannelAudible(pcm, channel))
+			{
+				wave_mix_left += PCM_ProcessSample(pcm, channel, wave_value, channel->panning & 0xF);
+				wave_mix_right += PCM_ProcessSample(pcm, channel, wave_value, channel->panning >> 4);
+			}
 		}
 
 		/* Perform clamping. */
