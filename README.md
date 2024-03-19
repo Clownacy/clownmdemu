@@ -33,6 +33,11 @@ and portability:
   and other precision issues, so I do not trust them. I am also concerned about
   their performance compared to integers, especially on lower-end hardware.
 
+  - There is one exception to this rule: functions relating to generating
+    'constant' data. The reasoning for this is that platforms with poor
+    floating-point support can have this data be computed at build-time and
+    embedded into the executable.
+
 - Do not use dynamic memory. Memory allocation is slow, will cause memory leaks
   when not correctly freed, and can cause software to fail mid-execution when
   memory is exhausted, which is more effort to account for than it is worth.
