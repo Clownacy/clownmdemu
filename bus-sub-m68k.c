@@ -75,7 +75,13 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 
 		case 0x8A:
 			/* CDCSTAT */
-			clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's always a sector ready. */
+			/* HACK: Simulate a bit of delay (this should be be a separate mechanism). */
+			/* Sonic CD relies on this for FMV playback. */
+			if (clownmdemu->state->mega_cd.cd.cdc_delay < 2)
+				clownmdemu->mcd_m68k->status_register |= 1; /* Set carry flag to signal that a sector is not ready. */
+			else
+				clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that there's a sector ready. */
+			clownmdemu->state->mega_cd.cd.cdc_delay = (clownmdemu->state->mega_cd.cd.cdc_delay + 1) % 6;
 			break;
 
 		case 0x8B:
@@ -89,7 +95,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 			{
 				--clownmdemu->state->mega_cd.cd.total_buffered_sectors;
 				clownmdemu->state->mega_cd.cd.cdc_ready = cc_true;
-
+				
 				clownmdemu->mcd_m68k->status_register &= ~1; /* Clear carry flag to signal that a sector has been prepared. */
 				clownmdemu->mcd_m68k->data_registers[0] = GetCDSectorHeader(clownmdemu);
 			}
