@@ -6,7 +6,7 @@
 
 #include "clowncommon/clowncommon.h"
 
-static cc_u16f InversePow2(const FM_Operator_Constant *constant, cc_u16f value)
+static cc_u16f InversePow2(const FM_Operator_Constant* const constant, const cc_u16f value)
 {
 	/* TODO: Maybe replace this whole thing with a single lookup table? */
 
@@ -17,7 +17,7 @@ static cc_u16f InversePow2(const FM_Operator_Constant *constant, cc_u16f value)
 	return (constant->power_table[fraction] << 2) >> whole;
 }
 
-void FM_Operator_Constant_Initialise(FM_Operator_Constant *constant)
+void FM_Operator_Constant_Initialise(FM_Operator_Constant* const constant)
 {
 	const cc_u16f sine_table_length = CC_COUNT_OF(constant->logarithmic_attenuation_sine_table);
 	const cc_u16f pow_table_length = CC_COUNT_OF(constant->power_table);
@@ -85,55 +85,55 @@ void FM_Operator_Constant_Initialise(FM_Operator_Constant *constant)
 	}
 }
 
-void FM_Operator_State_Initialise(FM_Operator_State *state)
+void FM_Operator_State_Initialise(FM_Operator_State* const state)
 {
 	FM_Phase_State_Initialise(&state->phase);
 	FM_Envelope_State_Initialise(&state->envelope);
 }
 
-void FM_Operator_SetFrequency(const FM_Operator *fm_operator, cc_u16f f_number_and_block)
+void FM_Operator_SetFrequency(const FM_Operator* const fm_operator, const cc_u16f f_number_and_block)
 {
 	FM_Phase_SetFrequency(&fm_operator->state->phase, f_number_and_block);
 }
 
-void FM_Operator_SetKeyOn(const FM_Operator *fm_operator, cc_bool key_on)
+void FM_Operator_SetKeyOn(const FM_Operator* const fm_operator, const cc_bool key_on)
 {
 	/* If we switch from key-off to key-on, then reset the Phase Generator. */
 	if (FM_Envelope_SetKeyOn(&fm_operator->state->envelope, key_on, FM_Phase_GetKeyCode(&fm_operator->state->phase)))
 		FM_Phase_Reset(&fm_operator->state->phase);
 }
 
-void FM_Operator_SetDetuneAndMultiplier(const FM_Operator *fm_operator, cc_u16f detune, cc_u16f multiplier)
+void FM_Operator_SetDetuneAndMultiplier(const FM_Operator* const fm_operator, const cc_u16f detune, const cc_u16f multiplier)
 {
 	FM_Phase_SetDetuneAndMultiplier(&fm_operator->state->phase, detune, multiplier);
 }
 
-void FM_Operator_SetTotalLevel(const FM_Operator *fm_operator, cc_u16f total_level)
+void FM_Operator_SetTotalLevel(const FM_Operator* const fm_operator, const cc_u16f total_level)
 {
 	FM_Envelope_SetTotalLevel(&fm_operator->state->envelope, total_level);
 }
 
-void FM_Operator_SetKeyScaleAndAttackRate(const FM_Operator *fm_operator, cc_u16f key_scale, cc_u16f attack_rate)
+void FM_Operator_SetKeyScaleAndAttackRate(const FM_Operator* const fm_operator, const cc_u16f key_scale, const cc_u16f attack_rate)
 {
 	FM_Envelope_SetKeyScaleAndAttackRate(&fm_operator->state->envelope, key_scale, attack_rate);
 }
 
-void FM_Operator_DecayRate(const FM_Operator *fm_operator, cc_u16f decay_rate)
+void FM_Operator_DecayRate(const FM_Operator* const fm_operator, const cc_u16f decay_rate)
 {
 	FM_Envelope_DecayRate(&fm_operator->state->envelope, decay_rate);
 }
 
-void FM_Operator_SetSustainRate(const FM_Operator *fm_operator, cc_u16f sustain_rate)
+void FM_Operator_SetSustainRate(const FM_Operator* const fm_operator, const cc_u16f sustain_rate)
 {
 	FM_Envelope_SetSustainRate(&fm_operator->state->envelope, sustain_rate);
 }
 
-void FM_Operator_SetSustainLevelAndReleaseRate(const FM_Operator *fm_operator, cc_u16f sustain_level, cc_u16f release_rate)
+void FM_Operator_SetSustainLevelAndReleaseRate(const FM_Operator* const fm_operator, const cc_u16f sustain_level, const cc_u16f release_rate)
 {
 	FM_Envelope_SetSustainLevelAndReleaseRate(&fm_operator->state->envelope, sustain_level, release_rate);
 }
 
-cc_s16f FM_Operator_Process(const FM_Operator *fm_operator, cc_s16f phase_modulation)
+cc_s16f FM_Operator_Process(const FM_Operator* const fm_operator, const cc_s16f phase_modulation)
 {
 	/* Update and obtain phase and make it 10-bit (the upper bits are discarded later). */
 	const cc_u16f phase = FM_Phase_Increment(&fm_operator->state->phase) >> 10;

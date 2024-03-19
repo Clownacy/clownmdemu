@@ -11,7 +11,7 @@ https://www.smspower.org/Development/SN76489
 
 #include "clowncommon/clowncommon.h"
 
-void PSG_Constant_Initialise(PSG_Constant *constant)
+void PSG_Constant_Initialise(PSG_Constant* const constant)
 {
 	cc_u8f i;
 
@@ -32,7 +32,7 @@ void PSG_Constant_Initialise(PSG_Constant *constant)
 	constant->volumes[0xF][1] = 0;
 }
 
-void PSG_State_Initialise(PSG_State *state)
+void PSG_State_Initialise(PSG_State* const state)
 {
 	size_t i;
 
@@ -59,7 +59,7 @@ void PSG_State_Initialise(PSG_State *state)
 	state->latched_command.is_volume_command = cc_false;
 }
 
-void PSG_DoCommand(const PSG *psg, cc_u8f command)
+void PSG_DoCommand(const PSG* const psg, const cc_u8f command)
 {
 	const cc_bool latch = (command & 0x80) != 0;
 
@@ -73,7 +73,7 @@ void PSG_DoCommand(const PSG *psg, cc_u8f command)
 	if (psg->state->latched_command.channel < CC_COUNT_OF(psg->state->tones))
 	{
 		/* Tone channel. */
-		PSG_ToneState *tone = &psg->state->tones[psg->state->latched_command.channel];
+		PSG_ToneState* const tone = &psg->state->tones[psg->state->latched_command.channel];
 
 		if (psg->state->latched_command.is_volume_command)
 		{
@@ -127,13 +127,14 @@ void PSG_DoCommand(const PSG *psg, cc_u8f command)
 	}
 }
 
-void PSG_Update(const PSG *psg, cc_s16l *sample_buffer, size_t total_samples)
+void PSG_Update(const PSG* const psg, cc_s16l* const sample_buffer, const size_t total_samples)
 {
 	size_t i;
 	size_t j;
 	cc_s16l *sample_buffer_pointer;
 
 	/* Do the tone channels. */
+	/* TODO: Invert these loops - that should be more cache-efficient. */
 	for (i = 0; i < CC_COUNT_OF(psg->state->tones); ++i)
 	{
 		if (!psg->configuration->tone_disabled[i])

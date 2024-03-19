@@ -2,7 +2,7 @@
 
 #include "clowncommon/clowncommon.h"
 
-static cc_u16f CalculateRate(const FM_Envelope_State *envelope, cc_u16f key_code)
+static cc_u16f CalculateRate(const FM_Envelope_State* const envelope, const cc_u16f key_code)
 {
 	cc_u16f rate;
 
@@ -14,7 +14,7 @@ static cc_u16f CalculateRate(const FM_Envelope_State *envelope, cc_u16f key_code
 	return rate;
 }
 
-void FM_Envelope_State_Initialise(FM_Envelope_State *state)
+void FM_Envelope_State_Initialise(FM_Envelope_State* const state)
 {
 	/* Set envelope to update immediately. */
 	state->countdown = 1;
@@ -37,7 +37,7 @@ void FM_Envelope_State_Initialise(FM_Envelope_State *state)
 	state->key_on = cc_false;
 }
 
-cc_bool FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on, cc_u16f key_code)
+cc_bool FM_Envelope_SetKeyOn(FM_Envelope_State* const envelope, const cc_bool key_on, const cc_u16f key_code)
 {
 	const cc_bool key_state_changed = envelope->key_on != key_on;
 
@@ -66,29 +66,29 @@ cc_bool FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on, cc_u16
 	return key_state_changed && key_on;
 }
 
-void FM_Envelope_SetTotalLevel(FM_Envelope_State *envelope, cc_u16f total_level)
+void FM_Envelope_SetTotalLevel(FM_Envelope_State* const envelope, const cc_u16f total_level)
 {
 	/* Convert from 7-bit to 10-bit. */
 	envelope->total_level = total_level << 3;
 }
 
-void FM_Envelope_SetKeyScaleAndAttackRate(FM_Envelope_State *envelope, cc_u16f key_scale, cc_u16f attack_rate)
+void FM_Envelope_SetKeyScaleAndAttackRate(FM_Envelope_State* const envelope, const cc_u16f key_scale, const cc_u16f attack_rate)
 {
 	envelope->key_scale = 8 >> key_scale;
 	envelope->rates[FM_ENVELOPE_MODE_ATTACK] = attack_rate;
 }
 
-void FM_Envelope_DecayRate(FM_Envelope_State *envelope, cc_u16f decay_rate)
+void FM_Envelope_DecayRate(FM_Envelope_State* const envelope, const cc_u16f decay_rate)
 {
 	envelope->rates[FM_ENVELOPE_MODE_DECAY] = decay_rate;
 }
 
-void FM_Envelope_SetSustainRate(FM_Envelope_State *envelope, cc_u16f sustain_rate)
+void FM_Envelope_SetSustainRate(FM_Envelope_State* const envelope, const cc_u16f sustain_rate)
 {
 	envelope->rates[FM_ENVELOPE_MODE_SUSTAIN] = sustain_rate;
 }
 
-void FM_Envelope_SetSustainLevelAndReleaseRate(FM_Envelope_State *envelope, cc_u16f sustain_level, cc_u16f release_rate)
+void FM_Envelope_SetSustainLevelAndReleaseRate(FM_Envelope_State* const envelope, const cc_u16f sustain_level, const cc_u16f release_rate)
 {
 	envelope->sustain_level = sustain_level == 0xF ? 0x3E0 : sustain_level * 0x20;
 
@@ -96,7 +96,7 @@ void FM_Envelope_SetSustainLevelAndReleaseRate(FM_Envelope_State *envelope, cc_u
 	envelope->rates[FM_ENVELOPE_MODE_RELEASE] = (release_rate << 1) | 1;
 }
 
-cc_u16f FM_Envelope_Update(FM_Envelope_State *envelope, cc_u16f key_code)
+cc_u16f FM_Envelope_Update(FM_Envelope_State* const envelope, const cc_u16f key_code)
 {
 	if (--envelope->countdown == 0)
 	{

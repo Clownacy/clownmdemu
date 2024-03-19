@@ -2,7 +2,7 @@
 
 #include "clowncommon/clowncommon.h"
 
-static void RecalculatePhaseStep(FM_Phase_State *phase)
+static void RecalculatePhaseStep(FM_Phase_State* const phase)
 {
 	/* First, obtain some values. */
 
@@ -97,19 +97,19 @@ static void RecalculatePhaseStep(FM_Phase_State *phase)
 	phase->step &= 0xFFFFF;
 }
 
-void FM_Phase_State_Initialise(FM_Phase_State *phase)
+void FM_Phase_State_Initialise(FM_Phase_State* const phase)
 {
 	FM_Phase_SetFrequency(phase, 0);
 	FM_Phase_SetDetuneAndMultiplier(phase, 0, 0);
 	FM_Phase_Reset(phase);
 }
 
-cc_u16f FM_Phase_GetKeyCode(const FM_Phase_State *phase)
+cc_u16f FM_Phase_GetKeyCode(const FM_Phase_State* const phase)
 {
 	return phase->key_code;
 }
 
-void FM_Phase_SetFrequency(FM_Phase_State *phase, cc_u16f f_number_and_block)
+void FM_Phase_SetFrequency(FM_Phase_State* const phase, const cc_u16f f_number_and_block)
 {
 	phase->f_number_and_block = f_number_and_block;
 	phase->key_code = f_number_and_block >> 9;
@@ -117,7 +117,7 @@ void FM_Phase_SetFrequency(FM_Phase_State *phase, cc_u16f f_number_and_block)
 	RecalculatePhaseStep(phase);
 }
 
-void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, cc_u16f detune, cc_u16f multiplier)
+void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State* const phase, const cc_u16f detune, const cc_u16f multiplier)
 {
 	phase->detune = detune;
 	phase->multiplier = multiplier == 0 ? 1 : multiplier * 2;
@@ -125,12 +125,12 @@ void FM_Phase_SetDetuneAndMultiplier(FM_Phase_State *phase, cc_u16f detune, cc_u
 	RecalculatePhaseStep(phase);
 }
 
-void FM_Phase_Reset(FM_Phase_State *phase)
+void FM_Phase_Reset(FM_Phase_State* const phase)
 {
 	phase->position = 0;
 }
 
-cc_u32f FM_Phase_Increment(FM_Phase_State *phase)
+cc_u32f FM_Phase_Increment(FM_Phase_State* const phase)
 {
 	phase->position += phase->step;
 
