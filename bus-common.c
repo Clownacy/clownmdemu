@@ -24,25 +24,27 @@ void SyncCPUCommon(const ClownMDEmu* const clownmdemu, SyncCPUState* const sync,
 	/* Store this in a local variable to make the upcoming code faster. */
 	cc_u16f countdown = *sync->cycle_countdown;
 
-	while (sync->current_cycle < target_cycle)
+	if (countdown == 0)
 	{
-		const cc_u32f cycles_to_do = CC_MIN(countdown, target_cycle - sync->current_cycle);
-
-		assert(target_cycle >= sync->current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
-
-		sync->current_cycle += cycles_to_do;
-
-		if (countdown != (cc_u16f)-1)
+		sync->current_cycle = target_cycle;
+	}
+	else
+	{
+		while (sync->current_cycle < target_cycle)
 		{
+			const cc_u32f cycles_to_do = CC_MIN(countdown, target_cycle - sync->current_cycle);
+
+			sync->current_cycle += cycles_to_do;
+
 			countdown -= cycles_to_do;
 
 			if (countdown == 0)
 				countdown = callback(clownmdemu, (void*)user_data);
 		}
-	}
 
-	/* Store this back in memory for later. */
-	*sync->cycle_countdown = countdown;
+		/* Store this back in memory for later. */
+		*sync->cycle_countdown = countdown;
+	}
 }
 
 static void FMCallbackWrapper(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)

@@ -569,7 +569,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		if (do_low_byte) /* TODO: Does setting just the upper byte cause this to be updated anyway? */
 		{
 			/* Timer W/INT3 */
-			clownmdemu->state->mega_cd.irq.irq3_countdown_master = clownmdemu->state->mega_cd.irq.irq3_countdown = low_byte == 0 ? -1 : (low_byte + 1) * CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER;
+			clownmdemu->state->mega_cd.irq.irq3_countdown_master = clownmdemu->state->mega_cd.irq.irq3_countdown = low_byte == 0 ? 0 : (low_byte + 1) * CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER;
 		}
 	}
 	else if (address == 0xFF8032)

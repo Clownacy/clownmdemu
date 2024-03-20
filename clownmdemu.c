@@ -148,12 +148,12 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 
 	/* M68K */
 	memset(state->m68k.ram, 0, sizeof(state->m68k.ram));
-	state->m68k.cycle_countdown = 0;
+	state->m68k.cycle_countdown = 1;
 
 	/* Z80 */
 	Z80_State_Initialise(&state->z80.state);
 	memset(state->z80.ram, 0, sizeof(state->z80.ram));
-	state->z80.cycle_countdown = 0;
+	state->z80.cycle_countdown = 1;
 	state->z80.bank = 0;
 	state->z80.bus_requested = cc_true;
 	state->z80.reset_held = cc_true;
@@ -175,7 +175,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	Controller_Initialise(&state->controllers[1], FrontendController2Callback);
 
 	/* Mega CD */
-	state->mega_cd.m68k.cycle_countdown = 0;
+	state->mega_cd.m68k.cycle_countdown = 1;
 	state->mega_cd.m68k.bus_requested = cc_true;
 	state->mega_cd.m68k.reset_held = cc_true;
 
@@ -205,7 +205,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 		state->mega_cd.irq.enabled[i] = cc_false;
 
 	state->mega_cd.irq.irq1_pending = cc_false;
-	state->mega_cd.irq.irq3_countdown_master = state->mega_cd.irq.irq3_countdown = -1;
+	state->mega_cd.irq.irq3_countdown_master = state->mega_cd.irq.irq3_countdown = 0;
 
 	PCM_State_Initialise(&state->mega_cd.pcm);
 
