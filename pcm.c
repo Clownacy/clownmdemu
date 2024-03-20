@@ -1,5 +1,11 @@
 #include "pcm.h"
 
+/* MEGA-CD HARDWARE MANUAL - PCM SOUND SOURCE */
+/* https://segaretro.org/images/2/2d/MCDHardware_Manual_PCM_Sound_Source.pdf */
+
+/* RF5C68A manual */
+/* https://segaretro.org/images/2/22/RF5C68A.pdf */
+
 void PCM_State_Initialise(PCM_State* const state)
 {
 	size_t i;
