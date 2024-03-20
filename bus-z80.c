@@ -14,7 +14,7 @@ static cc_u16f SyncZ80Callback(const ClownMDEmu* const clownmdemu, void* const u
 	return CLOWNMDEMU_Z80_CLOCK_DIVIDER * (z80_not_running ? 1 : Z80_DoCycle(&clownmdemu->z80, (const Z80_ReadAndWriteCallbacks*)user_data));
 }
 
-void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
+void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
 {
 	Z80_ReadAndWriteCallbacks z80_read_write_callbacks;
 
@@ -22,10 +22,10 @@ void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const othe
 	z80_read_write_callbacks.write = Z80WriteCallback;
 	z80_read_write_callbacks.user_data = other_state;
 
-	SyncCPUCommon(clownmdemu, &other_state->sync.z80, target_cycle, SyncZ80Callback, &z80_read_write_callbacks);
+	SyncCPUCommon(clownmdemu, &other_state->sync.z80, target_cycle.cycle, SyncZ80Callback, &z80_read_write_callbacks);
 }
 
-cc_u16f Z80ReadCallbackWithCycle(const void* const user_data, const cc_u16f address, const cc_u32f target_cycle)
+cc_u16f Z80ReadCallbackWithCycle(const void* const user_data, const cc_u16f address, const CycleMegaDrive target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
@@ -79,10 +79,10 @@ cc_u16f Z80ReadCallback(const void* const user_data, const cc_u16f address)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	return Z80ReadCallbackWithCycle(user_data, address, callback_user_data->sync.z80.current_cycle);
+	return Z80ReadCallbackWithCycle(user_data, address, MakeCycleMegaDrive(callback_user_data->sync.z80.current_cycle));
 }
 
-void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f address, const cc_u16f value, const cc_u32f target_cycle)
+void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f address, const cc_u16f value, const CycleMegaDrive target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
@@ -143,5 +143,5 @@ void Z80WriteCallback(const void* const user_data, const cc_u16f address, const 
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	Z80WriteCallbackWithCycle(user_data, address, value, callback_user_data->sync.z80.current_cycle);
+	Z80WriteCallbackWithCycle(user_data, address, value, MakeCycleMegaDrive(callback_user_data->sync.z80.current_cycle));
 }

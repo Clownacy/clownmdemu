@@ -246,6 +246,8 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	const cc_u16f console_vertical_resolution = (clownmdemu->state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
 	const cc_u16f cycles_per_frame = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC);
 	const cc_u16f cycles_per_scanline = cycles_per_frame / television_vertical_resolution;
+	const CycleMegaDrive cycles_per_frame_mega_drive = MakeCycleMegaDrive(cycles_per_frame);
+	const CycleMegaCD cycles_per_frame_mega_cd = MakeCycleMegaCD(clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK));
 
 	cpu_callback_user_data.data_and_callbacks.data = clownmdemu;
 	cpu_callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
@@ -278,7 +280,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	for (clownmdemu->state->current_scanline = 0; clownmdemu->state->current_scanline < television_vertical_resolution; ++clownmdemu->state->current_scanline)
 	{
 		const cc_u16f scanline = clownmdemu->state->current_scanline;
-		const cc_u32f current_cycle = cycles_per_scanline * (1 + scanline);
+		const CycleMegaDrive current_cycle = MakeCycleMegaDrive(cycles_per_scanline * (1 + scanline));
 
 		/* Sync the 68k, since it's the one thing that can influence the VDP */
 		SyncM68k(clownmdemu, &cpu_callback_user_data, current_cycle);
@@ -324,11 +326,11 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	}
 
 	/* Update everything else for the rest of the frame. */
-	SyncZ80(clownmdemu, &cpu_callback_user_data, cycles_per_frame);
-	SyncMCDM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame);
-	SyncFM(&cpu_callback_user_data, cycles_per_frame);
-	SyncPSG(&cpu_callback_user_data, cycles_per_frame);
-	SyncPCM(&cpu_callback_user_data, cycles_per_frame);
+	SyncZ80(clownmdemu, &cpu_callback_user_data, cycles_per_frame_mega_drive);
+	SyncMCDM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame_mega_cd);
+	SyncFM(&cpu_callback_user_data, cycles_per_frame_mega_drive);
+	SyncPSG(&cpu_callback_user_data, cycles_per_frame_mega_drive);
+	SyncPCM(&cpu_callback_user_data, cycles_per_frame_mega_cd);
 
 	/* Fire IRQ1 if needed. */
 	/* TODO: This is a hack. Look into when this interrupt should actually be done. */

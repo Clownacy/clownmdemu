@@ -24,14 +24,14 @@ static cc_u32f GetCDSectorHeader(const ClownMDEmu* const clownmdemu)
 	     | (minutes << (8 * 3));
 }
 
-static cc_u16f MCDM68kReadWord(const void* const user_data, const cc_u32f address, const cc_u32f target_cycle)
+static cc_u16f MCDM68kReadWord(const void* const user_data, const cc_u32f address, const CycleMegaCD target_cycle)
 {
 	assert(address % 2 == 0);
 
 	return MCDM68kReadCallbackWithCycle(user_data, (address & 0xFFFFFF) / 2, cc_true, cc_true, target_cycle);
 }
 
-static cc_u16f MCDM68kReadLongword(const void* const user_data, const cc_u32f address, const cc_u32f target_cycle)
+static cc_u16f MCDM68kReadLongword(const void* const user_data, const cc_u32f address, const CycleMegaCD target_cycle)
 {
 	cc_u32f longword;
 	longword = (cc_u32f)MCDM68kReadWord(user_data, address + 0, target_cycle) << 16;
@@ -39,14 +39,14 @@ static cc_u16f MCDM68kReadLongword(const void* const user_data, const cc_u32f ad
 	return longword;
 }
 
-static void MCDM68kWriteWord(const void* const user_data, const cc_u32f address, const cc_u16f value, const cc_u32f target_cycle)
+static void MCDM68kWriteWord(const void* const user_data, const cc_u32f address, const cc_u16f value, const CycleMegaCD target_cycle)
 {
 	assert(address % 2 == 0);
 
 	MCDM68kWriteCallbackWithCycle(user_data, (address & 0xFFFFFF) / 2, cc_true, cc_true, value, target_cycle);
 }
 
-static void MCDM68kWriteLongword(const void* const user_data, const cc_u32f address, const cc_u32f value, const cc_u32f target_cycle)
+static void MCDM68kWriteLongword(const void* const user_data, const cc_u32f address, const cc_u32f value, const CycleMegaCD target_cycle)
 {
 	assert(value <= 0xFFFFFFFF);
 	MCDM68kWriteWord(user_data, address + 0, value >> 16, target_cycle);
@@ -54,7 +54,7 @@ static void MCDM68kWriteLongword(const void* const user_data, const cc_u32f addr
 }
 
 /* TODO: Move this to its own file? */
-static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const user_data, const ClownMDEmu_Callbacks* const frontend_callbacks, const cc_u32f target_cycle)
+static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const user_data, const ClownMDEmu_Callbacks* const frontend_callbacks, const CycleMegaCD target_cycle)
 {
 	/* TODO: None of this shit is accurate at all. */
 	const cc_u16f command = clownmdemu->mcd_m68k->data_registers[0] & 0xFFFF;
@@ -161,20 +161,22 @@ static cc_u16f SyncMCDM68kForRealCallback(const ClownMDEmu* const clownmdemu, vo
 	return CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * 4; /* TODO: The '* 4' is a temporary hack until 68000 instruction durations are added. */
 }
 
-void SyncMCDM68kForReal(const ClownMDEmu* const clownmdemu, const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks, const cc_u32f target_cycle)
+void SyncMCDM68kForReal(const ClownMDEmu* const clownmdemu, const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks, const CycleMegaCD target_cycle)
 {
 	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)m68k_read_write_callbacks->user_data;
 
-	SyncCPUCommon(clownmdemu, &other_state->sync.mcd_m68k, target_cycle, SyncMCDM68kForRealCallback, m68k_read_write_callbacks);
+	SyncCPUCommon(clownmdemu, &other_state->sync.mcd_m68k, target_cycle.cycle, SyncMCDM68kForRealCallback, m68k_read_write_callbacks);
 }
 
 static cc_u16f SyncMCDM68kCallback(const ClownMDEmu* const clownmdemu, void* const user_data)
 {
 	const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks = (const Clown68000_ReadWriteCallbacks*)user_data;
 	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)m68k_read_write_callbacks->user_data;
+	CycleMegaCD current_cycle;
 
 	/* Update the 68000 to this point in time. */
-	SyncMCDM68kForReal(clownmdemu, m68k_read_write_callbacks, other_state->sync.mcd_m68k_irq3.current_cycle);
+	current_cycle.cycle = other_state->sync.mcd_m68k_irq3.current_cycle;
+	SyncMCDM68kForReal(clownmdemu, m68k_read_write_callbacks, current_cycle);
 
 	/* Raise an interrupt. */
 	if (clownmdemu->state->mega_cd.irq.enabled[2])
@@ -183,7 +185,7 @@ static cc_u16f SyncMCDM68kCallback(const ClownMDEmu* const clownmdemu, void* con
 	return clownmdemu->state->mega_cd.irq.irq3_countdown_master;
 }
 
-void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
+void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const CycleMegaCD target_cycle)
 {
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 
@@ -193,13 +195,13 @@ void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const 
 
 	/* In order to support the timer interrupt (IRQ3), we hijack this function to update an IRQ3 sync object instead. */
 	/* This sync object will raise interrupts whilst also synchronising the 68000. */
-	SyncCPUCommon(clownmdemu, &other_state->sync.mcd_m68k_irq3, target_cycle, SyncMCDM68kCallback, &m68k_read_write_callbacks);
+	SyncCPUCommon(clownmdemu, &other_state->sync.mcd_m68k_irq3, target_cycle.cycle, SyncMCDM68kCallback, &m68k_read_write_callbacks);
 
 	/* Now that we're done with IRQ3, finish synchronising the 68000. */
 	SyncMCDM68kForReal(clownmdemu, &m68k_read_write_callbacks, target_cycle);
 }
 
-cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u32f target_cycle)
+cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const CycleMegaCD target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
@@ -367,19 +369,19 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF800E)
 	{
 		/* Communication flag */
-		SyncM68k(clownmdemu, callback_user_data, target_cycle);
+		SyncM68k(clownmdemu, callback_user_data, CycleMegaCDToMegaDrive(clownmdemu, target_cycle));
 		value = clownmdemu->state->mega_cd.communication.flag;
 	}
 	else if (address >= 0xFF8010 && address < 0xFF8020)
 	{
 		/* Communication command */
-		SyncM68k(clownmdemu, callback_user_data, target_cycle);
+		SyncM68k(clownmdemu, callback_user_data, CycleMegaCDToMegaDrive(clownmdemu, target_cycle));
 		value = clownmdemu->state->mega_cd.communication.command[(address - 0xFF8010) / 2];
 	}
 	else if (address >= 0xFF8020 && address < 0xFF8030)
 	{
 		/* Communication status */
-		SyncM68k(clownmdemu, callback_user_data, target_cycle);
+		SyncM68k(clownmdemu, callback_user_data, CycleMegaCDToMegaDrive(clownmdemu, target_cycle));
 		value = clownmdemu->state->mega_cd.communication.status[(address - 0xFF8020) / 2];
 	}
 	else if (address == 0xFF8030)
@@ -426,10 +428,10 @@ cc_u16f MCDM68kReadCallback(const void* const user_data, const cc_u32f address, 
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	return MCDM68kReadCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, callback_user_data->sync.mcd_m68k.current_cycle);
+	return MCDM68kReadCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, MakeCycleMegaCD(callback_user_data->sync.mcd_m68k.current_cycle));
 }
 
-void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u16f value, const cc_u32f target_cycle)
+void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u16f value, const CycleMegaCD target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
@@ -509,7 +511,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		{
 			const cc_bool ret = (value & (1 << 0)) != 0;
 
-			SyncM68k(clownmdemu, callback_user_data, target_cycle);
+			SyncM68k(clownmdemu, callback_user_data, CycleMegaCDToMegaDrive(clownmdemu, target_cycle));
 
 			clownmdemu->state->mega_cd.word_ram.in_1m_mode = (value & (1 << 2)) != 0;
 
@@ -548,7 +550,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 
 		if (do_low_byte)
 		{
-			SyncM68k(clownmdemu, callback_user_data, target_cycle);
+			SyncM68k(clownmdemu, callback_user_data, CycleMegaCDToMegaDrive(clownmdemu, target_cycle));
 			clownmdemu->state->mega_cd.communication.flag = (clownmdemu->state->mega_cd.communication.flag & 0xFF00) | (value & 0x00FF);
 		}
 	}
@@ -560,7 +562,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	else if (address >= 0xFF8020 && address < 0xFF8030)
 	{
 		/* Communication status */
-		SyncM68k(clownmdemu, callback_user_data, target_cycle);
+		SyncM68k(clownmdemu, callback_user_data, CycleMegaCDToMegaDrive(clownmdemu, target_cycle));
 		clownmdemu->state->mega_cd.communication.status[(address - 0xFF8020) / 2] &= ~mask;
 		clownmdemu->state->mega_cd.communication.status[(address - 0xFF8020) / 2] |= value & mask;
 	}
@@ -613,5 +615,5 @@ void MCDM68kWriteCallback(const void* const user_data, const cc_u32f address, co
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	MCDM68kWriteCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, value, callback_user_data->sync.mcd_m68k.current_cycle);
+	MCDM68kWriteCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, value, MakeCycleMegaCD(callback_user_data->sync.mcd_m68k.current_cycle));
 }

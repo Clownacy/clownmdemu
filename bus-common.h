@@ -38,6 +38,16 @@ typedef struct CPUCallbackUserData
 	} sync;
 } CPUCallbackUserData;
 
+typedef struct CycleMegaDrive
+{
+	cc_u32f cycle;
+} CycleMegaDrive;
+
+typedef struct CycleMegaCD
+{
+	cc_u32f cycle;
+} CycleMegaCD;
+
 /* TODO: Move this to somewhere more specific. */
 typedef struct IOPortToController_Parameters
 {
@@ -47,10 +57,15 @@ typedef struct IOPortToController_Parameters
 
 typedef cc_u16f (*SyncCPUCommonCallback)(const ClownMDEmu *clownmdemu, void *user_data);
 
+CycleMegaDrive MakeCycleMegaDrive(cc_u32f cycle);
+CycleMegaCD MakeCycleMegaCD(cc_u32f cycle);
+CycleMegaCD CycleMegaDriveToMegaCD(const ClownMDEmu *clownmdemu, CycleMegaDrive cycle);
+CycleMegaDrive CycleMegaCDToMegaDrive(const ClownMDEmu *clownmdemu, CycleMegaCD cycle);
+
 cc_u32f SyncCommon(SyncState *sync, cc_u32f target_cycle, cc_u32f clock_divisor);
 void SyncCPUCommon(const ClownMDEmu *clownmdemu, SyncCPUState *sync, cc_u32f target_cycle, SyncCPUCommonCallback callback, const void *user_data);
-cc_u8f SyncFM(CPUCallbackUserData *other_state, cc_u32f target_cycle);
-void SyncPSG(CPUCallbackUserData *other_state, cc_u32f target_cycle);
-void SyncPCM(CPUCallbackUserData *other_state, cc_u32f target_cycle);
+cc_u8f SyncFM(CPUCallbackUserData *other_state, CycleMegaDrive target_cycle);
+void SyncPSG(CPUCallbackUserData *other_state, CycleMegaDrive target_cycle);
+void SyncPCM(CPUCallbackUserData *other_state, CycleMegaCD target_cycle);
 
 #endif /* BUS_COMMON */
