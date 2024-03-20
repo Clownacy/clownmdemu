@@ -147,12 +147,10 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	cc_u16f i;
 
 	/* M68K */
-	memset(state->m68k.ram, 0, sizeof(state->m68k.ram));
 	state->m68k.cycle_countdown = 1;
 
 	/* Z80 */
 	Z80_State_Initialise(&state->z80.state);
-	memset(state->z80.ram, 0, sizeof(state->z80.ram));
 	state->z80.cycle_countdown = 1;
 	state->z80.bank = 0;
 	state->z80.bus_requested = cc_true;
@@ -179,10 +177,8 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->mega_cd.m68k.bus_requested = cc_true;
 	state->mega_cd.m68k.reset_held = cc_true;
 
-	memset(state->mega_cd.prg_ram.buffer, 0, sizeof(state->mega_cd.prg_ram.buffer));
 	state->mega_cd.prg_ram.bank = 0;
 
-	memset(state->mega_cd.word_ram.buffer, 0, sizeof(state->mega_cd.word_ram.buffer));
 	state->mega_cd.word_ram.in_1m_mode = cc_true; /* Confirmed by my Visual Sound Test homebrew. */
 	/* Page 24 of MEGA-CD HARDWARE MANUAL confirms this. */
 	state->mega_cd.word_ram.dmna = cc_false;
