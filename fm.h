@@ -7,10 +7,8 @@
 
 #include "fm-channel.h"
 
-/* 8 is chosen because there are 6 FM channels (of which the DAC can replace one) as well as the PSG.
-   The PSG with all of its channels at maximum volume reaches the volume of a single FM channel at maximum.
-   Technically, this means that 7 is a more appropriate number than 8. However, dividing by 8 is simpler
-   than dividing by 7, so that was opted for instead. */
+/* 8 is chosen because there are 6 FM channels (of which the DAC can replace one).
+   Dividing by 8 is simpler than dividing by 6, so that was opted for instead. */
 #define FM_VOLUME_DIVIDER 8
 
 /* 6 for the hardcoded prescale, 6 for the number of channels, and 4 for the number of operators per channel. */
