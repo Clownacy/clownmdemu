@@ -21,7 +21,7 @@ cc_u32f SyncCommon(SyncState* const sync, const cc_u32f target_cycle, const cc_u
 
 void SyncCPUCommon(const ClownMDEmu* const clownmdemu, SyncCPUState* const sync, const cc_u32f target_cycle, const SyncCPUCommonCallback callback, const void* const user_data)
 {
-	/* Store this in a local variables to make the upcoming code faster. */
+	/* Store this in a local variable to make the upcoming code faster. */
 	cc_u16f countdown = *sync->cycle_countdown;
 
 	while (sync->current_cycle < target_cycle)
@@ -30,12 +30,15 @@ void SyncCPUCommon(const ClownMDEmu* const clownmdemu, SyncCPUState* const sync,
 
 		assert(target_cycle >= sync->current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
 
-		countdown -= cycles_to_do;
-
-		if (countdown == 0)
-			countdown = callback(clownmdemu, (void*)user_data);
-
 		sync->current_cycle += cycles_to_do;
+
+		if (countdown != (cc_u16f)-1)
+		{
+			countdown -= cycles_to_do;
+
+			if (countdown == 0)
+				countdown = callback(clownmdemu, (void*)user_data);
+		}
 	}
 
 	/* Store this back in memory for later. */

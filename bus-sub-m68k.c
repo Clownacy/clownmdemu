@@ -150,56 +150,53 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 	}
 }
 
+static cc_u16f SyncMCDM68kForRealCallback(const ClownMDEmu* const clownmdemu, void* const user_data)
+{
+	/* TODO: Handle the MCD's master clock! */
+	const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks = (const Clown68000_ReadWriteCallbacks*)user_data;
+
+	if (!clownmdemu->state->mega_cd.m68k.bus_requested && !clownmdemu->state->mega_cd.m68k.reset_held)
+		Clown68000_DoCycle(clownmdemu->mcd_m68k, m68k_read_write_callbacks);
+
+	return CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * 4; /* TODO: The '* 4' is a temporary hack until 68000 instruction durations are added. */
+}
+
+void SyncMCDM68kForReal(const ClownMDEmu* const clownmdemu, const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks, const cc_u32f target_cycle)
+{
+	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)m68k_read_write_callbacks->user_data;
+
+	SyncCPUCommon(clownmdemu, &other_state->sync.mcd_m68k, target_cycle, SyncMCDM68kForRealCallback, m68k_read_write_callbacks);
+}
+
+static cc_u16f SyncMCDM68kCallback(const ClownMDEmu* const clownmdemu, void* const user_data)
+{
+	const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks = (const Clown68000_ReadWriteCallbacks*)user_data;
+	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)m68k_read_write_callbacks->user_data;
+
+	/* Update the 68000 to this point in time. */
+	SyncMCDM68kForReal(clownmdemu, m68k_read_write_callbacks, other_state->sync.mcd_m68k_irq3.current_cycle);
+
+	/* Raise an interrupt. */
+	if (clownmdemu->state->mega_cd.irq.enabled[2])
+		Clown68000_Interrupt(clownmdemu->mcd_m68k, m68k_read_write_callbacks, 3);
+
+	return clownmdemu->state->mega_cd.irq.irq3_countdown_master;
+}
+
 void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 {
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
-	cc_u16f m68k_countdown;
 
 	m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
 	m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
 	m68k_read_write_callbacks.user_data = other_state;
 
-	/* Store this in a local variable to make the upcoming code faster. */
-	m68k_countdown = *other_state->sync.mcd_m68k.cycle_countdown;
+	/* In order to support the timer interrupt (IRQ3), we hijack this function to update an IRQ3 sync object instead. */
+	/* This sync object will raise interrupts whilst also synchronising the 68000. */
+	SyncCPUCommon(clownmdemu, &other_state->sync.mcd_m68k_irq3, target_cycle, SyncMCDM68kCallback, &m68k_read_write_callbacks);
 
-	while (other_state->sync.mcd_m68k.current_cycle < target_cycle)
-	{
-		const cc_u32f cycles_to_do_irq3 = clownmdemu->state->mega_cd.irq.irq3_countdown == 0 ? (cc_u32f)-1 : clownmdemu->state->mega_cd.irq.irq3_countdown;
-		const cc_u32f cycles_to_do = CC_MIN(cycles_to_do_irq3, CC_MIN(m68k_countdown, target_cycle - other_state->sync.mcd_m68k.current_cycle));
-
-		assert(target_cycle >= other_state->sync.mcd_m68k.current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
-
-		/* Handle raising IRQ3. */
-		if (clownmdemu->state->mega_cd.irq.irq3_countdown != 0)
-		{
-			clownmdemu->state->mega_cd.irq.irq3_countdown -= cycles_to_do;
-
-			if (clownmdemu->state->mega_cd.irq.irq3_countdown == 0)
-			{
-				clownmdemu->state->mega_cd.irq.irq3_countdown = clownmdemu->state->mega_cd.irq.irq3_countdown_master;
-
-				if (clownmdemu->state->mega_cd.irq.enabled[2])
-					Clown68000_Interrupt(clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 3);
-			}
-		}
-
-		/* Handle updating the 68000. */
-		m68k_countdown -= cycles_to_do;
-
-		if (m68k_countdown == 0)
-		{
-			if (!clownmdemu->state->mega_cd.m68k.bus_requested && !clownmdemu->state->mega_cd.m68k.reset_held)
-				Clown68000_DoCycle(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
-
-			m68k_countdown = CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * 4; /* TODO: The '* 4' is a temporary hack until 68000 instruction durations are added. */
-			/* TODO: Handle the MCD's master clock! */
-		}
-
-		other_state->sync.mcd_m68k.current_cycle += cycles_to_do;
-	}
-
-	/* Store this back in memory for later. */
-	*other_state->sync.mcd_m68k.cycle_countdown = m68k_countdown;
+	/* Now that we're done with IRQ3, finish synchronising the 68000. */
+	SyncMCDM68kForReal(clownmdemu, &m68k_read_write_callbacks, target_cycle);
 }
 
 cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u32f target_cycle)
@@ -572,7 +569,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		if (do_low_byte) /* TODO: Does setting just the upper byte cause this to be updated anyway? */
 		{
 			/* Timer W/INT3 */
-			clownmdemu->state->mega_cd.irq.irq3_countdown_master = clownmdemu->state->mega_cd.irq.irq3_countdown = low_byte == 0 ? 0 : (low_byte + 1) * CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER;
+			clownmdemu->state->mega_cd.irq.irq3_countdown_master = clownmdemu->state->mega_cd.irq.irq3_countdown = low_byte == 0 ? -1 : (low_byte + 1) * CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER;
 		}
 	}
 	else if (address == 0xFF8032)

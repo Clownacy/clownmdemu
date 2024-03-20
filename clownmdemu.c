@@ -205,7 +205,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 		state->mega_cd.irq.enabled[i] = cc_false;
 
 	state->mega_cd.irq.irq1_pending = cc_false;
-	state->mega_cd.irq.irq3_countdown_master = state->mega_cd.irq.irq3_countdown = 0;
+	state->mega_cd.irq.irq3_countdown_master = state->mega_cd.irq.irq3_countdown = -1;
 
 	PCM_State_Initialise(&state->mega_cd.pcm);
 
@@ -260,6 +260,8 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	cpu_callback_user_data.sync.z80.cycle_countdown = &clownmdemu->state->z80.cycle_countdown;
 	cpu_callback_user_data.sync.mcd_m68k.current_cycle = 0;
 	cpu_callback_user_data.sync.mcd_m68k.cycle_countdown = &clownmdemu->state->mega_cd.m68k.cycle_countdown;
+	cpu_callback_user_data.sync.mcd_m68k_irq3.current_cycle = 0;
+	cpu_callback_user_data.sync.mcd_m68k_irq3.cycle_countdown = &clownmdemu->state->mega_cd.irq.irq3_countdown;
 	cpu_callback_user_data.sync.fm.current_cycle = 0;
 	cpu_callback_user_data.sync.psg.current_cycle = 0;
 	cpu_callback_user_data.sync.pcm.current_cycle = 0;

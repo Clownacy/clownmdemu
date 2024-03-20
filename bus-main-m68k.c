@@ -26,7 +26,6 @@ static cc_u16f SyncM68kCallback(const ClownMDEmu* const clownmdemu, void* const 
 void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 {
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
-	cc_u16f m68k_countdown;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;

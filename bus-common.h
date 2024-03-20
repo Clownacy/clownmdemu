@@ -31,6 +31,7 @@ typedef struct CPUCallbackUserData
 		SyncCPUState m68k;
 		SyncCPUState z80;
 		SyncCPUState mcd_m68k;
+		SyncCPUState mcd_m68k_irq3;
 		SyncState fm;
 		SyncState psg;
 		SyncState pcm;
