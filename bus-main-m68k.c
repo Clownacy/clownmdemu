@@ -17,6 +17,12 @@ static cc_u16f VDPReadCallback(void *user_data, cc_u32f address)
 	return M68kReadCallbackWithDMA(user_data, address / 2, cc_true, cc_true, cc_true);
 }
 
+static cc_u16f SyncM68kCallback(const ClownMDEmu* const clownmdemu, void* const user_data)
+{
+	Clown68000_DoCycle(clownmdemu->m68k, (const Clown68000_ReadWriteCallbacks*)user_data);
+	return CLOWNMDEMU_M68K_CLOCK_DIVIDER * 10; /* TODO: The '* 10' is a temporary hack until 68000 instruction durations are added. */
+}
+
 void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 {
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
@@ -26,28 +32,7 @@ void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const oth
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
 	m68k_read_write_callbacks.user_data = other_state;
 
-	/* Store this in a local variable to make the upcoming code faster. */
-	m68k_countdown = clownmdemu->state->m68k.cycle_countdown;
-
-	while (other_state->m68k_current_cycle < target_cycle)
-	{
-		const cc_u32f cycles_to_do = CC_MIN(m68k_countdown, target_cycle - other_state->m68k_current_cycle);
-
-		assert(target_cycle >= other_state->m68k_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
-
-		m68k_countdown -= cycles_to_do;
-
-		if (m68k_countdown == 0)
-		{
-			Clown68000_DoCycle(clownmdemu->m68k, &m68k_read_write_callbacks);
-			m68k_countdown = CLOWNMDEMU_M68K_CLOCK_DIVIDER * 10; /* TODO: The '* 10' is a temporary hack until 68000 instruction durations are added. */
-		}
-
-		other_state->m68k_current_cycle += cycles_to_do;
-	}
-
-	/* Store this back in memory for later. */
-	clownmdemu->state->m68k.cycle_countdown = m68k_countdown;
+	SyncCPUCommon(clownmdemu, &other_state->sync.m68k, target_cycle, SyncM68kCallback, &m68k_read_write_callbacks);
 }
 
 cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u32f target_cycle, const cc_bool is_vdp_dma)
@@ -342,7 +327,7 @@ cc_u16f M68kReadCallbackWithDMA(const void* const user_data, const cc_u32f addre
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	return M68kReadCallbackWithCycleWithDMA(user_data, address, do_high_byte, do_low_byte, callback_user_data->m68k_current_cycle, is_vdp_dma);
+	return M68kReadCallbackWithCycleWithDMA(user_data, address, do_high_byte, do_low_byte, callback_user_data->sync.m68k.current_cycle, is_vdp_dma);
 }
 
 cc_u16f M68kReadCallback(const void* const user_data, const cc_u32f address, const cc_bool do_high_byte, const cc_bool do_low_byte)
@@ -677,5 +662,5 @@ void M68kWriteCallback(const void* const user_data, const cc_u32f address, const
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	M68kWriteCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, value, callback_user_data->m68k_current_cycle);
+	M68kWriteCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, value, callback_user_data->sync.m68k.current_cycle);
 }

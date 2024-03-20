@@ -7,39 +7,22 @@
 
 /* TODO: https://sonicresearch.org/community/index.php?threads/help-with-potentially-extra-ram-space-for-z80-sound-drivers.6763/#post-89797 */
 
+static cc_u16f SyncZ80Callback(const ClownMDEmu* const clownmdemu, void* const user_data)
+{
+	const cc_bool z80_not_running = clownmdemu->state->z80.bus_requested || clownmdemu->state->z80.reset_held;
+
+	return CLOWNMDEMU_Z80_CLOCK_DIVIDER * (z80_not_running ? 1 : Z80_DoCycle(&clownmdemu->z80, (const Z80_ReadAndWriteCallbacks*)user_data));
+}
+
 void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const cc_u32f target_cycle)
 {
 	Z80_ReadAndWriteCallbacks z80_read_write_callbacks;
-	cc_u16f z80_countdown;
 
 	z80_read_write_callbacks.read = Z80ReadCallback;
 	z80_read_write_callbacks.write = Z80WriteCallback;
 	z80_read_write_callbacks.user_data = other_state;
 
-	/* Store this in a local variables to make the upcoming code faster. */
-	z80_countdown = clownmdemu->state->z80.cycle_countdown;
-
-	while (other_state->z80_current_cycle < target_cycle)
-	{
-		/* TODO: We repeat this code in each SyncXXXX function, so maybe we should de-duplicate it somehow? */
-		const cc_u32f cycles_to_do = CC_MIN(z80_countdown, target_cycle - other_state->z80_current_cycle);
-
-		assert(target_cycle >= other_state->z80_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
-
-		z80_countdown -= cycles_to_do;
-
-		if (z80_countdown == 0)
-		{
-			const cc_bool z80_not_running = clownmdemu->state->z80.bus_requested || clownmdemu->state->z80.reset_held;
-
-			z80_countdown = CLOWNMDEMU_Z80_CLOCK_DIVIDER * (z80_not_running ? 1 : Z80_DoCycle(&clownmdemu->z80, &z80_read_write_callbacks));
-		}
-
-		other_state->z80_current_cycle += cycles_to_do;
-	}
-
-	/* Store this back in memory for later. */
-	clownmdemu->state->z80.cycle_countdown = z80_countdown;
+	SyncCPUCommon(clownmdemu, &other_state->sync.z80, target_cycle, SyncZ80Callback, &z80_read_write_callbacks);
 }
 
 cc_u16f Z80ReadCallbackWithCycle(const void* const user_data, const cc_u16f address, const cc_u32f target_cycle)
@@ -96,7 +79,7 @@ cc_u16f Z80ReadCallback(const void* const user_data, const cc_u16f address)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	return Z80ReadCallbackWithCycle(user_data, address, callback_user_data->z80_current_cycle);
+	return Z80ReadCallbackWithCycle(user_data, address, callback_user_data->sync.z80.current_cycle);
 }
 
 void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f address, const cc_u16f value, const cc_u32f target_cycle)
@@ -160,5 +143,5 @@ void Z80WriteCallback(const void* const user_data, const cc_u16f address, const 
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	Z80WriteCallbackWithCycle(user_data, address, value, callback_user_data->z80_current_cycle);
+	Z80WriteCallbackWithCycle(user_data, address, value, callback_user_data->sync.z80.current_cycle);
 }

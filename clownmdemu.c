@@ -253,12 +253,16 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 
 	cpu_callback_user_data.data_and_callbacks.data = clownmdemu;
 	cpu_callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
-	cpu_callback_user_data.m68k_current_cycle = 0;
-	cpu_callback_user_data.z80_current_cycle = 0;
-	cpu_callback_user_data.mcd_m68k_current_cycle = 0;
-	cpu_callback_user_data.fm_current_cycle = 0;
-	cpu_callback_user_data.psg_current_cycle = 0;
-	cpu_callback_user_data.pcm_current_cycle = 0;
+	cpu_callback_user_data.sync.m68k.current_cycle = 0;
+	/* TODO: This is awful; stop doing this. */
+	cpu_callback_user_data.sync.m68k.cycle_countdown = &clownmdemu->state->m68k.cycle_countdown;
+	cpu_callback_user_data.sync.z80.current_cycle = 0;
+	cpu_callback_user_data.sync.z80.cycle_countdown = &clownmdemu->state->z80.cycle_countdown;
+	cpu_callback_user_data.sync.mcd_m68k.current_cycle = 0;
+	cpu_callback_user_data.sync.mcd_m68k.cycle_countdown = &clownmdemu->state->mega_cd.m68k.cycle_countdown;
+	cpu_callback_user_data.sync.fm.current_cycle = 0;
+	cpu_callback_user_data.sync.psg.current_cycle = 0;
+	cpu_callback_user_data.sync.pcm.current_cycle = 0;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;

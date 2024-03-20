@@ -12,15 +12,29 @@ typedef struct DataAndCallbacks
 	const ClownMDEmu_Callbacks *frontend_callbacks;
 } DataAndCallbacks;
 
+typedef struct SyncState
+{
+	cc_u32f current_cycle;
+} SyncState;
+
+typedef struct SyncCPUState
+{
+	cc_u32f current_cycle;
+	cc_u16f *cycle_countdown;
+} SyncCPUState;
+
 typedef struct CPUCallbackUserData
 {
 	DataAndCallbacks data_and_callbacks;
-	cc_u32f m68k_current_cycle;
-	cc_u32f z80_current_cycle;
-	cc_u32f mcd_m68k_current_cycle;
-	cc_u32f fm_current_cycle;
-	cc_u32f psg_current_cycle;
-	cc_u32f pcm_current_cycle;
+	struct
+	{
+		SyncCPUState m68k;
+		SyncCPUState z80;
+		SyncCPUState mcd_m68k;
+		SyncState fm;
+		SyncState psg;
+		SyncState pcm;
+	} sync;
 } CPUCallbackUserData;
 
 /* TODO: Move this to somewhere more specific. */
@@ -30,6 +44,10 @@ typedef struct IOPortToController_Parameters
 	const ClownMDEmu_Callbacks *frontend_callbacks;
 } IOPortToController_Parameters;
 
+typedef cc_u16f (*SyncCPUCommonCallback)(const ClownMDEmu *clownmdemu, void *user_data);
+
+cc_u32f SyncCommon(SyncState *sync, cc_u32f target_cycle, cc_u32f clock_divisor);
+void SyncCPUCommon(const ClownMDEmu *clownmdemu, SyncCPUState *sync, cc_u32f target_cycle, SyncCPUCommonCallback callback, const void *user_data);
 cc_u8f SyncFM(CPUCallbackUserData *other_state, cc_u32f target_cycle);
 void SyncPSG(CPUCallbackUserData *other_state, cc_u32f target_cycle);
 void SyncPCM(CPUCallbackUserData *other_state, cc_u32f target_cycle);

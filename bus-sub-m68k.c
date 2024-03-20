@@ -160,14 +160,14 @@ void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const 
 	m68k_read_write_callbacks.user_data = other_state;
 
 	/* Store this in a local variable to make the upcoming code faster. */
-	m68k_countdown = clownmdemu->state->mega_cd.m68k.cycle_countdown;
+	m68k_countdown = *other_state->sync.mcd_m68k.cycle_countdown;
 
-	while (other_state->mcd_m68k_current_cycle < target_cycle)
+	while (other_state->sync.mcd_m68k.current_cycle < target_cycle)
 	{
 		const cc_u32f cycles_to_do_irq3 = clownmdemu->state->mega_cd.irq.irq3_countdown == 0 ? (cc_u32f)-1 : clownmdemu->state->mega_cd.irq.irq3_countdown;
-		const cc_u32f cycles_to_do = CC_MIN(cycles_to_do_irq3, CC_MIN(m68k_countdown, target_cycle - other_state->mcd_m68k_current_cycle));
+		const cc_u32f cycles_to_do = CC_MIN(cycles_to_do_irq3, CC_MIN(m68k_countdown, target_cycle - other_state->sync.mcd_m68k.current_cycle));
 
-		assert(target_cycle >= other_state->mcd_m68k_current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
+		assert(target_cycle >= other_state->sync.mcd_m68k.current_cycle); /* If this fails, then we must have failed to synchronise somewhere! */
 
 		/* Handle raising IRQ3. */
 		if (clownmdemu->state->mega_cd.irq.irq3_countdown != 0)
@@ -195,11 +195,11 @@ void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const 
 			/* TODO: Handle the MCD's master clock! */
 		}
 
-		other_state->mcd_m68k_current_cycle += cycles_to_do;
+		other_state->sync.mcd_m68k.current_cycle += cycles_to_do;
 	}
 
 	/* Store this back in memory for later. */
-	clownmdemu->state->mega_cd.m68k.cycle_countdown = m68k_countdown;
+	*other_state->sync.mcd_m68k.cycle_countdown = m68k_countdown;
 }
 
 cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u32f target_cycle)
@@ -429,7 +429,7 @@ cc_u16f MCDM68kReadCallback(const void* const user_data, const cc_u32f address, 
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	return MCDM68kReadCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, callback_user_data->mcd_m68k_current_cycle);
+	return MCDM68kReadCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, callback_user_data->sync.mcd_m68k.current_cycle);
 }
 
 void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u16f value, const cc_u32f target_cycle)
@@ -616,5 +616,5 @@ void MCDM68kWriteCallback(const void* const user_data, const cc_u32f address, co
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	MCDM68kWriteCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, value, callback_user_data->mcd_m68k_current_cycle);
+	MCDM68kWriteCallbackWithCycle(user_data, address, do_high_byte, do_low_byte, value, callback_user_data->sync.mcd_m68k.current_cycle);
 }
