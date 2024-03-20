@@ -238,7 +238,7 @@ typedef struct ClownMDEmu_Callbacks
 	void (*scanline_rendered)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height);
 	cc_bool (*input_requested)(void *user_data, cc_u8f player_id, ClownMDEmu_Button button_id);
 	void (*fm_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
-	void (*psg_audio_to_be_generated)(void *user_data, size_t total_samples, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_samples));
+	void (*psg_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*pcm_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_mcd_pcm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*cd_seeked)(void *user_data, cc_u32f sector_index);
 	const cc_u8l* (*cd_sector_read)(void *user_data);

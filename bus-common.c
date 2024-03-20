@@ -31,9 +31,9 @@ cc_u8f SyncFM(CPUCallbackUserData* const other_state, const cc_u32f target_cycle
 	return FM_Update(&other_state->data_and_callbacks.data->fm, cycles_to_do, GenerateFMAudio, other_state);
 }
 
-static void GeneratePSGAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_samples)
+static void GeneratePSGAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
 {
-	PSG_Update(&clownmdemu->psg, sample_buffer, total_samples);
+	PSG_Update(&clownmdemu->psg, sample_buffer, total_frames);
 }
 
 void SyncPSG(CPUCallbackUserData* const other_state, const cc_u32f target_cycle)

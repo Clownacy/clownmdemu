@@ -103,7 +103,7 @@ void PSG_DoCommand(const PSG *psg, cc_u8f command);
 
 /* Updates the PSG's internal state and outputs samples. */
 /* The samples are mono and in signed 16-bit PCM format. */
-void PSG_Update(const PSG *psg, cc_s16l *sample_buffer, size_t total_samples);
+void PSG_Update(const PSG *psg, cc_s16l *sample_buffer, size_t total_frames);
 
 #ifdef __cplusplus
 }

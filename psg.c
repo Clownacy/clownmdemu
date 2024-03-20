@@ -126,7 +126,7 @@ void PSG_DoCommand(const PSG* const psg, const cc_u8f command)
 	}
 }
 
-void PSG_Update(const PSG* const psg, cc_s16l* const sample_buffer, const size_t total_samples)
+void PSG_Update(const PSG* const psg, cc_s16l* const sample_buffer, const size_t total_frames)
 {
 	size_t i;
 	size_t j;
@@ -142,7 +142,7 @@ void PSG_Update(const PSG* const psg, cc_s16l* const sample_buffer, const size_t
 
 			sample_buffer_pointer = sample_buffer;
 
-			for (j = 0; j < total_samples; ++j)
+			for (j = 0; j < total_frames; ++j)
 			{
 				/* This countdown is responsible for the channel's frequency. */
 				if (tone->countdown != 0)
@@ -170,7 +170,7 @@ void PSG_Update(const PSG* const psg, cc_s16l* const sample_buffer, const size_t
 		/* Do the noise channel. */
 		sample_buffer_pointer = sample_buffer;
 
-		for (j = 0; j < total_samples; ++j)
+		for (j = 0; j < total_frames; ++j)
 		{
 			/* This countdown is responsible for the channel's frequency. */
 			if (psg->state->noise.countdown != 0)
