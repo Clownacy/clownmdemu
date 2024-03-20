@@ -20,7 +20,7 @@ typedef struct SyncState
 typedef struct SyncCPUState
 {
 	cc_u32f current_cycle;
-	cc_u16f *cycle_countdown;
+	cc_u32l *cycle_countdown;
 } SyncCPUState;
 
 typedef struct CPUCallbackUserData
