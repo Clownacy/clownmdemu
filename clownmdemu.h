@@ -51,6 +51,11 @@ extern "C" {
 			&(CONFIGURATION)->psg, \
 			&(CONSTANT)->psg, \
 			&(STATE)->psg \
+		}, \
+\
+		{ \
+			&(CONFIGURATION)->pcm, \
+			&(STATE)->pcm \
 		} \
 	}
 
@@ -125,6 +130,7 @@ typedef struct ClownMDEmu_Configuration
 	VDP_Configuration vdp;
 	FM_Configuration fm;
 	PSG_Configuration psg;
+	PCM_Configuration pcm;
 } ClownMDEmu_Configuration;
 
 typedef struct ClownMDEmu_Constant

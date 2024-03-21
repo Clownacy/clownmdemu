@@ -233,6 +233,7 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 	clownmdemu->psg.constant = &constant->psg;
 	clownmdemu->psg.state = &state->psg;
 
+	clownmdemu->pcm.configuration = &configuration->pcm;
 	clownmdemu->pcm.state = &state->mega_cd.pcm;
 }
 

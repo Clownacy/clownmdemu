@@ -9,6 +9,11 @@
 extern "C" {
 #endif
 
+typedef struct PCM_Configuration
+{
+	cc_bool channels_disabled[8];
+} PCM_Configuration;
+
 typedef struct PCM_ChannelState
 {
 	cc_bool disabled;
@@ -31,6 +36,7 @@ typedef struct PCM_State
 
 typedef struct PCM
 {
+	const PCM_Configuration *configuration;
 	PCM_State *state;
 } PCM;
 

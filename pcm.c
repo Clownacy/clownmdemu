@@ -8,7 +8,7 @@
 
 void PCM_State_Initialise(PCM_State* const state)
 {
-	size_t i;
+	cc_u8f i;
 
 	for (i = 0; i < CC_COUNT_OF(state->channels); ++i)
 	{
@@ -234,7 +234,7 @@ void PCM_Update(const PCM* const pcm, cc_s16l* const sample_buffer, const size_t
 
 			const cc_u8f sample = PCM_UpdateAddressAndFetchSample(pcm, channel);
 
-			if (PCM_IsChannelAudible(pcm, channel))
+			if (PCM_IsChannelAudible(pcm, channel) && !pcm->configuration->channels_disabled[current_channel])
 			{
 				for (current_mixed_sample = 0; current_mixed_sample < CC_COUNT_OF(mixed_samples); ++current_mixed_sample)
 				{
