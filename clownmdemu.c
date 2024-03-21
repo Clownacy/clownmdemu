@@ -238,16 +238,16 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
 {
-	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks, mcd_m68k_read_write_callbacks;
-	CPUCallbackUserData cpu_callback_user_data;
-	cc_u8f h_int_counter;
-
 	const cc_u16f television_vertical_resolution = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
 	const cc_u16f console_vertical_resolution = (clownmdemu->state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
 	const cc_u16f cycles_per_frame = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC);
 	const cc_u16f cycles_per_scanline = cycles_per_frame / television_vertical_resolution;
 	const CycleMegaDrive cycles_per_frame_mega_drive = MakeCycleMegaDrive(cycles_per_frame);
 	const CycleMegaCD cycles_per_frame_mega_cd = MakeCycleMegaCD(clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK));
+
+	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks, mcd_m68k_read_write_callbacks;
+	CPUCallbackUserData cpu_callback_user_data;
+	cc_u8f h_int_counter;
 
 	cpu_callback_user_data.data_and_callbacks.data = clownmdemu;
 	cpu_callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
