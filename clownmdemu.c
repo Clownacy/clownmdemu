@@ -290,7 +290,6 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 		{
 			if (clownmdemu->state->vdp.double_resolution_enabled)
 			{
-				/* TODO: I'm pretty sure that these scanlines are meant to be a scanline apart. */
 				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2, callbacks->scanline_rendered, callbacks->user_data);
 				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, callbacks->scanline_rendered, callbacks->user_data);
 			}
