@@ -324,7 +324,8 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 		}
 	}
 
-	/* Update everything else for the rest of the frame. */
+	/* Update everything for the rest of the frame. */
+	SyncM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame_mega_drive);
 	SyncZ80(clownmdemu, &cpu_callback_user_data, cycles_per_frame_mega_drive);
 	SyncMCDM68k(clownmdemu, &cpu_callback_user_data, cycles_per_frame_mega_cd);
 	SyncFM(&cpu_callback_user_data, cycles_per_frame_mega_drive);
