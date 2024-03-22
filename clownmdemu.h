@@ -119,6 +119,13 @@ typedef enum ClownMDEmu_TVStandard
 	CLOWNMDEMU_TV_STANDARD_PAL   /* 50Hz */
 } ClownMDEmu_TVStandard;
 
+typedef enum ClownMDEmu_CDDAMode
+{
+	CLOWNMDEMU_CDDA_PLAY_ALL,
+	CLOWNMDEMU_CDDA_PLAY_ONCE,
+	CLOWNMDEMU_CDDA_PLAY_REPEAT
+} ClownMDEmu_CDDAMode;
+
 typedef struct ClownMDEmu_Configuration
 {
 	struct
@@ -214,7 +221,8 @@ typedef struct ClownMDEmu_State
 
 		struct
 		{
-			cc_bool playing, repeating;
+			ClownMDEmu_CDDAMode mode;
+			cc_bool playing, paused;
 			cc_u8l current_track;
 		} cdda;
 

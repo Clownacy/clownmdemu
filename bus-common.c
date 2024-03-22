@@ -147,7 +147,7 @@ static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const
 
 	cc_u32f total_frames_done = 0;
 
-	if (clownmdemu->state->mega_cd.cdda.playing)
+	if (clownmdemu->state->mega_cd.cdda.playing && !clownmdemu->state->mega_cd.cdda.paused)
 	{
 		/* Loop reading samples until we reach the end of either the input data or the output buffer. */
 		for (;;)
@@ -159,14 +159,22 @@ static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const
 			if (frames_done == 0 || total_frames_done == total_frames)
 				break;
 
-			if (clownmdemu->state->mega_cd.cdda.repeating)
+			if (clownmdemu->state->mega_cd.cdda.mode == CLOWNMDEMU_CDDA_PLAY_REPEAT)
 			{
 				clownmdemu->callbacks.cd_track_seeked((void*)clownmdemu->callbacks.user_data, clownmdemu->state->mega_cd.cdda.current_track);
 			}
 			else
 			{
-				clownmdemu->state->mega_cd.cdda.playing = cc_false;
-				break;
+				if (clownmdemu->state->mega_cd.cdda.mode != CLOWNMDEMU_CDDA_PLAY_REPEAT)
+					++clownmdemu->state->mega_cd.cdda.current_track;
+
+				clownmdemu->callbacks.cd_track_seeked((void*)clownmdemu->callbacks.user_data, clownmdemu->state->mega_cd.cdda.current_track);
+
+				if (clownmdemu->state->mega_cd.cdda.mode == CLOWNMDEMU_CDDA_PLAY_ONCE)
+				{
+					clownmdemu->state->mega_cd.cdda.paused = cc_true;
+					break;
+				}
 			}
 		}
 	}

@@ -66,21 +66,23 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 		case 0x02:
 			/* MSCSTOP */
 			/* TODO: Make this actually stop and not just pause. */
-		case 0x03:
-			/* MSCPAUSEON */
 		case 0x89:
 			/* CDCSTOP */
 			clownmdemu->state->mega_cd.cdda.playing = cc_false;
 			break;
 
+		case 0x03:
+			/* MSCPAUSEON */
+			clownmdemu->state->mega_cd.cdda.paused = cc_true;
+			break;
+
 		case 0x04:
 			/* MSCPAUSEOFF */
-			clownmdemu->state->mega_cd.cdda.playing = cc_true;
+			clownmdemu->state->mega_cd.cdda.paused = cc_false;
 			break;
 
 		case 0x11:
 			/* MSCPLAY */
-			/* TODO: How many times does this one loop? */
 		case 0x12:
 			/* MSCPLAY1 */
 		case 0x13:
@@ -90,7 +92,8 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 
 			clownmdemu->state->mega_cd.cdda.current_track = track_number - 1;
 			clownmdemu->state->mega_cd.cdda.playing = cc_true;
-			clownmdemu->state->mega_cd.cdda.repeating = command != 0x12;
+			clownmdemu->state->mega_cd.cdda.paused = cc_false;
+			clownmdemu->state->mega_cd.cdda.mode = command == 0x11 ? CLOWNMDEMU_CDDA_PLAY_ALL : command == 0x12 ? CLOWNMDEMU_CDDA_PLAY_ONCE : CLOWNMDEMU_CDDA_PLAY_REPEAT;
 
 			frontend_callbacks->cd_track_seeked((void*)frontend_callbacks->user_data, clownmdemu->state->mega_cd.cdda.current_track);
 			break;
