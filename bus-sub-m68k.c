@@ -57,10 +57,45 @@ static void MCDM68kWriteLongword(const void* const user_data, const cc_u32f addr
 static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const user_data, const ClownMDEmu_Callbacks* const frontend_callbacks, const CycleMegaCD target_cycle)
 {
 	/* TODO: None of this shit is accurate at all. */
+	/* TODO: Devon's notes on the CDC commands:
+	   https://forums.sonicretro.org/index.php?posts/1052926/ */
 	const cc_u16f command = clownmdemu->mcd_m68k->data_registers[0] & 0xFFFF;
 
 	switch (command)
 	{
+		case 0x02:
+			/* MSCSTOP */
+			/* TODO: Make this actually stop and not just pause. */
+		case 0x03:
+			/* MSCPAUSEON */
+		case 0x89:
+			/* CDCSTOP */
+			clownmdemu->state->mega_cd.cdda.playing = cc_false;
+			break;
+
+		case 0x04:
+			/* MSCPAUSEOFF */
+			clownmdemu->state->mega_cd.cdda.playing = cc_true;
+			break;
+
+		case 0x11:
+			/* MSCPLAY */
+			/* TODO: How many times does this one loop? */
+		case 0x12:
+			/* MSCPLAY1 */
+		case 0x13:
+			/* MSCPLAYR */
+		{
+			const cc_u16f track_number = MCDM68kReadWord(user_data, clownmdemu->mcd_m68k->address_registers[0] + 0, target_cycle);
+
+			clownmdemu->state->mega_cd.cdda.current_track = track_number - 1;
+			clownmdemu->state->mega_cd.cdda.playing = cc_true;
+			clownmdemu->state->mega_cd.cdda.repeating = command != 0x12;
+
+			frontend_callbacks->cd_track_seeked((void*)frontend_callbacks->user_data, clownmdemu->state->mega_cd.cdda.current_track);
+			break;
+		}
+
 		case 0x20:
 		{
 			/* ROMREADN */

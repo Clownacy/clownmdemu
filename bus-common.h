@@ -67,5 +67,6 @@ void SyncCPUCommon(const ClownMDEmu *clownmdemu, SyncCPUState *sync, cc_u32f tar
 cc_u8f SyncFM(CPUCallbackUserData *other_state, CycleMegaDrive target_cycle);
 void SyncPSG(CPUCallbackUserData *other_state, CycleMegaDrive target_cycle);
 void SyncPCM(CPUCallbackUserData *other_state, CycleMegaCD target_cycle);
+void SyncCDDA(CPUCallbackUserData *other_state, cc_u32f total_frames);
 
 #endif /* BUS_COMMON */

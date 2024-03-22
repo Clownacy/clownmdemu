@@ -203,6 +203,10 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->mega_cd.irq.irq1_pending = cc_false;
 	state->mega_cd.irq.irq3_countdown_master = state->mega_cd.irq.irq3_countdown = 0;
 
+	state->mega_cd.cdda.current_track = 0;
+	state->mega_cd.cdda.playing = cc_false;
+	state->mega_cd.cdda.repeating = cc_false;
+
 	PCM_State_Initialise(&state->mega_cd.pcm);
 
 	state->mega_cd.boot_from_cd = cc_false;
@@ -332,6 +336,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	SyncFM(&cpu_callback_user_data, cycles_per_frame_mega_drive);
 	SyncPSG(&cpu_callback_user_data, cycles_per_frame_mega_drive);
 	SyncPCM(&cpu_callback_user_data, cycles_per_frame_mega_cd);
+	SyncCDDA(&cpu_callback_user_data, clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(44100) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(44100));
 
 	/* Fire IRQ1 if needed. */
 	/* TODO: This is a hack. Look into when this interrupt should actually be done. */

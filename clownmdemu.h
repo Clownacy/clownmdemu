@@ -212,6 +212,12 @@ typedef struct ClownMDEmu_State
 			cc_u32l irq3_countdown, irq3_countdown_master;
 		} irq;
 
+		struct
+		{
+			cc_bool playing, repeating;
+			cc_u8l current_track;
+		} cdda;
+
 		PCM_State pcm;
 
 		cc_bool boot_from_cd;
@@ -220,11 +226,36 @@ typedef struct ClownMDEmu_State
 	} mega_cd;
 } ClownMDEmu_State;
 
+struct ClownMDEmu;
+
+typedef struct ClownMDEmu_Callbacks
+{
+	const void *user_data;
+
+	/* TODO: Rename these to be less mind-numbing. */
+	cc_u8f (*cartridge_read)(void *user_data, cc_u32f address);
+	void (*cartridge_written)(void *user_data, cc_u32f address, cc_u8f value);
+	void (*colour_updated)(void *user_data, cc_u16f index, cc_u16f colour);
+	void (*scanline_rendered)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height);
+	cc_bool (*input_requested)(void *user_data, cc_u8f player_id, ClownMDEmu_Button button_id);
+	void (*fm_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_fm_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
+	void (*psg_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_psg_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
+	void (*pcm_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_pcm_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
+	void (*cdda_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_cdda_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
+	void (*cd_seeked)(void *user_data, cc_u32f sector_index);
+	const cc_u8l* (*cd_sector_read)(void *user_data);
+	void (*cd_track_seeked)(void *user_data, cc_u16f track_index);
+	size_t (*cd_audio_read)(void *user_data, cc_s16l *sample_buffer, size_t total_frames);
+} ClownMDEmu_Callbacks;
+
 typedef struct ClownMDEmu
 {
 	const ClownMDEmu_Configuration *configuration;
 	const ClownMDEmu_Constant *constant;
 	ClownMDEmu_State *state;
+
+	ClownMDEmu_Callbacks callbacks;
+
 	Clown68000_State *m68k;
 	Z80 z80;
 	Clown68000_State *mcd_m68k;
@@ -233,22 +264,6 @@ typedef struct ClownMDEmu
 	PSG psg;
 	PCM pcm;
 } ClownMDEmu;
-
-typedef struct ClownMDEmu_Callbacks
-{
-	const void *user_data;
-
-	cc_u8f (*cartridge_read)(void *user_data, cc_u32f address);
-	void (*cartridge_written)(void *user_data, cc_u32f address, cc_u8f value);
-	void (*colour_updated)(void *user_data, cc_u16f index, cc_u16f colour);
-	void (*scanline_rendered)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height);
-	cc_bool (*input_requested)(void *user_data, cc_u8f player_id, ClownMDEmu_Button button_id);
-	void (*fm_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_fm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
-	void (*psg_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_psg_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
-	void (*pcm_audio_to_be_generated)(void *user_data, size_t total_frames, void (*generate_mcd_pcm_audio)(const ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
-	void (*cd_seeked)(void *user_data, cc_u32f sector_index);
-	const cc_u8l* (*cd_sector_read)(void *user_data);
-} ClownMDEmu_Callbacks;
 
 void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant);
 void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);

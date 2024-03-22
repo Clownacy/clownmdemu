@@ -1,6 +1,7 @@
 #include "bus-common.h"
 
 #include <assert.h>
+#include <string.h>
 
 #include "fm.h"
 #include "pcm.h"
@@ -138,4 +139,43 @@ static void GeneratePCMAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const 
 void SyncPCM(CPUCallbackUserData* const other_state, const CycleMegaCD target_cycle)
 {
 	other_state->data_and_callbacks.frontend_callbacks->pcm_audio_to_be_generated((void*)other_state->data_and_callbacks.frontend_callbacks->user_data, SyncCommon(&other_state->sync.pcm, target_cycle.cycle, CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER), GeneratePCMAudio);
+}
+
+static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
+{
+	const cc_u32f total_channels = 2;
+
+	cc_u32f total_frames_done = 0;
+
+	if (clownmdemu->state->mega_cd.cdda.playing)
+	{
+		/* Loop reading samples until we reach the end of either the input data or the output buffer. */
+		for (;;)
+		{
+			const cc_u32f frames_done = clownmdemu->callbacks.cd_audio_read((void*)clownmdemu->callbacks.user_data, sample_buffer + total_frames_done * total_channels, total_frames - total_frames_done);
+
+			total_frames_done = frames_done;
+
+			if (frames_done == 0 || total_frames_done == total_frames)
+				break;
+
+			if (clownmdemu->state->mega_cd.cdda.repeating)
+			{
+				clownmdemu->callbacks.cd_track_seeked((void*)clownmdemu->callbacks.user_data, clownmdemu->state->mega_cd.cdda.current_track);
+			}
+			else
+			{
+				clownmdemu->state->mega_cd.cdda.playing = cc_false;
+				break;
+			}
+		}
+	}
+
+	/* Clear any samples that we could not read from the disc. */
+	memset(sample_buffer + total_frames_done * total_channels, 0, (total_frames - total_frames_done) * sizeof(cc_s16l) * total_channels);
+}
+
+void SyncCDDA(CPUCallbackUserData* const other_state, const cc_u32f total_frames)
+{
+	other_state->data_and_callbacks.frontend_callbacks->cdda_audio_to_be_generated((void*)other_state->data_and_callbacks.frontend_callbacks->user_data, total_frames, GenerateCDDAAudio);
 }
