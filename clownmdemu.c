@@ -215,11 +215,12 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->mega_cd.delayed_dma_word = 0;
 }
 
-void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state)
+void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks)
 {
 	clownmdemu->configuration = configuration;
 	clownmdemu->constant = constant;
 	clownmdemu->state = state;
+	clownmdemu->callbacks = callbacks;
 
 	clownmdemu->m68k = &state->m68k.state;
 
@@ -242,7 +243,7 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 	clownmdemu->pcm.state = &state->mega_cd.pcm;
 }
 
-void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks)
+void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu)
 {
 	const cc_u16f television_vertical_resolution = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
 	const cc_u16f console_vertical_resolution = (clownmdemu->state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
@@ -255,8 +256,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	CPUCallbackUserData cpu_callback_user_data;
 	cc_u8f h_int_counter;
 
-	cpu_callback_user_data.data_and_callbacks.data = clownmdemu;
-	cpu_callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
+	cpu_callback_user_data.clownmdemu = clownmdemu;
 	cpu_callback_user_data.sync.m68k.current_cycle = 0;
 	/* TODO: This is awful; stop doing this. */
 	cpu_callback_user_data.sync.m68k.cycle_countdown = &clownmdemu->state->m68k.cycle_countdown;
@@ -296,12 +296,12 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 		{
 			if (clownmdemu->state->vdp.double_resolution_enabled)
 			{
-				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2, callbacks->scanline_rendered, callbacks->user_data);
-				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, callbacks->scanline_rendered, callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->vdp, scanline * 2 + 1, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
 			}
 			else
 			{
-				VDP_RenderScanline(&clownmdemu->vdp, scanline, callbacks->scanline_rendered, callbacks->user_data);
+				VDP_RenderScanline(&clownmdemu->vdp, scanline, clownmdemu->callbacks->scanline_rendered, clownmdemu->callbacks->user_data);
 			}
 
 			/* Fire a H-Int if we've reached the requested line */
@@ -348,10 +348,9 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks
 	}
 }
 
-void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks, const cc_bool cd_boot)
+void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const cc_bool cd_boot)
 {
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
-	CPUCallbackUserData callback_user_data;
 
 	clownmdemu->state->mega_cd.boot_from_cd = cd_boot;
 
@@ -363,8 +362,8 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 		/*cc_u8l region;*/
 
 		/* Read first sector. */
-		callbacks->cd_seeked((void*)callbacks->user_data, 0);
-		sector_bytes = callbacks->cd_sector_read((void*)callbacks->user_data);
+		clownmdemu->callbacks->cd_seeked((void*)clownmdemu->callbacks->user_data, 0);
+		sector_bytes = clownmdemu->callbacks->cd_sector_read((void*)clownmdemu->callbacks->user_data);
 		ip_start = ReadU32BE(&sector_bytes[0x30]);
 		ip_length = ReadU32BE(&sector_bytes[0x34]);
 		sp_start = ReadU32BE(&sector_bytes[0x40]);
@@ -379,23 +378,20 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *
 
 		/* Load additional Initial Program data if necessary. */
 		if (ip_start != 0x200 || ip_length != 0x600)
-			CDSectorsTo68kRAM(callbacks, &clownmdemu->state->mega_cd.word_ram.buffer[0x600 / 2], 0x800, 32 * 0x800);
+			CDSectorsTo68kRAM(clownmdemu->callbacks, &clownmdemu->state->mega_cd.word_ram.buffer[0x600 / 2], 0x800, 32 * 0x800);
 
 		/* This is what the Mega CD's BIOS does. */
 		memcpy(clownmdemu->state->m68k.ram, clownmdemu->state->mega_cd.word_ram.buffer, 0x8000);
 
 		/* Read Sub Program. */
-		CDSectorsTo68kRAM(callbacks, &clownmdemu->state->mega_cd.prg_ram.buffer[0x6000 / 2], sp_start, sp_length);
+		CDSectorsTo68kRAM(clownmdemu->callbacks, &clownmdemu->state->mega_cd.prg_ram.buffer[0x6000 / 2], sp_start, sp_length);
 
 		/* Give WORD-RAM to the SUB-CPU. */
 		clownmdemu->state->mega_cd.word_ram.dmna = cc_true;
 		clownmdemu->state->mega_cd.word_ram.ret = cc_false;
 	}
 
-	callback_user_data.data_and_callbacks.data = clownmdemu;
-	callback_user_data.data_and_callbacks.frontend_callbacks = callbacks;
-
-	m68k_read_write_callbacks.user_data = &callback_user_data;
+	m68k_read_write_callbacks.user_data = clownmdemu;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;

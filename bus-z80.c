@@ -28,7 +28,7 @@ void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const othe
 cc_u16f Z80ReadCallbackWithCycle(const void* const user_data, const cc_u16f address, const CycleMegaDrive target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
-	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 
 	/* I suppose, on real hardware, in an open-bus situation, this would actually
 	   be a static variable that retains its value from the last call. */
@@ -85,7 +85,7 @@ cc_u16f Z80ReadCallback(const void* const user_data, const cc_u16f address)
 void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f address, const cc_u16f value, const CycleMegaDrive target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
-	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 
 	if (address < 0x2000)
 	{

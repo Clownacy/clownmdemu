@@ -109,12 +109,12 @@ static void GenerateFMAudio(const void* const user_data, const cc_u32f total_fra
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	callback_user_data->data_and_callbacks.frontend_callbacks->fm_audio_to_be_generated((void*)callback_user_data->data_and_callbacks.frontend_callbacks->user_data, total_frames, FMCallbackWrapper);
+	callback_user_data->clownmdemu->callbacks->fm_audio_to_be_generated((void*)callback_user_data->clownmdemu->callbacks->user_data, total_frames, FMCallbackWrapper);
 }
 
 cc_u8f SyncFM(CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
 {
-	return FM_Update(&other_state->data_and_callbacks.data->fm, SyncCommon(&other_state->sync.fm, target_cycle.cycle, CLOWNMDEMU_M68K_CLOCK_DIVIDER), GenerateFMAudio, other_state);
+	return FM_Update(&other_state->clownmdemu->fm, SyncCommon(&other_state->sync.fm, target_cycle.cycle, CLOWNMDEMU_M68K_CLOCK_DIVIDER), GenerateFMAudio, other_state);
 }
 
 static void GeneratePSGAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
@@ -128,7 +128,7 @@ void SyncPSG(CPUCallbackUserData* const other_state, const CycleMegaDrive target
 
 	/* TODO: Is this check necessary? */
 	if (frames_to_generate != 0)
-		other_state->data_and_callbacks.frontend_callbacks->psg_audio_to_be_generated((void*)other_state->data_and_callbacks.frontend_callbacks->user_data, frames_to_generate, GeneratePSGAudio);
+		other_state->clownmdemu->callbacks->psg_audio_to_be_generated((void*)other_state->clownmdemu->callbacks->user_data, frames_to_generate, GeneratePSGAudio);
 }
 
 static void GeneratePCMAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
@@ -138,7 +138,7 @@ static void GeneratePCMAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const 
 
 void SyncPCM(CPUCallbackUserData* const other_state, const CycleMegaCD target_cycle)
 {
-	other_state->data_and_callbacks.frontend_callbacks->pcm_audio_to_be_generated((void*)other_state->data_and_callbacks.frontend_callbacks->user_data, SyncCommon(&other_state->sync.pcm, target_cycle.cycle, CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER), GeneratePCMAudio);
+	other_state->clownmdemu->callbacks->pcm_audio_to_be_generated((void*)other_state->clownmdemu->callbacks->user_data, SyncCommon(&other_state->sync.pcm, target_cycle.cycle, CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER), GeneratePCMAudio);
 }
 
 static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
@@ -152,7 +152,7 @@ static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const
 		/* Loop reading samples until we reach the end of either the input data or the output buffer. */
 		for (;;)
 		{
-			total_frames_done += clownmdemu->callbacks.cd_audio_read((void*)clownmdemu->callbacks.user_data, sample_buffer + total_frames_done * total_channels, total_frames - total_frames_done);
+			total_frames_done += clownmdemu->callbacks->cd_audio_read((void*)clownmdemu->callbacks->user_data, sample_buffer + total_frames_done * total_channels, total_frames - total_frames_done);
 
 			if (total_frames_done == total_frames)
 				break;
@@ -160,7 +160,7 @@ static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const
 			if (clownmdemu->state->mega_cd.cdda.mode != CLOWNMDEMU_CDDA_PLAY_REPEAT)
 				++clownmdemu->state->mega_cd.cdda.current_track;
 
-			clownmdemu->callbacks.cd_track_seeked((void*)clownmdemu->callbacks.user_data, clownmdemu->state->mega_cd.cdda.current_track);
+			clownmdemu->callbacks->cd_track_seeked((void*)clownmdemu->callbacks->user_data, clownmdemu->state->mega_cd.cdda.current_track);
 
 			if (clownmdemu->state->mega_cd.cdda.mode == CLOWNMDEMU_CDDA_PLAY_ONCE)
 			{
@@ -176,5 +176,5 @@ static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const
 
 void SyncCDDA(CPUCallbackUserData* const other_state, const cc_u32f total_frames)
 {
-	other_state->data_and_callbacks.frontend_callbacks->cdda_audio_to_be_generated((void*)other_state->data_and_callbacks.frontend_callbacks->user_data, total_frames, GenerateCDDAAudio);
+	other_state->clownmdemu->callbacks->cdda_audio_to_be_generated((void*)other_state->clownmdemu->callbacks->user_data, total_frames, GenerateCDDAAudio);
 }

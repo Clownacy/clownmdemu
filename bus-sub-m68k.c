@@ -242,8 +242,8 @@ void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const 
 cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const CycleMegaCD target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
-	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
-	const ClownMDEmu_Callbacks* const frontend_callbacks = callback_user_data->data_and_callbacks.frontend_callbacks;
+	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
+	const ClownMDEmu_Callbacks* const frontend_callbacks = clownmdemu->callbacks;
 	const cc_u32f address = address_word * 2;
 
 	cc_u16f value = 0;
@@ -472,7 +472,7 @@ cc_u16f MCDM68kReadCallback(const void* const user_data, const cc_u32f address, 
 void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f address_word, const cc_bool do_high_byte, const cc_bool do_low_byte, const cc_u16f value, const CycleMegaCD target_cycle)
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
-	const ClownMDEmu* const clownmdemu = callback_user_data->data_and_callbacks.data;
+	const ClownMDEmu* const clownmdemu = callback_user_data->clownmdemu;
 	const cc_u32f address = address_word * 2;
 
 	const cc_u16f low_byte = (value >> 0) & 0xFF;

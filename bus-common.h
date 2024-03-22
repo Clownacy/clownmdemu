@@ -6,12 +6,6 @@
 #include "clownmdemu.h"
 #include "io-port.h"
 
-typedef struct DataAndCallbacks
-{
-	const ClownMDEmu *data;
-	const ClownMDEmu_Callbacks *frontend_callbacks;
-} DataAndCallbacks;
-
 typedef struct SyncState
 {
 	cc_u32f current_cycle;
@@ -25,7 +19,7 @@ typedef struct SyncCPUState
 
 typedef struct CPUCallbackUserData
 {
-	DataAndCallbacks data_and_callbacks;
+	const ClownMDEmu *clownmdemu;
 	struct
 	{
 		SyncCPUState m68k;

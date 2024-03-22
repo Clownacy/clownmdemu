@@ -261,8 +261,7 @@ typedef struct ClownMDEmu
 	const ClownMDEmu_Configuration *configuration;
 	const ClownMDEmu_Constant *constant;
 	ClownMDEmu_State *state;
-
-	ClownMDEmu_Callbacks callbacks;
+	const ClownMDEmu_Callbacks *callbacks;
 
 	Clown68000_State *m68k;
 	Z80 z80;
@@ -275,9 +274,9 @@ typedef struct ClownMDEmu
 
 void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant);
 void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
-void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state);
-void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks);
-void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const ClownMDEmu_Callbacks *callbacks, const cc_bool cd_boot);
+void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu);
+void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const cc_bool cd_boot);
 void ClownMDEmu_SetErrorCallback(void (*error_callback)(void *user_data, const char *format, va_list arg), const void *user_data);
 
 #ifdef __cplusplus
