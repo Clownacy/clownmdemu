@@ -154,7 +154,7 @@ static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const
 		{
 			const cc_u32f frames_done = clownmdemu->callbacks.cd_audio_read((void*)clownmdemu->callbacks.user_data, sample_buffer + total_frames_done * total_channels, total_frames - total_frames_done);
 
-			total_frames_done = frames_done;
+			total_frames_done += frames_done;
 
 			if (frames_done == 0 || total_frames_done == total_frames)
 				break;
