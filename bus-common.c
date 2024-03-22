@@ -152,11 +152,9 @@ static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const
 		/* Loop reading samples until we reach the end of either the input data or the output buffer. */
 		for (;;)
 		{
-			const cc_u32f frames_done = clownmdemu->callbacks.cd_audio_read((void*)clownmdemu->callbacks.user_data, sample_buffer + total_frames_done * total_channels, total_frames - total_frames_done);
+			total_frames_done += clownmdemu->callbacks.cd_audio_read((void*)clownmdemu->callbacks.user_data, sample_buffer + total_frames_done * total_channels, total_frames - total_frames_done);
 
-			total_frames_done += frames_done;
-
-			if (frames_done == 0 || total_frames_done == total_frames)
+			if (total_frames_done == total_frames)
 				break;
 
 			if (clownmdemu->state->mega_cd.cdda.mode != CLOWNMDEMU_CDDA_PLAY_REPEAT)
