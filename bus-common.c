@@ -159,22 +159,15 @@ static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const
 			if (frames_done == 0 || total_frames_done == total_frames)
 				break;
 
-			if (clownmdemu->state->mega_cd.cdda.mode == CLOWNMDEMU_CDDA_PLAY_REPEAT)
-			{
-				clownmdemu->callbacks.cd_track_seeked((void*)clownmdemu->callbacks.user_data, clownmdemu->state->mega_cd.cdda.current_track);
-			}
-			else
-			{
-				if (clownmdemu->state->mega_cd.cdda.mode != CLOWNMDEMU_CDDA_PLAY_REPEAT)
-					++clownmdemu->state->mega_cd.cdda.current_track;
+			if (clownmdemu->state->mega_cd.cdda.mode != CLOWNMDEMU_CDDA_PLAY_REPEAT)
+				++clownmdemu->state->mega_cd.cdda.current_track;
 
-				clownmdemu->callbacks.cd_track_seeked((void*)clownmdemu->callbacks.user_data, clownmdemu->state->mega_cd.cdda.current_track);
+			clownmdemu->callbacks.cd_track_seeked((void*)clownmdemu->callbacks.user_data, clownmdemu->state->mega_cd.cdda.current_track);
 
-				if (clownmdemu->state->mega_cd.cdda.mode == CLOWNMDEMU_CDDA_PLAY_ONCE)
-				{
-					clownmdemu->state->mega_cd.cdda.paused = cc_true;
-					break;
-				}
+			if (clownmdemu->state->mega_cd.cdda.mode == CLOWNMDEMU_CDDA_PLAY_ONCE)
+			{
+				clownmdemu->state->mega_cd.cdda.paused = cc_true;
+				break;
 			}
 		}
 	}
