@@ -351,6 +351,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu)
 void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const cc_bool cd_boot)
 {
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
+	CPUCallbackUserData callback_user_data;
 
 	clownmdemu->state->mega_cd.boot_from_cd = cd_boot;
 
@@ -391,7 +392,9 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const cc_bool cd_boot)
 		clownmdemu->state->mega_cd.word_ram.ret = cc_false;
 	}
 
-	m68k_read_write_callbacks.user_data = clownmdemu;
+	callback_user_data.clownmdemu = clownmdemu;
+
+	m68k_read_write_callbacks.user_data = &callback_user_data;
 
 	m68k_read_write_callbacks.read_callback = M68kReadCallback;
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
