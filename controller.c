@@ -80,6 +80,7 @@ void Controller_Write(Controller* const controller, const cc_u8f value, const cc
 
 	Controller_DoCycles(controller, cycles);
 
+	/* TODO: The 1us latch time! Doesn't Decap Attack rely on that? */
 	if (new_th_bit && !controller->th_bit)
 	{
 		controller->strobes = (controller->strobes + 1) % 4;
