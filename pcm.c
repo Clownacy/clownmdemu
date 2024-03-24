@@ -27,6 +27,24 @@ void PCM_State_Initialise(PCM_State* const state)
 	state->current_channel = 0;
 }
 
+static cc_bool PCM_IsChannelAudible(const PCM* const pcm, const PCM_ChannelState* const channel)
+{
+	return !channel->disabled && pcm->state->sounding;
+}
+
+static void PCM_CheckChannelResets(const PCM* const pcm)
+{
+	size_t i;
+
+	for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
+	{
+		PCM_ChannelState* const channel = &pcm->state->channels[i];
+
+		if (!PCM_IsChannelAudible(pcm, channel))
+			channel->address = (cc_u32f)channel->start_address << 19;
+	}
+}
+
 void PCM_WriteRegister(const PCM* const pcm, const cc_u16f reg, const cc_u8f value)
 {
 	PCM_ChannelState* const current_channel = &pcm->state->channels[pcm->state->current_channel];
@@ -64,10 +82,13 @@ void PCM_WriteRegister(const PCM* const pcm, const cc_u16f reg, const cc_u8f val
 
 		case 6:
 			current_channel->start_address = value;
+			if (!PCM_IsChannelAudible(pcm, current_channel))
+				current_channel->address = (cc_u32f)current_channel->start_address << 19;
 			break;
 
 		case 7:
 			pcm->state->sounding = (value & 0x80) != 0;
+			PCM_CheckChannelResets(pcm);
 
 			if ((value & 0x40) != 0)
 				pcm->state->current_channel = value & 7;
@@ -82,6 +103,7 @@ void PCM_WriteRegister(const PCM* const pcm, const cc_u16f reg, const cc_u8f val
 
 			for (i = 0; i < CC_COUNT_OF(pcm->state->channels); ++i)
 				pcm->state->channels[i].disabled = ((value >> i) & 1) != 0;
+			PCM_CheckChannelResets(pcm);
 
 			break;
 		}
@@ -170,26 +192,16 @@ static cc_u8f PCM_FetchSample(const PCM* const pcm, const PCM_ChannelState* cons
 	return pcm->state->wave_ram[(channel->address >> 11) & 0xFFFF];
 }
 
-static cc_bool PCM_IsChannelAudible(const PCM* const pcm, const PCM_ChannelState* const channel)
-{
-	return !channel->disabled && pcm->state->sounding;
-}
-
 static cc_u8f PCM_UpdateAddressAndFetchSample(const PCM* const pcm, PCM_ChannelState* const channel)
 {
-	cc_u8f wave_value;
+	cc_u8f wave_value = 0;
 
-	if (!PCM_IsChannelAudible(pcm, channel))
-	{
-		channel->address = (cc_u32f)channel->start_address << 19;
-		wave_value = PCM_FetchSample(pcm, channel);
-	}
-	else
+	if (PCM_IsChannelAudible(pcm, channel))
 	{
 		/* Read sample and advance address. */
+		wave_value = PCM_FetchSample(pcm, channel);
 		channel->address += channel->frequency;
 		channel->address &= 0x7FFFFFF;
-		wave_value = PCM_FetchSample(pcm, channel);
 
 		/* Handle looping. */
 		if (wave_value == 0xFF)
