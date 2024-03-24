@@ -171,7 +171,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					parameters.controller = &clownmdemu->state->controllers[joypad_index];
 					parameters.frontend_callbacks = frontend_callbacks;
 
-					value = IOPort_ReadData(&clownmdemu->state->io_ports[joypad_index], 0, &parameters); /* TODO: Cycles. */
+					value = IOPort_ReadData(&clownmdemu->state->io_ports[joypad_index], SyncCommon(&callback_user_data->sync.io_ports[joypad_index], target_cycle.cycle, CLOWNMDEMU_MASTER_CLOCK_NTSC / 1000000), &parameters);
 				}
 
 				break;
@@ -461,7 +461,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 					parameters.controller = &clownmdemu->state->controllers[joypad_index];
 					parameters.frontend_callbacks = frontend_callbacks;
 
-					IOPort_WriteData(&clownmdemu->state->io_ports[joypad_index], low_byte, 0, &parameters); /* TODO: Cycles. */
+					IOPort_WriteData(&clownmdemu->state->io_ports[joypad_index], low_byte, CLOWNMDEMU_MASTER_CLOCK_NTSC / 1000000, &parameters);
 				}
 
 				break;

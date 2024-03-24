@@ -82,8 +82,8 @@ void Controller_Write(Controller* const controller, const cc_u8f value, const cc
 
 	if (new_th_bit && !controller->th_bit)
 	{
-		/*controller->strobes = (controller->strobes + 1) % 4;*/ /* TODO: Restore this when 6-button mode is actually supported. */
-		controller->countdown = 0xFFFF;
+		controller->strobes = (controller->strobes + 1) % 4;
+		controller->countdown = 1500; /* 1.5ms */
 	}
 
 	controller->th_bit = new_th_bit;

@@ -29,6 +29,7 @@ typedef struct CPUCallbackUserData
 		SyncState fm;
 		SyncState psg;
 		SyncState pcm;
+		SyncState io_ports[3];
 	} sync;
 } CPUCallbackUserData;
 
