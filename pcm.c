@@ -82,6 +82,8 @@ void PCM_WriteRegister(const PCM* const pcm, const cc_u16f reg, const cc_u8f val
 
 		case 6:
 			current_channel->start_address = value;
+			if (!PCM_IsChannelAudible(pcm, current_channel))
+				current_channel->address = (cc_u32f)current_channel->start_address << 19;
 			break;
 
 		case 7:
