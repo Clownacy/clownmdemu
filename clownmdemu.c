@@ -100,18 +100,28 @@ static cc_bool FrontendControllerCallbackCommon(void* const user_data, const Con
 			frontend_button = CLOWNMDEMU_BUTTON_C;
 			break;
 
+		case CONTROLLER_BUTTON_X:
+			frontend_button = CLOWNMDEMU_BUTTON_X;
+			break;
+
+		case CONTROLLER_BUTTON_Y:
+			frontend_button = CLOWNMDEMU_BUTTON_Y;
+			break;
+
+		case CONTROLLER_BUTTON_Z:
+			frontend_button = CLOWNMDEMU_BUTTON_Z;
+			break;
+
 		case CONTROLLER_BUTTON_START:
 			frontend_button = CLOWNMDEMU_BUTTON_START;
 			break;
 
+		case CONTROLLER_BUTTON_MODE:
+			frontend_button = CLOWNMDEMU_BUTTON_MODE;
+			break;
+
 		case CONTROLLER_BUTTON_TOTAL:
 			assert(cc_false);
-			/* Fallthrough */
-		/* TODO: These buttons. */
-		case CONTROLLER_BUTTON_X:
-		case CONTROLLER_BUTTON_Y:
-		case CONTROLLER_BUTTON_Z:
-		case CONTROLLER_BUTTON_MODE:
 			return cc_false;
 	}
 
