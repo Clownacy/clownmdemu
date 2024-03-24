@@ -56,7 +56,7 @@ static void CDSectorsTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u1
 		CDSectorTo68kRAM(callbacks, &ram[i * 0x800 / 2]);
 }
 
-void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant)
+void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant* const constant)
 {
 	Z80_Constant_Initialise(&constant->z80);
 	VDP_Constant_Initialise(&constant->vdp);
@@ -142,7 +142,7 @@ static void IOPortToController_WriteCallback(void* const user_data, const cc_u8f
 	Controller_Write(parameters->controller, value, cycles);
 }
 
-void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
+void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 {
 	cc_u16f i;
 
@@ -215,7 +215,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State *state)
 	state->mega_cd.delayed_dma_word = 0;
 }
 
-void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks)
+void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Configuration* const configuration, const ClownMDEmu_Constant* const constant, ClownMDEmu_State* const state, const ClownMDEmu_Callbacks* const callbacks)
 {
 	clownmdemu->configuration = configuration;
 	clownmdemu->constant = constant;
@@ -243,7 +243,7 @@ void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_C
 	clownmdemu->pcm.state = &state->mega_cd.pcm;
 }
 
-void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu)
+void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 {
 	const cc_u16f television_vertical_resolution = clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
 	const cc_u16f console_vertical_resolution = (clownmdemu->state->vdp.v30_enabled ? 30 : 28) * 8; /* 240 and 224 */
@@ -348,7 +348,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu)
 	}
 }
 
-void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const cc_bool cd_boot)
+void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 {
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 	CPUCallbackUserData callback_user_data;
@@ -407,7 +407,7 @@ void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const cc_bool cd_boot)
 	Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 }
 
-void ClownMDEmu_SetErrorCallback(void (*error_callback)(void *user_data, const char *format, va_list arg), const void* const user_data)
+void ClownMDEmu_SetErrorCallback(void (* const error_callback)(void *user_data, const char *format, va_list arg), const void* const user_data)
 {
 	SetErrorCallback(error_callback, user_data);
 	Clown68000_SetErrorCallback(error_callback, user_data);
