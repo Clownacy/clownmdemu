@@ -133,7 +133,6 @@ void PSG_Update(const PSG* const psg, cc_s16l* const sample_buffer, const size_t
 	cc_s16l *sample_buffer_pointer;
 
 	/* Do the tone channels. */
-	/* TODO: Invert these loops - that should be more cache-efficient. */
 	for (i = 0; i < CC_COUNT_OF(psg->state->tones); ++i)
 	{
 		if (!psg->configuration->tone_disabled[i])

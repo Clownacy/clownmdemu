@@ -377,7 +377,6 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 
 	cc_u16f i;
 
-	/* TODO: Invert these loops - that should be more cache-efficient. */
 	for (i = 0; i < CC_COUNT_OF(state->channels); ++i)
 	{
 		const FM_ChannelMetadata* const channel_metadata = &state->channels[i];
