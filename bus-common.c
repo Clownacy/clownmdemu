@@ -109,7 +109,7 @@ static void GenerateFMAudio(const void* const user_data, const cc_u32f total_fra
 {
 	CPUCallbackUserData* const callback_user_data = (CPUCallbackUserData*)user_data;
 
-	callback_user_data->clownmdemu->callbacks->fm_audio_to_be_generated((void*)callback_user_data->clownmdemu->callbacks->user_data, total_frames, FMCallbackWrapper);
+	callback_user_data->clownmdemu->callbacks->fm_audio_to_be_generated((void*)callback_user_data->clownmdemu->callbacks->user_data, callback_user_data->clownmdemu, total_frames, FMCallbackWrapper);
 }
 
 cc_u8f SyncFM(CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
@@ -128,7 +128,7 @@ void SyncPSG(CPUCallbackUserData* const other_state, const CycleMegaDrive target
 
 	/* TODO: Is this check necessary? */
 	if (frames_to_generate != 0)
-		other_state->clownmdemu->callbacks->psg_audio_to_be_generated((void*)other_state->clownmdemu->callbacks->user_data, frames_to_generate, GeneratePSGAudio);
+		other_state->clownmdemu->callbacks->psg_audio_to_be_generated((void*)other_state->clownmdemu->callbacks->user_data, other_state->clownmdemu, frames_to_generate, GeneratePSGAudio);
 }
 
 static void GeneratePCMAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
@@ -138,7 +138,7 @@ static void GeneratePCMAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const 
 
 void SyncPCM(CPUCallbackUserData* const other_state, const CycleMegaCD target_cycle)
 {
-	other_state->clownmdemu->callbacks->pcm_audio_to_be_generated((void*)other_state->clownmdemu->callbacks->user_data, SyncCommon(&other_state->sync.pcm, target_cycle.cycle, CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER), GeneratePCMAudio);
+	other_state->clownmdemu->callbacks->pcm_audio_to_be_generated((void*)other_state->clownmdemu->callbacks->user_data, other_state->clownmdemu, SyncCommon(&other_state->sync.pcm, target_cycle.cycle, CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * CLOWNMDEMU_PCM_SAMPLE_RATE_DIVIDER), GeneratePCMAudio);
 }
 
 static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const sample_buffer, const size_t total_frames)
@@ -176,5 +176,5 @@ static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const
 
 void SyncCDDA(CPUCallbackUserData* const other_state, const cc_u32f total_frames)
 {
-	other_state->clownmdemu->callbacks->cdda_audio_to_be_generated((void*)other_state->clownmdemu->callbacks->user_data, total_frames, GenerateCDDAAudio);
+	other_state->clownmdemu->callbacks->cdda_audio_to_be_generated((void*)other_state->clownmdemu->callbacks->user_data, other_state->clownmdemu, total_frames, GenerateCDDAAudio);
 }
