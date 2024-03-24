@@ -2,11 +2,11 @@
 
 #include <string.h>
 
-static void Controller_DoCycles(Controller* const controller, const cc_u16f cycles)
+static void Controller_DoMicroseconds(Controller* const controller, const cc_u16f microseconds)
 {
-	if (controller->countdown >= cycles)
+	if (controller->countdown >= microseconds)
 	{
-		controller->countdown -= cycles;
+		controller->countdown -= microseconds;
 	}
 	else
 	{
@@ -27,9 +27,9 @@ void Controller_Initialise(Controller* const controller, const Controller_Callba
 	controller->callback = callback;
 }
 
-cc_u8f Controller_Read(Controller* const controller, const cc_u16f cycles, const void *user_data)
+cc_u8f Controller_Read(Controller* const controller, const cc_u16f microseconds, const void *user_data)
 {
-	Controller_DoCycles(controller, cycles);
+	Controller_DoMicroseconds(controller, microseconds);
 
 	if (controller->th_bit)
 	{
@@ -74,11 +74,11 @@ cc_u8f Controller_Read(Controller* const controller, const cc_u16f cycles, const
 	}
 }
 
-void Controller_Write(Controller* const controller, const cc_u8f value, const cc_u16f cycles)
+void Controller_Write(Controller* const controller, const cc_u8f value, const cc_u16f microseconds)
 {
 	const cc_bool new_th_bit = (value & 0x40) != 0;
 
-	Controller_DoCycles(controller, cycles);
+	Controller_DoMicroseconds(controller, microseconds);
 
 	/* TODO: The 1us latch time! Doesn't Decap Attack rely on that? */
 	if (new_th_bit && !controller->th_bit)
