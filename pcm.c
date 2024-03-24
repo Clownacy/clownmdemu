@@ -187,9 +187,9 @@ static cc_u8f PCM_UpdateAddressAndFetchSample(const PCM* const pcm, PCM_ChannelS
 	else
 	{
 		/* Read sample and advance address. */
+		wave_value = PCM_FetchSample(pcm, channel);
 		channel->address += channel->frequency;
 		channel->address &= 0x7FFFFFF;
-		wave_value = PCM_FetchSample(pcm, channel);
 
 		/* Handle looping. */
 		if (wave_value == 0xFF)
