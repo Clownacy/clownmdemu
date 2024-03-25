@@ -8,14 +8,10 @@
 
 static cc_u16f CalculateRate(const FM_Operator_State* const state)
 {
-	cc_u16f rate;
-
 	if (state->rates[state->envelope_mode] == 0)
-		rate = 0;
-	else
-		rate = CC_MIN(0x3F, state->rates[state->envelope_mode] * 2 + (FM_Phase_GetKeyCode(&state->phase) / state->key_scale));
+		return 0;
 
-	return rate;
+	return CC_MIN(0x3F, state->rates[state->envelope_mode] * 2 + (FM_Phase_GetKeyCode(&state->phase) / state->key_scale));
 }
 
 static void EnterAttackMode(FM_Operator_State* const state)
