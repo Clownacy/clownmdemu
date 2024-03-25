@@ -68,7 +68,7 @@ void FM_Channel_SetKeyOn(const FM_Channel *channel, cc_u16f operator_index, cc_b
 void FM_Channel_SetDetuneAndMultiplier(const FM_Channel *channel, cc_u16f operator_index, cc_u16f detune, cc_u16f multiplier);
 void FM_Channel_SetTotalLevel(const FM_Channel *channel, cc_u16f operator_index, cc_u16f total_level);
 void FM_Channel_SetKeyScaleAndAttackRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f key_scale, cc_u16f attack_rate);
-void FM_Channel_DecayRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f decay_rate);
+void FM_Channel_SetDecayRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f decay_rate);
 void FM_Channel_SetSustainRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f sustain_rate);
 void FM_Channel_SetSustainLevelAndReleaseRate(const FM_Channel *channel, cc_u16f operator_index, cc_u16f sustain_level, cc_u16f release_rate);
 

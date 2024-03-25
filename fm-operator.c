@@ -123,9 +123,9 @@ void FM_Operator_SetKeyScaleAndAttackRate(const FM_Operator* const fm_operator, 
 	FM_Envelope_SetKeyScaleAndAttackRate(&fm_operator->state->envelope, key_scale, attack_rate);
 }
 
-void FM_Operator_DecayRate(const FM_Operator* const fm_operator, const cc_u16f decay_rate)
+void FM_Operator_SetDecayRate(const FM_Operator* const fm_operator, const cc_u16f decay_rate)
 {
-	FM_Envelope_DecayRate(&fm_operator->state->envelope, decay_rate);
+	FM_Envelope_SetDecayRate(&fm_operator->state->envelope, decay_rate);
 }
 
 void FM_Operator_SetSustainRate(const FM_Operator* const fm_operator, const cc_u16f sustain_rate)

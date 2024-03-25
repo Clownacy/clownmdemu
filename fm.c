@@ -335,7 +335,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 					case 0x60 / 0x10:
 						/* Amplitude modulation on and decay rate. */
-						FM_Channel_DecayRate(channel, operator_index, data & 0x1F);
+						FM_Channel_SetDecayRate(channel, operator_index, data & 0x1F);
 
 						/* TODO: LFO. */
 						if ((data & 0x80) != 0)

@@ -87,9 +87,9 @@ void FM_Channel_SetKeyScaleAndAttackRate(const FM_Channel* const channel, const 
 	FM_Operator_SetKeyScaleAndAttackRate(&channel->operators[operator_index], key_scale, attack_rate);
 }
 
-void FM_Channel_DecayRate(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f decay_rate)
+void FM_Channel_SetDecayRate(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f decay_rate)
 {
-	FM_Operator_DecayRate(&channel->operators[operator_index], decay_rate);
+	FM_Operator_SetDecayRate(&channel->operators[operator_index], decay_rate);
 }
 
 void FM_Channel_SetSustainRate(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f sustain_rate)

@@ -46,7 +46,7 @@ cc_bool FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on, cc_u16
 void FM_Envelope_SetSSGEG(FM_Envelope_State *envelope, cc_u8f ssgeg);
 void FM_Envelope_SetTotalLevel(FM_Envelope_State *envelope, cc_u16f total_level);
 void FM_Envelope_SetKeyScaleAndAttackRate(FM_Envelope_State *envelope, cc_u16f key_scale, cc_u16f attack_rate);
-void FM_Envelope_DecayRate(FM_Envelope_State *envelope, cc_u16f decay_rate);
+void FM_Envelope_SetDecayRate(FM_Envelope_State *envelope, cc_u16f decay_rate);
 void FM_Envelope_SetSustainRate(FM_Envelope_State *envelope, cc_u16f sustain_rate);
 void FM_Envelope_SetSustainLevelAndReleaseRate(FM_Envelope_State *envelope, cc_u16f sustain_level, cc_u16f release_rate);
 

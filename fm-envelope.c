@@ -30,7 +30,7 @@ void FM_Envelope_State_Initialise(FM_Envelope_State* const state)
 	FM_Envelope_SetSSGEG(state, 0);
 	FM_Envelope_SetTotalLevel(state, 0x7F); /* Silence channel. */
 	FM_Envelope_SetKeyScaleAndAttackRate(state, 0, 0);
-	FM_Envelope_DecayRate(state, 0);
+	FM_Envelope_SetDecayRate(state, 0);
 	FM_Envelope_SetSustainRate(state, 0);
 	FM_Envelope_SetSustainLevelAndReleaseRate(state, 0, 0);
 
@@ -94,7 +94,7 @@ void FM_Envelope_SetKeyScaleAndAttackRate(FM_Envelope_State* const envelope, con
 	envelope->rates[FM_ENVELOPE_MODE_ATTACK] = attack_rate;
 }
 
-void FM_Envelope_DecayRate(FM_Envelope_State* const envelope, const cc_u16f decay_rate)
+void FM_Envelope_SetDecayRate(FM_Envelope_State* const envelope, const cc_u16f decay_rate)
 {
 	envelope->rates[FM_ENVELOPE_MODE_DECAY] = decay_rate;
 }
