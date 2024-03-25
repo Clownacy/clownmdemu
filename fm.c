@@ -255,7 +255,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						if (fm3_per_operator_frequencies_enabled)
 							FM_Channel_SetFrequencies(&fm->channels[2], state->channel_3_metadata.frequencies);
 						else
-							FM_Channel_SetFrequency(&fm->channels[2], state->channel_3_metadata.frequencies[0]);
+							FM_Channel_SetFrequency(&fm->channels[2], state->channel_3_metadata.frequencies[3]);
 					}
 
 					break;
@@ -373,7 +373,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 						if (channel_index == 2) /* FM3 */
 						{
-							state->channel_3_metadata.frequencies[0] = frequency;
+							state->channel_3_metadata.frequencies[3] = frequency;
 
 							if (state->channel_3_metadata.per_operator_frequencies_enabled)
 								break;
@@ -397,7 +397,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						/* Frequency low bits (multi-frequency). */
 						const cc_u16f frequency = data | (channel_metadata->cached_upper_frequency_bits << 8);
 
-						state->channel_3_metadata.frequencies[1 + channel_index] = frequency;
+						state->channel_3_metadata.frequencies[channel_index] = frequency;
 
 						if (state->channel_3_metadata.per_operator_frequencies_enabled)
 							FM_Channel_SetFrequencies(&fm->channels[2], state->channel_3_metadata.frequencies);
