@@ -382,11 +382,10 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 		const FM_ChannelMetadata* const channel_metadata = &state->channels[i];
 		const FM_Channel* const channel = &fm->channels[i];
 
-		const cc_bool left_enabled = channel_metadata->pan_left;
-		const cc_bool right_enabled = channel_metadata->pan_right;
 		const cc_bool is_dac = i == 5 && state->dac_enabled;
-		const cc_bool fm_enabled = !is_dac && !fm->configuration->fm_channels_disabled[i];
-		const cc_s16f dac_sample = is_dac && !fm->configuration->dac_channel_disabled ? state->dac_sample : 0;
+		const cc_bool channel_disabled = is_dac ? fm->configuration->dac_channel_disabled : fm->configuration->fm_channels_disabled[i];
+		const cc_bool left_enabled = channel_metadata->pan_left && !channel_disabled;
+		const cc_bool right_enabled = channel_metadata->pan_right && !channel_disabled;
 
 		cc_s16l *sample_buffer_pointer = sample_buffer;
 
@@ -397,7 +396,7 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 			const cc_s16f fm_sample = FM_Channel_GetSample(channel) * 4 / FM_VOLUME_DIVIDER;
 
 			/* Select between the FM and DAC samples. */
-			const cc_s16f sample = fm_enabled ? fm_sample : dac_sample;
+			const cc_s16f sample = is_dac ? state->dac_sample : fm_sample;
 
 			/* Output sample whilst applying panning. */
 			*sample_buffer_pointer++ += left_enabled ? sample : 0;
