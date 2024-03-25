@@ -19,14 +19,19 @@
   - Sprite/pixel limit
   - Sprite masking
   - Sprite table caching
+  - Edgecase when the sprite mask is the first sprite rendered on the scanline
+  - VRAM-to-VRAM DMA
 - FM
   - 6 FM channels
     - Phase Generator
     - Envelope Generator
       - ASDR envelopes
+      - SSG-EG
     - Operators
       - Feedback
       - Algorithms
+    - Per-operator frequencies
+      - CSM mode
   - DAC channel
   - Timer A and Timer B
   - Busy flag
@@ -37,7 +42,12 @@
     - Periodic noise mode
 - Joypads
   - 3-button Mega Drive controller
+  - 6-button Mega Drive controller
   - Two joypads
+- Mega CD
+  - Sub-68000
+  - RF5C164 PCM chip
+  - CD-DA
 
 # Unimplemented
 - 68k
@@ -47,8 +57,6 @@
 - VDP
   - Slot-based rendering
   - Interlacing in Interlace Mode 1 and Interlace Mode 2
-  - Edgecase when the sprite mask is the first sprite rendered on the scanline
-  - VRAM-to-VRAM DMA
   - DMA transfer durations
   - HV counter
   - Mode 4
@@ -59,19 +67,21 @@
   - Interrupt modes 0 and 2
   - Proper interrupt timings
 - FM
-  - Envelope Generator
-    - SSG-EG
   - Low-Frequency Oscillator
-  - Per-operator frequencies
   - Debug registers
 - SRAM
 - Cartridge mappers
 - Joypads
   - Having more than two joypads connected at once
-  - Types of joypad besides the standard 3-button Mega Drive controller
+  - Types of joypad besides the standard 3-button and 6-button Mega Drive controllers
   - The latch delay that Decap Attack requires in order for its input to work
 - Master System support
 - Game Gear support
-- Mega CD support
+- Mega CD
+  - Graphical operations
+  - CDC destination register stuff (CDC to WAVE-RAM, main-68000, etc.)
+  - BRAM
+  - CD-DA
+    - Fader
 - 32X support
 - Remaining quirks and undefined behaviour of the original Mega Drive hardware
