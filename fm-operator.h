@@ -6,13 +6,13 @@
 #include "fm-phase.h"
 
 /* TODO: Rename. */
-typedef enum FM_Envelope_Mode
+typedef enum FM_Operator_EnvelopeMode
 {
-	FM_ENVELOPE_MODE_ATTACK = 0,
-	FM_ENVELOPE_MODE_DECAY = 1,
-	FM_ENVELOPE_MODE_SUSTAIN = 2,
-	FM_ENVELOPE_MODE_RELEASE = 3
-} FM_Envelope_Mode;
+	FM_OPERATOR_ENVELOPE_MODE_ATTACK = 0,
+	FM_OPERATOR_ENVELOPE_MODE_DECAY = 1,
+	FM_OPERATOR_ENVELOPE_MODE_SUSTAIN = 2,
+	FM_OPERATOR_ENVELOPE_MODE_RELEASE = 3
+} FM_Operator_EnvelopeMode;
 
 typedef struct FM_Operator_Constant
 {
@@ -29,14 +29,14 @@ typedef struct FM_Operator_State
 	cc_u16l cycle_counter;
 
 	cc_u16l delta_index;
-	cc_u16l current_attenuation;
+	cc_u16l attenuation;
 
 	cc_u16l total_level;
 	cc_u16l sustain_level;
 	cc_u16l key_scale;
 
 	cc_u16l rates[4];
-	FM_Envelope_Mode current_mode;
+	FM_Operator_EnvelopeMode envelope_mode;
 
 	cc_bool key_on;
 

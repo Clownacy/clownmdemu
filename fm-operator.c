@@ -10,22 +10,22 @@ static cc_u16f CalculateRate(const FM_Operator_State* const state)
 {
 	cc_u16f rate;
 
-	if (state->rates[state->current_mode] == 0)
+	if (state->rates[state->envelope_mode] == 0)
 		rate = 0;
 	else
-		rate = CC_MIN(0x3F, state->rates[state->current_mode] * 2 + (FM_Phase_GetKeyCode(&state->phase) / state->key_scale));
+		rate = CC_MIN(0x3F, state->rates[state->envelope_mode] * 2 + (FM_Phase_GetKeyCode(&state->phase) / state->key_scale));
 
 	return rate;
 }
 
 static void EnterAttackMode(FM_Operator_State* const state)
 {
-	state->current_mode = FM_ENVELOPE_MODE_ATTACK;
+	state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_ATTACK;
 
 	if (CalculateRate(state) >= 0x1F * 2)
 	{
-		state->current_mode = FM_ENVELOPE_MODE_DECAY;
-		state->current_attenuation = 0;
+		state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_DECAY;
+		state->attenuation = 0;
 	}
 }
 
@@ -118,7 +118,7 @@ void FM_Operator_State_Initialise(FM_Operator_State* const state)
 	state->cycle_counter = 0;
 
 	state->delta_index = 0;
-	state->current_attenuation = 0;
+	state->attenuation = 0;
 
 	FM_Operator_SetSSGEG(state, 0);
 	FM_Operator_SetTotalLevel(state, 0x7F); /* Silence channel. */
@@ -127,7 +127,7 @@ void FM_Operator_State_Initialise(FM_Operator_State* const state)
 	FM_Operator_SetSustainRate(state, 0);
 	FM_Operator_SetSustainLevelAndReleaseRate(state, 0, 0);
 
-	state->current_mode = FM_ENVELOPE_MODE_ATTACK;
+	state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_ATTACK;
 
 	state->key_on = cc_false;
 }
@@ -152,7 +152,7 @@ void FM_Operator_SetKeyOn(FM_Operator_State* const state, const cc_bool key_on)
 		}
 		else
 		{
-			state->current_mode = FM_ENVELOPE_MODE_RELEASE;
+			state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_RELEASE;
 			state->ssgeg.invert = cc_false;
 		}
 	}
@@ -180,17 +180,17 @@ void FM_Operator_SetTotalLevel(FM_Operator_State* const state, const cc_u16f tot
 void FM_Operator_SetKeyScaleAndAttackRate(FM_Operator_State* const state, const cc_u16f key_scale, const cc_u16f attack_rate)
 {
 	state->key_scale = 8 >> key_scale;
-	state->rates[FM_ENVELOPE_MODE_ATTACK] = attack_rate;
+	state->rates[FM_OPERATOR_ENVELOPE_MODE_ATTACK] = attack_rate;
 }
 
 void FM_Operator_SetDecayRate(FM_Operator_State* const state, const cc_u16f decay_rate)
 {
-	state->rates[FM_ENVELOPE_MODE_DECAY] = decay_rate;
+	state->rates[FM_OPERATOR_ENVELOPE_MODE_DECAY] = decay_rate;
 }
 
 void FM_Operator_SetSustainRate(FM_Operator_State* const state, const cc_u16f sustain_rate)
 {
-	state->rates[FM_ENVELOPE_MODE_SUSTAIN] = sustain_rate;
+	state->rates[FM_OPERATOR_ENVELOPE_MODE_SUSTAIN] = sustain_rate;
 }
 
 void FM_Operator_SetSustainLevelAndReleaseRate(FM_Operator_State* const state, const cc_u16f sustain_level, const cc_u16f release_rate)
@@ -198,13 +198,13 @@ void FM_Operator_SetSustainLevelAndReleaseRate(FM_Operator_State* const state, c
 	state->sustain_level = sustain_level == 0xF ? 0x3E0 : sustain_level * 0x20;
 
 	/* Convert from 4-bit to 5-bit to match the others. */
-	state->rates[FM_ENVELOPE_MODE_RELEASE] = (release_rate << 1) | 1;
+	state->rates[FM_OPERATOR_ENVELOPE_MODE_RELEASE] = (release_rate << 1) | 1;
 }
 
 cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 {
 	/* Update SSG envelope generator. */
-	if (state->ssgeg.enabled && state->current_attenuation >= 0x200)
+	if (state->ssgeg.enabled && state->attenuation >= 0x200)
 	{
 		if (state->ssgeg.alternate && (!state->ssgeg.hold || !state->ssgeg.invert))
 			state->ssgeg.invert = !state->ssgeg.invert;
@@ -212,12 +212,12 @@ cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 		if (!state->ssgeg.alternate && !state->ssgeg.hold)
 			FM_Phase_Reset(&state->phase);
 
-		if (state->current_mode != FM_ENVELOPE_MODE_ATTACK)
+		if (state->envelope_mode != FM_OPERATOR_ENVELOPE_MODE_ATTACK)
 		{
-			if (state->current_mode != FM_ENVELOPE_MODE_RELEASE && !state->ssgeg.hold)
+			if (state->envelope_mode != FM_OPERATOR_ENVELOPE_MODE_RELEASE && !state->ssgeg.hold)
 				EnterAttackMode(state);
-			else if (state->current_mode == FM_ENVELOPE_MODE_RELEASE || (!state->ssgeg.invert) != state->ssgeg.attack)
-				state->current_attenuation = 0x3FF;
+			else if (state->envelope_mode == FM_OPERATOR_ENVELOPE_MODE_RELEASE || (!state->ssgeg.invert) != state->ssgeg.attack)
+				state->attenuation = 0x3FF;
 		}
 	}
 
@@ -320,43 +320,43 @@ cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 
 			const cc_u16f delta = deltas[rate][state->delta_index++ & 7];
 
-			switch (state->current_mode)
+			switch (state->envelope_mode)
 			{
-				case FM_ENVELOPE_MODE_ATTACK:
-					state->current_attenuation += (~state->current_attenuation * delta) >> 4;
-					state->current_attenuation &= 0x3FF;
+				case FM_OPERATOR_ENVELOPE_MODE_ATTACK:
+					state->attenuation += (~state->attenuation * delta) >> 4;
+					state->attenuation &= 0x3FF;
 
-					if (state->current_attenuation == 0)
-						state->current_mode = FM_ENVELOPE_MODE_DECAY;
+					if (state->attenuation == 0)
+						state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_DECAY;
 
 					break;
 
-				case FM_ENVELOPE_MODE_DECAY:
-				case FM_ENVELOPE_MODE_SUSTAIN:
-				case FM_ENVELOPE_MODE_RELEASE:
+				case FM_OPERATOR_ENVELOPE_MODE_DECAY:
+				case FM_OPERATOR_ENVELOPE_MODE_SUSTAIN:
+				case FM_OPERATOR_ENVELOPE_MODE_RELEASE:
 					if (state->ssgeg.enabled)
 					{
-						if (state->current_attenuation < 0x200)
-							state->current_attenuation += delta * 4;
+						if (state->attenuation < 0x200)
+							state->attenuation += delta * 4;
 					}
 					else
 					{
-						state->current_attenuation += delta;
+						state->attenuation += delta;
 					}
 
-					if (state->current_mode == FM_ENVELOPE_MODE_DECAY)
+					if (state->envelope_mode == FM_OPERATOR_ENVELOPE_MODE_DECAY)
 					{
-						if (state->current_attenuation >= state->sustain_level)
+						if (state->attenuation >= state->sustain_level)
 						{
 							/* TODO: The SpritesMind thread says that this should happen: */
 							/*envelope->current_attenuation = envelope->sustain_level;*/
-							state->current_mode = FM_ENVELOPE_MODE_SUSTAIN;
+							state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_SUSTAIN;
 						}
 					}
 					else
 					{
-						if (state->current_attenuation > 0x3FF)
-							state->current_attenuation = 0x3FF;
+						if (state->attenuation > 0x3FF)
+							state->attenuation = 0x3FF;
 					}
 
 					break;
@@ -364,7 +364,7 @@ cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 		}
 	}
 
-	return CC_MIN(0x3FF, (state->ssgeg.enabled && state->current_mode != FM_ENVELOPE_MODE_RELEASE && state->ssgeg.invert != state->ssgeg.attack ? (0x200 - state->current_attenuation) & 0x3FF : state->current_attenuation) + state->total_level);
+	return CC_MIN(0x3FF, (state->ssgeg.enabled && state->envelope_mode != FM_OPERATOR_ENVELOPE_MODE_RELEASE && state->ssgeg.invert != state->ssgeg.attack ? (0x200 - state->attenuation) & 0x3FF : state->attenuation) + state->total_level);
 }
 
 cc_s16f FM_Operator_Process(const FM_Operator* const fm_operator, const cc_s16f phase_modulation)
