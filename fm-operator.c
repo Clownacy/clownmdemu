@@ -103,6 +103,11 @@ void FM_Operator_SetKeyOn(const FM_Operator* const fm_operator, const cc_bool ke
 		FM_Phase_Reset(&fm_operator->state->phase);
 }
 
+void FM_Operator_SetSSGEG(const FM_Operator* const fm_operator, const cc_u8f ssgeg)
+{
+	FM_Envelope_SetSSGEG(&fm_operator->state->envelope, ssgeg);
+}
+
 void FM_Operator_SetDetuneAndMultiplier(const FM_Operator* const fm_operator, const cc_u16f detune, const cc_u16f multiplier)
 {
 	FM_Phase_SetDetuneAndMultiplier(&fm_operator->state->phase, detune, multiplier);

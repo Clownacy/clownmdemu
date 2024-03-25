@@ -61,6 +61,7 @@ void FM_Channel_Parameters_Initialise(FM_Channel *channel, const FM_Channel_Cons
 void FM_Channel_SetFrequency(const FM_Channel *channel, cc_u16f f_number_and_block);
 void FM_Channel_SetFrequencies(const FM_Channel *channel, const cc_u16l *f_number_and_block);
 void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel *channel, cc_u16f feedback, cc_u16f algorithm);
+void FM_Channel_SetSSGEG(const FM_Channel *channel, cc_u8f ssgeg);
 
 /* Per-operator. */
 void FM_Channel_SetKeyOn(const FM_Channel *channel, cc_u16f operator_index, cc_bool key_on);

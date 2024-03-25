@@ -28,11 +28,22 @@ typedef struct FM_Envelope_State
 	FM_Envelope_Mode current_mode;
 
 	cc_bool key_on;
+
+	/* TODO: Make this part of FM_Channel instead. */
+	struct
+	{
+		cc_bool enabled;
+		cc_bool attack;
+		cc_bool alternate;
+		cc_bool hold;
+		cc_bool invert;
+	} ssgeg;
 } FM_Envelope_State;
 
 void FM_Envelope_State_Initialise(FM_Envelope_State *state);
 
 cc_bool FM_Envelope_SetKeyOn(FM_Envelope_State *envelope, cc_bool key_on, cc_u16f key_code);
+void FM_Envelope_SetSSGEG(FM_Envelope_State *envelope, cc_u8f ssgeg);
 void FM_Envelope_SetTotalLevel(FM_Envelope_State *envelope, cc_u16f total_level);
 void FM_Envelope_SetKeyScaleAndAttackRate(FM_Envelope_State *envelope, cc_u16f key_scale, cc_u16f attack_rate);
 void FM_Envelope_DecayRate(FM_Envelope_State *envelope, cc_u16f decay_rate);

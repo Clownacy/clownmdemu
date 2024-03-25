@@ -354,9 +354,8 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						break;
 
 					case 0x90 / 0x10:
-						/* TODO: SSG-EG. */
-						if ((data & 8) != 0)
-							PrintError("SSG-EG enabled");
+						/* SSG-EG. */
+						FM_Channel_SetSSGEG(channel, data);
 						break;
 				}
 			}

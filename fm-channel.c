@@ -59,6 +59,14 @@ void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel* const channel, const c
 	channel->state->algorithm = algorithm;
 }
 
+void FM_Channel_SetSSGEG(const FM_Channel* const channel, const cc_u8f ssgeg)
+{
+	cc_u16f i;
+
+	for (i = 0; i < CC_COUNT_OF(channel->state->operators); ++i)
+		FM_Operator_SetSSGEG(&channel->operators[i], ssgeg);
+}
+
 void FM_Channel_SetKeyOn(const FM_Channel* const channel, const cc_u16f operator_index, const cc_bool key_on)
 {
 	FM_Operator_SetKeyOn(&channel->operators[operator_index], key_on);

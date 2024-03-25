@@ -29,6 +29,7 @@ void FM_Operator_State_Initialise(FM_Operator_State *state);
 
 void FM_Operator_SetFrequency(const FM_Operator *fm_operator, cc_u16f f_number_and_block);
 void FM_Operator_SetKeyOn(const FM_Operator *fm_operator, cc_bool key_on);
+void FM_Operator_SetSSGEG(const FM_Operator *fm_operator, cc_u8f ssgeg);
 void FM_Operator_SetDetuneAndMultiplier(const FM_Operator *fm_operator, cc_u16f detune, cc_u16f multiplier);
 void FM_Operator_SetTotalLevel(const FM_Operator *fm_operator, cc_u16f total_level);
 void FM_Operator_SetKeyScaleAndAttackRate(const FM_Operator *fm_operator, cc_u16f key_scale, cc_u16f attack_rate);
