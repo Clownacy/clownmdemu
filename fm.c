@@ -242,6 +242,10 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					/* Cache the contents of this write for the above rising-edge detection. */
 					state->cached_address_27 = data;
 
+					/* TODO: Per-operator frequencies. */
+					if ((data & 0xC0) != 0)
+						PrintError("Per-operator frequencies enabled", state->address);
+
 					break;
 				}
 
@@ -312,8 +316,12 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 					case 0x60 / 0x10:
 						/* Amplitude modulation on and decay rate. */
-						/* TODO: LFO. */
 						FM_Channel_DecayRate(channel, operator_index, data & 0x1F);
+
+						/* TODO: LFO. */
+						if ((data & 0x80) != 0)
+							PrintError("LFO enabled");
+
 						break;
 
 					case 0x70 / 0x10:
@@ -328,6 +336,8 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 					case 0x90 / 0x10:
 						/* TODO: SSG-EG. */
+						if ((data & 8) != 0)
+							PrintError("SSG-EG enabled");
 						break;
 				}
 			}
@@ -342,6 +352,8 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 					case 0xA8 / 4:
 					case 0xAC / 4:
+						/* TODO: Per-operator frequencies. */
+						PrintError("Per-operator frequency register used", state->address);
 						break;
 
 					case 0xA0 / 4:
