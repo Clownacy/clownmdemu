@@ -85,6 +85,7 @@ typedef struct FM_State
 	{
 		cc_u16l frequencies[4];
 		cc_bool per_operator_frequencies_enabled;
+		cc_bool csm_mode_enabled;
 	} channel_3_metadata;
 	cc_u8l port;
 	cc_u8l address;

@@ -140,6 +140,7 @@ void FM_State_Initialise(FM_State* const state)
 		state->channel_3_metadata.frequencies[i] = 0;
 
 	state->channel_3_metadata.per_operator_frequencies_enabled = cc_false;
+	state->channel_3_metadata.csm_mode_enabled = cc_false;
 
 	state->port = 0 * 3;
 	state->address = 0;
@@ -257,6 +258,8 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						else
 							FM_Channel_SetFrequency(&fm->channels[2], state->channel_3_metadata.frequencies[3]);
 					}
+
+					state->channel_3_metadata.csm_mode_enabled = (data & 0xC0) == 0x80;
 
 					break;
 				}
@@ -460,7 +463,7 @@ cc_u8f FM_Update(const FM* const fm, const cc_u32f cycles_to_do, void (* const f
 	FM_State* const state = fm->state;
 	const cc_u32f total_frames = (state->leftover_cycles + cycles_to_do) / FM_SAMPLE_RATE_DIVIDER;
 
-	cc_u8f i;
+	cc_u8f timer_index;
 
 	state->leftover_cycles = (state->leftover_cycles + cycles_to_do) % FM_SAMPLE_RATE_DIVIDER;
 
@@ -468,19 +471,33 @@ cc_u8f FM_Update(const FM* const fm, const cc_u32f cycles_to_do, void (* const f
 		fm_audio_to_be_generated(user_data, total_frames);
 
 	/* Decrement the timers. */
-	for (i = 0; i < CC_COUNT_OF(state->timers); ++i)
+	for (timer_index = 0; timer_index < CC_COUNT_OF(state->timers); ++timer_index)
 	{
-		if (state->timers[i].counter != 0)
-		{
-			state->timers[i].counter -= CC_MIN(state->timers[i].counter, cycles_to_do);
+		FM_Timer* const timer = &state->timers[timer_index];
 
-			if (state->timers[i].counter == 0)
+		if (timer->counter != 0)
+		{
+			timer->counter -= CC_MIN(timer->counter, cycles_to_do);
+
+			if (timer->counter == 0)
 			{
 				/* Set the 'timer expired' flag. */
-				state->status |= state->timers[i].enabled ? 1 << i : 0;
+				state->status |= timer->enabled ? 1 << timer_index : 0;
 
 				/* Reload the timer's counter. */
-				state->timers[i].counter = state->timers[i].value;
+				timer->counter = timer->value;
+
+				/* Perform CSM key-on/key-off logic. */
+				if (state->channel_3_metadata.csm_mode_enabled && timer_index == 0)
+				{
+					cc_u8f operator_index;
+
+					for (operator_index = 0; operator_index < CC_COUNT_OF(fm->channels[2].operators); ++operator_index)
+					{
+						FM_Channel_SetKeyOn(&fm->channels[2], operator_index, cc_true);
+						FM_Channel_SetKeyOn(&fm->channels[2], operator_index, cc_false);
+					}
+				}
 			}
 		}
 	}
