@@ -42,7 +42,7 @@ void FM_Channel_SetFrequency(const FM_Channel* const channel, const cc_u16f f_nu
 	cc_u16f i;
 
 	for (i = 0; i < CC_COUNT_OF(channel->state->operators); ++i)
-		FM_Operator_SetFrequency(&channel->operators[i], f_number_and_block);
+		FM_Operator_SetFrequency(channel->operators[i].state, f_number_and_block);
 }
 
 void FM_Channel_SetFrequencies(const FM_Channel* const channel, const cc_u16l* const f_number_and_block)
@@ -50,7 +50,7 @@ void FM_Channel_SetFrequencies(const FM_Channel* const channel, const cc_u16l* c
 	cc_u16f i;
 
 	for (i = 0; i < CC_COUNT_OF(channel->state->operators); ++i)
-		FM_Operator_SetFrequency(&channel->operators[i], f_number_and_block[i]);
+		FM_Operator_SetFrequency(channel->operators[i].state, f_number_and_block[i]);
 }
 
 void FM_Channel_SetFeedbackAndAlgorithm(const FM_Channel* const channel, const cc_u16f feedback, const cc_u16f algorithm)
@@ -64,42 +64,42 @@ void FM_Channel_SetSSGEG(const FM_Channel* const channel, const cc_u8f ssgeg)
 	cc_u16f i;
 
 	for (i = 0; i < CC_COUNT_OF(channel->state->operators); ++i)
-		FM_Operator_SetSSGEG(&channel->operators[i], ssgeg);
+		FM_Operator_SetSSGEG(channel->operators[i].state, ssgeg);
 }
 
 void FM_Channel_SetKeyOn(const FM_Channel* const channel, const cc_u16f operator_index, const cc_bool key_on)
 {
-	FM_Operator_SetKeyOn(&channel->operators[operator_index], key_on);
+	FM_Operator_SetKeyOn(channel->operators[operator_index].state, key_on);
 }
 
 void FM_Channel_SetDetuneAndMultiplier(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f detune, const cc_u16f multiplier)
 {
-	FM_Operator_SetDetuneAndMultiplier(&channel->operators[operator_index], detune, multiplier);
+	FM_Operator_SetDetuneAndMultiplier(channel->operators[operator_index].state, detune, multiplier);
 }
 
 void FM_Channel_SetTotalLevel(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f total_level)
 {
-	FM_Operator_SetTotalLevel(&channel->operators[operator_index], total_level);
+	FM_Operator_SetTotalLevel(channel->operators[operator_index].state, total_level);
 }
 
 void FM_Channel_SetKeyScaleAndAttackRate(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f key_scale, const cc_u16f attack_rate)
 {
-	FM_Operator_SetKeyScaleAndAttackRate(&channel->operators[operator_index], key_scale, attack_rate);
+	FM_Operator_SetKeyScaleAndAttackRate(channel->operators[operator_index].state, key_scale, attack_rate);
 }
 
 void FM_Channel_SetDecayRate(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f decay_rate)
 {
-	FM_Operator_SetDecayRate(&channel->operators[operator_index], decay_rate);
+	FM_Operator_SetDecayRate(channel->operators[operator_index].state, decay_rate);
 }
 
 void FM_Channel_SetSustainRate(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f sustain_rate)
 {
-	FM_Operator_SetSustainRate(&channel->operators[operator_index], sustain_rate);
+	FM_Operator_SetSustainRate(channel->operators[operator_index].state, sustain_rate);
 }
 
 void FM_Channel_SetSustainLevelAndReleaseRate(const FM_Channel* const channel, const cc_u16f operator_index, const cc_u16f sustain_level, const cc_u16f release_rate)
 {
-	FM_Operator_SetSustainLevelAndReleaseRate(&channel->operators[operator_index], sustain_level, release_rate);
+	FM_Operator_SetSustainLevelAndReleaseRate(channel->operators[operator_index].state, sustain_level, release_rate);
 }
 
 cc_s16f FM_Channel_GetSample(const FM_Channel* const channel)

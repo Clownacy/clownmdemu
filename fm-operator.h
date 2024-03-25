@@ -4,7 +4,15 @@
 #include "clowncommon/clowncommon.h"
 
 #include "fm-phase.h"
-#include "fm-envelope.h"
+
+/* TODO: Rename. */
+typedef enum FM_Envelope_Mode
+{
+	FM_ENVELOPE_MODE_ATTACK = 0,
+	FM_ENVELOPE_MODE_DECAY = 1,
+	FM_ENVELOPE_MODE_SUSTAIN = 2,
+	FM_ENVELOPE_MODE_RELEASE = 3
+} FM_Envelope_Mode;
 
 typedef struct FM_Operator_Constant
 {
@@ -15,7 +23,32 @@ typedef struct FM_Operator_Constant
 typedef struct FM_Operator_State
 {
 	FM_Phase_State phase;
-	FM_Envelope_State envelope;
+
+	/* TODO: Make these two global. */
+	cc_u16l countdown;
+	cc_u16l cycle_counter;
+
+	cc_u16l delta_index;
+	cc_u16l current_attenuation;
+
+	cc_u16l total_level;
+	cc_u16l sustain_level;
+	cc_u16l key_scale;
+
+	cc_u16l rates[4];
+	FM_Envelope_Mode current_mode;
+
+	cc_bool key_on;
+
+	/* TODO: Make this part of FM_Channel instead. */
+	struct
+	{
+		cc_bool enabled;
+		cc_bool attack;
+		cc_bool alternate;
+		cc_bool hold;
+		cc_bool invert;
+	} ssgeg;
 } FM_Operator_State;
 
 typedef struct FM_Operator
@@ -27,15 +60,15 @@ typedef struct FM_Operator
 void FM_Operator_Constant_Initialise(FM_Operator_Constant *constant);
 void FM_Operator_State_Initialise(FM_Operator_State *state);
 
-void FM_Operator_SetFrequency(const FM_Operator *fm_operator, cc_u16f f_number_and_block);
-void FM_Operator_SetKeyOn(const FM_Operator *fm_operator, cc_bool key_on);
-void FM_Operator_SetSSGEG(const FM_Operator *fm_operator, cc_u8f ssgeg);
-void FM_Operator_SetDetuneAndMultiplier(const FM_Operator *fm_operator, cc_u16f detune, cc_u16f multiplier);
-void FM_Operator_SetTotalLevel(const FM_Operator *fm_operator, cc_u16f total_level);
-void FM_Operator_SetKeyScaleAndAttackRate(const FM_Operator *fm_operator, cc_u16f key_scale, cc_u16f attack_rate);
-void FM_Operator_SetDecayRate(const FM_Operator *fm_operator, cc_u16f decay_rate);
-void FM_Operator_SetSustainRate(const FM_Operator *fm_operator, cc_u16f sustain_rate);
-void FM_Operator_SetSustainLevelAndReleaseRate(const FM_Operator *fm_operator, cc_u16f sustain_level, cc_u16f release_rate);
+void FM_Operator_SetFrequency(FM_Operator_State *state, cc_u16f f_number_and_block);
+void FM_Operator_SetKeyOn(FM_Operator_State *state, cc_bool key_on);
+void FM_Operator_SetSSGEG(FM_Operator_State *state, cc_u8f ssgeg);
+void FM_Operator_SetDetuneAndMultiplier(FM_Operator_State *state, cc_u16f detune, cc_u16f multiplier);
+void FM_Operator_SetTotalLevel(FM_Operator_State *state, cc_u16f total_level);
+void FM_Operator_SetKeyScaleAndAttackRate(FM_Operator_State *state, cc_u16f key_scale, cc_u16f attack_rate);
+void FM_Operator_SetDecayRate(FM_Operator_State *state, cc_u16f decay_rate);
+void FM_Operator_SetSustainRate(FM_Operator_State *state, cc_u16f sustain_rate);
+void FM_Operator_SetSustainLevelAndReleaseRate(FM_Operator_State *state, cc_u16f sustain_level, cc_u16f release_rate);
 
 cc_s16f FM_Operator_Process(const FM_Operator *fm_operator, cc_s16f phase_modulation);
 
