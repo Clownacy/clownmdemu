@@ -81,6 +81,11 @@ typedef struct FM_Timer
 typedef struct FM_State
 {
 	FM_ChannelMetadata channels[6];
+	struct
+	{
+		cc_u16l frequencies[4];
+		cc_bool per_operator_frequencies_enabled;
+	} channel_3_metadata;
 	cc_u8l port;
 	cc_u8l address;
 	cc_s16l dac_sample;

@@ -136,6 +136,9 @@ void FM_State_Initialise(FM_State* const state)
 		channel->pan_right = cc_true;
 	}
 
+	for (i = 0; i < CC_COUNT_OF(state->channel_3_metadata.frequencies); ++i)
+		state->channel_3_metadata.frequencies[i] = 0;
+
 	state->port = 0 * 3;
 	state->address = 0;
 
@@ -221,7 +224,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 				case 0x27:
 				{
-					/* TODO: FM3 special mode. */
+					const cc_bool fm3_per_operator_frequencies_enabled = (data & 0xC0) != 0;
 
 					cc_u8f i;
 
@@ -242,9 +245,15 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					/* Cache the contents of this write for the above rising-edge detection. */
 					state->cached_address_27 = data;
 
-					/* TODO: Per-operator frequencies. */
-					if ((data & 0xC0) != 0)
-						PrintError("Per-operator frequencies enabled", state->address);
+					if (state->channel_3_metadata.per_operator_frequencies_enabled != fm3_per_operator_frequencies_enabled)
+					{
+						state->channel_3_metadata.per_operator_frequencies_enabled = fm3_per_operator_frequencies_enabled;
+
+						if (fm3_per_operator_frequencies_enabled)
+							FM_Channel_SetFrequencies(&fm->channels[2], state->channel_3_metadata.frequencies);
+						else
+							FM_Channel_SetFrequency(&fm->channels[2], state->channel_3_metadata.frequencies[0]);
+					}
 
 					break;
 				}
@@ -286,7 +295,11 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 		/* There is no fourth channel per slot. */
 		/* TODO: See how real hardware handles this. */
-		if (channel_index != 3)
+		if (channel_index == 3)
+		{
+			PrintError("Attempted to access invalid fourth FM slot channel (address was 0x%02" CC_PRIXFAST8 ")", state->address);
+		}
+		else
 		{
 			if (state->address < 0xA0)
 			{
@@ -350,22 +363,44 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST8 ")", state->address);
 						break;
 
-					case 0xA8 / 4:
-					case 0xAC / 4:
-						/* TODO: Per-operator frequencies. */
-						PrintError("Per-operator frequency register used", state->address);
-						break;
-
 					case 0xA0 / 4:
+					{
 						/* Frequency low bits. */
-						FM_Channel_SetFrequency(channel, data | (channel_metadata->cached_upper_frequency_bits << 8));
-						break;
+						const cc_u16f frequency = data | (channel_metadata->cached_upper_frequency_bits << 8);
 
+						if (channel_index == 2) /* FM3 */
+						{
+							state->channel_3_metadata.frequencies[0] = frequency;
+
+							if (state->channel_3_metadata.per_operator_frequencies_enabled)
+								break;
+						}
+
+						FM_Channel_SetFrequency(channel, frequency);
+
+						break;
+					}
+
+					/* TODO: Do these actually share a latch? */
 					case 0xA4 / 4:
+					case 0xAC / 4:
 						/* Frequency high bits. */
 						/* http://gendev.spritesmind.net/forum/viewtopic.php?p=5621#p5621 */
 						channel_metadata->cached_upper_frequency_bits = data & 0x3F;
 						break;
+
+					case 0xA8 / 4:
+					{
+						/* Frequency low bits (multi-frequency). */
+						const cc_u16f frequency = data | (channel_metadata->cached_upper_frequency_bits << 8);
+
+						state->channel_3_metadata.frequencies[1 + channel_index] = frequency;
+
+						if (state->channel_3_metadata.per_operator_frequencies_enabled)
+							FM_Channel_SetFrequencies(&fm->channels[2], state->channel_3_metadata.frequencies);
+
+						break;
+					}
 
 					case 0xB0 / 4:
 						FM_Channel_SetFeedbackAndAlgorithm(channel, (data >> 3) & 7, data & 7);
