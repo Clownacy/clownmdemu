@@ -1,5 +1,8 @@
 /* Based on Nemesis's notes: http://gendev.spritesmind.net/forum/viewtopic.php?p=6114#p6114 */
 
+/* http://gendev.spritesmind.net/forum/viewtopic.php?p=5716#p5716 */
+/* http://gendev.spritesmind.net/forum/viewtopic.php?p=7967#p7967 */
+
 #include "fm-operator.h"
 
 #include <math.h>
