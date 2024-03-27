@@ -69,7 +69,7 @@ static void RecalculatePhaseStep(FM_Phase_State* const phase)
 	const cc_u16f f_number = phase->f_number_and_block & 0x7FF;
 
 	/* Frequency offset. */
-	const cc_u16f detune = detune_lookup[block][key_codes[f_number >> 7]][phase->detune & 3];
+	const cc_u16f detune = detune_lookup[block][key_codes[f_number >> 7]][phase->detune % CC_COUNT_OF(detune_lookup[0][0])];
 
 	/* Finally, calculate the phase step. */
 
@@ -90,13 +90,14 @@ static void RecalculatePhaseStep(FM_Phase_State* const phase)
 	else
 		phase->step += detune;
 
+	/* Emulate the detune underflow bug. This fixes Comix Zone's Track 5 and many other GEMS games. */
+	/* https://gendev.spritesmind.net/forum/viewtopic.php?p=6177#p6177 */
+	phase->step &= 0x1FFFF;
+
 	/* Apply the multiplier. */
 	/* Multiplier 0 is 0.5x the frequency, 1 is 1x, 2 is 2x, 3 is 3x, etc. */
 	phase->step *= phase->multiplier;
 	phase->step /= 2;
-
-	/* Emulate the 20-bit overflow that could occur here on a real YM2612. */
-	phase->step &= 0xFFFFF;
 }
 
 void FM_Phase_State_Initialise(FM_Phase_State* const phase)
