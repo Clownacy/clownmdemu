@@ -201,6 +201,7 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel)
 			operator_3_sample = FM_Operator_Process(operator3, operator_1_sample);
 			operator_4_sample = FM_Operator_Process(operator4, operator_1_sample);
 
+			/* TODO: Clamping should be performed as each sample is added. */
 			sample = operator_2_sample + operator_3_sample + operator_4_sample;
 
 			break;

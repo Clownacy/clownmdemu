@@ -319,9 +319,7 @@ cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 				{4, 4, 4, 4, 4, 4, 4, 4}
 			};
 
-			const cc_u16f delta = deltas[rate][state->delta_index++ & 7];
-
-			cc_u16f attentuation_increment;
+			const cc_u16f delta = deltas[rate][state->delta_index++ % CC_COUNT_OF(deltas[rate])];
 
 			switch (state->envelope_mode)
 			{
@@ -341,8 +339,6 @@ cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 				case FM_OPERATOR_ENVELOPE_MODE_DECAY:
 					if (state->attenuation >= state->sustain_level)
 					{
-						/* TODO: The SpritesMind thread says that this should happen: */
-						/*envelope->current_attenuation = envelope->sustain_level;*/
 						state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_SUSTAIN;
 						break;
 					}
@@ -351,7 +347,7 @@ cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 				case FM_OPERATOR_ENVELOPE_MODE_RELEASE:
 					if (delta != 0)
 					{
-						const cc_u16f increment = 1u << (delta - 1) + (state->ssgeg.enabled ? 2 : 0);
+						const cc_u16f increment = 1u << ((delta - 1) + (state->ssgeg.enabled ? 2 : 0));
 
 						if (!state->ssgeg.enabled || state->attenuation < 0x200)
 							state->attenuation += increment;
@@ -370,6 +366,8 @@ cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 
 cc_s16f FM_Operator_Process(const FM_Operator* const fm_operator, const cc_s16f phase_modulation)
 {
+	/* TODO: https://gendev.spritesmind.net/forum/viewtopic.php?p=8908#p8908 */
+
 	/* Update and obtain phase and make it 10-bit (the upper bits are discarded later). */
 	const cc_u16f phase = FM_Phase_Increment(&fm_operator->state->phase) >> 10;
 
