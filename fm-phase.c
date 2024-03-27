@@ -1,3 +1,5 @@
+/* http://gendev.spritesmind.net/forum/viewtopic.php?p=6177#p6177 */
+
 #include "fm-phase.h"
 
 #include "clowncommon/clowncommon.h"

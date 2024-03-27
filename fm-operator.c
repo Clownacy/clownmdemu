@@ -140,6 +140,8 @@ void FM_Operator_SetKeyOn(FM_Operator_State* const state, const cc_bool key_on)
 {
 	/* An envelope cannot be key-on'd if it isn't key-off'd, and vice versa. */
 	/* This is relied upon by Sonic's spring sound. */
+	/* TODO: http://gendev.spritesmind.net/forum/viewtopic.php?p=6179#p6179 */
+	/* Key-on/key-off operations should not occur until an envelope generator update. */
 	if (state->key_on != key_on)
 	{
 		state->key_on = key_on;

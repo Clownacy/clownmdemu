@@ -125,6 +125,7 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel)
 	/* Feed the operators into each other to produce the final sample. */
 	/* Note that the operators output a 14-bit sample, meaning that, if all four are summed, then the result is a 16-bit sample,
 	   so there is no possibility of overflow. */
+	/* http://gendev.spritesmind.net/forum/viewtopic.php?p=5958#p5958 */
 	switch (channel->state->algorithm)
 	{
 		default:
