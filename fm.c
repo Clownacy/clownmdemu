@@ -339,7 +339,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 						/* TODO: LFO. */
 						if ((data & 0x80) != 0)
-							PrintError("LFO enabled");
+							PrintError("LFO AMON used");
 
 						break;
 
@@ -415,6 +415,11 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 						/* Panning, AMS, FMS. */
 						channel_metadata->pan_left = (data & 0x80) != 0;
 						channel_metadata->pan_right = (data & 0x40) != 0;
+
+						/* TODO: AMS, FMS. */
+						if ((data & 0x37) != 0)
+							PrintError("LFO AMS/FMS used");
+
 						break;
 				}
 			}
