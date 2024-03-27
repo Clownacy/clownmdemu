@@ -205,6 +205,9 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 				case 0x22:
 					/* TODO: LFO. */
+					if ((data & 8) != 0)
+						PrintError("LFO enabled");
+
 					break;
 
 				case 0x24:
