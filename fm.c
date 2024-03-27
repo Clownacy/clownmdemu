@@ -230,7 +230,6 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 				case 0x27:
 				{
-					/* TODO: CSM mode. */
 					const cc_bool fm3_per_operator_frequencies_enabled = (data & 0xC0) != 0;
 
 					cc_u8f i;
