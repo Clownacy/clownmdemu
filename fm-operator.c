@@ -326,18 +326,27 @@ cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 			switch (state->envelope_mode)
 			{
 				case FM_OPERATOR_ENVELOPE_MODE_ATTACK:
-					if (delta != 0)
+					if (state->attenuation == 0)
+					{
+						state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_DECAY;
+					}
+					else if (delta != 0)
 					{
 						state->attenuation += (~(cc_u16f)state->attenuation << (delta - 1)) >> 4;
 						state->attenuation &= 0x3FF;
 					}
 
-					if (state->attenuation == 0)
-						state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_DECAY;
-
 					break;
 
 				case FM_OPERATOR_ENVELOPE_MODE_DECAY:
+					if (state->attenuation >= state->sustain_level)
+					{
+						/* TODO: The SpritesMind thread says that this should happen: */
+						/*envelope->current_attenuation = envelope->sustain_level;*/
+						state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_SUSTAIN;
+						break;
+					}
+					/* Fallthrough */
 				case FM_OPERATOR_ENVELOPE_MODE_SUSTAIN:
 				case FM_OPERATOR_ENVELOPE_MODE_RELEASE:
 					if (delta != 0)
@@ -346,19 +355,7 @@ cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 
 						if (!state->ssgeg.enabled || state->attenuation < 0x200)
 							state->attenuation += increment;
-					}
 
-					if (state->envelope_mode == FM_OPERATOR_ENVELOPE_MODE_DECAY)
-					{
-						if (state->attenuation >= state->sustain_level)
-						{
-							/* TODO: The SpritesMind thread says that this should happen: */
-							/*envelope->current_attenuation = envelope->sustain_level;*/
-							state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_SUSTAIN;
-						}
-					}
-					else
-					{
 						if (state->attenuation > 0x3FF)
 							state->attenuation = 0x3FF;
 					}
