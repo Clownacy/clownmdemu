@@ -202,27 +202,8 @@ void FM_Operator_SetSustainLevelAndReleaseRate(FM_Operator_State* const state, c
 	state->rates[FM_OPERATOR_ENVELOPE_MODE_RELEASE] = (release_rate << 1) | 1;
 }
 
-cc_u16f UpdateEnvelope(FM_Operator_State* const state)
+static cc_u16f GetEnvelopeDelta(FM_Operator_State* const state)
 {
-	/* Update SSG envelope generator. */
-	if (state->ssgeg.enabled && state->attenuation >= 0x200)
-	{
-		if (state->ssgeg.alternate && (!state->ssgeg.hold || !state->ssgeg.invert))
-			state->ssgeg.invert = !state->ssgeg.invert;
-
-		if (!state->ssgeg.alternate && !state->ssgeg.hold)
-			FM_Phase_Reset(&state->phase);
-
-		if (state->envelope_mode != FM_OPERATOR_ENVELOPE_MODE_ATTACK)
-		{
-			if (state->envelope_mode != FM_OPERATOR_ENVELOPE_MODE_RELEASE && !state->ssgeg.hold)
-				EnterAttackMode(state);
-			else if (state->envelope_mode == FM_OPERATOR_ENVELOPE_MODE_RELEASE || (!state->ssgeg.invert) != state->ssgeg.attack)
-				state->attenuation = 0x3FF;
-		}
-	}
-
-	/* Update regular envelope generator. */
 	if (--state->countdown == 0)
 	{
 		static const cc_u16f cycle_bitmasks[0x40 / 4] = {
@@ -319,47 +300,80 @@ cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 				{4, 4, 4, 4, 4, 4, 4, 4}
 			};
 
-			const cc_u16f delta = deltas[rate][state->delta_index++ % CC_COUNT_OF(deltas[rate])];
-
-			switch (state->envelope_mode)
-			{
-				case FM_OPERATOR_ENVELOPE_MODE_ATTACK:
-					if (state->attenuation == 0)
-					{
-						state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_DECAY;
-					}
-					else if (delta != 0)
-					{
-						state->attenuation += (~(cc_u16f)state->attenuation << (delta - 1)) >> 4;
-						state->attenuation &= 0x3FF;
-					}
-
-					break;
-
-				case FM_OPERATOR_ENVELOPE_MODE_DECAY:
-					if (state->attenuation >= state->sustain_level)
-					{
-						state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_SUSTAIN;
-						break;
-					}
-					/* Fallthrough */
-				case FM_OPERATOR_ENVELOPE_MODE_SUSTAIN:
-				case FM_OPERATOR_ENVELOPE_MODE_RELEASE:
-					if (delta != 0)
-					{
-						const cc_u16f increment = 1u << ((delta - 1) + (state->ssgeg.enabled ? 2 : 0));
-
-						if (!state->ssgeg.enabled || state->attenuation < 0x200)
-							state->attenuation += increment;
-
-						if (state->attenuation > 0x3FF)
-							state->attenuation = 0x3FF;
-					}
-
-					break;
-			}
+			return deltas[rate][state->delta_index++ % CC_COUNT_OF(deltas[rate])];
 		}
 	}
+
+	return 0;
+}
+
+static void UpdateEnvelopeSSGEG(FM_Operator_State* const state)
+{
+	if (state->ssgeg.enabled && state->attenuation >= 0x200)
+	{
+		if (state->ssgeg.alternate && (!state->ssgeg.hold || !state->ssgeg.invert))
+			state->ssgeg.invert = !state->ssgeg.invert;
+
+		if (!state->ssgeg.alternate && !state->ssgeg.hold)
+			FM_Phase_Reset(&state->phase);
+
+		if (state->envelope_mode != FM_OPERATOR_ENVELOPE_MODE_ATTACK)
+		{
+			if (state->envelope_mode != FM_OPERATOR_ENVELOPE_MODE_RELEASE && !state->ssgeg.hold)
+				EnterAttackMode(state);
+			else if (state->envelope_mode == FM_OPERATOR_ENVELOPE_MODE_RELEASE || (!state->ssgeg.invert) != state->ssgeg.attack)
+				state->attenuation = 0x3FF;
+		}
+	}
+}
+
+static void UpdateEnvelopeADSR(FM_Operator_State* const state)
+{
+	const cc_u16f delta = GetEnvelopeDelta(state);
+
+	switch (state->envelope_mode)
+	{
+		case FM_OPERATOR_ENVELOPE_MODE_ATTACK:
+			if (state->attenuation == 0)
+			{
+				state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_DECAY;
+			}
+			else if (delta != 0)
+			{
+				state->attenuation += (~(cc_u16f)state->attenuation << (delta - 1)) >> 4;
+				state->attenuation &= 0x3FF;
+			}
+
+			break;
+
+		case FM_OPERATOR_ENVELOPE_MODE_DECAY:
+			if (state->attenuation >= state->sustain_level)
+			{
+				state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_SUSTAIN;
+				break;
+			}
+			/* Fallthrough */
+		case FM_OPERATOR_ENVELOPE_MODE_SUSTAIN:
+		case FM_OPERATOR_ENVELOPE_MODE_RELEASE:
+			if (delta != 0)
+			{
+				const cc_u16f increment = 1u << ((delta - 1) + (state->ssgeg.enabled ? 2 : 0));
+
+				if (!state->ssgeg.enabled || state->attenuation < 0x200)
+					state->attenuation += increment;
+
+				if (state->attenuation > 0x3FF)
+					state->attenuation = 0x3FF;
+			}
+
+			break;
+	}
+}
+
+static cc_u16f UpdateEnvelope(FM_Operator_State* const state)
+{
+	UpdateEnvelopeSSGEG(state);
+	UpdateEnvelopeADSR(state);
 
 	return CC_MIN(0x3FF, (state->ssgeg.enabled && state->envelope_mode != FM_OPERATOR_ENVELOPE_MODE_RELEASE && state->ssgeg.invert != state->ssgeg.attack ? (0x200 - state->attenuation) & 0x3FF : state->attenuation) + state->total_level);
 }
