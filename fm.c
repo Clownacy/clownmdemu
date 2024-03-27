@@ -271,13 +271,14 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					/* Key on/off. */
 					/* There's a gap between channels 3 and 4. */
 					/* TODO - Check what happens if you try to access the 'gap' channels on real hardware. */
-					static const cc_u16f table[8] = {0, 1, 2, 0, 3, 4, 5, 0};
+					static const cc_u8f table[8] = {0, 1, 2, 0, 3, 4, 5, 0};
 					const cc_u8f table_index = data % CC_COUNT_OF(table);
 					const FM_Channel* const channel = &fm->channels[table[table_index]];
 
 					if (table_index == 3 || table_index == 7)
 						PrintError("Key-on/off command uses invalid 'gap' channel index.");
 
+					/* TODO: Is this operator ordering actually correct? */
 					FM_Channel_SetKeyOn(channel, 0, (data & (1 << 4)) != 0);
 					FM_Channel_SetKeyOn(channel, 2, (data & (1 << 5)) != 0);
 					FM_Channel_SetKeyOn(channel, 1, (data & (1 << 6)) != 0);
