@@ -306,26 +306,31 @@ cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 				{1, 2, 1, 2, 1, 2, 1, 2},
 				{1, 2, 2, 2, 1, 2, 2, 2},
 				{2, 2, 2, 2, 2, 2, 2, 2},
-				{2, 2, 2, 4, 2, 2, 2, 4},
-				{2, 4, 2, 4, 2, 4, 2, 4},
-				{2, 4, 4, 4, 2, 4, 4, 4},
+				{2, 2, 2, 3, 2, 2, 2, 3},
+				{2, 3, 2, 3, 2, 3, 2, 3},
+				{2, 3, 3, 3, 2, 3, 3, 3},
+				{3, 3, 3, 3, 3, 3, 3, 3},
+				{3, 3, 3, 4, 3, 3, 3, 4},
+				{3, 4, 3, 4, 3, 4, 3, 4},
+				{3, 4, 4, 4, 3, 4, 4, 4},
 				{4, 4, 4, 4, 4, 4, 4, 4},
-				{4, 4, 4, 8, 4, 4, 4, 8},
-				{4, 8, 4, 8, 4, 8, 4, 8},
-				{4, 8, 8, 8, 4, 8, 8, 8},
-				{8, 8, 8, 8, 8, 8, 8, 8},
-				{8, 8, 8, 8, 8, 8, 8, 8},
-				{8, 8, 8, 8, 8, 8, 8, 8},
-				{8, 8, 8, 8, 8, 8, 8, 8}
+				{4, 4, 4, 4, 4, 4, 4, 4},
+				{4, 4, 4, 4, 4, 4, 4, 4},
+				{4, 4, 4, 4, 4, 4, 4, 4}
 			};
 
 			const cc_u16f delta = deltas[rate][state->delta_index++ & 7];
 
+			cc_u16f attentuation_increment;
+
 			switch (state->envelope_mode)
 			{
 				case FM_OPERATOR_ENVELOPE_MODE_ATTACK:
-					state->attenuation += (~state->attenuation * delta) >> 4;
-					state->attenuation &= 0x3FF;
+					if (delta != 0)
+					{
+						state->attenuation += (~(cc_u16f)state->attenuation << (delta - 1)) >> 4;
+						state->attenuation &= 0x3FF;
+					}
 
 					if (state->attenuation == 0)
 						state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_DECAY;
@@ -335,14 +340,12 @@ cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 				case FM_OPERATOR_ENVELOPE_MODE_DECAY:
 				case FM_OPERATOR_ENVELOPE_MODE_SUSTAIN:
 				case FM_OPERATOR_ENVELOPE_MODE_RELEASE:
-					if (state->ssgeg.enabled)
+					if (delta != 0)
 					{
-						if (state->attenuation < 0x200)
-							state->attenuation += delta * 4;
-					}
-					else
-					{
-						state->attenuation += delta;
+						const cc_u16f increment = 1u << (delta - 1) + (state->ssgeg.enabled ? 2 : 0);
+
+						if (!state->ssgeg.enabled || state->attenuation < 0x200)
+							state->attenuation += increment;
 					}
 
 					if (state->envelope_mode == FM_OPERATOR_ENVELOPE_MODE_DECAY)
