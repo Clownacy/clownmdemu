@@ -5,9 +5,18 @@
 
 #include "fm-operator.h"
 
+#include <assert.h>
 #include <math.h>
 
 #include "clowncommon/clowncommon.h"
+
+static cc_u16f GetSSGEGCorrectedAttenuation(const FM_Operator_State* const state, const cc_bool disable_ssgeg)
+{
+	if (!disable_ssgeg && state->ssgeg.enabled && state->ssgeg.invert != state->ssgeg.attack)
+		return (0x200 - state->attenuation) & 0x3FF;
+	else
+		return state->attenuation;
+}
 
 static cc_u16f CalculateRate(const FM_Operator_State* const state)
 {
@@ -19,12 +28,15 @@ static cc_u16f CalculateRate(const FM_Operator_State* const state)
 
 static void EnterAttackMode(FM_Operator_State* const state)
 {
-	state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_ATTACK;
-
-	if (CalculateRate(state) >= 0x1F * 2)
+	if (state->key_on)
 	{
-		state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_DECAY;
-		state->attenuation = 0;
+		state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_ATTACK;
+
+		if (CalculateRate(state) >= 0x1F * 2)
+		{
+			state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_DECAY;
+			state->attenuation = 0;
+		}
 	}
 }
 
@@ -117,7 +129,7 @@ void FM_Operator_State_Initialise(FM_Operator_State* const state)
 	state->cycle_counter = 0;
 
 	state->delta_index = 0;
-	state->attenuation = 0;
+	state->attenuation = 0x3FF;
 
 	FM_Operator_SetSSGEG(state, 0);
 	FM_Operator_SetTotalLevel(state, 0x7F); /* Silence channel. */
@@ -126,7 +138,7 @@ void FM_Operator_State_Initialise(FM_Operator_State* const state)
 	FM_Operator_SetSustainRate(state, 0);
 	FM_Operator_SetSustainLevelAndReleaseRate(state, 0, 0);
 
-	state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_ATTACK;
+	state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_RELEASE;
 
 	state->key_on = cc_false;
 }
@@ -154,6 +166,11 @@ void FM_Operator_SetKeyOn(FM_Operator_State* const state, const cc_bool key_on)
 		else
 		{
 			state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_RELEASE;
+
+			/* SSG-EG attenuation inversion is not performed during key-off, so we have to manually invert the attenuation here. */
+			state->attenuation = GetSSGEGCorrectedAttenuation(state, cc_false);
+
+			/* This is always forced off as long as key-on is false. */
 			state->ssgeg.invert = cc_false;
 		}
 	}
@@ -162,9 +179,9 @@ void FM_Operator_SetKeyOn(FM_Operator_State* const state, const cc_bool key_on)
 void FM_Operator_SetSSGEG(FM_Operator_State* const state, const cc_u8f ssgeg)
 {
 	state->ssgeg.enabled   = (ssgeg & (1u << 3)) != 0;
-	state->ssgeg.attack    = (ssgeg & (1u << 2)) != 0;
-	state->ssgeg.alternate = (ssgeg & (1u << 1)) != 0;
-	state->ssgeg.hold      = (ssgeg & (1u << 0)) != 0;
+	state->ssgeg.attack    = (ssgeg & (1u << 2)) != 0 && state->ssgeg.enabled;
+	state->ssgeg.alternate = (ssgeg & (1u << 1)) != 0 && state->ssgeg.enabled;
+	state->ssgeg.hold      = (ssgeg & (1u << 0)) != 0 && state->ssgeg.enabled;
 }
 
 void FM_Operator_SetDetuneAndMultiplier(FM_Operator_State* const state, const cc_u16f detune, const cc_u16f multiplier)
@@ -316,28 +333,15 @@ static void UpdateEnvelopeSSGEG(FM_Operator_State* const state)
 		else if (!state->ssgeg.hold)
 			FM_Phase_Reset(&state->phase);
 
-		switch (state->envelope_mode)
-		{
-			case FM_OPERATOR_ENVELOPE_MODE_ATTACK:
-				break;
-
-			case FM_OPERATOR_ENVELOPE_MODE_DECAY:
-			case FM_OPERATOR_ENVELOPE_MODE_SUSTAIN:
-				if (!state->ssgeg.hold)
-					EnterAttackMode(state);
-				break;
-
-			case FM_OPERATOR_ENVELOPE_MODE_RELEASE:
-				if (state->ssgeg.invert == state->ssgeg.attack)
-					state->attenuation = 0x3FF;
-				break;
-		}
+		if (!state->ssgeg.hold)
+			EnterAttackMode(state);
 	}
 }
 
 static void UpdateEnvelopeADSR(FM_Operator_State* const state)
 {
 	const cc_u16f delta = GetEnvelopeDelta(state);
+	const cc_bool end_envelope = state->attenuation >= (state->ssgeg.enabled ? 0x200 : 0x3F0);
 
 	switch (state->envelope_mode)
 	{
@@ -345,11 +349,13 @@ static void UpdateEnvelopeADSR(FM_Operator_State* const state)
 			if (state->attenuation == 0)
 			{
 				state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_DECAY;
+				break;
 			}
-			else if (delta != 0)
+
+			if (delta != 0)
 			{
 				state->attenuation += (~(cc_u16f)state->attenuation << (delta - 1)) >> 4;
-				state->attenuation &= 0x3FF;
+				assert(state->attenuation <= 0x3FF);
 			}
 
 			break;
@@ -363,15 +369,16 @@ static void UpdateEnvelopeADSR(FM_Operator_State* const state)
 			/* Fallthrough */
 		case FM_OPERATOR_ENVELOPE_MODE_SUSTAIN:
 		case FM_OPERATOR_ENVELOPE_MODE_RELEASE:
-			if (delta != 0)
+			if (delta != 0 && !end_envelope)
 			{
-				const cc_u16f increment = 1u << ((delta - 1) + (state->ssgeg.enabled ? 2 : 0));
+				state->attenuation += 1u << ((delta - 1) + (state->ssgeg.enabled ? 2 : 0));
+				assert(state->attenuation <= 0x3FF);
+			}
 
-				if (!state->ssgeg.enabled || state->attenuation < 0x200)
-					state->attenuation += increment;
-
-				if (state->attenuation > 0x3FF)
-					state->attenuation = 0x3FF;
+			if (end_envelope && !(state->key_on && state->ssgeg.hold && (state->ssgeg.alternate != state->ssgeg.attack)))
+			{
+				state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_RELEASE;
+				state->attenuation = 0x3FF;
 			}
 
 			break;
@@ -383,7 +390,7 @@ static cc_u16f UpdateEnvelope(FM_Operator_State* const state)
 	UpdateEnvelopeSSGEG(state);
 	UpdateEnvelopeADSR(state);
 
-	return CC_MIN(0x3FF, (state->ssgeg.enabled && state->envelope_mode != FM_OPERATOR_ENVELOPE_MODE_RELEASE && state->ssgeg.invert != state->ssgeg.attack ? (0x200 - state->attenuation) & 0x3FF : state->attenuation) + state->total_level);
+	return CC_MIN(0x3FF, GetSSGEGCorrectedAttenuation(state, !state->key_on) + state->total_level);
 }
 
 cc_s16f FM_Operator_Process(const FM_Operator* const fm_operator, const cc_s16f phase_modulation)
