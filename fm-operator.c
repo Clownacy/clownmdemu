@@ -311,18 +311,26 @@ static void UpdateEnvelopeSSGEG(FM_Operator_State* const state)
 {
 	if (state->ssgeg.enabled && state->attenuation >= 0x200)
 	{
-		if (state->ssgeg.alternate && (!state->ssgeg.hold || !state->ssgeg.invert))
-			state->ssgeg.invert = !state->ssgeg.invert;
-
-		if (!state->ssgeg.alternate && !state->ssgeg.hold)
+		if (state->ssgeg.alternate)
+			state->ssgeg.invert = state->ssgeg.hold ? cc_true : !state->ssgeg.invert;
+		else if (!state->ssgeg.hold)
 			FM_Phase_Reset(&state->phase);
 
-		if (state->envelope_mode != FM_OPERATOR_ENVELOPE_MODE_ATTACK)
+		switch (state->envelope_mode)
 		{
-			if (state->envelope_mode != FM_OPERATOR_ENVELOPE_MODE_RELEASE && !state->ssgeg.hold)
-				EnterAttackMode(state);
-			else if (state->envelope_mode == FM_OPERATOR_ENVELOPE_MODE_RELEASE || (!state->ssgeg.invert) != state->ssgeg.attack)
-				state->attenuation = 0x3FF;
+			case FM_OPERATOR_ENVELOPE_MODE_ATTACK:
+				break;
+
+			case FM_OPERATOR_ENVELOPE_MODE_DECAY:
+			case FM_OPERATOR_ENVELOPE_MODE_SUSTAIN:
+				if (!state->ssgeg.hold)
+					EnterAttackMode(state);
+				break;
+
+			case FM_OPERATOR_ENVELOPE_MODE_RELEASE:
+				if (state->ssgeg.invert == state->ssgeg.attack)
+					state->attenuation = 0x3FF;
+				break;
 		}
 	}
 }
