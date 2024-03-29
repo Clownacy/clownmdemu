@@ -10,9 +10,9 @@
 
 #include "clowncommon/clowncommon.h"
 
-static cc_u16f GetSSGEGCorrectedAttenuation(const FM_Operator_State* const state, const cc_bool disable_ssgeg)
+static cc_u16f GetSSGEGCorrectedAttenuation(const FM_Operator_State* const state, const cc_bool disable_inversion)
 {
-	if (!disable_ssgeg && state->ssgeg.enabled && state->ssgeg.invert != state->ssgeg.attack)
+	if (!disable_inversion && state->ssgeg.enabled && state->ssgeg.invert != state->ssgeg.attack)
 		return (0x200 - state->attenuation) & 0x3FF;
 	else
 		return state->attenuation;
