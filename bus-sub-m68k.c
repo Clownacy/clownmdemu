@@ -90,7 +90,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 		{
 			const cc_u16f track_number = MCDM68kReadWord(user_data, clownmdemu->mcd_m68k->address_registers[0] + 0, target_cycle);
 
-			clownmdemu->state->mega_cd.cdda.current_track = track_number - 1;
+			clownmdemu->state->mega_cd.cdda.current_track = track_number;
 			clownmdemu->state->mega_cd.cdda.playing = cc_true;
 			clownmdemu->state->mega_cd.cdda.paused = cc_false;
 			clownmdemu->state->mega_cd.cdda.mode = command == 0x11 ? CLOWNMDEMU_CDDA_PLAY_ALL : command == 0x12 ? CLOWNMDEMU_CDDA_PLAY_ONCE : CLOWNMDEMU_CDDA_PLAY_REPEAT;
