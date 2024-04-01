@@ -226,9 +226,7 @@ typedef struct ClownMDEmu_State
 
 		struct
 		{
-			ClownMDEmu_CDDAMode mode;
 			cc_bool playing, paused;
-			cc_u8l current_track;
 		} cdda;
 
 		PCM_State pcm;
@@ -257,7 +255,7 @@ typedef struct ClownMDEmu_Callbacks
 	void (*cdda_audio_to_be_generated)(void *user_data, const struct ClownMDEmu *clownmdemu, size_t total_frames, void (*generate_cdda_audio)(const struct ClownMDEmu *clownmdemu, cc_s16l *sample_buffer, size_t total_frames));
 	void (*cd_seeked)(void *user_data, cc_u32f sector_index);
 	const cc_u8l* (*cd_sector_read)(void *user_data);
-	cc_bool (*cd_track_seeked)(void *user_data, cc_u16f track_index);
+	cc_bool (*cd_track_seeked)(void *user_data, cc_u16f track_index, ClownMDEmu_CDDAMode mode);
 	size_t (*cd_audio_read)(void *user_data, cc_s16l *sample_buffer, size_t total_frames);
 } ClownMDEmu_Callbacks;
 

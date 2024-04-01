@@ -148,21 +148,7 @@ static void GenerateCDDAAudio(const ClownMDEmu* const clownmdemu, cc_s16l* const
 	cc_u32f frames_done = 0;
 
 	if (clownmdemu->state->mega_cd.cdda.playing && !clownmdemu->state->mega_cd.cdda.paused)
-	{
 		frames_done = clownmdemu->callbacks->cd_audio_read((void*)clownmdemu->callbacks->user_data, sample_buffer, total_frames);
-
-		if (frames_done != total_frames)
-		{
-			if (clownmdemu->state->mega_cd.cdda.mode != CLOWNMDEMU_CDDA_PLAY_REPEAT)
-				++clownmdemu->state->mega_cd.cdda.current_track;
-
-			if (!clownmdemu->callbacks->cd_track_seeked((void*)clownmdemu->callbacks->user_data, clownmdemu->state->mega_cd.cdda.current_track))
-				clownmdemu->state->mega_cd.cdda.playing = cc_false;
-
-			if (clownmdemu->state->mega_cd.cdda.mode == CLOWNMDEMU_CDDA_PLAY_ONCE)
-				clownmdemu->state->mega_cd.cdda.paused = cc_true;
-		}
-	}
 
 	/* Clear any samples that we could not read from the disc. */
 	memset(sample_buffer + frames_done * total_channels, 0, (total_frames - frames_done) * sizeof(cc_s16l) * total_channels);
