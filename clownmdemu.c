@@ -120,7 +120,7 @@ static cc_bool FrontendControllerCallbackCommon(void* const user_data, const Con
 			frontend_button = CLOWNMDEMU_BUTTON_MODE;
 			break;
 
-		case CONTROLLER_BUTTON_TOTAL:
+		default:
 			assert(cc_false);
 			return cc_false;
 	}
