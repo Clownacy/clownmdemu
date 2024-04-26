@@ -809,7 +809,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, void (* const c
 				   when the sprite table base address is changed. Replicating this
 				   behaviour may be needed in order to properly emulate certain effects
 				   that involve manipulating the sprite table during rendering. */
-				/*state->sprite_cache.needs_updating = cc_true;*/ /* Oops */
+				/*vdp->state->sprite_row_cache.needs_updating = cc_true;*/ /* The VDP does not do this! */
 
 				break;
 
