@@ -516,8 +516,8 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, void (* co
 				const VDP_CachedSprite cached_sprite = VDP_GetCachedSprite(state, sprite_index);
 				const cc_u16f blank_lines = 128 << state->double_resolution_enabled;
 
-				/* This loop only processes rows that are on-screen, and haven't been drawn yet */
-				for (i = CC_MAX(blank_lines + scanline, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_height_power), cached_sprite.y + (cached_sprite.height << tile_height_power)); ++i)
+				/* This loop only processes rows that are on-screen. */
+				for (i = CC_MAX(blank_lines, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_height_power), cached_sprite.y + (cached_sprite.height << tile_height_power)); ++i)
 				{
 					struct VDP_SpriteRowCacheRow *row = &state->sprite_row_cache.rows[i - blank_lines];
 
