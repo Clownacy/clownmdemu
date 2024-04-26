@@ -35,6 +35,25 @@ static cc_bool IsInReadMode(const VDP_State* const state)
 	return (state->access.code_register & 1) == 0;
 }
 
+static void WriteVRAM(VDP_State* const state, const cc_u16f index, const cc_u8f value)
+{
+	/* Update sprite cache if we're writing to the sprite table */
+	/* TODO: Do DMA fills and copies do this? */
+	const cc_u16f index_wrapped = index % CC_COUNT_OF(state->vram);
+	const cc_u16f sprite_table_index = index_wrapped - state->sprite_table_address;
+
+	if (sprite_table_index < (state->h40_enabled ? 80u : 64u) * 8u && (sprite_table_index & 4) == 0)
+	{
+		cc_u8l* const cache_bytes = state->sprite_table_cache[sprite_table_index / 8];
+
+		cache_bytes[sprite_table_index & 3] = value;
+
+		state->sprite_row_cache.needs_updating = cc_true;
+	}
+
+	state->vram[index_wrapped] = value;
+}
+
 static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, void (* const colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void* const colour_updated_callback_user_data)
 {
 	switch (state->access.selected_buffer)
@@ -45,28 +64,9 @@ static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, void 
 			break;
 
 		case VDP_ACCESS_VRAM:
-		{
-			/* Update sprite cache if we're writing to the sprite table */
-			const cc_u16f index_wrapped = state->access.address_register % CC_COUNT_OF(state->vram);
-			const cc_u16f sprite_table_index = index_wrapped - state->sprite_table_address;
-			const cc_u8l upper_byte = (cc_u8l)(value >> 8);
-			const cc_u8l lower_byte = (cc_u8l)(value & 0xFF);
-
-			if (sprite_table_index < (state->h40_enabled ? 80u : 64u) * 8u && (sprite_table_index & 4) == 0)
-			{
-				cc_u8l* const cache_bytes = state->sprite_table_cache[sprite_table_index / 8];
-
-				cache_bytes[(sprite_table_index & 3) ^ 0] = upper_byte;
-				cache_bytes[(sprite_table_index & 3) ^ 1] = lower_byte;
-
-				state->sprite_row_cache.needs_updating = cc_true;
-			}
-
-			state->vram[index_wrapped ^ 0] = upper_byte;
-			state->vram[index_wrapped ^ 1] = lower_byte;
-
+			WriteVRAM(state, state->access.address_register ^ 0, (cc_u8f)(value >> 8));
+			WriteVRAM(state, state->access.address_register ^ 1, (cc_u8f)(value & 0xFF));
 			break;
-		}
 
 		case VDP_ACCESS_CRAM:
 		{
@@ -496,8 +496,8 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, void (* co
 		if (state->sprite_row_cache.needs_updating)
 		{
 			/* Caching and preprocessing some of the sprite table allows the renderer to avoid
-				scanning the entire sprite table every time it renders a scanline. The VDP actually
-				partially caches its sprite data too, though I don't know if it's for the same purpose. */
+			   scanning the entire sprite table every time it renders a scanline. The VDP actually
+			   partially caches its sprite data too, though I don't know if it's for the same purpose. */
 			const cc_u16f max_sprites = state->h40_enabled ? 80 : 64;
 
 			cc_u16f sprite_index;
@@ -519,12 +519,12 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, void (* co
 				/* This loop only processes rows that are on-screen. */
 				for (i = CC_MAX(blank_lines, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_height_power), cached_sprite.y + (cached_sprite.height << tile_height_power)); ++i)
 				{
-					struct VDP_SpriteRowCacheRow *row = &state->sprite_row_cache.rows[i - blank_lines];
+					struct VDP_SpriteRowCacheRow* const row = &state->sprite_row_cache.rows[i - blank_lines];
 
 					/* Don't write more sprites than are allowed to be drawn on this line */
 					if (row->total != (state->h40_enabled ? 20 : 16))
 					{
-						struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &row->sprites[row->total++];
+						struct VDP_SpriteRowCacheEntry* const sprite_row_cache_entry = &row->sprites[row->total++];
 
 						sprite_row_cache_entry->table_index = (cc_u8l)sprite_index;
 						sprite_row_cache_entry->width = (cc_u8l)cached_sprite.width;
@@ -559,7 +559,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, void (* co
 			   https://segaretro.org/Sprite_Masking_and_Overflow_Test_ROM */
 			for (i = 0; i < state->sprite_row_cache.rows[scanline].total; ++i)
 			{
-				struct VDP_SpriteRowCacheEntry *sprite_row_cache_entry = &state->sprite_row_cache.rows[scanline].sprites[i];
+				struct VDP_SpriteRowCacheEntry* const sprite_row_cache_entry = &state->sprite_row_cache.rows[scanline].sprites[i];
 
 				/* Decode sprite data */
 				const cc_u16f sprite_index = state->sprite_table_address + sprite_row_cache_entry->table_index * 8;
@@ -732,7 +732,7 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, void (* const colo
 
 			do
 			{
-				vdp->state->vram[(vdp->state->access.address_register ^ 1) % CC_COUNT_OF(vdp->state->vram)] = value >> 8;
+				WriteVRAM(vdp->state, vdp->state->access.address_register ^ 1, (cc_u8f)(value >> 8));
 				vdp->state->access.address_register += vdp->state->access.increment;
 
 				/* Yes, even DMA fills do this, according to
@@ -1067,7 +1067,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, void (* const c
 			}
 			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
 			{
-				vdp->state->vram[(vdp->state->access.address_register ^ 1) % CC_COUNT_OF(vdp->state->vram)] = vdp->state->vram[vdp->state->dma.source_address_low ^ 1];
+				WriteVRAM(vdp->state, vdp->state->access.address_register ^ 1, vdp->state->vram[vdp->state->dma.source_address_low ^ 1]);
 				vdp->state->access.address_register += vdp->state->access.increment;
 			}
 
