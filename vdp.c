@@ -1080,6 +1080,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, void (* const c
 
 cc_u16f VDP_ReadVRAMWord(const VDP_State* const state, const cc_u16f address)
 {
+	assert(address < CC_COUNT_OF(state->vram));
 	return (state->vram[address ^ 0] << 8) | state->vram[address ^ 1];
 }
 
