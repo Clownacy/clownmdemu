@@ -89,6 +89,15 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 					else
 					{
 						value = clownmdemu->state->mega_cd.word_ram.buffer[address_word & 0x1FFFF];
+						
+						if (is_vdp_dma)
+						{
+							/* Delay WORD-RAM DMA transfers. This is a real bug on the Mega CD that games have to work around. */
+							const cc_u16f delayed_value = value;
+
+							value = clownmdemu->state->mega_cd.delayed_dma_word;
+							clownmdemu->state->mega_cd.delayed_dma_word = delayed_value;
+						}
 					}
 				}
 			}
