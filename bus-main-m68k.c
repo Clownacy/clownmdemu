@@ -133,19 +133,16 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 			/* TODO: According to Devon, yes it does. */
 			PrintError("68k attempted to read Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 		}
-		else if (do_high_byte && do_low_byte)
-		{
-			PrintError("68k attempted to perform word-sized read of Z80 memory/YM2612 ports at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
-		}
 		else
 		{
 			/* This is unnecessary, as the Z80 bus will have to have been requested, causing a sync. */
 			/*SyncZ80(clownmdemu, callback_user_data, target_cycle);*/
 
-			if (do_high_byte)
-				value = Z80ReadCallbackWithCycle(user_data, (address + 0) & 0xFFFF, target_cycle) << 8;
-			else /*if (do_low_byte)*/
-				value = Z80ReadCallbackWithCycle(user_data, (address + 1) & 0xFFFF, target_cycle) << 0;
+			if (do_high_byte && do_low_byte)
+				PrintError("68k attempted to perform word-sized read of Z80 memory/YM2612 ports at 0x%"CC_PRIXLEAST32"; the read word will only contain the first byte repeated", clownmdemu->state->m68k.state.program_counter);
+
+			value = Z80ReadCallbackWithCycle(user_data, (address + (do_high_byte ? 0 : 1)) & 0xFFFF, target_cycle);
+			value = value << 8 | value;
 		}
 	}
 	else if (address >= 0xA10000 && address <= 0xA1001F)
@@ -203,16 +200,21 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	else if (address == 0xA11100)
 	{
 		/* Z80 BUSREQ */
-		/* TODO: On real hardware, it seems that bus requests do not complete if a reset is being held. */
+		/* On real hardware, bus requests do not complete if a reset is being held. */
 		/* http://gendev.spritesmind.net/forum/viewtopic.php?f=2&t=2195 */
-		const cc_bool z80_running = !clownmdemu->state->z80.bus_requested;
+		const cc_bool z80_bus_obtained = clownmdemu->state->z80.bus_requested && !clownmdemu->state->z80.reset_held;
 
-		value = z80_running << 8;
+		if (clownmdemu->state->z80.reset_held)
+			PrintError("Z80 bus request at 0x%"CC_PRIXLEAST32" will never end as long as the reset is asserted", clownmdemu->m68k->program_counter);
+
+		value = 0xFF ^ z80_bus_obtained;
+		value = value << 8 | value;
 	}
 	else if (address == 0xA11200)
 	{
 		/* Z80 RESET */
-		/* TODO */
+		value = 0xFF ^ clownmdemu->state->z80.reset_held;
+		value = value << 8 | value;
 	}
 	else if (address == 0xA12000)
 	{
@@ -428,14 +430,13 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 			/* TODO: According to Devon, yes it does. */
 			PrintError("68k attempted to write Z80 memory/YM2612 ports while Z80 reset request was active at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
 		}
-		else if (do_high_byte && do_low_byte)
-		{
-			PrintError("68k attempted to perform word-sized write of Z80 memory/YM2612 ports at 0x%" CC_PRIXLEAST32, clownmdemu->state->m68k.state.program_counter);
-		}
 		else
 		{
 			/* This is unnecessary, as the Z80 bus will have to have been requested, causing a sync. */
 			/*SyncZ80(clownmdemu, callback_user_data, target_cycle);*/
+
+			if (do_high_byte && do_low_byte)
+				PrintError("68k attempted to perform word-sized write of Z80 memory/YM2612 ports at 0x%"CC_PRIXLEAST32"; only the top byte will be written", clownmdemu->state->m68k.state.program_counter);
 
 			if (do_high_byte)
 				Z80WriteCallbackWithCycle(user_data, (address + 0) & 0xFFFF, high_byte, target_cycle);
