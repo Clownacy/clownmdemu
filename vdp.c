@@ -277,7 +277,7 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 	const cc_u16f pixel_y_in_tile = (pixel_y_in_plane & tile_height_mask) ^ (tile.y_flip ? tile_height_mask : 0);
 
 	/* Get raw tile data that contains the desired metapixel */
-	const cc_u8l* const tile_data = &vdp->state->vram[tile.tile_index * tile_size + pixel_y_in_tile * 4];
+	const cc_u8l* const tile_data = &vdp->state->vram[(tile.tile_index * tile_size + pixel_y_in_tile * 4) % CC_COUNT_OF(vdp->state->vram)];
 
 	const cc_u8f byte_index_xor = tile.x_flip ? 7 : 0;
 	const cc_u8f metapixel_upper_bits = (tile.priority << 2) | tile.palette_line;
@@ -602,7 +602,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, void (* co
 						const cc_u16f pixel_y_in_tile = y_in_sprite & tile_height_mask;
 
 						/* Get raw tile data that contains the desired metapixel */
-						const cc_u8l* const tile_data = &state->vram[tile_index * tile_size + pixel_y_in_tile * 4];
+						const cc_u8l* const tile_data = &state->vram[(tile_index * tile_size + pixel_y_in_tile * 4) % CC_COUNT_OF(state->vram)];
 
 						cc_u16f k;
 
