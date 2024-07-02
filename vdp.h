@@ -29,7 +29,8 @@ typedef enum VDP_Access
 {
 	VDP_ACCESS_VRAM,
 	VDP_ACCESS_CRAM,
-	VDP_ACCESS_VSRAM
+	VDP_ACCESS_VSRAM,
+	VDP_ACCESS_INVALID
 } VDP_Access;
 
 typedef enum VDP_DMAMode

@@ -58,11 +58,6 @@ static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, void 
 {
 	switch (state->access.selected_buffer)
 	{
-		default:
-			/* Should never happen. */
-			assert(0);
-			break;
-
 		case VDP_ACCESS_VRAM:
 			WriteVRAM(state, state->access.address_register ^ 0, (cc_u8f)(value >> 8));
 			WriteVRAM(state, state->access.address_register ^ 1, (cc_u8f)(value & 0xFF));
@@ -101,6 +96,14 @@ static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, void 
 		case VDP_ACCESS_VSRAM:
 			state->vsram[(state->access.address_register / 2) % CC_COUNT_OF(state->vsram)] = (cc_u16l)(value & 0x7FF);
 			break;
+
+		default:
+			/* Should never happen. */
+			assert(0);
+			/* Fallthrough */
+		case VDP_ACCESS_INVALID:
+			PrintError("VDP write attempted with invalid access mode specified (0x%" CC_PRIXFAST16 ")", state->access.code_register);
+			break;
 	}
 
 	state->access.address_register += state->access.increment;
@@ -112,10 +115,6 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 
 	switch (state->access.selected_buffer)
 	{
-		default:
-			/* Should never happen. */
-			assert(0);
-			/* Fallthrough */
 		case VDP_ACCESS_VRAM:
 			value = VDP_ReadVRAMWord(state, state->access.address_register % CC_COUNT_OF(state->vram));
 			break;
@@ -126,6 +125,15 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 
 		case VDP_ACCESS_VSRAM:
 			value = state->vsram[(state->access.address_register / 2) % CC_COUNT_OF(state->vsram)];
+			break;
+
+		default:
+			/* Should never happen. */
+			assert(0);
+			/* Fallthrough */
+		case VDP_ACCESS_INVALID:
+			value = 0;
+			PrintError("VDP read attempted with invalid access mode specified (0x%" CC_PRIXFAST16 ")", state->access.code_register);
 			break;
 	}
 
@@ -1050,7 +1058,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, void (* const c
 			break;
 
 		default: /* Invalid */
-			PrintError("Invalid VDP access mode specified (0x%" CC_PRIXFAST16 ")", vdp->state->access.code_register);
+			vdp->state->access.selected_buffer = VDP_ACCESS_INVALID;
 			break;
 	}
 
