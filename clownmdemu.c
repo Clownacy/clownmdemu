@@ -163,7 +163,7 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	Z80_State_Initialise(&state->z80.state);
 	state->z80.cycle_countdown = 1;
 	state->z80.bank = 0;
-	state->z80.bus_requested = cc_true;
+	state->z80.bus_requested = cc_false; /* This should be false, according to Charles MacDonald's gen-hw.txt. */
 	state->z80.reset_held = cc_true;
 
 	VDP_State_Initialise(&state->vdp);
@@ -330,12 +330,11 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 		{
 			/* Do V-Int */
 			if (clownmdemu->state->vdp.v_int_enabled)
-			{
 				Clown68000_Interrupt(clownmdemu->m68k, &m68k_read_write_callbacks, 6);
 
-				SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
-				Z80_Interrupt(&clownmdemu->z80);
-			}
+			/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
+			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
+			Z80_Interrupt(&clownmdemu->z80);
 
 			/* Flag that we have entered the V-blank region */
 			clownmdemu->state->vdp.currently_in_vblank = cc_true;

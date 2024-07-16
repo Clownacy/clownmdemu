@@ -148,7 +148,8 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	else if (address >= 0xA10000 && address <= 0xA1001F)
 	{
 		/* I/O AREA */
-		/* TODO */
+		/* TODO: The missing ports. */
+		/* TODO: Detect when this is accessed without obtaining the Z80 bus and log a warning. */
 		switch (address)
 		{
 			case 0xA10000:
@@ -207,12 +208,16 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 		if (clownmdemu->state->z80.reset_held)
 			PrintError("Z80 bus request at 0x%"CC_PRIXLEAST32" will never end as long as the reset is asserted", clownmdemu->m68k->program_counter);
 
+		/* TODO: According to Charles MacDonald's gen-hw.txt, the upper byte is actually the upper byte
+		   of the next instruction and the lower byte is just 0 (and the flag bit, of course). */
 		value = 0xFF ^ z80_bus_obtained;
 		value = value << 8 | value;
 	}
 	else if (address == 0xA11200)
 	{
 		/* Z80 RESET */
+		/* TODO: According to Charles MacDonald's gen-hw.txt, the upper byte is actually the upper byte
+		   of the next instruction and the lower byte is just 0 (and the flag bit, of course). */
 		value = 0xFF ^ clownmdemu->state->z80.reset_held;
 		value = value << 8 | value;
 	}
@@ -276,6 +281,14 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 		/* Interrupt mask control */
 		PrintError("MAIN-CPU attempted to read from interrupt mask control register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
 	}
+	/* TODO: According to Charles MacDonald's gen-hw.txt, the VDP stuff is mirrored in the following pattern:
+	MSB                       LSB
+	110n n000 nnnn nnnn 000m mmmm
+
+	'1' - This bit must be 1.
+	'0' - This bit must be 0.
+	'n' - This bit can have any value.
+	'm' - VDP addresses (00-1Fh) */
 	else if (address == 0xC00000 || address == 0xC00002)
 	{
 		/* VDP data port */
