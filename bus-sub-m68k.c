@@ -53,6 +53,14 @@ static void MCDM68kWriteLongword(const void* const user_data, const cc_u32f addr
 	MCDM68kWriteWord(user_data, address + 2, value & 0xFFFF, target_cycle);
 }
 
+static void ROMSEEK(const ClownMDEmu* const clownmdemu, const void* const user_data, const ClownMDEmu_Callbacks* const frontend_callbacks, const CycleMegaCD target_cycle)
+{
+	const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 0, target_cycle);
+
+	frontend_callbacks->cd_seeked((void*)frontend_callbacks->user_data, starting_sector);
+	clownmdemu->state->mega_cd.cd.current_sector = starting_sector;
+}
+
 /* TODO: Move this to its own file? */
 static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const user_data, const ClownMDEmu_Callbacks* const frontend_callbacks, const CycleMegaCD target_cycle)
 {
@@ -97,15 +105,29 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 			break;
 		}
 
+		case 0x18:
+			/* ROMSEEK */
+			ROMSEEK(clownmdemu, user_data, frontend_callbacks, target_cycle);
+			break;
+
 		case 0x20:
 		{
 			/* ROMREADN */
-			const cc_u32f starting_sector = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 0, target_cycle);
 			const cc_u32f total_sectors = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 4, target_cycle);
 
-			frontend_callbacks->cd_seeked((void*)frontend_callbacks->user_data, starting_sector);
-			clownmdemu->state->mega_cd.cd.current_sector = starting_sector;
+			ROMSEEK(clownmdemu, user_data, frontend_callbacks, target_cycle);
 			clownmdemu->state->mega_cd.cd.total_buffered_sectors = total_sectors;
+			break;
+		}
+
+		case 0x21:
+		{
+			/* ROMREADE */
+			const cc_u32f last_sector = MCDM68kReadLongword(user_data, clownmdemu->mcd_m68k->address_registers[0] + 4, target_cycle);
+
+			ROMSEEK(clownmdemu, user_data, frontend_callbacks, target_cycle);
+			/* TODO: How does the official BIOS respond to a negative sector count? */
+			clownmdemu->state->mega_cd.cd.total_buffered_sectors = last_sector < clownmdemu->state->mega_cd.cd.current_sector ? 0 : last_sector - clownmdemu->state->mega_cd.cd.current_sector;
 			break;
 		}
 
@@ -142,7 +164,6 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 			break;
 
 		case 0x8C:
-		{
 			/* CDCTRN */
 			if (!clownmdemu->state->mega_cd.cd.cdc_ready)
 			{
@@ -173,7 +194,6 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 			}
 
 			break;
-		}
 
 		case 0x8D:
 			/* CDCACK */
