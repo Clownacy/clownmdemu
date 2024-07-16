@@ -333,6 +333,8 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 				Clown68000_Interrupt(clownmdemu->m68k, &m68k_read_write_callbacks, 6);
 
 			/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
+			/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
+			/* TODO: This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
 			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
 			Z80_Interrupt(&clownmdemu->z80);
 
