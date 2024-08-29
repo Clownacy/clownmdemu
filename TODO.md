@@ -65,7 +65,9 @@
   - The HALT, OUT, IN, IM, INI, IND, INIR, INDR, OTDI, OUTD, OTIR, and OTDR
     instructions.
   - Interrupt modes 0 and 2
+    - Mode 0 is identical to Mode 1 on the Mega Drive
   - Proper interrupt timings
+  - R register
 - FM
   - Low-Frequency Oscillator
   - Debug registers
