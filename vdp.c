@@ -1,4 +1,5 @@
 /* TODO: https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016 */
+/* TODO: HV counter details - https://wiki.megadrive.org/index.php?title=VDP_Ports */
 
 #include "vdp.h"
 
