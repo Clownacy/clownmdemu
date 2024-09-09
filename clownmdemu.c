@@ -413,8 +413,6 @@ void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
 	Clown68000_Reset(clownmdemu->m68k, &m68k_read_write_callbacks);
 
-	Z80_Reset(&clownmdemu->z80);
-
 	m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
 	m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
 	Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
