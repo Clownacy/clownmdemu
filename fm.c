@@ -434,6 +434,23 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 	}
 }
 
+static cc_s16f GetChannelSample(const FM* const fm, const FM_Channel* const channel)
+{
+	cc_s16f sample = FM_Channel_GetSample(channel);
+
+	if (!fm->configuration->ladder_effect_disabled)
+	{
+		/* Approximate the 'ladder effect' bug. */
+		/* https://gendev.spritesmind.net/forum/viewtopic.php?f=24&t=386&start=795#p30097 */
+		if (sample < 0)
+			sample -= 0x20 * 4;
+	}
+
+	/* Clamp the sample to a signed 14-bit range. According to Nuked OPN2, real YM2612s actually reduce the sample to 9-bit and
+	   clamp it to -0x100 and 0xFF instead, but I don't bother doing that here since having more bit depth makes for better audio. */
+	return CC_CLAMP(-0x1FFF, 0x1FFF, sample);
+}
+
 void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc_u32f total_frames)
 {
 	FM_State* const state = fm->state;
@@ -457,7 +474,7 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 		{
 			/* The FM sample is 14-bit, so convert it to 16-bit and then divide it so that it
 			   can be mixed with the other five FM channels and the PSG without clipping. */
-			const cc_s16f fm_sample = FM_Channel_GetSample(channel) * 4 / FM_VOLUME_DIVIDER;
+			const cc_s16f fm_sample = GetChannelSample(fm, channel) * 4 / FM_VOLUME_DIVIDER;
 
 			/* Select between the FM and DAC samples. */
 			const cc_s16f sample = is_dac ? state->dac_sample : fm_sample;

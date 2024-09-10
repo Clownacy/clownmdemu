@@ -238,12 +238,5 @@ cc_s16f FM_Channel_GetSample(const FM_Channel* const channel)
 	channel->state->operator_1_previous_samples[1] = channel->state->operator_1_previous_samples[0];
 	channel->state->operator_1_previous_samples[0] = operator_1_sample;
 
-	/* Approximate the 'ladder effect' bug. */
-	/* https://gendev.spritesmind.net/forum/viewtopic.php?f=24&t=386&start=795#p30097 */
-	if (sample < 0)
-		sample -= 0x20 * 4;
-
-	/* Clamp the sample to a signed 14-bit range. According to Nuked OPN2, real YM2612s actually reduce the sample to 9-bit and
-	   clamp it to -0x100 and 0xFF instead, but I don't bother doing that here since having more bit depth makes for better audio. */
-	return CC_CLAMP(-0x1FFF, 0x1FFF, sample);
+	return sample;
 }

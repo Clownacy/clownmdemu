@@ -64,6 +64,7 @@ typedef struct FM_Configuration
 {
 	cc_bool fm_channels_disabled[6];
 	cc_bool dac_channel_disabled;
+	cc_bool ladder_effect_disabled;
 } FM_Configuration;
 
 typedef struct FM_Constant
