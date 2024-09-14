@@ -275,12 +275,14 @@ typedef struct ClownMDEmu
 	PCM pcm;
 } ClownMDEmu;
 
+typedef void (*ClownMDEmu_ErrorCallback)(void *user_data, const char *format, va_list arg);
+
 void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant);
 void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu);
 void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const cc_bool cd_boot);
-void ClownMDEmu_SetErrorCallback(void (*error_callback)(void *user_data, const char *format, va_list arg), const void *user_data);
+void ClownMDEmu_SetErrorCallback(const ClownMDEmu_ErrorCallback error_callback, const void *user_data);
 
 #ifdef __cplusplus
 }
