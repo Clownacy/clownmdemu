@@ -55,7 +55,7 @@ static void WriteVRAM(VDP_State* const state, const cc_u16f index, const cc_u8f 
 	state->vram[index_wrapped] = value;
 }
 
-static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, void (* const colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void* const colour_updated_callback_user_data)
+static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data)
 {
 	switch (state->access.selected_buffer)
 	{
@@ -310,7 +310,7 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 	}
 }
 
-void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, void (* const scanline_rendered_callback)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height), const void* const scanline_rendered_callback_user_data)
+void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
 {
 	const VDP_Constant* const constant = vdp->constant;
 	VDP_State* const state = vdp->state;
@@ -715,7 +715,7 @@ cc_u16f VDP_ReadControl(const VDP* const vdp)
 	return 0x3400 | (fifo_empty << 9) | (vdp->state->currently_in_vblank << 3) | (currently_in_hblank << 2); /* The H-blank bit is forced for now so Sonic 2's two-player mode works */
 }
 
-void VDP_WriteData(const VDP* const vdp, const cc_u16f value, void (* const colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void* const colour_updated_callback_user_data)
+void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data)
 {
 	vdp->state->access.write_pending = cc_false;
 
@@ -754,7 +754,7 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, void (* const colo
 }
 
 /* TODO - Retention of partial commands */
-void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, void (* const colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void* const colour_updated_callback_user_data, cc_u16f (* const read_callback)(void *user_data, cc_u32f address), const void* const read_callback_user_data)
+void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data, const VDP_ReadCallback read_callback, const void* const read_callback_user_data)
 {
 	if (vdp->state->access.write_pending)
 	{

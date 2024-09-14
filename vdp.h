@@ -164,14 +164,18 @@ typedef struct VDP
 	VDP_State *state;
 } VDP;
 
+typedef void (*VDP_ScanlineRenderedCallback)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height);
+typedef void (*VDP_ColourUpdatedCallback)(void *user_data, cc_u16f index, cc_u16f colour);
+typedef cc_u16f (*VDP_ReadCallback)(void *user_data, cc_u32f address);
+
 void VDP_Constant_Initialise(VDP_Constant *constant);
 void VDP_State_Initialise(VDP_State *state);
-void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, void (*scanline_rendered_callback)(void *user_data, cc_u16f scanline, const cc_u8l *pixels, cc_u16f screen_width, cc_u16f screen_height), const void *scanline_rendered_callback_user_data);
+void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, VDP_ScanlineRenderedCallback scanline_rendered_callback, const void *scanline_rendered_callback_user_data);
 
 cc_u16f VDP_ReadData(const VDP *vdp);
 cc_u16f VDP_ReadControl(const VDP *vdp);
-void VDP_WriteData(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data);
-void VDP_WriteControl(const VDP *vdp, cc_u16f value, void (*colour_updated_callback)(void *user_data, cc_u16f index, cc_u16f colour), const void *colour_updated_callback_user_data, cc_u16f(*read_callback)(void *user_data, cc_u32f address), const void *read_callback_user_data);
+void VDP_WriteData(const VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback colour_updated_callback, const void *colour_updated_callback_user_data);
+void VDP_WriteControl(const VDP *vdp, cc_u16f value, VDP_ColourUpdatedCallback colour_updated_callback, const void *colour_updated_callback_user_data, VDP_ReadCallback read_callback, const void *read_callback_user_data);
 
 cc_u16f VDP_ReadVRAMWord(const VDP_State *state, cc_u16f address);
 VDP_TileMetadata VDP_DecomposeTileMetadata(cc_u16f packed_tile_metadata);
