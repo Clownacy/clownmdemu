@@ -276,6 +276,10 @@ void VDP_State_Initialise(VDP_State* const state)
 
 	state->sprite_row_cache.needs_updating = cc_true;
 	memset(state->sprite_row_cache.rows, 0, sizeof(state->sprite_row_cache.rows));
+
+	state->kdebug_buffer_index = 0;
+	/* This byte never gets overwritten, so we can set it ahead of time. */
+	state->kdebug_buffer[CC_COUNT_OF(state->kdebug_buffer) - 1] = '\0';
 }
 
 static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f tile_x, const cc_u16f tile_y, const cc_u16f plane_address, const cc_u16f tile_height_mask, const cc_u16f tile_size, cc_u8l** const metapixels_pointer)
@@ -754,7 +758,7 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 }
 
 /* TODO - Retention of partial commands */
-void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data, const VDP_ReadCallback read_callback, const void* const read_callback_user_data)
+void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data, const VDP_ReadCallback read_callback, const void* const read_callback_user_data, const VDP_KDebugCallback kdebug_callback, const void* const kdebug_callback_user_data)
 {
 	if (vdp->state->access.write_pending)
 	{
@@ -1021,6 +1025,24 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 				}
 
 				break;
+
+			case 30:
+			{
+				/* Gens KMod debug register. Does not exist in real Mega Drives, but is a useful emulator feature for debugging. */
+				const char character = CC_SIGN_EXTEND(int, 7, (int)data);
+
+				/* This behaviour exactly matches Gens KMod v0.7. */
+				if (character < 0x20 && character != '\0')
+					break;
+
+				vdp->state->kdebug_buffer[vdp->state->kdebug_buffer_index++] = character;
+
+				/* The last byte of the buffer is always set to 0, so we don't need to do it here. */
+				if (character == '\0' || vdp->state->kdebug_buffer_index == CC_COUNT_OF(vdp->state->kdebug_buffer) - 1)
+						kdebug_callback((void*)kdebug_callback_user_data, vdp->state->kdebug_buffer);
+
+				break;
+			}
 
 			case 6:
 			case 8:

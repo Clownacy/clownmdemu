@@ -17,6 +17,13 @@ static cc_u16f VDPReadCallback(void *user_data, cc_u32f address)
 	return M68kReadCallbackWithDMA(user_data, address / 2, cc_true, cc_true, cc_true);
 }
 
+static void VDPKDebugCallback(void* const user_data, const char* const string)
+{
+	(void)user_data;
+
+	PrintError("KDEBUG: %s", string);
+}
+
 static cc_u16f SyncM68kCallback(const ClownMDEmu* const clownmdemu, void* const user_data)
 {
 	Clown68000_DoCycle(clownmdemu->m68k, (const Clown68000_ReadWriteCallbacks*)user_data);
@@ -640,7 +647,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 	else if (address == 0xC00004 || address == 0xC00006)
 	{
 		/* VDP control port */
-		VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data);
+		VDP_WriteControl(&clownmdemu->vdp, value, frontend_callbacks->colour_updated, frontend_callbacks->user_data, VDPReadCallback, callback_user_data, VDPKDebugCallback, NULL);
 	}
 	else if (address == 0xC00008)
 	{
