@@ -9,7 +9,7 @@
 
 #include "clowncommon/clowncommon.h"
 
-#include "error.h"
+#include "log.h"
 
 enum
 {
@@ -103,7 +103,7 @@ static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, const
 			assert(0);
 			/* Fallthrough */
 		case VDP_ACCESS_INVALID:
-			PrintError("VDP write attempted with invalid access mode specified (0x%" CC_PRIXFAST16 ")", state->access.code_register);
+			LogMessage("VDP write attempted with invalid access mode specified (0x%" CC_PRIXFAST16 ")", state->access.code_register);
 			break;
 	}
 
@@ -134,7 +134,7 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 			/* Fallthrough */
 		case VDP_ACCESS_INVALID:
 			value = 0;
-			PrintError("VDP read attempted with invalid access mode specified (0x%" CC_PRIXFAST16 ")", state->access.code_register);
+			LogMessage("VDP read attempted with invalid access mode specified (0x%" CC_PRIXFAST16 ")", state->access.code_register);
 			break;
 	}
 
@@ -695,7 +695,7 @@ cc_u16f VDP_ReadData(const VDP* const vdp)
 		/* According to GENESIS SOFTWARE DEVELOPMENT MANUAL (COMPLEMENT) section 4.1,
 		   this should cause the 68k to hang */
 		/* TODO */
-		PrintError("Data was read from the VDP data port while the VDP was in write mode");
+		LogMessage("Data was read from the VDP data port while the VDP was in write mode");
 	}
 	else
 	{
@@ -726,7 +726,7 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 	if (IsInReadMode(vdp->state))
 	{
 		/* Invalid input, but defined behaviour */
-		PrintError("Data was written to the VDP data port while the VDP was in read mode");
+		LogMessage("Data was written to the VDP data port while the VDP was in read mode");
 
 		/* According to GENESIS SOFTWARE DEVELOPMENT MANUAL (COMPLEMENT) section 4.1,
 		   data should not be written, but the address should be incremented */
@@ -852,7 +852,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 					case 1:
 						/* TODO: Some unauthorised EA games use this, and it acts as
 						   a slightly unstable version of one of the other modes. */
-						PrintError("Prohibitied H-scroll mode selected");
+						LogMessage("Prohibitied H-scroll mode selected");
 						break;
 
 					case 2:
@@ -927,7 +927,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 				if ((width_index == 3 && height_index != 0) || (height_index == 3 && width_index != 0))
 				{
 					/* TODO: So... what should happen? */
-					PrintError("Selected plane size exceeds 64x64/32x128/128x32");
+					LogMessage("Selected plane size exceeds 64x64/32x128/128x32");
 				}
 				else
 				{
@@ -943,7 +943,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 						case 2:
 							/* TODO: I swear some dumb Electronic Arts game uses this. */
-							PrintError("Prohibited plane width selected");
+							LogMessage("Prohibited plane width selected");
 							break;
 
 						case 3:
@@ -963,7 +963,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 						case 2:
 							/* TODO: I swear some dumb Electronic Arts game uses this. */
-							PrintError("Prohibited plane height selected");
+							LogMessage("Prohibited plane height selected");
 							break;
 
 						case 3:
@@ -1053,7 +1053,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 			default:
 				/* Invalid */
-				PrintError("Attempted to set invalid VDP register (0x%" CC_PRIXFAST16 ")", reg);
+				LogMessage("Attempted to set invalid VDP register (0x%" CC_PRIXFAST16 ")", reg);
 				break;
 		}
 	}

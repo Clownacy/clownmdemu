@@ -10,8 +10,8 @@
 #include "bus-sub-m68k.h"
 #include "bus-z80.h"
 #include "clown68000/interpreter/clown68000.h"
-#include "error.h"
 #include "fm.h"
+#include "log.h"
 #include "psg.h"
 #include "vdp.h"
 #include "z80.h"
@@ -418,8 +418,8 @@ void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 	Clown68000_Reset(clownmdemu->mcd_m68k, &m68k_read_write_callbacks);
 }
 
-void ClownMDEmu_SetErrorCallback(const ClownMDEmu_ErrorCallback error_callback, const void* const user_data)
+void ClownMDEmu_SetLogCallback(const ClownMDEmu_LogCallback log_callback, const void* const user_data)
 {
-	SetErrorCallback(error_callback, user_data);
-	Clown68000_SetErrorCallback(error_callback, user_data);
+	SetLogCallback(log_callback, user_data);
+	Clown68000_SetErrorCallback(log_callback, user_data);
 }

@@ -3,7 +3,7 @@
 #include <assert.h>
 
 #include "bus-main-m68k.h"
-#include "error.h"
+#include "log.h"
 
 /* TODO: https://sonicresearch.org/community/index.php?threads/help-with-potentially-extra-ram-space-for-z80-sound-drivers.6763/#post-89797 */
 
@@ -69,7 +69,7 @@ cc_u16f Z80ReadCallbackWithCycle(const void* const user_data, const cc_u16f addr
 	}
 	else
 	{
-		PrintError("Attempted to read invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->state->z80.state.program_counter);
+		LogMessage("Attempted to read invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->state->z80.state.program_counter);
 	}
 
 	return value;
@@ -135,7 +135,7 @@ void Z80WriteCallbackWithCycle(const void* const user_data, const cc_u16f addres
 	}
 	else
 	{
-		PrintError("Attempted to write invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->state->z80.state.program_counter);
+		LogMessage("Attempted to write invalid Z80 address 0x%" CC_PRIXFAST16 " at 0x%" CC_PRIXLEAST16, address, clownmdemu->state->z80.state.program_counter);
 	}
 }
 

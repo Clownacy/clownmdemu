@@ -12,7 +12,7 @@ https://floooh.github.io/2021/12/06/z80-instruction-timing.html
 
 #include "clowncommon/clowncommon.h"
 
-#include "error.h"
+#include "log.h"
 
 typedef enum InstructionMode
 {
@@ -1083,7 +1083,7 @@ static void ExecuteInstruction(const Z80* const z80, const Z80_ReadAndWriteCallb
 
 	switch ((Z80_Opcode)instruction->metadata->opcode)
 	{
-		#define UNIMPLEMENTED_Z80_INSTRUCTION(instruction) PrintError("Unimplemented instruction " instruction " used at 0x%" CC_PRIXLEAST16, z80->state->program_counter)
+		#define UNIMPLEMENTED_Z80_INSTRUCTION(instruction) LogMessage("Unimplemented instruction " instruction " used at 0x%" CC_PRIXLEAST16, z80->state->program_counter)
 
 		case Z80_OPCODE_NOP:
 			/* Does nothing, naturally. */

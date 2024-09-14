@@ -3,7 +3,7 @@
 #include <assert.h>
 
 #include "bus-main-m68k.h"
-#include "error.h"
+#include "log.h"
 
 static cc_u8f To2DigitBCD(const cc_u8f value)
 {
@@ -201,7 +201,7 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 			break;
 
 		default:
-			PrintError("UNRECOGNISED BIOS CALL DETECTED (0x%02" CC_PRIXFAST16 ")", command);
+			LogMessage("UNRECOGNISED BIOS CALL DETECTED (0x%02" CC_PRIXFAST16 ")", command);
 			break;
 	}
 }
@@ -334,7 +334,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 					break;
 
 				default:
-					PrintError("UNRECOGNISED BRAM CALL DETECTED (0x%02" CC_PRIXFAST16 ")", command);
+					LogMessage("UNRECOGNISED BRAM CALL DETECTED (0x%02" CC_PRIXFAST16 ")", command);
 					break;
 			}
 
@@ -358,12 +358,12 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		if (clownmdemu->state->mega_cd.word_ram.in_1m_mode)
 		{
 			/* TODO. */
-			PrintError("SUB-CPU attempted to read from the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
+			LogMessage("SUB-CPU attempted to read from the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
 		}
 		else if (!clownmdemu->state->mega_cd.word_ram.dmna)
 		{
 			/* TODO: According to Page 24 of MEGA-CD HARDWARE MANUAL, this should cause the CPU to hang, just like the Z80 accessing the ROM during a DMA transfer. */
-			PrintError("SUB-CPU attempted to read from WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
+			LogMessage("SUB-CPU attempted to read from WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
 		}
 		else
 		{
@@ -376,7 +376,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		if (!clownmdemu->state->mega_cd.word_ram.in_1m_mode)
 		{
 			/* TODO. */
-			PrintError("SUB-CPU attempted to read from the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
+			LogMessage("SUB-CPU attempted to read from the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
 		}
 		else
 		{
@@ -388,7 +388,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 		if ((address & 0x2000) != 0)
 		{
 			/* PCM wave RAM */
-			PrintError("SUB-CPU attempted to read from PCM wave RAM at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+			LogMessage("SUB-CPU attempted to read from PCM wave RAM at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 		}
 		else
 		{
@@ -410,17 +410,17 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF8006)
 	{
 		/* H-INT vector */
-		PrintError("SUB-CPU attempted to read from H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		LogMessage("SUB-CPU attempted to read from H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
 	else if (address == 0xFF8008)
 	{
 		/* CDC host data */
-		PrintError("SUB-CPU attempted to read from CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		LogMessage("SUB-CPU attempted to read from CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
 	else if (address == 0xFF800C)
 	{
 		/* Stop watch */
-		PrintError("SUB-CPU attempted to read from stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		LogMessage("SUB-CPU attempted to read from stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
 	else if (address == 0xFF800E)
 	{
@@ -443,7 +443,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	else if (address == 0xFF8030)
 	{
 		/* Timer W/INT3 */
-		PrintError("SUB-CPU attempted to read from Timer W/INT3 register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		LogMessage("SUB-CPU attempted to read from Timer W/INT3 register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
 	else if (address == 0xFF8032)
 	{
@@ -474,7 +474,7 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 	}
 	else
 	{
-		PrintError("Attempted to read invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->mcd_m68k->program_counter);
+		LogMessage("Attempted to read invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->mcd_m68k->program_counter);
 	}
 
 	return value;
@@ -514,11 +514,11 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		if (clownmdemu->state->mega_cd.word_ram.in_1m_mode)
 		{
 			/* TODO. */
-			PrintError("SUB-CPU attempted to write to the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
+			LogMessage("SUB-CPU attempted to write to the weird half of 1M WORD-RAM at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
 		}
 		else if (!clownmdemu->state->mega_cd.word_ram.dmna)
 		{
-			PrintError("SUB-CPU attempted to write to WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
+			LogMessage("SUB-CPU attempted to write to WORD-RAM while MAIN-CPU has it at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
 		}
 		else
 		{
@@ -532,7 +532,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 		if (!clownmdemu->state->mega_cd.word_ram.in_1m_mode)
 		{
 			/* TODO. */
-			PrintError("SUB-CPU attempted to write to the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
+			LogMessage("SUB-CPU attempted to write to the 1M half of WORD-RAM in 2M mode at 0x%" CC_PRIXLEAST32, clownmdemu->state->mega_cd.m68k.state.program_counter);
 		}
 		else
 		{
@@ -581,28 +581,28 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	else if (address == 0xFF8004)
 	{
 		/* CDC mode / device destination */
-		PrintError("SUB-CPU attempted to write to CDC mode/destination register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		LogMessage("SUB-CPU attempted to write to CDC mode/destination register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
 	else if (address == 0xFF8006)
 	{
 		/* H-INT vector */
-		PrintError("SUB-CPU attempted to write to H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		LogMessage("SUB-CPU attempted to write to H-INT vector register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
 	else if (address == 0xFF8008)
 	{
 		/* CDC host data */
-		PrintError("SUB-CPU attempted to write to CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		LogMessage("SUB-CPU attempted to write to CDC host data register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
 	else if (address == 0xFF800C)
 	{
 		/* Stop watch */
-		PrintError("SUB-CPU attempted to write to stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		LogMessage("SUB-CPU attempted to write to stop watch register at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
 	else if (address == 0xFF800E)
 	{
 		/* Communication flag */
 		if (do_high_byte)
-			PrintError("SUB-CPU attempted to write to MAIN-CPU's communication flag at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+			LogMessage("SUB-CPU attempted to write to MAIN-CPU's communication flag at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 
 		if (do_low_byte)
 		{
@@ -613,7 +613,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	else if (address >= 0xFF8010 && address < 0xFF8020)
 	{
 		/* Communication command */
-		PrintError("SUB-CPU attempted to write to MAIN-CPU's communication command at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
+		LogMessage("SUB-CPU attempted to write to MAIN-CPU's communication command at 0x%" CC_PRIXLEAST32, clownmdemu->mcd_m68k->program_counter);
 	}
 	else if (address >= 0xFF8020 && address < 0xFF8030)
 	{
@@ -663,7 +663,7 @@ void MCDM68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f ad
 	}
 	else
 	{
-		PrintError("Attempted to write invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->mcd_m68k->program_counter);
+		LogMessage("Attempted to write invalid MCD 68k address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->mcd_m68k->program_counter);
 	}
 }
 

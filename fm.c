@@ -113,7 +113,7 @@ The 9th DAC sample bit.
 
 #include "clowncommon/clowncommon.h"
 
-#include "error.h"
+#include "log.h"
 
 void FM_Constant_Initialise(FM_Constant* const constant)
 {
@@ -200,13 +200,13 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 			switch (state->address)
 			{
 				default:
-					PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST8 ")", state->address);
+					LogMessage("Unrecognised FM address latched (0x%02" CC_PRIXFAST8 ")", state->address);
 					break;
 
 				case 0x22:
 					/* TODO: LFO. */
 					if ((data & 8) != 0)
-						PrintError("LFO enabled");
+						LogMessage("LFO enabled");
 
 					break;
 
@@ -276,7 +276,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 					const FM_Channel* const channel = &fm->channels[table[table_index]];
 
 					if (table_index == 3 || table_index == 7)
-						PrintError("Key-on/off command uses invalid 'gap' channel index.");
+						LogMessage("Key-on/off command uses invalid 'gap' channel index.");
 
 					/* TODO: Is this operator ordering actually correct? */
 					FM_Channel_SetKeyOn(channel, 0, (data & (1 << 4)) != 0);
@@ -310,7 +310,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 		/* TODO: See how real hardware handles this. */
 		if (channel_index == 3)
 		{
-			PrintError("Attempted to access invalid fourth FM slot channel (address was 0x%02" CC_PRIXFAST8 ")", state->address);
+			LogMessage("Attempted to access invalid fourth FM slot channel (address was 0x%02" CC_PRIXFAST8 ")", state->address);
 		}
 		else
 		{
@@ -322,7 +322,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 				switch (state->address / 0x10)
 				{
 					default:
-						PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST8 ")", state->address);
+						LogMessage("Unrecognised FM address latched (0x%02" CC_PRIXFAST8 ")", state->address);
 						break;
 
 					case 0x30 / 0x10:
@@ -346,7 +346,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 						/* TODO: LFO. */
 						if ((data & 0x80) != 0)
-							PrintError("LFO AMON used");
+							LogMessage("LFO AMON used");
 
 						break;
 
@@ -372,7 +372,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 				switch (state->address / 4)
 				{
 					default:
-						PrintError("Unrecognised FM address latched (0x%02" CC_PRIXFAST8 ")", state->address);
+						LogMessage("Unrecognised FM address latched (0x%02" CC_PRIXFAST8 ")", state->address);
 						break;
 
 					case 0xA0 / 4:
@@ -425,7 +425,7 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 						/* TODO: AMS, FMS. */
 						if ((data & 0x37) != 0)
-							PrintError("LFO AMS/FMS used");
+							LogMessage("LFO AMS/FMS used");
 
 						break;
 				}
