@@ -434,19 +434,27 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 	}
 }
 
-static cc_s16f GetChannelSample(const FM* const fm, const FM_Channel* const channel)
-{
-	cc_s16f sample = FM_Channel_GetSample(channel);
+/* From 9-bit to 16-bit. */
+static const cc_s16f fm_volume_multiplier = (1L << 16) / (1 << 9);
 
-	if (!fm->configuration->ladder_effect_disabled)
+static cc_s16f GetFinalSample(const FM* const fm, const cc_s16f sample, const cc_bool enabled)
+{
+	if (fm->configuration->ladder_effect_disabled)
+	{
+		return enabled ? sample : 0;
+	}
+	else
 	{
 		/* Approximate the 'ladder effect' bug. */
-		/* https://gendev.spritesmind.net/forum/viewtopic.php?f=24&t=386&start=795#p30097 */
-		if (sample < 0)
-			sample -= 4;
-	}
+		/* Modelled after Nuked OPN2's implementation. */
+		/* https://github.com/nukeykt/Nuked-OPN2/blob/335747d78cb0abbc3b55b004e62dad9763140115/ym3438.c#L987 */
+		const cc_s16f step = 1 * fm_volume_multiplier;
 
-	return sample;
+		if (sample < 0)
+			return enabled ? sample : -step;
+		else
+			return enabled ? sample + step : step;
+	}
 }
 
 void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc_u32f total_frames)
@@ -472,15 +480,14 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 		{
 			/* The FM sample is 9-bit, so convert it to 16-bit and then divide it so that it
 			   can be mixed with the other five FM channels and the PSG without clipping. */
-			const cc_s16f fm_volume_multiplier = (1L << 16) / (1 << 9);
-			const cc_s16f fm_sample = GetChannelSample(fm, channel) * fm_volume_multiplier / FM_VOLUME_DIVIDER;
+			const cc_s16f fm_sample = FM_Channel_GetSample(channel) * fm_volume_multiplier / FM_VOLUME_DIVIDER;
 
 			/* Select between the FM and DAC samples. */
 			const cc_s16f sample = is_dac ? state->dac_sample : fm_sample;
 
 			/* Output sample whilst applying panning. */
-			*sample_buffer_pointer++ += left_enabled ? sample : 0;
-			*sample_buffer_pointer++ += right_enabled ? sample : 0;
+			*sample_buffer_pointer++ += GetFinalSample(fm, sample, left_enabled);
+			*sample_buffer_pointer++ += GetFinalSample(fm, sample, right_enabled);
 		}
 	}
 }
