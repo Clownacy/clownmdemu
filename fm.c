@@ -481,18 +481,19 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 
 		const cc_bool is_dac = i == 5 && state->dac_enabled;
 		const cc_bool channel_disabled = is_dac ? fm->configuration->dac_channel_disabled : fm->configuration->fm_channels_disabled[i];
-		const cc_bool left_enabled = channel_metadata->pan_left && !channel_disabled;
-		const cc_bool right_enabled = channel_metadata->pan_right && !channel_disabled;
 
 		cc_s16l *sample_buffer_pointer = sample_buffer;
+
+		if (channel_disabled)
+			continue;
 
 		while (sample_buffer_pointer != sample_buffer_end)
 		{
 			const cc_s16f fm_sample = FM_Channel_GetSample(channel);
 			const cc_s16f sample = is_dac ? state->dac_sample : fm_sample;
 
-			*sample_buffer_pointer++ += GetFinalSample(fm, sample, left_enabled);
-			*sample_buffer_pointer++ += GetFinalSample(fm, sample, right_enabled);
+			*sample_buffer_pointer++ += GetFinalSample(fm, sample, channel_metadata->pan_left);
+			*sample_buffer_pointer++ += GetFinalSample(fm, sample, channel_metadata->pan_right);
 		}
 	}
 }
