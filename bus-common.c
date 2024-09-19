@@ -83,6 +83,7 @@ void SyncCPUCommon(const ClownMDEmu* const clownmdemu, SyncCPUState* const sync,
 	}
 	else
 	{
+		/* TODO: If the callback is idling (like when the Z80's bus is requested), just skip to the end of this loop. */
 		while (sync->current_cycle < target_cycle)
 		{
 			const cc_u32f cycles_to_do = CC_MIN(countdown, target_cycle - sync->current_cycle);
