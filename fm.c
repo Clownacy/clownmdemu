@@ -470,6 +470,8 @@ static cc_s16f GetFinalSample(const FM* const fm, cc_s16f sample, const cc_bool 
 void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc_u32f total_frames)
 {
 	FM_State* const state = fm->state;
+	const cc_s16f dac_sample = state->dac_sample;
+
 	const cc_s16l* const sample_buffer_end = &sample_buffer[total_frames * 2];
 
 	cc_u16f i;
@@ -478,6 +480,8 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 	{
 		const FM_ChannelMetadata* const channel_metadata = &state->channels[i];
 		const FM_Channel* const channel = &fm->channels[i];
+		const cc_bool pan_left = channel_metadata->pan_left;
+		const cc_bool pan_right = channel_metadata->pan_right;
 
 		const cc_bool is_dac = i == 5 && state->dac_enabled;
 		const cc_bool channel_disabled = is_dac ? fm->configuration->dac_channel_disabled : fm->configuration->fm_channels_disabled[i];
@@ -490,10 +494,10 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 		while (sample_buffer_pointer != sample_buffer_end)
 		{
 			const cc_s16f fm_sample = FM_Channel_GetSample(channel);
-			const cc_s16f sample = is_dac ? state->dac_sample : fm_sample;
+			const cc_s16f sample = is_dac ? dac_sample : fm_sample;
 
-			*sample_buffer_pointer++ += GetFinalSample(fm, sample, channel_metadata->pan_left);
-			*sample_buffer_pointer++ += GetFinalSample(fm, sample, channel_metadata->pan_right);
+			*sample_buffer_pointer++ += GetFinalSample(fm, sample, pan_left);
+			*sample_buffer_pointer++ += GetFinalSample(fm, sample, pan_right);
 		}
 	}
 }
