@@ -289,8 +289,8 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 
 				case 0x2A:
 					/* DAC sample. */
-					/* Convert from unsigned 8-bit PCM to signed 16-bit PCM. */
-					state->dac_sample = ((cc_s16f)data - 0x80) * (0x100 / FM_VOLUME_DIVIDER);
+					/* Convert from unsigned 8-bit PCM to signed 9-bit PCM. */
+					state->dac_sample = ((cc_s16f)data - 0x80) * 2;
 					break;
 
 				case 0x2B:
@@ -434,27 +434,37 @@ void FM_DoData(const FM* const fm, const cc_u8f data)
 	}
 }
 
-/* From 9-bit to 16-bit. */
-static const cc_s16f fm_volume_multiplier = (1L << 16) / (1 << 9);
-
-static cc_s16f GetFinalSample(const FM* const fm, const cc_s16f sample, const cc_bool enabled)
+static cc_s16f GetFinalSample(const FM* const fm, cc_s16f sample, const cc_bool enabled)
 {
+	/* From 9-bit to 16-bit. */
+	static const cc_s16f fm_volume_multiplier = (1L << 16) / (1 << 9);
+
+	cc_s16f offset1, offset2;
+
+	/* Approximate the 'ladder effect' bug. */
+	/* Modelled after Nuked OPN2's implementation. */
+	/* https://github.com/nukeykt/Nuked-OPN2/blob/335747d78cb0abbc3b55b004e62dad9763140115/ym3438.c#L987 */
 	if (fm->configuration->ladder_effect_disabled)
 	{
-		return enabled ? sample : 0;
+		offset1 = 0;
+		offset2 = 0;
+	}
+	else if (sample < 0)
+	{
+		offset1 = 0;
+		offset2 = -1;
 	}
 	else
 	{
-		/* Approximate the 'ladder effect' bug. */
-		/* Modelled after Nuked OPN2's implementation. */
-		/* https://github.com/nukeykt/Nuked-OPN2/blob/335747d78cb0abbc3b55b004e62dad9763140115/ym3438.c#L987 */
-		const cc_s16f step = 1 * fm_volume_multiplier;
-
-		if (sample < 0)
-			return enabled ? sample : -step;
-		else
-			return enabled ? sample + step : step;
+		offset1 = 1;
+		offset2 = 1;
 	}
+
+	sample = (enabled ? sample + offset1 : offset2) + offset2 * 2;
+
+	/* The FM sample is 9-bit, so convert it to 16-bit and then divide it so that it
+	   can be mixed with the other five FM channels and the PSG without clipping. */
+	return sample * fm_volume_multiplier / FM_VOLUME_DIVIDER;
 }
 
 void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc_u32f total_frames)
@@ -478,14 +488,9 @@ void FM_OutputSamples(const FM* const fm, cc_s16l* const sample_buffer, const cc
 
 		while (sample_buffer_pointer != sample_buffer_end)
 		{
-			/* The FM sample is 9-bit, so convert it to 16-bit and then divide it so that it
-			   can be mixed with the other five FM channels and the PSG without clipping. */
-			const cc_s16f fm_sample = FM_Channel_GetSample(channel) * fm_volume_multiplier / FM_VOLUME_DIVIDER;
-
-			/* Select between the FM and DAC samples. */
+			const cc_s16f fm_sample = FM_Channel_GetSample(channel);
 			const cc_s16f sample = is_dac ? state->dac_sample : fm_sample;
 
-			/* Output sample whilst applying panning. */
 			*sample_buffer_pointer++ += GetFinalSample(fm, sample, left_enabled);
 			*sample_buffer_pointer++ += GetFinalSample(fm, sample, right_enabled);
 		}
