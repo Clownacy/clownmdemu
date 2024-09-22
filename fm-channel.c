@@ -113,7 +113,7 @@ static cc_s16f FM_Channel_DiscardLowerBits(const cc_s16f total_bits_to_discard, 
 
 static cc_s16f FM_Channel_14BitTo9Bit(const cc_s16f value)
 {
-	FM_Channel_DiscardLowerBits(14 - 9, value);
+	return FM_Channel_DiscardLowerBits(14 - 9, value);
 }
 
 static cc_s16f FM_Channel_MixSamples(const cc_s16f a, const cc_s16f b)
