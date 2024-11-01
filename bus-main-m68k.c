@@ -560,7 +560,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 		if (interrupt && clownmdemu->state->mega_cd.irq.enabled[1])
 		{
 			SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
-			Clown68000_Interrupt(clownmdemu->mcd_m68k, &m68k_read_write_callbacks, 2);
+			Clown68000_Interrupt(clownmdemu->mcd_m68k, 2);
 		}
 
 		clownmdemu->state->mega_cd.m68k.bus_requested = bus_request;

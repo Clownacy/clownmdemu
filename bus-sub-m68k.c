@@ -236,7 +236,7 @@ static cc_u16f SyncMCDM68kCallback(const ClownMDEmu* const clownmdemu, void* con
 
 	/* Raise an interrupt. */
 	if (clownmdemu->state->mega_cd.irq.enabled[2])
-		Clown68000_Interrupt(clownmdemu->mcd_m68k, m68k_read_write_callbacks, 3);
+		Clown68000_Interrupt(clownmdemu->mcd_m68k, 3);
 
 	return clownmdemu->state->mega_cd.irq.irq3_countdown_master;
 }

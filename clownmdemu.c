@@ -323,14 +323,14 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 
 				/* Do H-Int */
 				if (clownmdemu->state->vdp.h_int_enabled)
-					Clown68000_Interrupt(clownmdemu->m68k, &m68k_read_write_callbacks, 4);
+					Clown68000_Interrupt(clownmdemu->m68k, 4);
 			}
 		}
 		else if (scanline == console_vertical_resolution) /* Check if we have reached the end of the console-output scanlines */
 		{
 			/* Do V-Int */
 			if (clownmdemu->state->vdp.v_int_enabled)
-				Clown68000_Interrupt(clownmdemu->m68k, &m68k_read_write_callbacks, 6);
+				Clown68000_Interrupt(clownmdemu->m68k, 6);
 
 			/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
 			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
@@ -362,7 +362,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 	if (clownmdemu->state->mega_cd.irq.irq1_pending)
 	{
 		clownmdemu->state->mega_cd.irq.irq1_pending = cc_false;
-		Clown68000_Interrupt(clownmdemu->mcd_m68k, &mcd_m68k_read_write_callbacks, 1);
+		Clown68000_Interrupt(clownmdemu->mcd_m68k, 1);
 	}
 }
 
