@@ -339,7 +339,7 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 			/* Flag that we have entered the V-blank region */
 			clownmdemu->state->vdp.currently_in_vblank = cc_true;
 		}
-		else if (scanline == console_vertical_resolution + 3) /* TODO: This should be '+1', but a hack is needed here until accurate 68k instruction durations are added. */
+		else if (scanline == console_vertical_resolution + 3) /* TODO: This should be '+1', but a hack is needed until something changes to not make Earthworm Jim 2 a stuttery mess. */
 		{
 			/* Assert the Z80 interrupt for a whole scanline. This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
 			/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
