@@ -211,10 +211,7 @@ static cc_u16f SyncMCDM68kForRealCallback(const ClownMDEmu* const clownmdemu, vo
 	/* TODO: Handle the MCD's master clock! */
 	const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks = (const Clown68000_ReadWriteCallbacks*)user_data;
 
-	if (!clownmdemu->state->mega_cd.m68k.bus_requested && !clownmdemu->state->mega_cd.m68k.reset_held)
-		Clown68000_DoCycle(clownmdemu->mcd_m68k, m68k_read_write_callbacks);
-
-	return CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * 4; /* TODO: The '* 4' is a temporary hack until 68000 instruction durations are added. */
+	return CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * (clownmdemu->state->mega_cd.m68k.bus_requested || clownmdemu->state->mega_cd.m68k.reset_held ? 1 : Clown68000_DoCycle(clownmdemu->mcd_m68k, m68k_read_write_callbacks));
 }
 
 void SyncMCDM68kForReal(const ClownMDEmu* const clownmdemu, const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks, const CycleMegaCD target_cycle)

@@ -26,8 +26,7 @@ static void VDPKDebugCallback(void* const user_data, const char* const string)
 
 static cc_u16f SyncM68kCallback(const ClownMDEmu* const clownmdemu, void* const user_data)
 {
-	Clown68000_DoCycle(clownmdemu->m68k, (const Clown68000_ReadWriteCallbacks*)user_data);
-	return CLOWNMDEMU_M68K_CLOCK_DIVIDER * 10; /* TODO: The '* 10' is a temporary hack until 68000 instruction durations are added. */
+	return CLOWNMDEMU_M68K_CLOCK_DIVIDER * Clown68000_DoCycle(clownmdemu->m68k, (const Clown68000_ReadWriteCallbacks*)user_data);
 }
 
 void SyncM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const other_state, const CycleMegaDrive target_cycle)
