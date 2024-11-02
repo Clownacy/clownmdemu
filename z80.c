@@ -2512,9 +2512,9 @@ void Z80_Reset(const Z80* const z80)
 	z80->state->interrupt_pending = cc_false;
 }
 
-void Z80_Interrupt(const Z80* const z80)
+void Z80_Interrupt(const Z80* const z80, const cc_bool assert_interrupt)
 {
-	z80->state->interrupt_pending = cc_true;
+	z80->state->interrupt_pending = assert_interrupt;
 }
 
 cc_u16f Z80_DoCycle(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const callbacks)
@@ -2536,31 +2536,26 @@ cc_u16f Z80_DoCycle(const Z80* const z80, const Z80_ReadAndWriteCallbacks* const
 	/* Perform interrupt after processing the instruction. */
 	/* TODO: The other interrupt modes. */
 	if (z80->state->interrupt_pending
+		&& z80->state->interrupts_enabled
 		/* Interrupts should not be able to occur directly after a prefix instruction. */
 		&& instruction.metadata->opcode != Z80_OPCODE_DD_PREFIX
 		&& instruction.metadata->opcode != Z80_OPCODE_FD_PREFIX
 		/* Curiously, interrupts do not occur directly after 'EI' instructions either. */
 		&& instruction.metadata->opcode != Z80_OPCODE_EI)
 	{
-		/* Interrupts are not 'sticky': if they occur while they are blocked,
-		   they are dropped instead of being made pending. */
+		z80->state->interrupts_enabled = cc_false;
 		z80->state->interrupt_pending = cc_false;
 
-		if (z80->state->interrupts_enabled)
-		{
-			z80->state->interrupts_enabled = cc_false;
+		/* TODO: Interrupt duration. */
+		--z80->state->stack_pointer;
+		z80->state->stack_pointer &= 0xFFFF;
+		callbacks->write(callbacks->user_data, z80->state->stack_pointer, z80->state->program_counter >> 8);
 
-			/* TODO: Interrupt duration. */
-			--z80->state->stack_pointer;
-			z80->state->stack_pointer &= 0xFFFF;
-			callbacks->write(callbacks->user_data, z80->state->stack_pointer, z80->state->program_counter >> 8);
+		--z80->state->stack_pointer;
+		z80->state->stack_pointer &= 0xFFFF;
+		callbacks->write(callbacks->user_data, z80->state->stack_pointer, z80->state->program_counter & 0xFF);
 
-			--z80->state->stack_pointer;
-			z80->state->stack_pointer &= 0xFFFF;
-			callbacks->write(callbacks->user_data, z80->state->stack_pointer, z80->state->program_counter & 0xFF);
-
-			z80->state->program_counter = 0x38;
-		}
+		z80->state->program_counter = 0x38;
 	}
 
 	return z80->state->cycles;

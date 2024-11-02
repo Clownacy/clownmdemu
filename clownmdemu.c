@@ -333,13 +333,18 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 				Clown68000_Interrupt(clownmdemu->m68k, 6);
 
 			/* According to Charles MacDonald's gen-hw.txt, this occurs regardless of the 'v_int_enabled' setting. */
-			/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
-			/* TODO: This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
 			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
-			Z80_Interrupt(&clownmdemu->z80);
+			Z80_Interrupt(&clownmdemu->z80, cc_true);
 
 			/* Flag that we have entered the V-blank region */
 			clownmdemu->state->vdp.currently_in_vblank = cc_true;
+		}
+		else if (scanline == console_vertical_resolution + 3) /* TODO: This should be '+1', but a hack is needed here until accurate 68k instruction durations are added. */
+		{
+			/* Assert the Z80 interrupt for a whole scanline. This has the side-effect of causing a second interrupt to occur if the handler exits quickly. */
+			/* TODO: According to Vladikcomper, this interrupt should be asserted for roughly 171 Z80 cycles. */
+			SyncZ80(clownmdemu, &cpu_callback_user_data, current_cycle);
+			Z80_Interrupt(&clownmdemu->z80, cc_false);
 		}
 	}
 
