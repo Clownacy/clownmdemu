@@ -4,9 +4,11 @@
 
 #include "clowncommon/clowncommon.h"
 
-void FM_Channel_Constant_Initialise(FM_Channel_Constant* const constant)
+FM_Channel_Constant FM_Channel_Constant_Initialise(void)
 {
-	FM_Operator_Constant_Initialise(&constant->operators);
+	FM_Channel_Constant constant;
+	constant.operators = FM_Operator_Constant_Initialise();
+	return constant;
 }
 
 void FM_Channel_State_Initialise(FM_Channel_State* const state)

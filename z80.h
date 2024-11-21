@@ -202,7 +202,7 @@ typedef struct Z80
 	Z80_State *state;
 } Z80;
 
-void Z80_Constant_Initialise(Z80_Constant *constant);
+Z80_Constant Z80_Constant_Initialise(void);
 void Z80_State_Initialise(Z80_State *state);
 void Z80_Reset(const Z80 *z80);
 void Z80_Interrupt(const Z80 *z80, cc_bool assert_interrupt);

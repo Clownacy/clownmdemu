@@ -11,8 +11,9 @@ https://www.smspower.org/Development/SN76489
 
 #include "clowncommon/clowncommon.h"
 
-void PSG_Constant_Initialise(PSG_Constant* const constant)
+PSG_Constant PSG_Constant_Initialise(void)
 {
+	PSG_Constant constant;
 	cc_u8f i;
 
 	/* Generate the volume lookup table. */
@@ -22,13 +23,15 @@ void PSG_Constant_Initialise(PSG_Constant* const constant)
 		/* The division by 4 is because there are 4 channels, so we want to prevent audio clipping. */
 		const cc_s16l volume = (cc_s16l)(((double)0x7FFF / 4.0) * pow(10.0, -2.0 * (double)i / 20.0));
 
-		constant->volumes[i][0] = volume; /* Positive phase. */
-		constant->volumes[i][1] = -volume; /* Negative phase. */
+		constant.volumes[i][0] = volume; /* Positive phase. */
+		constant.volumes[i][1] = -volume; /* Negative phase. */
 	}
 
 	/* The lowest volume is always 0. */
-	constant->volumes[0xF][0] = 0;
-	constant->volumes[0xF][1] = 0;
+	constant.volumes[0xF][0] = 0;
+	constant.volumes[0xF][1] = 0;
+
+	return constant;
 }
 
 void PSG_State_Initialise(PSG_State* const state)

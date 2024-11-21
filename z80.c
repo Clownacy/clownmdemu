@@ -2450,28 +2450,29 @@ static void ExecuteInstruction(const Z80* const z80, const Z80_ReadAndWriteCallb
 	}
 }
 
-void Z80_Constant_Initialise(Z80_Constant* const constant)
+Z80_Constant Z80_Constant_Initialise(void)
 {
+	Z80_Constant constant;
 	cc_u16f i;
 
 #ifdef Z80_PRECOMPUTE_INSTRUCTION_METADATA
 	/* Pre-compute instruction metadata, to speed up opcode decoding. */
 	for (i = 0; i < 0x100; ++i)
 	{
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_normal[Z80_REGISTER_MODE_HL][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_HL, i);
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_normal[Z80_REGISTER_MODE_IX][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_IX, i);
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_normal[Z80_REGISTER_MODE_IY][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_IY, i);
+		DecodeInstructionMetadata(&constant.instruction_metadata_lookup_normal[Z80_REGISTER_MODE_HL][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_HL, i);
+		DecodeInstructionMetadata(&constant.instruction_metadata_lookup_normal[Z80_REGISTER_MODE_IX][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_IX, i);
+		DecodeInstructionMetadata(&constant.instruction_metadata_lookup_normal[Z80_REGISTER_MODE_IY][i], INSTRUCTION_MODE_NORMAL, Z80_REGISTER_MODE_IY, i);
 
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_bits[Z80_REGISTER_MODE_HL][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_HL, i);
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_bits[Z80_REGISTER_MODE_IX][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_IX, i);
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_bits[Z80_REGISTER_MODE_IY][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_IY, i);
+		DecodeInstructionMetadata(&constant.instruction_metadata_lookup_bits[Z80_REGISTER_MODE_HL][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_HL, i);
+		DecodeInstructionMetadata(&constant.instruction_metadata_lookup_bits[Z80_REGISTER_MODE_IX][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_IX, i);
+		DecodeInstructionMetadata(&constant.instruction_metadata_lookup_bits[Z80_REGISTER_MODE_IY][i], INSTRUCTION_MODE_BITS, Z80_REGISTER_MODE_IY, i);
 
-		DecodeInstructionMetadata(&constant->instruction_metadata_lookup_misc[i], INSTRUCTION_MODE_MISC, Z80_REGISTER_MODE_HL, i);
+		DecodeInstructionMetadata(&constant.instruction_metadata_lookup_misc[i], INSTRUCTION_MODE_MISC, Z80_REGISTER_MODE_HL, i);
 	}
 #endif
 
 	/* Compute parity lookup table. */
-	for (i = 0; i < CC_COUNT_OF(constant->parity_lookup); ++i)
+	for (i = 0; i < CC_COUNT_OF(constant.parity_lookup); ++i)
 	{
 		/* http://graphics.stanford.edu/~seander/bithacks.html#ParityMultiply */
 		/* I have absolutely no idea how this works. */
@@ -2482,8 +2483,10 @@ void Z80_Constant_Initialise(Z80_Constant* const constant)
 		v ^= v >> 2;
 		v = (v & 0x11) * 0x11;
 
-		constant->parity_lookup[i] = (v & 0x10) == 0 ? FLAG_MASK_PARITY_OVERFLOW : 0;
+		constant.parity_lookup[i] = (v & 0x10) == 0 ? FLAG_MASK_PARITY_OVERFLOW : 0;
 	}
+
+	return constant;
 }
 
 void Z80_State_Initialise(Z80_State* const state)
