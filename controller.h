@@ -30,7 +30,7 @@ typedef struct Controller
 	cc_bool th_bit;
 } Controller;
 
-void Controller_Initialise(Controller *controller, Controller_Callback callback);
+Controller Controller_Initialise(Controller_Callback callback);
 #define Controller_SetButton(CONTROLLER, BUTTON, VALUE) (CONTROLLER)->buttons[(BUTTON)] = (VALUE)
 cc_u8f Controller_Read(Controller *controller, cc_u16f microseconds, const void *user_data);
 void Controller_Write(Controller *controller, cc_u8f value, cc_u16f microseconds);

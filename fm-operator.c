@@ -123,28 +123,32 @@ FM_Operator_Constant FM_Operator_Constant_Initialise(void)
 	return constant;
 }
 
-void FM_Operator_State_Initialise(FM_Operator_State* const state)
+FM_Operator_State FM_Operator_State_Initialise(void)
 {
-	FM_Phase_State_Initialise(&state->phase);
+	FM_Operator_State state;
+
+	state.phase = FM_Phase_State_Initialise();
 
 	/* Set envelope to update immediately. */
-	state->countdown = 1;
+	state.countdown = 1;
 
-	state->cycle_counter = 0;
+	state.cycle_counter = 0;
 
-	state->delta_index = 0;
-	state->attenuation = 0x3FF;
+	state.delta_index = 0;
+	state.attenuation = 0x3FF;
 
-	FM_Operator_SetSSGEG(state, 0);
-	FM_Operator_SetTotalLevel(state, 0x7F); /* Silence channel. */
-	FM_Operator_SetKeyScaleAndAttackRate(state, 0, 0);
-	FM_Operator_SetDecayRate(state, 0);
-	FM_Operator_SetSustainRate(state, 0);
-	FM_Operator_SetSustainLevelAndReleaseRate(state, 0, 0);
+	FM_Operator_SetSSGEG(&state, 0);
+	FM_Operator_SetTotalLevel(&state, 0x7F); /* Silence channel. */
+	FM_Operator_SetKeyScaleAndAttackRate(&state, 0, 0);
+	FM_Operator_SetDecayRate(&state, 0);
+	FM_Operator_SetSustainRate(&state, 0);
+	FM_Operator_SetSustainLevelAndReleaseRate(&state, 0, 0);
 
-	state->envelope_mode = FM_OPERATOR_ENVELOPE_MODE_RELEASE;
+	state.envelope_mode = FM_OPERATOR_ENVELOPE_MODE_RELEASE;
 
-	state->key_on = cc_false;
+	state.key_on = cc_false;
+
+	return state;
 }
 
 void FM_Operator_SetFrequency(FM_Operator_State* const state, const cc_u16f f_number_and_block)

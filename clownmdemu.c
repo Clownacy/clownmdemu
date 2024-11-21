@@ -154,103 +154,110 @@ static void IOPortToController_WriteCallback(void* const user_data, const cc_u8f
 	Controller_Write(parameters->controller, value, cycles);
 }
 
-void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
+ClownMDEmu_State ClownMDEmu_State_Initialise(void)
 {
+	ClownMDEmu_State state;
 	cc_u16f i;
 
 	/* M68K */
-	state->m68k.cycle_countdown = 1;
+	state.m68k.cycle_countdown = 1;
 
 	/* Z80 */
-	Z80_State_Initialise(&state->z80.state);
-	state->z80.cycle_countdown = 1;
-	state->z80.bank = 0;
-	state->z80.bus_requested = cc_false; /* This should be false, according to Charles MacDonald's gen-hw.txt. */
-	state->z80.reset_held = cc_true;
+	state.z80.state = Z80_State_Initialise();
+	state.z80.cycle_countdown = 1;
+	state.z80.bank = 0;
+	state.z80.bus_requested = cc_false; /* This should be false, according to Charles MacDonald's gen-hw.txt. */
+	state.z80.reset_held = cc_true;
 
-	VDP_State_Initialise(&state->vdp);
-	FM_State_Initialise(&state->fm);
-	PSG_State_Initialise(&state->psg);
+	state.vdp = VDP_State_Initialise();
+	state.fm = FM_State_Initialise();
+	state.psg = PSG_State_Initialise();
 
-	for (i = 0; i < CC_COUNT_OF(state->io_ports); ++i)
+	for (i = 0; i < CC_COUNT_OF(state.io_ports); ++i)
 	{
 		/* The standard Sega SDK bootcode uses this to detect soft-resets. */
-		IOPort_Initialise(&state->io_ports[i]);
+		state.io_ports[i] = IOPort_Initialise();
 	}
 
-	IOPort_SetCallbacks(&state->io_ports[0], IOPortToController_ReadCallback, IOPortToController_WriteCallback);
-	IOPort_SetCallbacks(&state->io_ports[1], IOPortToController_ReadCallback, IOPortToController_WriteCallback);
+	IOPort_SetCallbacks(&state.io_ports[0], IOPortToController_ReadCallback, IOPortToController_WriteCallback);
+	IOPort_SetCallbacks(&state.io_ports[1], IOPortToController_ReadCallback, IOPortToController_WriteCallback);
 
-	Controller_Initialise(&state->controllers[0], FrontendController1Callback);
-	Controller_Initialise(&state->controllers[1], FrontendController2Callback);
+	state.controllers[0] = Controller_Initialise(FrontendController1Callback);
+	state.controllers[1] = Controller_Initialise(FrontendController2Callback);
 
 	/* Mega CD */
-	state->mega_cd.m68k.cycle_countdown = 1;
-	state->mega_cd.m68k.bus_requested = cc_true;
-	state->mega_cd.m68k.reset_held = cc_true;
+	state.mega_cd.m68k.cycle_countdown = 1;
+	state.mega_cd.m68k.bus_requested = cc_true;
+	state.mega_cd.m68k.reset_held = cc_true;
 
-	state->mega_cd.prg_ram.bank = 0;
+	state.mega_cd.prg_ram.bank = 0;
 
-	state->mega_cd.word_ram.in_1m_mode = cc_true; /* Confirmed by my Visual Sound Test homebrew. */
+	state.mega_cd.word_ram.in_1m_mode = cc_true; /* Confirmed by my Visual Sound Test homebrew. */
 	/* Page 24 of MEGA-CD HARDWARE MANUAL confirms this. */
-	state->mega_cd.word_ram.dmna = cc_false;
-	state->mega_cd.word_ram.ret = cc_true;
+	state.mega_cd.word_ram.dmna = cc_false;
+	state.mega_cd.word_ram.ret = cc_true;
 
-	state->mega_cd.communication.flag = 0;
+	state.mega_cd.communication.flag = 0;
 
-	for (i = 0; i < CC_COUNT_OF(state->mega_cd.communication.command); ++i)
-		state->mega_cd.communication.command[i] = 0;
+	for (i = 0; i < CC_COUNT_OF(state.mega_cd.communication.command); ++i)
+		state.mega_cd.communication.command[i] = 0;
 
-	for (i = 0; i < CC_COUNT_OF(state->mega_cd.communication.status); ++i)
-		state->mega_cd.communication.status[i] = 0;
+	for (i = 0; i < CC_COUNT_OF(state.mega_cd.communication.status); ++i)
+		state.mega_cd.communication.status[i] = 0;
 
-	state->mega_cd.cd.current_sector = 0;
-	state->mega_cd.cd.total_buffered_sectors = 0;
-	state->mega_cd.cd.cdc_delay = 0;
-	state->mega_cd.cd.cdc_ready = cc_false;
+	state.mega_cd.cd.current_sector = 0;
+	state.mega_cd.cd.total_buffered_sectors = 0;
+	state.mega_cd.cd.cdc_delay = 0;
+	state.mega_cd.cd.cdc_ready = cc_false;
 	
-	for (i = 0; i < CC_COUNT_OF(state->mega_cd.irq.enabled); ++i)
-		state->mega_cd.irq.enabled[i] = cc_false;
+	for (i = 0; i < CC_COUNT_OF(state.mega_cd.irq.enabled); ++i)
+		state.mega_cd.irq.enabled[i] = cc_false;
 
-	state->mega_cd.irq.irq1_pending = cc_false;
-	state->mega_cd.irq.irq3_countdown_master = state->mega_cd.irq.irq3_countdown = 0;
+	state.mega_cd.irq.irq1_pending = cc_false;
+	state.mega_cd.irq.irq3_countdown_master = state.mega_cd.irq.irq3_countdown = 0;
 
-	state->mega_cd.cdda.playing = cc_false;
-	state->mega_cd.cdda.paused = cc_false;
+	state.mega_cd.cdda.playing = cc_false;
+	state.mega_cd.cdda.paused = cc_false;
 
-	PCM_State_Initialise(&state->mega_cd.pcm);
+	state.mega_cd.pcm = PCM_State_Initialise();
 
-	state->mega_cd.boot_from_cd = cc_false;
-	state->mega_cd.hblank_address = 0xFFFF;
-	state->mega_cd.delayed_dma_word = 0;
+	state.mega_cd.boot_from_cd = cc_false;
+	state.mega_cd.hblank_address = 0xFFFF;
+	state.mega_cd.delayed_dma_word = 0;
+
+	return state;
 }
 
-void ClownMDEmu_Parameters_Initialise(ClownMDEmu* const clownmdemu, const ClownMDEmu_Configuration* const configuration, const ClownMDEmu_Constant* const constant, ClownMDEmu_State* const state, const ClownMDEmu_Callbacks* const callbacks)
+ClownMDEmu ClownMDEmu_Parameters_Initialise(const ClownMDEmu_Configuration* const configuration, const ClownMDEmu_Constant* const constant, ClownMDEmu_State* const state, const ClownMDEmu_Callbacks* const callbacks)
 {
-	clownmdemu->configuration = configuration;
-	clownmdemu->constant = constant;
-	clownmdemu->state = state;
-	clownmdemu->callbacks = callbacks;
+	ClownMDEmu clownmdemu;
 
-	clownmdemu->m68k = &state->m68k.state;
+	clownmdemu.configuration = configuration;
+	clownmdemu.constant = constant;
+	clownmdemu.state = state;
+	clownmdemu.callbacks = callbacks;
 
-	clownmdemu->z80.constant = &constant->z80;
-	clownmdemu->z80.state = &state->z80.state;
+	clownmdemu.m68k = &state->m68k.state;
 
-	clownmdemu->mcd_m68k = &state->mega_cd.m68k.state;
+	clownmdemu.z80.constant = &constant->z80;
+	clownmdemu.z80.state = &state->z80.state;
 
-	clownmdemu->vdp.configuration = &configuration->vdp;
-	clownmdemu->vdp.constant = &constant->vdp;
-	clownmdemu->vdp.state = &state->vdp;
+	clownmdemu.mcd_m68k = &state->mega_cd.m68k.state;
 
-	FM_Parameters_Initialise(&clownmdemu->fm, &configuration->fm, &constant->fm, &state->fm);
+	clownmdemu.vdp.configuration = &configuration->vdp;
+	clownmdemu.vdp.constant = &constant->vdp;
+	clownmdemu.vdp.state = &state->vdp;
 
-	clownmdemu->psg.configuration = &configuration->psg;
-	clownmdemu->psg.constant = &constant->psg;
-	clownmdemu->psg.state = &state->psg;
+	clownmdemu.fm = FM_Parameters_Initialise(&configuration->fm, &constant->fm, &state->fm);
 
-	clownmdemu->pcm.configuration = &configuration->pcm;
-	clownmdemu->pcm.state = &state->mega_cd.pcm;
+	clownmdemu.psg.configuration = &configuration->psg;
+	clownmdemu.psg.constant = &constant->psg;
+	clownmdemu.psg.state = &state->psg;
+
+	clownmdemu.pcm.configuration = &configuration->pcm;
+	clownmdemu.pcm.state = &state->mega_cd.pcm;
+
+	return clownmdemu;
 }
 
 void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)

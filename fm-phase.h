@@ -14,7 +14,7 @@ typedef struct FM_Phase_State
 	cc_u16l multiplier;
 } FM_Phase_State;
 
-void FM_Phase_State_Initialise(FM_Phase_State *phase);
+FM_Phase_State FM_Phase_State_Initialise(void);
 
 cc_u16f FM_Phase_GetKeyCode(const FM_Phase_State *phase);
 

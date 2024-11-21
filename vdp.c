@@ -228,61 +228,65 @@ VDP_Constant VDP_Constant_Initialise(void)
 	return constant;
 }
 
-void VDP_State_Initialise(VDP_State* const state)
+VDP_State VDP_State_Initialise(void)
 {
-	state->access.write_pending = cc_false;
-	state->access.address_register = 0;
-	state->access.code_register = 0;
-	state->access.selected_buffer = VDP_ACCESS_VRAM;
-	state->access.increment = 0;
+	VDP_State state;
 
-	state->dma.enabled = cc_false;
-	state->dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
-	state->dma.source_address_high = 0;
-	state->dma.source_address_low = 0;
-	state->dma.length = 0;
+	state.access.write_pending = cc_false;
+	state.access.address_register = 0;
+	state.access.code_register = 0;
+	state.access.selected_buffer = VDP_ACCESS_VRAM;
+	state.access.increment = 0;
 
-	state->plane_a_address = 0;
-	state->plane_b_address = 0;
-	state->window_address = 0;
-	state->sprite_table_address = 0;
-	state->hscroll_address = 0;
+	state.dma.enabled = cc_false;
+	state.dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
+	state.dma.source_address_high = 0;
+	state.dma.source_address_low = 0;
+	state.dma.length = 0;
 
-	state->window.aligned_right = cc_false;
-	state->window.aligned_bottom = cc_false;
-	state->window.horizontal_boundary = 0;
-	state->window.vertical_boundary = 0;
+	state.plane_a_address = 0;
+	state.plane_b_address = 0;
+	state.window_address = 0;
+	state.sprite_table_address = 0;
+	state.hscroll_address = 0;
 
-	state->plane_width = 32;
-	state->plane_height = 32;
+	state.window.aligned_right = cc_false;
+	state.window.aligned_bottom = cc_false;
+	state.window.horizontal_boundary = 0;
+	state.window.vertical_boundary = 0;
 
-	state->display_enabled = cc_false;
-	state->v_int_enabled = cc_false;
-	state->h_int_enabled = cc_false;
-	state->h40_enabled = cc_false;
-	state->v30_enabled = cc_false;
-	state->shadow_highlight_enabled = cc_false;
-	state->double_resolution_enabled = cc_false;
+	state.plane_width = 32;
+	state.plane_height = 32;
 
-	state->background_colour = 0;
-	state->h_int_interval = 0;
-	state->currently_in_vblank = cc_false;
-	state->allow_sprite_masking = cc_false;
+	state.display_enabled = cc_false;
+	state.v_int_enabled = cc_false;
+	state.h_int_enabled = cc_false;
+	state.h40_enabled = cc_false;
+	state.v30_enabled = cc_false;
+	state.shadow_highlight_enabled = cc_false;
+	state.double_resolution_enabled = cc_false;
 
-	state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
-	state->vscroll_mode = VDP_VSCROLL_MODE_FULL;
+	state.background_colour = 0;
+	state.h_int_interval = 0;
+	state.currently_in_vblank = cc_false;
+	state.allow_sprite_masking = cc_false;
 
-	memset(state->vram, 0, sizeof(state->vram));
-	memset(state->cram, 0, sizeof(state->cram));
-	memset(state->vsram, 0, sizeof(state->vsram));
-	memset(state->sprite_table_cache, 0, sizeof(state->sprite_table_cache));
+	state.hscroll_mode = VDP_HSCROLL_MODE_FULL;
+	state.vscroll_mode = VDP_VSCROLL_MODE_FULL;
 
-	state->sprite_row_cache.needs_updating = cc_true;
-	memset(state->sprite_row_cache.rows, 0, sizeof(state->sprite_row_cache.rows));
+	memset(state.vram, 0, sizeof(state.vram));
+	memset(state.cram, 0, sizeof(state.cram));
+	memset(state.vsram, 0, sizeof(state.vsram));
+	memset(state.sprite_table_cache, 0, sizeof(state.sprite_table_cache));
 
-	state->kdebug_buffer_index = 0;
+	state.sprite_row_cache.needs_updating = cc_true;
+	memset(state.sprite_row_cache.rows, 0, sizeof(state.sprite_row_cache.rows));
+
+	state.kdebug_buffer_index = 0;
 	/* This byte never gets overwritten, so we can set it ahead of time. */
-	state->kdebug_buffer[CC_COUNT_OF(state->kdebug_buffer) - 1] = '\0';
+	state.kdebug_buffer[CC_COUNT_OF(state.kdebug_buffer) - 1] = '\0';
+
+	return state;
 }
 
 static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f tile_x, const cc_u16f tile_y, const cc_u16f plane_address, const cc_u16f tile_height_mask, const cc_u16f tile_size, cc_u8l** const metapixels_pointer)

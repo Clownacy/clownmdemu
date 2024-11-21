@@ -11,32 +11,38 @@ FM_Channel_Constant FM_Channel_Constant_Initialise(void)
 	return constant;
 }
 
-void FM_Channel_State_Initialise(FM_Channel_State* const state)
+FM_Channel_State FM_Channel_State_Initialise(void)
 {
+	FM_Channel_State state;
 	cc_u16f i;
 
-	for (i = 0; i < CC_COUNT_OF(state->operators); ++i)
-		FM_Operator_State_Initialise(&state->operators[i]);
+	for (i = 0; i < CC_COUNT_OF(state.operators); ++i)
+		state.operators[i] = FM_Operator_State_Initialise();
 
-	state->feedback_divisor = 1 << (9 - 0);
-	state->algorithm = 0;
+	state.feedback_divisor = 1 << (9 - 0);
+	state.algorithm = 0;
 
-	for (i = 0; i < CC_COUNT_OF(state->operator_1_previous_samples); ++i)
-		state->operator_1_previous_samples[i] = 0;
+	for (i = 0; i < CC_COUNT_OF(state.operator_1_previous_samples); ++i)
+		state.operator_1_previous_samples[i] = 0;
+
+	return state;
 }
 
-void FM_Channel_Parameters_Initialise(FM_Channel* const channel, const FM_Channel_Constant* const constant, FM_Channel_State* const state)
+FM_Channel FM_Channel_Parameters_Initialise(const FM_Channel_Constant* const constant, FM_Channel_State* const state)
 {
+	FM_Channel channel;
 	cc_u16f i;
 
-	channel->constant = constant;
-	channel->state = state;
+	channel.constant = constant;
+	channel.state = state;
 
-	for (i = 0; i < CC_COUNT_OF(channel->operators); ++i)
+	for (i = 0; i < CC_COUNT_OF(channel.operators); ++i)
 	{
-		channel->operators[i].constant = &constant->operators;
-		channel->operators[i].state = &state->operators[i];
+		channel.operators[i].constant = &constant->operators;
+		channel.operators[i].state = &state->operators[i];
 	}
+
+	return channel;
 }
 
 void FM_Channel_SetFrequency(const FM_Channel* const channel, const cc_u16f f_number_and_block)

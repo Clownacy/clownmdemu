@@ -34,31 +34,34 @@ PSG_Constant PSG_Constant_Initialise(void)
 	return constant;
 }
 
-void PSG_State_Initialise(PSG_State* const state)
+PSG_State PSG_State_Initialise(void)
 {
+	PSG_State state;
 	size_t i;
 
 	/* Reset tone channels. */
-	for (i = 0; i < CC_COUNT_OF(state->tones); ++i)
+	for (i = 0; i < CC_COUNT_OF(state.tones); ++i)
 	{
-		state->tones[i].countdown = 0;
-		state->tones[i].countdown_master = 0;
-		state->tones[i].attenuation = 0xF; /* Silence the channels on startup. */
-		state->tones[i].output_bit = 0;
+		state.tones[i].countdown = 0;
+		state.tones[i].countdown_master = 0;
+		state.tones[i].attenuation = 0xF; /* Silence the channels on startup. */
+		state.tones[i].output_bit = 0;
 	}
 
 	/* Reset noise channel. */
-	state->noise.countdown = 0;
-	state->noise.attenuation = 0xF;
-	state->noise.fake_output_bit = 0;
-	state->noise.real_output_bit = 0;
-	state->noise.frequency_mode = 0;
-	state->noise.type = PSG_NOISE_TYPE_PERIODIC;
-	state->noise.shift_register = 0;
+	state.noise.countdown = 0;
+	state.noise.attenuation = 0xF;
+	state.noise.fake_output_bit = 0;
+	state.noise.real_output_bit = 0;
+	state.noise.frequency_mode = 0;
+	state.noise.type = PSG_NOISE_TYPE_PERIODIC;
+	state.noise.shift_register = 0;
 
 	/* Reset the latched command data. */
-	state->latched_command.channel = 0;
-	state->latched_command.is_volume_command = cc_false;
+	state.latched_command.channel = 0;
+	state.latched_command.is_volume_command = cc_false;
+
+	return state;
 }
 
 void PSG_DoCommand(const PSG* const psg, const cc_u8f command)

@@ -2,11 +2,15 @@
 
 #include <string.h>
 
-void IOPort_Initialise(IOPort* const io_port)
+IOPort IOPort_Initialise(void)
 {
+	IOPort io_port;
+
 	/* The standard Sega SDK bootcode uses this to detect soft-resets
 	   (it checks if the control value is 0. */
-	memset(io_port, 0, sizeof(*io_port));
+	memset(&io_port, 0, sizeof(io_port));
+
+	return io_port;
 }
 
 void IOPort_SetCallbacks(IOPort* const io_port, const IOPort_ReadCallback read_callback, const IOPort_WriteCallback write_callback)

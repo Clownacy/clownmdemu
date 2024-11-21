@@ -2489,17 +2489,20 @@ Z80_Constant Z80_Constant_Initialise(void)
 	return constant;
 }
 
-void Z80_State_Initialise(Z80_State* const state)
+Z80_State Z80_State_Initialise(void)
 {
+	Z80_State state;
 	Z80 z80;
 
 	/* A disgusting hack. */
-	z80.state = state;
+	z80.state = &state;
 
 	Z80_Reset(&z80);
 
 	/* Update on the next cycle. */
-	state->cycles = 1;
+	state.cycles = 1;
+
+	return state;
 }
 
 void Z80_Reset(const Z80* const z80)

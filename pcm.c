@@ -6,25 +6,28 @@
 /* RF5C68A manual */
 /* https://segaretro.org/images/2/22/RF5C68A.pdf */
 
-void PCM_State_Initialise(PCM_State* const state)
+PCM_State PCM_State_Initialise(void)
 {
+	PCM_State state;
 	cc_u8f i;
 
-	for (i = 0; i < CC_COUNT_OF(state->channels); ++i)
+	for (i = 0; i < CC_COUNT_OF(state.channels); ++i)
 	{
-		state->channels[i].disabled = cc_true;
-		state->channels[i].volume = 0;
-		state->channels[i].panning[0] = 0;
-		state->channels[i].panning[1] = 0;
-		state->channels[i].frequency = 0;
-		state->channels[i].loop_address = 0;
-		state->channels[i].start_address = 0;
-		state->channels[i].address = 0;
+		state.channels[i].disabled = cc_true;
+		state.channels[i].volume = 0;
+		state.channels[i].panning[0] = 0;
+		state.channels[i].panning[1] = 0;
+		state.channels[i].frequency = 0;
+		state.channels[i].loop_address = 0;
+		state.channels[i].start_address = 0;
+		state.channels[i].address = 0;
 	}
 
-	state->sounding = cc_false;
-	state->current_wave_bank = 0;
-	state->current_channel = 0;
+	state.sounding = cc_false;
+	state.current_wave_bank = 0;
+	state.current_channel = 0;
+
+	return state;
 }
 
 static cc_bool PCM_IsChannelAudible(const PCM* const pcm, const PCM_ChannelState* const channel)

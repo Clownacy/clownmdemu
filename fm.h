@@ -110,8 +110,8 @@ typedef struct FM
 } FM;
 
 FM_Constant FM_Constant_Initialise(void);
-void FM_State_Initialise(FM_State *state);
-void FM_Parameters_Initialise(FM *fm, const FM_Configuration *configuration, const FM_Constant *constant, FM_State *state);
+FM_State FM_State_Initialise(void);
+FM FM_Parameters_Initialise(const FM_Configuration *configuration, const FM_Constant *constant, FM_State *state);
 
 void FM_DoAddress(const FM *fm, cc_u8f port, cc_u8f address);
 void FM_DoData(const FM *fm, cc_u8f data);

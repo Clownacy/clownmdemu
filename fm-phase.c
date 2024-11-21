@@ -100,11 +100,13 @@ static void RecalculatePhaseStep(FM_Phase_State* const phase)
 	phase->step /= 2;
 }
 
-void FM_Phase_State_Initialise(FM_Phase_State* const phase)
+FM_Phase_State FM_Phase_State_Initialise(void)
 {
-	FM_Phase_SetFrequency(phase, 0);
-	FM_Phase_SetDetuneAndMultiplier(phase, 0, 0);
-	FM_Phase_Reset(phase);
+	FM_Phase_State phase;
+	FM_Phase_SetFrequency(&phase, 0);
+	FM_Phase_SetDetuneAndMultiplier(&phase, 0, 0);
+	FM_Phase_Reset(&phase);
+	return phase;
 }
 
 cc_u16f FM_Phase_GetKeyCode(const FM_Phase_State* const phase)

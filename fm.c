@@ -122,14 +122,15 @@ FM_Constant FM_Constant_Initialise(void)
 	return constant;
 }
 
-void FM_State_Initialise(FM_State* const state)
+FM_State FM_State_Initialise(void)
 {
+	FM_State state;
 	FM_ChannelMetadata *channel;
 	cc_u8f i;
 
-	for (channel = &state->channels[0]; channel < &state->channels[CC_COUNT_OF(state->channels)]; ++channel)
+	for (channel = &state.channels[0]; channel < &state.channels[CC_COUNT_OF(state.channels)]; ++channel)
 	{
-		FM_Channel_State_Initialise(&channel->state);
+		channel->state = FM_Channel_State_Initialise();
 
 		channel->cached_upper_frequency_bits = 0;
 
@@ -138,43 +139,48 @@ void FM_State_Initialise(FM_State* const state)
 		channel->pan_right = cc_true;
 	}
 
-	for (i = 0; i < CC_COUNT_OF(state->channel_3_metadata.frequencies); ++i)
-		state->channel_3_metadata.frequencies[i] = 0;
+	for (i = 0; i < CC_COUNT_OF(state.channel_3_metadata.frequencies); ++i)
+		state.channel_3_metadata.frequencies[i] = 0;
 
-	state->channel_3_metadata.per_operator_frequencies_enabled = cc_false;
-	state->channel_3_metadata.csm_mode_enabled = cc_false;
+	state.channel_3_metadata.per_operator_frequencies_enabled = cc_false;
+	state.channel_3_metadata.csm_mode_enabled = cc_false;
 
-	state->port = 0 * 3;
-	state->address = 0;
+	state.port = 0 * 3;
+	state.address = 0;
 
-	state->dac_sample = 0;
-	state->dac_enabled = cc_false;
+	state.dac_sample = 0;
+	state.dac_enabled = cc_false;
 
-	state->raw_timer_a_value = 0;
+	state.raw_timer_a_value = 0;
 
-	for (i = 0; i < CC_COUNT_OF(state->timers); ++i)
+	for (i = 0; i < CC_COUNT_OF(state.timers); ++i)
 	{
-		state->timers[i].value = FM_SAMPLE_RATE_DIVIDER; /* The timer expires when it goes BELOW 0, so this is a trick to emulate that. */
-		state->timers[i].counter = FM_SAMPLE_RATE_DIVIDER;
-		state->timers[i].enabled = cc_false;
+		state.timers[i].value = FM_SAMPLE_RATE_DIVIDER; /* The timer expires when it goes BELOW 0, so this is a trick to emulate that. */
+		state.timers[i].counter = FM_SAMPLE_RATE_DIVIDER;
+		state.timers[i].enabled = cc_false;
 	}
 
-	state->cached_address_27 = 0;
-	state->leftover_cycles = 0;
-	state->status = 0;
-	state->busy_flag_counter = 0;
+	state.cached_address_27 = 0;
+	state.leftover_cycles = 0;
+	state.status = 0;
+	state.busy_flag_counter = 0;
+
+	return state;
 }
 
-void FM_Parameters_Initialise(FM* const fm, const FM_Configuration* const configuration, const FM_Constant* const constant, FM_State* const state)
+FM FM_Parameters_Initialise(const FM_Configuration* const configuration, const FM_Constant* const constant, FM_State* const state)
 {
+	FM fm;
 	cc_u16f i;
 
-	fm->configuration = configuration;
-	fm->constant = constant;
-	fm->state = state;
+	fm.configuration = configuration;
+	fm.constant = constant;
+	fm.state = state;
 
-	for (i = 0; i < CC_COUNT_OF(fm->channels); ++i)
-		FM_Channel_Parameters_Initialise(&fm->channels[i], &constant->channels, &state->channels[i].state);
+	for (i = 0; i < CC_COUNT_OF(fm.channels); ++i)
+		fm.channels[i] = FM_Channel_Parameters_Initialise(&constant->channels, &state->channels[i].state);
+
+	return fm;
 }
 
 void FM_DoAddress(const FM* const fm, const cc_u8f port, const cc_u8f address)

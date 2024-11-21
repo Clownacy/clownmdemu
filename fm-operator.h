@@ -58,7 +58,7 @@ typedef struct FM_Operator
 } FM_Operator;
 
 FM_Operator_Constant FM_Operator_Constant_Initialise(void);
-void FM_Operator_State_Initialise(FM_Operator_State *state);
+FM_Operator_State FM_Operator_State_Initialise(void);
 
 void FM_Operator_SetFrequency(FM_Operator_State *state, cc_u16f f_number_and_block);
 void FM_Operator_SetKeyOn(FM_Operator_State *state, cc_bool key_on);
