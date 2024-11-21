@@ -280,7 +280,6 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 	cpu_callback_user_data.sync.fm.current_cycle = 0;
 	cpu_callback_user_data.sync.psg.current_cycle = 0;
 	cpu_callback_user_data.sync.pcm.current_cycle = 0;
-	cpu_callback_user_data.sync.pcm.current_cycle = 0;
 	for (i = 0; i < CC_COUNT_OF(cpu_callback_user_data.sync.io_ports); ++i)
 		cpu_callback_user_data.sync.io_ports[i].current_cycle = 0;
 
