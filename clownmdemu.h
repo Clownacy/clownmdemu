@@ -277,7 +277,7 @@ typedef struct ClownMDEmu
 
 typedef void (*ClownMDEmu_LogCallback)(void *user_data, const char *format, va_list arg);
 
-void ClownMDEmu_Constant_Initialise(ClownMDEmu_Constant *constant);
+ClownMDEmu_Constant ClownMDEmu_Constant_Initialise(void);
 void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
 void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu);
