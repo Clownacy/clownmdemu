@@ -13,7 +13,7 @@ typedef struct IOPort
 	IOPort_WriteCallback write_callback;
 } IOPort;
 
-IOPort IOPort_Initialise(void);
+void IOPort_Initialise(IOPort *io_port);
 void IOPort_SetCallbacks(IOPort *io_port, IOPort_ReadCallback read_callback, IOPort_WriteCallback write_callback);
 #define IOPort_ReadControl(IO_PORT) (IO_PORT)->mask
 #define IOPort_WriteControl(IO_PORT, MASK) (IO_PORT)->mask = (MASK)

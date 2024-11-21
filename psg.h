@@ -95,7 +95,7 @@ PSG_Constant PSG_Constant_Initialise(void);
 
 /* Initialises the PSG_State struct with sane default values. */
 /* All channels will be muted. */
-PSG_State PSG_State_Initialise(void);
+void PSG_State_Initialise(PSG_State *state);
 
 /* Processes a command. */
 /* See https://www.smspower.org/Development/SN76489 for an explanation of the various commands. */

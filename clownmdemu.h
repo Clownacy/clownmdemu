@@ -278,8 +278,8 @@ typedef struct ClownMDEmu
 typedef void (*ClownMDEmu_LogCallback)(void *user_data, const char *format, va_list arg);
 
 ClownMDEmu_Constant ClownMDEmu_Constant_Initialise(void);
-ClownMDEmu_State ClownMDEmu_State_Initialise(void);
-ClownMDEmu ClownMDEmu_Parameters_Initialise(const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
+void ClownMDEmu_State_Initialise(ClownMDEmu_State *state);
+void ClownMDEmu_Parameters_Initialise(ClownMDEmu *clownmdemu, const ClownMDEmu_Configuration *configuration, const ClownMDEmu_Constant *constant, ClownMDEmu_State *state, const ClownMDEmu_Callbacks *callbacks);
 void ClownMDEmu_Iterate(const ClownMDEmu *clownmdemu);
 void ClownMDEmu_Reset(const ClownMDEmu *clownmdemu, const cc_bool cd_boot);
 void ClownMDEmu_SetLogCallback(const ClownMDEmu_LogCallback log_callback, const void *user_data);

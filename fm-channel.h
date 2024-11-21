@@ -54,8 +54,8 @@ typedef struct FM_Channel
 } FM_Channel;
 
 FM_Channel_Constant FM_Channel_Constant_Initialise(void);
-FM_Channel_State FM_Channel_State_Initialise(void);
-FM_Channel FM_Channel_Parameters_Initialise(const FM_Channel_Constant *constant, FM_Channel_State *state);
+void FM_Channel_State_Initialise(FM_Channel_State *state);
+void FM_Channel_Parameters_Initialise(FM_Channel *channel, const FM_Channel_Constant *constant, FM_Channel_State *state);
 
 /* Per-channel. */
 void FM_Channel_SetFrequency(const FM_Channel *channel, cc_u16f f_number_and_block);

@@ -20,14 +20,11 @@ static cc_bool Controller_GetButtonBit(Controller* const controller, const void 
 	return !controller->callback((void*)user_data, button);
 }
 
-Controller Controller_Initialise(const Controller_Callback callback)
+void Controller_Initialise(Controller* const controller, const Controller_Callback callback)
 {
-	Controller controller;
+	memset(controller, 0, sizeof(*controller));
 
-	memset(&controller, 0, sizeof(controller));
-	controller.callback = callback;
-
-	return controller;
+	controller->callback = callback;
 }
 
 cc_u8f Controller_Read(Controller* const controller, const cc_u16f microseconds, const void *user_data)
