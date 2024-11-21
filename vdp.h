@@ -173,7 +173,7 @@ typedef void (*VDP_ColourUpdatedCallback)(void *user_data, cc_u16f index, cc_u16
 typedef cc_u16f (*VDP_ReadCallback)(void *user_data, cc_u32f address);
 typedef void (*VDP_KDebugCallback)(void *user_data, const char *string);
 
-VDP_Constant VDP_Constant_Initialise(void);
+void VDP_Constant_Initialise(VDP_Constant *constant);
 void VDP_State_Initialise(VDP_State *state);
 void VDP_RenderScanline(const VDP *vdp, cc_u16f scanline, VDP_ScanlineRenderedCallback scanline_rendered_callback, const void *scanline_rendered_callback_user_data);
 

@@ -59,10 +59,10 @@ static void CDSectorsTo68kRAM(const ClownMDEmu_Callbacks* const callbacks, cc_u1
 ClownMDEmu_Constant ClownMDEmu_Constant_Initialise(void)
 {
 	ClownMDEmu_Constant constant;
-	constant.z80 = Z80_Constant_Initialise();
-	constant.vdp = VDP_Constant_Initialise();
-	constant.fm = FM_Constant_Initialise();
-	constant.psg = PSG_Constant_Initialise();
+	Z80_Constant_Initialise(&constant.z80);
+	VDP_Constant_Initialise(&constant.vdp);
+	FM_Constant_Initialise(&constant.fm);
+	PSG_Constant_Initialise(&constant.psg);
 	return constant;
 }
 

@@ -91,7 +91,7 @@ typedef struct PSG
 	PSG_State *state;
 } PSG;
 
-PSG_Constant PSG_Constant_Initialise(void);
+void PSG_Constant_Initialise(PSG_Constant *constant);
 
 /* Initialises the PSG_State struct with sane default values. */
 /* All channels will be muted. */

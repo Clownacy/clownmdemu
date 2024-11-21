@@ -51,12 +51,10 @@ static cc_u16f InversePow2(const FM_Operator_Constant* const constant, const cc_
 	return (constant->power_table[fraction] << 2) >> whole;
 }
 
-FM_Operator_Constant FM_Operator_Constant_Initialise(void)
+void FM_Operator_Constant_Initialise(FM_Operator_Constant* const constant)
 {
-	FM_Operator_Constant constant;
-
-	const cc_u16f sine_table_length = CC_COUNT_OF(constant.logarithmic_attenuation_sine_table);
-	const cc_u16f pow_table_length = CC_COUNT_OF(constant.power_table);
+	const cc_u16f sine_table_length = CC_COUNT_OF(constant->logarithmic_attenuation_sine_table);
+	const cc_u16f pow_table_length = CC_COUNT_OF(constant->power_table);
 	const double log2 = log(2.0);
 
 	cc_u16f i;
@@ -96,7 +94,7 @@ FM_Operator_Constant FM_Operator_Constant_Initialise(void)
 		const cc_u16l sinResult = (cc_u16l)((sin_result_as_attenuation * 256.0) + 0.5);
 
 		/* "Write the result to the table." */
-		constant.logarithmic_attenuation_sine_table[i] = sinResult;
+		constant->logarithmic_attenuation_sine_table[i] = sinResult;
 	}
 
 	/* Generate power lookup table. */
@@ -117,10 +115,8 @@ FM_Operator_Constant FM_Operator_Constant_Initialise(void)
 		const cc_u16l result = (cc_u16l)((result_normalised * 2048.0) + 0.5);
 
 		/* "Write the result to the table." */
-		constant.power_table[i] = result;
+		constant->power_table[i] = result;
 	}
-
-	return constant;
 }
 
 void FM_Operator_State_Initialise(FM_Operator_State* const state)

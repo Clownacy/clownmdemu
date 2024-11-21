@@ -143,23 +143,22 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 	return value;
 }
 
-VDP_Constant VDP_Constant_Initialise(void)
+void VDP_Constant_Initialise(VDP_Constant* const constant)
 {
 	/* This essentially pre-computes the VDP's depth-test and alpha-test,
 	   generating a lookup table to eliminate the need to perform these
 	   every time a pixel is blitted. This provides a *massive* speed boost. */
-	VDP_Constant constant;
 	cc_u16f new_pixel_high;
 
-	for (new_pixel_high = 0; new_pixel_high < CC_COUNT_OF(constant.blit_lookup); ++new_pixel_high)
+	for (new_pixel_high = 0; new_pixel_high < CC_COUNT_OF(constant->blit_lookup); ++new_pixel_high)
 	{
 		cc_u16f old_pixel;
 
-		for (old_pixel = 0; old_pixel < CC_COUNT_OF(constant.blit_lookup[0]); ++old_pixel)
+		for (old_pixel = 0; old_pixel < CC_COUNT_OF(constant->blit_lookup[0]); ++old_pixel)
 		{
 			cc_u16f new_pixel_low;
 
-			for (new_pixel_low = 0; new_pixel_low < CC_COUNT_OF(constant.blit_lookup[0][0]); ++new_pixel_low)
+			for (new_pixel_low = 0; new_pixel_low < CC_COUNT_OF(constant->blit_lookup[0][0]); ++new_pixel_low)
 			{
 				const cc_u16f palette_line_index_mask = 0xF;
 				const cc_u16f colour_index_mask = 0x3F;
@@ -187,7 +186,7 @@ VDP_Constant VDP_Constant_Initialise(void)
 
 				output |= old_not_shadowed || new_not_shadowed ? not_shadowed_mask : 0;
 
-				constant.blit_lookup[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)output;
+				constant->blit_lookup[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)output;
 
 				/* Now, generate the table for shadow/highlight blitting */
 				if (draw_new_pixel)
@@ -220,12 +219,10 @@ VDP_Constant VDP_Constant_Initialise(void)
 					output = old_colour_index | (old_not_shadowed ? SHADOW_HIGHLIGHT_NORMAL : SHADOW_HIGHLIGHT_SHADOW);
 				}
 
-				constant.blit_lookup_shadow_highlight[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)output;
+				constant->blit_lookup_shadow_highlight[new_pixel_high][old_pixel][new_pixel_low] = (cc_u8l)output;
 			}
 		}
 	}
-
-	return constant;
 }
 
 void VDP_State_Initialise(VDP_State* const state)

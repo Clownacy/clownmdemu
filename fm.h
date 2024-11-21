@@ -109,7 +109,7 @@ typedef struct FM
 	FM_Channel channels[6];
 } FM;
 
-FM_Constant FM_Constant_Initialise(void);
+void FM_Constant_Initialise(FM_Constant *constant);
 void FM_State_Initialise(FM_State *state);
 void FM_Parameters_Initialise(FM *fm, const FM_Configuration *configuration, const FM_Constant *constant, FM_State *state);
 

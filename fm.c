@@ -115,11 +115,9 @@ The 9th DAC sample bit.
 
 #include "log.h"
 
-FM_Constant FM_Constant_Initialise(void)
+void FM_Constant_Initialise(FM_Constant* const constant)
 {
-	FM_Constant constant;
-	constant.channels = FM_Channel_Constant_Initialise();
-	return constant;
+	FM_Channel_Constant_Initialise(&constant->channels);
 }
 
 void FM_State_Initialise(FM_State* const state)
