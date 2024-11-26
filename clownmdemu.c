@@ -159,10 +159,16 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	cc_u16f i;
 
 	/* M68K */
+	// A real console does not retain its RAM contents between games, as RAM
+	// is cleared when the console is powered-off.
+	// Failing to clear RAM causes issues with Sonic games and ROM-hacks,
+	// which skip initialisation when a certain magic number is found in RAM.
+	memset(state->m68k.ram, 0, sizeof(state->m68k.ram));
 	state->m68k.cycle_countdown = 1;
 
 	/* Z80 */
 	Z80_State_Initialise(&state->z80.state);
+	memset(state->z80.ram, 0, sizeof(state->z80.ram));
 	state->z80.cycle_countdown = 1;
 	state->z80.bank = 0;
 	state->z80.bus_requested = cc_false; /* This should be false, according to Charles MacDonald's gen-hw.txt. */
