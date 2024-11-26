@@ -1039,7 +1039,10 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				/* The last byte of the buffer is always set to 0, so we don't need to do it here. */
 				if (character == '\0' || vdp->state->kdebug_buffer_index == CC_COUNT_OF(vdp->state->kdebug_buffer) - 1)
-						kdebug_callback((void*)kdebug_callback_user_data, vdp->state->kdebug_buffer);
+				{
+					vdp->state->kdebug_buffer_index = 0;
+					kdebug_callback((void*)kdebug_callback_user_data, vdp->state->kdebug_buffer);
+				}
 
 				break;
 			}
