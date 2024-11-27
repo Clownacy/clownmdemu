@@ -7,6 +7,16 @@
 #include "pcm.h"
 #include "psg.h"
 
+cc_u16f GetTelevisionVerticalResolution(const ClownMDEmu* const clownmdemu)
+{
+	return clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? 312 : 262; /* PAL and NTSC, respectively */
+}
+
+CycleMegaDrive GetMegaDriveCyclesPerFrame(const ClownMDEmu* const clownmdemu)
+{
+	return MakeCycleMegaDrive(clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_PAL) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MASTER_CLOCK_NTSC));
+}
+
 CycleMegaDrive MakeCycleMegaDrive(const cc_u32f cycle)
 {
 	CycleMegaDrive cycle_mega_drive;

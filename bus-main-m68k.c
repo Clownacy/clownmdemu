@@ -327,12 +327,18 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	}
 	else if (address == 0xC00004 || address == 0xC00006)
 	{
+		const cc_u16f cycles_per_scanline = GetMegaDriveCyclesPerFrame(clownmdemu).cycle / GetTelevisionVerticalResolution(clownmdemu);
+
 		/* VDP control port */
 		value = VDP_ReadControl(&clownmdemu->vdp);
 
 		/* Temporary stupid hack: shove the PAL bit in here. */
 		/* TODO: This should be moved to the VDP core once it becomes sensitive to PAL mode differences. */
 		value |= (clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL);
+
+		/* Temporary stupid hack: approximate the H-blank bit timing. */
+		/* TODO: This should be moved to the VDP core once it becomes slot-based. */
+		value |= (target_cycle.cycle % cycles_per_scanline >= cycles_per_scanline * 9 / 10) << 2;
 	}
 	else if (address == 0xC00008)
 	{

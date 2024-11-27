@@ -52,6 +52,9 @@ typedef struct IOPortToController_Parameters
 
 typedef cc_u16f (*SyncCPUCommonCallback)(const ClownMDEmu *clownmdemu, void *user_data);
 
+cc_u16f GetTelevisionVerticalResolution(const ClownMDEmu *clownmdemu);
+CycleMegaDrive GetMegaDriveCyclesPerFrame(const ClownMDEmu *clownmdemu);
+
 CycleMegaDrive MakeCycleMegaDrive(cc_u32f cycle);
 CycleMegaCD MakeCycleMegaCD(cc_u32f cycle);
 CycleMegaCD CycleMegaDriveToMegaCD(const ClownMDEmu *clownmdemu, CycleMegaDrive cycle);

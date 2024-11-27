@@ -707,8 +707,6 @@ cc_u16f VDP_ReadData(const VDP* const vdp)
 
 cc_u16f VDP_ReadControl(const VDP* const vdp)
 {
-	/* TODO */
-	const cc_bool currently_in_hblank = cc_true;
 	const cc_bool fifo_empty = cc_true;
 
 	/* Reading from the control port aborts the VDP waiting for a second command word to be written.
@@ -716,7 +714,8 @@ cc_u16f VDP_ReadControl(const VDP* const vdp)
 	   boot code makes use of this feature. */
 	vdp->state->access.write_pending = cc_false;
 
-	return 0x3400 | (fifo_empty << 9) | (vdp->state->currently_in_vblank << 3) | (currently_in_hblank << 2); /* The H-blank bit is forced for now so Sonic 2's two-player mode works */
+	/* TODO - The other flags. */
+	return 0x3400 | (fifo_empty << 9) | (vdp->state->currently_in_vblank << 3);
 }
 
 void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data)
