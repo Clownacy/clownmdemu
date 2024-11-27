@@ -159,10 +159,10 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	cc_u16f i;
 
 	/* M68K */
-	// A real console does not retain its RAM contents between games, as RAM
-	// is cleared when the console is powered-off.
-	// Failing to clear RAM causes issues with Sonic games and ROM-hacks,
-	// which skip initialisation when a certain magic number is found in RAM.
+	/* A real console does not retain its RAM contents between games, as RAM
+	   is cleared when the console is powered-off.
+	   Failing to clear RAM causes issues with Sonic games and ROM-hacks,
+	   which skip initialisation when a certain magic number is found in RAM. */
 	memset(state->m68k.ram, 0, sizeof(state->m68k.ram));
 	state->m68k.cycle_countdown = 1;
 
