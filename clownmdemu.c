@@ -419,7 +419,7 @@ void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 	CPUCallbackUserData callback_user_data;
 
 	/* Handle external RAM. */
-	if (ReadCartridgeWord(clownmdemu, 0x1B0) == (cc_u16f)'R' << 8 | (cc_u16f)'A' << 0)
+	if (ReadCartridgeWord(clownmdemu, 0x1B0) == ((cc_u16f)'R' << 8 | (cc_u16f)'A' << 0))
 	{
 		const cc_u16f metadata = ReadCartridgeWord(clownmdemu, 0x1B2);
 		const cc_u16f metadata_junk_bits = metadata & 0xA71F;
