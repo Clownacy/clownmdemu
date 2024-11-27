@@ -53,11 +53,30 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	{
 		if (((address & 0x400000) == 0) != clownmdemu->state->mega_cd.boot_from_cd)
 		{
-			/* Cartridge */
-			if (do_high_byte)
-				value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, (address & 0x3FFFFF) + 0) << 8;
-			if (do_low_byte)
-				value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, (address & 0x3FFFFF) + 1) << 0;
+			if ((address & 0x200000) != 0 && clownmdemu->state->external_ram.mapped_in)
+			{
+				/* External RAM */
+				const cc_u32f index = address & 0x1FFFFF;
+
+				if (index >= clownmdemu->state->external_ram.size)
+				{
+					value = 0xFFFF;
+					LogMessage("MAIN-CPU address 0x%" CC_PRIXLEAST32 " - Attempted to read past the end of external RAM (0x%" CC_PRIXFAST32 " when the external RAM ends at 0x%" CC_PRIXLEAST16 ")", clownmdemu->state->m68k.state.program_counter, index, clownmdemu->state->external_ram.size);
+				}
+				else
+				{
+					value |= clownmdemu->state->external_ram.buffer[index + 0] << 8;
+					value |= clownmdemu->state->external_ram.buffer[index + 1] << 0;
+				}
+			}
+			else
+			{
+				/* Cartridge */
+				if (do_high_byte)
+					value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, (address & 0x3FFFFF) + 0) << 8;
+				if (do_low_byte)
+					value |= frontend_callbacks->cartridge_read((void*)frontend_callbacks->user_data, (address & 0x3FFFFF) + 1) << 0;
+			}
 		}
 		else
 		{
@@ -287,6 +306,11 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 		/* Interrupt mask control */
 		LogMessage("MAIN-CPU attempted to read from interrupt mask control register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
 	}
+	else if (address == 0xA130F0)
+	{
+		/* External RAM control */
+		LogMessage("MAIN-CPU attempted to read from external RAM control register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+	}
 	/* TODO: According to Charles MacDonald's gen-hw.txt, the VDP stuff is mirrored in the following pattern:
 	MSB                       LSB
 	110n n000 nnnn nnnn 000m mmmm
@@ -376,14 +400,45 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 	{
 		if (((address & 0x400000) == 0) != clownmdemu->state->mega_cd.boot_from_cd)
 		{
-			/* Cartridge */
-			if (do_high_byte)
-				frontend_callbacks->cartridge_written((void*)frontend_callbacks->user_data, (address & 0x3FFFFF) + 0, high_byte);
-			if (do_low_byte)
-				frontend_callbacks->cartridge_written((void*)frontend_callbacks->user_data, (address & 0x3FFFFF) + 1, low_byte);
+			if ((address & 0x200000) != 0 && clownmdemu->state->external_ram.mapped_in)
+			{
+				/* External RAM */
+				const cc_u32f index = address & 0x1FFFFF;
 
-			/* TODO - This is temporary, just to catch possible bugs in the 68k emulator */
-			LogMessage("Attempted to write to ROM address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->state->m68k.state.program_counter);
+				if (index >= clownmdemu->state->external_ram.size)
+				{
+					LogMessage("MAIN-CPU address 0x%" CC_PRIXLEAST32 " - Attempted to write past the end of external RAM (0x%" CC_PRIXFAST32 " when the external RAM ends at 0x%" CC_PRIXLEAST16 ")", clownmdemu->state->m68k.state.program_counter, index, clownmdemu->state->external_ram.size);
+				}
+				else
+				{
+					switch (clownmdemu->state->external_ram.data_size)
+					{
+						case 0:
+						case 2:
+							clownmdemu->state->external_ram.buffer[index + 0] = high_byte;
+							break;
+					}
+
+					switch (clownmdemu->state->external_ram.data_size)
+					{
+						case 0:
+						case 3:
+							clownmdemu->state->external_ram.buffer[index + 1] = low_byte;
+							break;
+					}
+				}
+			}
+			else
+			{
+				/* Cartridge */
+				if (do_high_byte)
+					frontend_callbacks->cartridge_written((void*)frontend_callbacks->user_data, (address & 0x3FFFFF) + 0, high_byte);
+				if (do_low_byte)
+					frontend_callbacks->cartridge_written((void*)frontend_callbacks->user_data, (address & 0x3FFFFF) + 1, low_byte);
+
+				/* TODO - This is temporary, just to catch possible bugs in the 68k emulator */
+				LogMessage("Attempted to write to ROM address 0x%" CC_PRIXFAST32 " at 0x%" CC_PRIXLEAST32, address, clownmdemu->state->m68k.state.program_counter);
+			}
 		}
 		else
 		{
@@ -637,6 +692,12 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 	{
 		/* Interrupt mask control */
 		LogMessage("MAIN-CPU attempted to write to interrupt mask control register at 0x%" CC_PRIXLEAST32, clownmdemu->m68k->program_counter);
+	}
+	else if (address == 0xA130F0)
+	{
+		/* External RAM control */
+		if (do_low_byte)
+			clownmdemu->state->external_ram.mapped_in = low_byte != 0;
 	}
 	else if (address == 0xC00000 || address == 0xC00002)
 	{

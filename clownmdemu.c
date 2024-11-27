@@ -190,6 +190,12 @@ void ClownMDEmu_State_Initialise(ClownMDEmu_State* const state)
 	Controller_Initialise(&state->controllers[0], FrontendController1Callback);
 	Controller_Initialise(&state->controllers[1], FrontendController2Callback);
 
+	state->external_ram.size = 0;
+	state->external_ram.non_volatile = cc_false;
+	state->external_ram.data_size = 0;
+	state->external_ram.device_type = 0;
+	state->external_ram.mapped_in = cc_false;
+
 	/* Mega CD */
 	state->mega_cd.m68k.cycle_countdown = 1;
 	state->mega_cd.m68k.bus_requested = cc_true;
@@ -373,10 +379,92 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 	}
 }
 
+static cc_u8f ReadCartridgeByte(const ClownMDEmu* const clownmdemu, const cc_u32f address)
+{
+	return clownmdemu->callbacks->cartridge_read((void*)clownmdemu->callbacks->user_data, address);
+}
+
+static cc_u16f ReadCartridgeWord(const ClownMDEmu* const clownmdemu, const cc_u32f address)
+{
+	cc_u16f word;
+	word = ReadCartridgeByte(clownmdemu, address + 0) << 8;
+	word |= ReadCartridgeByte(clownmdemu, address + 1);
+	return word;
+}
+
+static cc_u32f ReadCartridgeLongWord(const ClownMDEmu* const clownmdemu, const cc_u32f address)
+{
+	cc_u32f longword;
+	longword = ReadCartridgeWord(clownmdemu, address + 0) << 16;
+	longword |= ReadCartridgeWord(clownmdemu, address + 2);
+	return longword;
+}
+
+static cc_u32f NextPowerOfTwo(cc_u32f v)
+{
+	/* https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2 */
+	v--;
+	v |= v >> 1;
+	v |= v >> 2;
+	v |= v >> 4;
+	v |= v >> 8;
+	v |= v >> 16;
+	v++;
+	return v;
+}
+
 void ClownMDEmu_Reset(const ClownMDEmu* const clownmdemu, const cc_bool cd_boot)
 {
 	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks;
 	CPUCallbackUserData callback_user_data;
+
+	/* Handle external RAM. */
+	if (ReadCartridgeWord(clownmdemu, 0x1B0) == (cc_u16f)'R' << 8 | (cc_u16f)'A' << 0)
+	{
+		const cc_u16f metadata = ReadCartridgeWord(clownmdemu, 0x1B2);
+		const cc_u16f metadata_junk_bits = metadata & 0xA71F;
+		const cc_u32f start = ReadCartridgeLongWord(clownmdemu, 0x1B4);
+		const cc_u32f end = ReadCartridgeLongWord(clownmdemu, 0x1B8) + 1;
+		const cc_u32f size = NextPowerOfTwo(end - 0x200000);
+
+		clownmdemu->state->external_ram.size = CC_COUNT_OF(clownmdemu->state->external_ram.buffer);
+		clownmdemu->state->external_ram.non_volatile = (metadata & 0x4000) != 0;
+		clownmdemu->state->external_ram.data_size = (metadata >> 11) & 3;
+		clownmdemu->state->external_ram.device_type = (metadata >> 5) & 7;
+
+		if (metadata_junk_bits != 0xA000)
+			LogMessage("External RAM metadata data at cartridge address 0x1B2 has incorrect junk bits - should be 0xA000, but was 0x%" CC_PRIXFAST16, metadata_junk_bits);
+
+		if (clownmdemu->state->external_ram.device_type != 1 && clownmdemu->state->external_ram.device_type != 2)
+			LogMessage("Invalid external RAM device type - should be 1 or 2, but was %" CC_PRIXLEAST8, clownmdemu->state->external_ram.device_type);
+
+		/* TODO: Add support for EEPROM. */
+		if (clownmdemu->state->external_ram.data_size == 1 || clownmdemu->state->external_ram.device_type == 2)
+			LogMessage("EEPROM external RAM is not yet supported - use SRAM instead");
+
+		/* TODO: Should we just disable SRAM in these events? */
+		/* TODO: SRAM should probably not be disabled in the first case, since the Sonic 1 disassembly makes this mistake by default. */
+		if (clownmdemu->state->external_ram.data_size != 3 && start != 0x200000)
+		{
+			LogMessage("Invalid external RAM start address - should be 0x200000, but was 0x%" CC_PRIXFAST32, start);
+		}
+		else if (clownmdemu->state->external_ram.data_size == 3 && start != 0x200001)
+		{
+			LogMessage("Invalid external RAM start address - should be 0x200001, but was 0x%" CC_PRIXFAST32, start);
+		}
+		else if (end < start)
+		{
+			LogMessage("Invalid external RAM end address - should be after start address but was before it instead");
+		}
+		else if (size >= CC_COUNT_OF(clownmdemu->state->external_ram.buffer))
+		{
+			LogMessage("External RAM is too large - must be 0x%" CC_PRIXFAST32 " bytes or less, but was 0x%" CC_PRIXFAST32, (cc_u32f)CC_COUNT_OF(clownmdemu->state->external_ram.buffer), size);
+		}
+		else
+		{
+			clownmdemu->state->external_ram.size = size;
+		}
+	}
 
 	clownmdemu->state->mega_cd.boot_from_cd = cd_boot;
 

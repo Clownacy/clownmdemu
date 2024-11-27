@@ -177,6 +177,15 @@ typedef struct ClownMDEmu_State
 	PSG_State psg;
 	IOPort io_ports[3];
 	Controller controllers[2];
+	struct
+	{
+		cc_u8l buffer[0x4000]; /* This is the size required by Phantasy Star 4. */
+		cc_u16l size;
+		cc_bool non_volatile;
+		cc_u8l data_size;
+		cc_u8l device_type;
+		cc_bool mapped_in;
+	} external_ram;
 
 	cc_u16l current_scanline;
 
