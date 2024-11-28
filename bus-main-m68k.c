@@ -12,6 +12,27 @@ static const cc_u16l megacd_boot_rom[] = {
 #include "mega-cd-boot-rom.c"
 };
 
+static cc_u16f GetHCounterValue(const ClownMDEmu* const clownmdemu, const CycleMegaDrive target_cycle)
+{
+	/* TODO: V30 and PAL and H32. */
+
+	/* TODO: This entire thing is a disgusting hack. */
+	/* Once the VDP emulator becames slot-based, this junk should be erased. */
+	const cc_u16f cycles_per_scanline = GetMegaDriveCyclesPerFrame(clownmdemu).cycle / GetTelevisionVerticalResolution(clownmdemu);
+
+	/* Sourced from https://gendev.spritesmind.net/forum/viewtopic.php?t=3058. */
+	const cc_u16f maximum_value = 0x100 - 0x30;
+
+	return (target_cycle.cycle % cycles_per_scanline) * maximum_value / cycles_per_scanline;
+}
+
+static cc_bool GetHBlankBit(const ClownMDEmu* const clownmdemu, const CycleMegaDrive target_cycle)
+{
+	/* TODO: V30 and PAL and H32. */
+	/* Sourced from https://plutiedev.com/mirror/kabuto-hardware-notes. */
+	return GetHCounterValue(clownmdemu, target_cycle) > 0xB2;
+}
+
 static cc_u16f VDPReadCallback(void *user_data, cc_u32f address)
 {
 	return M68kReadCallbackWithDMA(user_data, address / 2, cc_true, cc_true, cc_true);
@@ -338,15 +359,14 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 
 		/* Temporary stupid hack: approximate the H-blank bit timing. */
 		/* TODO: This should be moved to the VDP core once it becomes slot-based. */
-		value |= (target_cycle.cycle % cycles_per_scanline >= cycles_per_scanline * 9 / 10) << 2;
+		value |= GetHBlankBit(clownmdemu, target_cycle) << 2;
 	}
 	else if (address == 0xC00008)
 	{
 		/* H/V COUNTER */
-		/* TODO: H counter. */
 		/* TODO: Double-resolution mode. */
 		/* TODO: The V counter emulation is incredibly inaccurate: the timing is likely wrong, and it should be incremented while in the blanking areas too. */
-		value = clownmdemu->state->current_scanline << 8;
+		value = clownmdemu->state->current_scanline << 8 | GetHCounterValue(clownmdemu, target_cycle);
 	}
 	else if (address >= 0xC00010 && address <= 0xC00016)
 	{
