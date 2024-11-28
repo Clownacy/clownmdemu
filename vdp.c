@@ -398,10 +398,10 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 					const cc_u8f nibble_shift = (~pixel_x_in_tile & 1) << 2;
 					const cc_u8f palette_line_index = (tile_data[pixel_x_in_tile / 2] >> nibble_shift) & 0xF;
 
-					const cc_u8f mask = 0 - (cc_u8f)((metapixels_pointer[1] == 0) & (palette_line_index != 0));
+					const cc_u8f mask = 0 - (cc_u8f)((*metapixels_pointer == 0) & (palette_line_index != 0));
 
-					*metapixels_pointer++ |= metapixel_high_bits & mask;
 					*metapixels_pointer++ |= palette_line_index & mask;
+					*metapixels_pointer++ |= metapixel_high_bits & mask;
 
 					if (--pixel_limit == 0)
 						return;
@@ -673,7 +673,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 			{
 				for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
 				{
-					*plane_metapixels_pointer = constant->blit_lookup_shadow_highlight[sprite_metapixels_pointer[0]][*plane_metapixels_pointer][sprite_metapixels_pointer[1]];
+					*plane_metapixels_pointer = constant->blit_lookup_shadow_highlight[sprite_metapixels_pointer[1]][*plane_metapixels_pointer][sprite_metapixels_pointer[0]];
 					++plane_metapixels_pointer;
 					sprite_metapixels_pointer += 2;
 				}
@@ -682,7 +682,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 			{
 				for (i = 0; i < VDP_MAX_SCANLINE_WIDTH; ++i)
 				{
-					*plane_metapixels_pointer = constant->blit_lookup[sprite_metapixels_pointer[0]][*plane_metapixels_pointer][sprite_metapixels_pointer[1]] & 0x3F;
+					*plane_metapixels_pointer = constant->blit_lookup[sprite_metapixels_pointer[1]][*plane_metapixels_pointer][sprite_metapixels_pointer[0]] & 0x3F;
 					++plane_metapixels_pointer;
 					sprite_metapixels_pointer += 2;
 				}
