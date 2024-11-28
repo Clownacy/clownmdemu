@@ -372,6 +372,7 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 		/* TODO - What's supposed to happen here, if you read from the PSG? */
 		/* TODO: It freezes the 68k, that's what:
 		   https://forums.sonicretro.org/index.php?posts/1066059/ */
+		LogMessage("MAIN-CPU attempted to read from PSG at 0x%" CC_PRIXLEAST32 " - this will freeze a real Mega Drive", clownmdemu->m68k->program_counter);
 	}
 	else if (address >= 0xE00000 && address <= 0xFFFFFF)
 	{
