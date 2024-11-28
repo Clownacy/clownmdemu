@@ -348,8 +348,6 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	}
 	else if (address == 0xC00004 || address == 0xC00006)
 	{
-		const cc_u16f cycles_per_scanline = GetMegaDriveCyclesPerFrame(clownmdemu).cycle / GetTelevisionVerticalResolution(clownmdemu);
-
 		/* VDP control port */
 		value = VDP_ReadControl(&clownmdemu->vdp);
 
