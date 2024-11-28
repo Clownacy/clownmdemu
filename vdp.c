@@ -1,6 +1,9 @@
 /* TODO: https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016 */
 /* TODO: HV counter details - https://wiki.megadrive.org/index.php?title=VDP_Ports */
 
+/* Some of the logic here is based on research done by Nemesis:
+   https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016 */
+
 #include "vdp.h"
 
 #include <assert.h>
@@ -18,8 +21,19 @@ enum
 	SHADOW_HIGHLIGHT_HIGHLIGHT = 2 << 6
 };
 
-/* Some of the logic here is based on research done by Nemesis:
-   https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016 */
+typedef struct TileInfo
+{
+	cc_u16f height_power, height_mask, size;
+} TileInfo;
+
+static TileInfo MakeTileInfo(VDP_State* const state)
+{
+	TileInfo tile_info;
+	tile_info.height_power = state->double_resolution_enabled ? 4 : 3;
+	tile_info.height_mask = (1 << tile_info.height_power) - 1;
+	tile_info.size = (8 << tile_info.height_power) / 2;
+	return tile_info;
+}
 
 static cc_bool IsDMAPending(const VDP_State* const state)
 {
@@ -282,15 +296,15 @@ void VDP_State_Initialise(VDP_State* const state)
 	state->kdebug_buffer[CC_COUNT_OF(state->kdebug_buffer) - 1] = '\0';
 }
 
-static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f tile_x, const cc_u16f tile_y, const cc_u16f plane_address, const cc_u16f tile_height_mask, const cc_u16f tile_size, cc_u8l** const metapixels_pointer)
+static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f tile_x, const cc_u16f tile_y, const cc_u16f plane_address, const TileInfo* const tile_info, cc_u8l** const metapixels_pointer)
 {
 	const VDP_TileMetadata tile = VDP_DecomposeTileMetadata(VDP_ReadVRAMWord(vdp->state, plane_address + (tile_y * vdp->state->plane_width + tile_x) * 2));
 
 	/* Get the Y coordinate of the pixel in the tile */
-	const cc_u16f pixel_y_in_tile = (pixel_y_in_plane & tile_height_mask) ^ (tile.y_flip ? tile_height_mask : 0);
+	const cc_u16f pixel_y_in_tile = (pixel_y_in_plane & tile_info->height_mask) ^ (tile.y_flip ? tile_info->height_mask : 0);
 
 	/* Get raw tile data that contains the desired metapixel */
-	const cc_u8l* const tile_data = &vdp->state->vram[(tile.tile_index * tile_size + pixel_y_in_tile * 4) % CC_COUNT_OF(vdp->state->vram)];
+	const cc_u8l* const tile_data = &vdp->state->vram[(tile.tile_index * tile_info->size + pixel_y_in_tile * 4) % CC_COUNT_OF(vdp->state->vram)];
 
 	const cc_u8f byte_index_xor = tile.x_flip ? 7 : 0;
 	const cc_u8f metapixel_upper_bits = (tile.priority << 2) | tile.palette_line;
@@ -314,11 +328,100 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 	}
 }
 
+#define MAX_SPRITE_WIDTH (8 * 4)
+
+static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* const state, const cc_u16f scanline, const TileInfo* const tile_info)
+{
+	cc_u8f i;
+	cc_u16f sprite_limit = state->h40_enabled ? 20 : 16;
+	cc_u16f pixel_limit = state->h40_enabled ? 320 : 256;
+	cc_bool masked = cc_false;
+
+	/* Render sprites */
+	/* This has been verified with Nemesis's sprite masking and overflow test ROM:
+	   https://segaretro.org/Sprite_Masking_and_Overflow_Test_ROM */
+	for (i = 0; i < state->sprite_row_cache.rows[scanline].total; ++i)
+	{
+		struct VDP_SpriteRowCacheEntry* const sprite_row_cache_entry = &state->sprite_row_cache.rows[scanline].sprites[i];
+
+		/* Decode sprite data */
+		const cc_u16f sprite_index = state->sprite_table_address + sprite_row_cache_entry->table_index * 8;
+		const cc_u16f width = sprite_row_cache_entry->width;
+		const cc_u16f height = sprite_row_cache_entry->height;
+		const VDP_TileMetadata tile = VDP_DecomposeTileMetadata(VDP_ReadVRAMWord(state, sprite_index + 4));
+		const cc_u16f x = VDP_ReadVRAMWord(state, sprite_index + 6) % 0x200;
+
+		const cc_u8f metapixel_high_bits = (tile.priority << 2) | tile.palette_line;
+
+		cc_u16f y_in_sprite = sprite_row_cache_entry->y_in_sprite;
+
+		/* This is a masking sprite: prevent all remaining sprites from being drawn */
+		if (x == 0)
+			masked = state->allow_sprite_masking;
+		else
+			/* Enable sprite masking after successfully drawing a sprite. */
+			state->allow_sprite_masking = cc_true;
+
+		/* Skip rendering when possible or required. */
+		if (masked || x + width * 8 <= 0x80u || x >= 0x80u + (state->h40_enabled ? 40 : 32) * 8)
+		{
+			if (pixel_limit <= width * 8)
+				return;
+
+			pixel_limit -= width * 8;
+		}
+		else
+		{
+			cc_u8l *metapixels_pointer = sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + x - 0x80];
+
+			cc_u16f j;
+
+			y_in_sprite = tile.y_flip ? (height << tile_info->height_power) - y_in_sprite - 1 : y_in_sprite;
+
+			for (j = 0; j < width; ++j)
+			{
+				const cc_u16f x_in_sprite = tile.x_flip ? width - j - 1 : j;
+				const cc_u16f tile_index = tile.tile_index + (y_in_sprite >> tile_info->height_power) + x_in_sprite * height;
+				const cc_u16f pixel_y_in_tile = y_in_sprite & tile_info->height_mask;
+
+				/* Get raw tile data that contains the desired metapixel */
+				const cc_u8l* const tile_data = &state->vram[(tile_index * tile_info->size + pixel_y_in_tile * 4) % CC_COUNT_OF(state->vram)];
+
+				cc_u16f k;
+
+				for (k = 0; k < 8; ++k)
+				{
+					/* Get the X coordinate of the pixel in the tile */
+					const cc_u8f pixel_x_in_tile = k ^ (tile.x_flip ? 7 : 0);
+
+					/* Obtain the index into the palette line */
+					const cc_u8f nibble_shift = (~pixel_x_in_tile & 1) << 2;
+					const cc_u8f palette_line_index = (tile_data[pixel_x_in_tile / 2] >> nibble_shift) & 0xF;
+
+					const cc_u8f mask = 0 - (cc_u8f)((metapixels_pointer[1] == 0) & (palette_line_index != 0));
+
+					*metapixels_pointer++ |= metapixel_high_bits & mask;
+					*metapixels_pointer++ |= palette_line_index & mask;
+
+					if (--pixel_limit == 0)
+						return;
+				}
+			}
+		}
+
+		if (--sprite_limit == 0)
+			break;
+	}
+
+	/* Prevent sprite masking when ending a scanline without reaching the pixel limit. */
+	state->allow_sprite_masking = cc_false;
+}
+
 void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
 {
 	const VDP_Constant* const constant = vdp->constant;
 	VDP_State* const state = vdp->state;
-	const cc_u16f tile_height_power = state->double_resolution_enabled ? 4 : 3;
+	const TileInfo tile_info = MakeTileInfo(state);
 
 	cc_u16f i;
 
@@ -347,20 +450,12 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 		 * Setup *
 		 * ***** */
 
-		#define MAX_SPRITE_WIDTH (8 * 4)
-
-		const cc_u16f tile_height_mask = (1 << tile_height_power) - 1;
-		const cc_u16f tile_size = (8 << tile_height_power) / 2;
-
 		/* Back these two up before we overwrite them. */
 		const cc_u16l plane_width_copy = state->plane_width;
 		const cc_u16l plane_height_copy = state->plane_height;
 
 		const cc_u16l window_plane_width = state->h40_enabled ? 64 : 32;
 		const cc_u16l window_plane_height = 32;
-
-		cc_u16f sprite_limit = state->h40_enabled ? 20 : 16;
-		cc_u16f pixel_limit = state->h40_enabled ? 320 : 256;
 
 		/* The padding bytes of the left and right are for allowing sprites to overdraw at the
 		   edges of the screen. */
@@ -403,7 +498,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 							break;
 
 						case VDP_HSCROLL_MODE_1CELL:
-							hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + (scanline >> tile_height_power << tile_height_power) * 4 + i * 2);
+							hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + (scanline >> tile_info.height_power << tile_info.height_power) * 4 + i * 2);
 							break;
 
 						case VDP_HSCROLL_MODE_1LINE:
@@ -466,9 +561,9 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 							/* Get the coordinates of the tile in the plane */
 							const cc_u16f tile_x = (plane_x_offset + j) & plane_width_bitmask;
-							const cc_u16f tile_y = (pixel_y_in_plane >> tile_height_power) & plane_height_bitmask;
+							const cc_u16f tile_y = (pixel_y_in_plane >> tile_info.height_power) & plane_height_bitmask;
 
-							RenderTile(vdp, pixel_y_in_plane, tile_x, tile_y, plane_address, tile_height_mask, tile_size, &metapixels_pointer);
+							RenderTile(vdp, pixel_y_in_plane, tile_x, tile_y, plane_address, &tile_info, &metapixels_pointer);
 						}
 					}
 				}
@@ -494,7 +589,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 			/* Render tiles */
 			for (i = start; i < end; ++i)
-				RenderTile(vdp, scanline, i, scanline >> tile_height_power, state->window_address, tile_height_mask, tile_size, &metapixels_pointer);
+				RenderTile(vdp, scanline, i, scanline >> tile_info.height_power, state->window_address, &tile_info, &metapixels_pointer);
 		}
 
 		/* Restore the plane size, since we meddled with it earlier for the window plane. */
@@ -530,7 +625,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 				const cc_u16f blank_lines = 128 << state->double_resolution_enabled;
 
 				/* This loop only processes rows that are on-screen. */
-				for (i = CC_MAX(blank_lines, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_height_power), cached_sprite.y + (cached_sprite.height << tile_height_power)); ++i)
+				for (i = CC_MAX(blank_lines, cached_sprite.y); i < CC_MIN(blank_lines + ((state->v30_enabled ? 30 : 28) << tile_info.height_power), cached_sprite.y + (cached_sprite.height << tile_info.height_power)); ++i)
 				{
 					struct VDP_SpriteRowCacheRow* const row = &state->sprite_row_cache.rows[i - blank_lines];
 
@@ -564,90 +659,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 		memset(sprite_metapixels, 0, sizeof(sprite_metapixels));
 
 		if (!vdp->configuration->sprites_disabled)
-		{
-			cc_bool masked = cc_false;
-
-			/* Render sprites */
-			/* This has been verified with Nemesis's sprite masking and overflow test ROM:
-			   https://segaretro.org/Sprite_Masking_and_Overflow_Test_ROM */
-			for (i = 0; i < state->sprite_row_cache.rows[scanline].total; ++i)
-			{
-				struct VDP_SpriteRowCacheEntry* const sprite_row_cache_entry = &state->sprite_row_cache.rows[scanline].sprites[i];
-
-				/* Decode sprite data */
-				const cc_u16f sprite_index = state->sprite_table_address + sprite_row_cache_entry->table_index * 8;
-				const cc_u16f width = sprite_row_cache_entry->width;
-				const cc_u16f height = sprite_row_cache_entry->height;
-				const VDP_TileMetadata tile = VDP_DecomposeTileMetadata(VDP_ReadVRAMWord(state, sprite_index + 4));
-				const cc_u16f x = VDP_ReadVRAMWord(state, sprite_index + 6) % 0x200;
-
-				const cc_u8f metapixel_high_bits = (tile.priority << 2) | tile.palette_line;
-
-				cc_u16f y_in_sprite = sprite_row_cache_entry->y_in_sprite;
-
-				/* This is a masking sprite: prevent all remaining sprites from being drawn */
-				if (x == 0)
-					masked = state->allow_sprite_masking;
-				else
-					/* Enable sprite masking after successfully drawing a sprite. */
-					state->allow_sprite_masking = cc_true;
-
-				/* Skip rendering when possible or required. */
-				if (masked || x + width * 8 <= 0x80u || x >= 0x80u + (state->h40_enabled ? 40 : 32) * 8)
-				{
-					if (pixel_limit <= width * 8)
-						goto PixelLimitReached;
-
-					pixel_limit -= width * 8;
-				}
-				else
-				{
-					cc_u8l *metapixels_pointer = sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + x - 0x80];
-
-					cc_u16f j;
-
-					y_in_sprite = tile.y_flip ? (height << tile_height_power) - y_in_sprite - 1 : y_in_sprite;
-
-					for (j = 0; j < width; ++j)
-					{
-						const cc_u16f x_in_sprite = tile.x_flip ? width - j - 1 : j;
-						const cc_u16f tile_index = tile.tile_index + (y_in_sprite >> tile_height_power) + x_in_sprite * height;
-						const cc_u16f pixel_y_in_tile = y_in_sprite & tile_height_mask;
-
-						/* Get raw tile data that contains the desired metapixel */
-						const cc_u8l* const tile_data = &state->vram[(tile_index * tile_size + pixel_y_in_tile * 4) % CC_COUNT_OF(state->vram)];
-
-						cc_u16f k;
-
-						for (k = 0; k < 8; ++k)
-						{
-							/* Get the X coordinate of the pixel in the tile */
-							const cc_u8f pixel_x_in_tile = k ^ (tile.x_flip ? 7 : 0);
-
-							/* Obtain the index into the palette line */
-							const cc_u8f nibble_shift = (~pixel_x_in_tile & 1) << 2;
-							const cc_u8f palette_line_index = (tile_data[pixel_x_in_tile / 2] >> nibble_shift) & 0xF;
-
-							const cc_u8f mask = 0 - (cc_u8f)((metapixels_pointer[1] == 0) & (palette_line_index != 0));
-
-							*metapixels_pointer++ |= metapixel_high_bits & mask;
-							*metapixels_pointer++ |= palette_line_index & mask;
-
-							if (--pixel_limit == 0)
-								goto PixelLimitReached;
-						}
-					}
-				}
-
-				if (--sprite_limit == 0)
-					break;
-			}
-
-			/* Prevent sprite masking when ending a scanline without reaching the pixel limit. */
-			state->allow_sprite_masking = cc_false;
-
-		PixelLimitReached:;
-		}
+			RenderSprites(sprite_metapixels, state, scanline, &tile_info);
 
 		/* ************************************ *
 		 * Blit sprite pixels onto plane pixels *
@@ -676,13 +688,13 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 				}
 			}
 		}
-
-		#undef MAX_SPRITE_WIDTH
 	}
 
 	/* Send pixels to the frontend to be displayed */
-	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels + 16, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) << tile_height_power);
+	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels + 16, (state->h40_enabled ? 40 : 32) * 8, (state->v30_enabled ? 30 : 28) << tile_info.height_power);
 }
+
+#undef MAX_SPRITE_WIDTH
 
 cc_u16f VDP_ReadData(const VDP* const vdp)
 {
