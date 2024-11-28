@@ -579,7 +579,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 				const cc_u16f width = sprite_row_cache_entry->width;
 				const cc_u16f height = sprite_row_cache_entry->height;
 				const VDP_TileMetadata tile = VDP_DecomposeTileMetadata(VDP_ReadVRAMWord(state, sprite_index + 4));
-				const cc_u16f x = VDP_ReadVRAMWord(state, sprite_index + 6) & 0x1FF;
+				const cc_u16f x = VDP_ReadVRAMWord(state, sprite_index + 6) % 0x200;
 
 				const cc_u8f metapixel_high_bits = (tile.priority << 2) | tile.palette_line;
 
