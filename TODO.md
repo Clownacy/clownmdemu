@@ -5,6 +5,7 @@
   - Interrupts
   - Exceptions (very incomplete and broken)
   - User mode
+  - Instruction cycle durations
 - Z80
   - Most instructions
   - Flags
@@ -21,6 +22,7 @@
   - Sprite table caching
   - Edgecase when the sprite mask is the first sprite rendered on the scanline
   - VRAM-to-VRAM DMA
+  - HV counter
 - FM
   - 6 FM channels
     - Phase Generator
@@ -40,6 +42,8 @@
   - Noise channel
     - White noise mode
     - Periodic noise mode
+- Save data
+  - SRAM
 - Joypads
   - 3-button Mega Drive controller
   - 6-button Mega Drive controller
@@ -51,14 +55,12 @@
 
 # Unimplemented
 - 68k
-  - Instruction cycle durations
   - Exceptions
   - The RESET instruction
 - VDP
   - Slot-based rendering
   - Interlacing in Interlace Mode 1 and Interlace Mode 2
   - DMA transfer durations
-  - HV counter
   - Mode 4
   - FIFO, and related 68k delays
 - Z80
@@ -71,7 +73,8 @@
 - FM
   - Low-Frequency Oscillator
   - Debug registers
-- SRAM
+- Save data
+  - EEPROM
 - Cartridge mappers
 - Joypads
   - Having more than two joypads connected at once
