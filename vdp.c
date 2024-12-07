@@ -358,8 +358,7 @@ static void RenderTile(const VDP* const vdp, const cc_u8f start, const cc_u8f en
 
 	cc_u8f i;
 
-	/* TODO - Unroll this loop? */
-	for (i = start; i < end; ++i)
+	for (i = start; i < end && i < TILE_WIDTH; ++i)
 	{
 		/* Get the X coordinate of the pixel in the tile */
 		const cc_u8f pixel_x_in_tile = i ^ byte_index_xor;
