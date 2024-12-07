@@ -591,7 +591,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 		{
 			const cc_bool bus_request = (high_byte & 1) != 0;
 
-			if (clownmdemu->state->z80.bus_requested != bus_request)
+			if (!clownmdemu->state->z80.bus_requested && bus_request)
 				SyncZ80(clownmdemu, callback_user_data, target_cycle);
 
 			clownmdemu->state->z80.bus_requested = bus_request;
@@ -627,7 +627,7 @@ void M68kWriteCallbackWithCycle(const void* const user_data, const cc_u32f addre
 		m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
 		m68k_read_write_callbacks.user_data = callback_user_data;
 
-		if (clownmdemu->state->mega_cd.m68k.bus_requested != bus_request)
+		if (!clownmdemu->state->mega_cd.m68k.bus_requested && bus_request)
 			SyncMCDM68k(clownmdemu, callback_user_data, CycleMegaDriveToMegaCD(clownmdemu, target_cycle));
 
 		if (clownmdemu->state->mega_cd.m68k.reset_held && !reset)

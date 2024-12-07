@@ -208,17 +208,21 @@ static void MegaCDBIOSCall(const ClownMDEmu* const clownmdemu, const void* const
 
 static cc_u16f SyncMCDM68kForRealCallback(const ClownMDEmu* const clownmdemu, void* const user_data)
 {
-	/* TODO: Handle the MCD's master clock! */
 	const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks = (const Clown68000_ReadWriteCallbacks*)user_data;
 
-	return CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * (clownmdemu->state->mega_cd.m68k.bus_requested || clownmdemu->state->mega_cd.m68k.reset_held ? 1 : Clown68000_DoCycle(clownmdemu->mcd_m68k, m68k_read_write_callbacks));
+	return CLOWNMDEMU_MCD_M68K_CLOCK_DIVIDER * Clown68000_DoCycle(clownmdemu->mcd_m68k, m68k_read_write_callbacks);
 }
 
 void SyncMCDM68kForReal(const ClownMDEmu* const clownmdemu, const Clown68000_ReadWriteCallbacks* const m68k_read_write_callbacks, const CycleMegaCD target_cycle)
 {
-	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)m68k_read_write_callbacks->user_data;
+	const cc_bool mcd_m68k_not_running = clownmdemu->state->mega_cd.m68k.bus_requested || clownmdemu->state->mega_cd.m68k.reset_held;
 
-	SyncCPUCommon(clownmdemu, &other_state->sync.mcd_m68k, target_cycle.cycle, SyncMCDM68kForRealCallback, m68k_read_write_callbacks);
+	if (!mcd_m68k_not_running)
+	{
+		CPUCallbackUserData* const other_state = (CPUCallbackUserData*)m68k_read_write_callbacks->user_data;
+
+		SyncCPUCommon(clownmdemu, &other_state->sync.mcd_m68k, target_cycle.cycle, SyncMCDM68kForRealCallback, m68k_read_write_callbacks);
+	}
 }
 
 static cc_u16f SyncMCDM68kCallback(const ClownMDEmu* const clownmdemu, void* const user_data)
