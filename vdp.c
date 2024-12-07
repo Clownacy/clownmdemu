@@ -19,9 +19,6 @@
 #define SCANLINE_WIDTH_IN_TILE_PAIRS CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, TILE_PAIR_WIDTH)
 #define MAX_SPRITE_WIDTH (TILE_WIDTH * 4)
 
-/* The extra two tiles on the left of the scanline */
-#define EXTRA_TILE_PAIR 1
-
 enum
 {
 	SHADOW_HIGHLIGHT_NORMAL = 0 << 6,
@@ -340,7 +337,7 @@ static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u16f
 			return 0;
 
 		case VDP_VSCROLL_MODE_2CELL:
-			return ((tile_pair - EXTRA_TILE_PAIR) * 2) % CC_COUNT_OF(state->vsram);
+			return (tile_pair * 2) % CC_COUNT_OF(state->vsram);
 	}
 }
 
@@ -389,7 +386,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f start, const cc_u
 	}
 }
 
-static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const TileInfo* const tile_info, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, const cc_u16f scroll_offset, cc_u8l* const metapixels)
+static void RenderScrollingPlane(const VDP* const vdp, const cc_s8f start, const cc_s8f end, const TileInfo* const tile_info, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, const cc_u16f scroll_offset, cc_u8l* const metapixels)
 {
 	VDP_State* const state = vdp->state;
 
@@ -402,9 +399,9 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 
 	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
 
-	cc_u8f i;
+	cc_s8f i;
 
-	for (i = start; i < end && i < SCANLINE_WIDTH_IN_TILE_PAIRS + EXTRA_TILE_PAIR; ++i)
+	for (i = start - 1; i < end && i < SCANLINE_WIDTH_IN_TILE_PAIRS; ++i)
 	{
 		const cc_u16f vscroll = state->vsram[plane_index + GetVScrollTableOffset(state, i)];
 
@@ -416,11 +413,11 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 		const cc_u16f tile_y = (pixel_y_in_plane >> tile_height_power) & plane_height_bitmask;
 		const cc_u16f vram_address = plane_address + (tile_y * plane_width + tile_x) * 2;
 
-		RenderTilePair(vdp, i == start ? scroll_offset : 0, i == end - 1 ? scroll_offset : TILE_PAIR_WIDTH, pixel_y_in_plane, vram_address, tile_info, &metapixels_pointer);
+		RenderTilePair(vdp, i == start - 1 ? scroll_offset : 0, i == end - 1 ? scroll_offset : TILE_PAIR_WIDTH, pixel_y_in_plane, vram_address, tile_info, &metapixels_pointer);
 	}
 }
 
-static void RenderWindowPlane(const VDP* const vdp, const cc_u16f start, const cc_u16f end, const cc_u16f scanline, const TileInfo* const tile_info, cc_u8l* const metapixels)
+static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, const TileInfo* const tile_info, cc_u8l* const metapixels)
 {
 	/* TODO: Emulate the bug where the tiles to the right of the window plane distort
 	   if Plane A is scrolled horizontally by an amount that is not a multiple of 16. */
@@ -568,8 +565,8 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 			const cc_bool window_plane_active = plane_index == 0 && !vdp->configuration->window_disabled;
 			const cc_bool full_window_plane_line = window_plane_active && (scanline < state->window.vertical_boundary) != state->window.aligned_bottom;
 
-			const cc_u16f left_boundary = full_window_plane_line ? 0 : window_plane_active && !state->window.aligned_right ? state->window.horizontal_boundary : 0;
-			const cc_u16f right_boundary = full_window_plane_line ? 0 : window_plane_active && state->window.aligned_right ? state->window.horizontal_boundary : SCANLINE_WIDTH_IN_TILE_PAIRS;
+			const cc_u8f left_boundary = full_window_plane_line ? 0 : window_plane_active && !state->window.aligned_right ? state->window.horizontal_boundary : 0;
+			const cc_u8f right_boundary = full_window_plane_line ? 0 : window_plane_active && state->window.aligned_right ? state->window.horizontal_boundary : SCANLINE_WIDTH_IN_TILE_PAIRS;
 
 			/* Left-aligned window plane. */
 			RenderWindowPlane(vdp, 0, left_boundary, scanline, &tile_info, plane_metapixels);
@@ -583,9 +580,9 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 				const cc_u16f scroll_offset = TILE_PAIR_WIDTH - (hscroll % TILE_PAIR_WIDTH);
 
 				/* Get the value used to offset the reads from the plane map */
-				const cc_u16f plane_x_offset = -(hscroll / TILE_PAIR_WIDTH + EXTRA_TILE_PAIR);
+				const cc_u16f plane_x_offset = -(hscroll / TILE_PAIR_WIDTH);
 
-				RenderScrollingPlane(vdp, left_boundary, right_boundary + EXTRA_TILE_PAIR, &tile_info, scanline, plane_index, plane_x_offset, scroll_offset, plane_metapixels);
+				RenderScrollingPlane(vdp, left_boundary, right_boundary, &tile_info, scanline, plane_index, plane_x_offset, scroll_offset, plane_metapixels);
 			}
 
 			/* Right-aligned window plane. */
