@@ -63,6 +63,7 @@
   - DMA transfer durations
   - Mode 4
   - FIFO, and related 68k delays
+  - Window Plane horizontally replacing Plane A instead of overlapping it
 - Z80
   - The HALT, OUT, IN, IM, INI, IND, INIR, INDR, OTDI, OUTD, OTIR, and OTDR
     instructions.
