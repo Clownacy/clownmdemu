@@ -509,14 +509,17 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 					const cc_u16f plane_address = i == 0 ? (rendering_window_plane ? state->window_address : state->plane_a_address) : state->plane_b_address;
 
+					const cc_u16f TILE_WIDTH = 8;
+					const cc_u16f TILE_PAIR_WIDTH = TILE_WIDTH * 2;
+
 					/* The extra two tiles on the left of the scanline */
-					const cc_u16f EXTRA_TILES = 2;
+					const cc_u16f EXTRA_TILE_PAIR = 1;
 
 					/* Get the value used to offset the writes to the metapixel buffer */
-					const cc_u16f hscroll_scroll_offset = hscroll % 16;
+					const cc_u16f hscroll_scroll_offset = hscroll % TILE_PAIR_WIDTH;
 
 					/* Get the value used to offset the reads from the plane map */
-					const cc_u16f plane_x_offset = 0 - EXTRA_TILES - ((hscroll - hscroll_scroll_offset) / 8);
+					const cc_u16f plane_x_offset = 0 - EXTRA_TILE_PAIR - hscroll / TILE_PAIR_WIDTH;
 
 					/* Obtain the pointer used to write metapixels to the buffer */
 					cc_u8l *metapixels_pointer = plane_metapixels + hscroll_scroll_offset;
@@ -524,7 +527,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 					cc_u16f j;
 
 					/* Render tiles */
-					for (j = 0; j < CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, 8) + EXTRA_TILES; ++j)
+					for (j = 0; j < CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, TILE_PAIR_WIDTH) + EXTRA_TILE_PAIR; ++j)
 					{
 						cc_u16f vscroll;
 
@@ -546,7 +549,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 									break;
 
 								case VDP_VSCROLL_MODE_2CELL:
-									vscroll = state->vsram[(((0 - EXTRA_TILES + j) / 2) * 2 + i) % CC_COUNT_OF(state->vsram)];
+									vscroll = state->vsram[((0 - EXTRA_TILE_PAIR + j) * 2 + i) % CC_COUNT_OF(state->vsram)];
 									break;
 							}
 						}
@@ -556,11 +559,12 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 							const cc_u16f pixel_y_in_plane = vscroll + scanline;
 
 							/* Get the coordinates of the tile in the plane */
-							const cc_u16f tile_x = (plane_x_offset + j) & plane_width_bitmask;
+							const cc_u16f tile_x = ((plane_x_offset + j) * 2) & plane_width_bitmask;
 							const cc_u16f tile_y = (pixel_y_in_plane >> tile_info.height_power) & plane_height_bitmask;
 							const cc_u16f vram_address = plane_address + (tile_y * plane_width + tile_x) * 2;
 
-							RenderTile(vdp, pixel_y_in_plane, vram_address, &tile_info, &metapixels_pointer);
+							RenderTile(vdp, pixel_y_in_plane, vram_address + 0, &tile_info, &metapixels_pointer);
+							RenderTile(vdp, pixel_y_in_plane, vram_address + 2, &tile_info, &metapixels_pointer);
 						}
 					}
 				}
@@ -576,6 +580,9 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 			   if Plane A is scrolled horizontally by an amount that is not a multiple of 16. */
 			const cc_u16f start = state->window.aligned_right ? state->window.horizontal_boundary : 0;
 			const cc_u16f end = state->window.aligned_right ? CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, 8) : state->window.horizontal_boundary;
+			const cc_u16f tile_y = scanline >> tile_info.height_power;
+
+			cc_u16f vram_address = state->window_address + tile_y * window_plane_width * 2;
 
 			/* Obtain the pointer used to write metapixels to the buffer */
 			cc_u8l *metapixels_pointer = &plane_metapixels[16 + start * 8];
@@ -583,10 +590,8 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 			/* Render tiles */
 			for (i = start; i < end; ++i)
 			{
-				const cc_u16f tile_x = i;
-				const cc_u16f tile_y = scanline >> tile_info.height_power;
-				const cc_u16f vram_address = state->window_address + (tile_y * window_plane_width + tile_x) * 2;
 				RenderTile(vdp, scanline, vram_address, &tile_info, &metapixels_pointer);
+				vram_address += 2;
 			}
 		}
 
