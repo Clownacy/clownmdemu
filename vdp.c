@@ -1148,7 +1148,7 @@ VDP_CachedSprite VDP_GetCachedSprite(const VDP_State* const state, const cc_u16f
 
 	const cc_u8l* const bytes = state->sprite_table_cache[sprite_index];
 
-	cached_sprite.y = (((bytes[0] & 3) << 8) | bytes[1]) % 0x200;
+	cached_sprite.y = (((bytes[0] & 3) << 8) | bytes[1]) % (0x200 << state->double_resolution_enabled);
 	cached_sprite.width = ((bytes[2] >> 2) & 3) + 1;
 	cached_sprite.height = (bytes[2] & 3) + 1;
 	cached_sprite.link = bytes[3] & 0x7F;
