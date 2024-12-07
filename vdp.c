@@ -19,6 +19,9 @@
 #define SCANLINE_WIDTH_IN_TILE_PAIRS CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, TILE_PAIR_WIDTH)
 #define MAX_SPRITE_WIDTH (TILE_WIDTH * 4)
 
+/* The extra two tiles on the left of the scanline */
+#define EXTRA_TILE_PAIR 1
+
 enum
 {
 	SHADOW_HIGHLIGHT_NORMAL = 0 << 6,
@@ -431,6 +434,41 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 	state->allow_sprite_masking = cc_false;
 }
 
+static cc_u16f GetHScrollTableOffset(const VDP_State* const state, const cc_u16f scanline, const TileInfo* const tile_info)
+{
+	switch (state->hscroll_mode)
+	{
+		default:
+			/* Should never happen. */
+			assert(0);
+			/* Fallthrough */
+		case VDP_HSCROLL_MODE_FULL:
+			return 0;
+
+		case VDP_HSCROLL_MODE_1CELL:
+			return (scanline >> tile_info->height_power << tile_info->height_power) * 4;
+
+		case VDP_HSCROLL_MODE_1LINE:
+			return (scanline >> state->double_resolution_enabled) * 4;
+	}
+}
+
+static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u16f tile_pair)
+{
+	switch (state->vscroll_mode)
+	{
+		default:
+			/* Should never happen. */
+			assert(0);
+			/* Fallthrough */
+		case VDP_VSCROLL_MODE_FULL:
+			return 0;
+
+		case VDP_VSCROLL_MODE_2CELL:
+			return ((tile_pair - EXTRA_TILE_PAIR) * 2) % CC_COUNT_OF(state->vsram);
+	}
+}
+
 void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
 {
 	const VDP_Constant* const constant = vdp->constant;
@@ -488,95 +526,38 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 			if (rendering_window_plane || !vdp->configuration->planes_disabled[i])
 			{
-				cc_u16f hscroll;
+				const cc_u16f hscroll = rendering_window_plane ? 0 : VDP_ReadVRAMWord(state, state->hscroll_address + i * 2 + GetHScrollTableOffset(state, scanline, &tile_info));
 
-				/* Get the horizontal scroll value */
-				if (rendering_window_plane)
+				const cc_u16f plane_width_bitmask = plane_width - 1;
+				const cc_u16f plane_height_bitmask = plane_height - 1;
+
+				const cc_u16f plane_address = i == 0 ? (rendering_window_plane ? state->window_address : state->plane_a_address) : state->plane_b_address;
+
+				/* Get the value used to offset the writes to the metapixel buffer */
+				const cc_u16f hscroll_scroll_offset = hscroll % TILE_PAIR_WIDTH;
+
+				/* Get the value used to offset the reads from the plane map */
+				const cc_u16f plane_x_offset = 0 - EXTRA_TILE_PAIR - hscroll / TILE_PAIR_WIDTH;
+
+				/* Obtain the pointer used to write metapixels to the buffer */
+				cc_u8l *metapixels_pointer = plane_metapixels + hscroll_scroll_offset;
+
+				cc_u16f j;
+
+				/* Render tiles */
+				for (j = 0; j < SCANLINE_WIDTH_IN_TILE_PAIRS + EXTRA_TILE_PAIR; ++j)
 				{
-					hscroll = 0;
-				}
-				else
-				{
-					switch (state->hscroll_mode)
-					{
-						default:
-							/* Should never happen. */
-							assert(0);
-							/* Fallthrough */
-						case VDP_HSCROLL_MODE_FULL:
-							hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + i * 2);
-							break;
+					const cc_u16f vscroll = rendering_window_plane ? 0 : state->vsram[i + GetVScrollTableOffset(state, j)];
 
-						case VDP_HSCROLL_MODE_1CELL:
-							hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + (scanline >> tile_info.height_power << tile_info.height_power) * 4 + i * 2);
-							break;
+					/* Get the Y coordinate of the pixel in the plane */
+					const cc_u16f pixel_y_in_plane = vscroll + scanline;
 
-						case VDP_HSCROLL_MODE_1LINE:
-							hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + (scanline >> state->double_resolution_enabled) * 4 + i * 2);
-							break;
-					}
-				}
+					/* Get the coordinates of the tile in the plane */
+					const cc_u16f tile_x = ((plane_x_offset + j) * 2) & plane_width_bitmask;
+					const cc_u16f tile_y = (pixel_y_in_plane >> tile_info.height_power) & plane_height_bitmask;
+					const cc_u16f vram_address = plane_address + (tile_y * plane_width + tile_x) * 2;
 
-				{
-					const cc_u16f plane_width_bitmask = plane_width - 1;
-					const cc_u16f plane_height_bitmask = plane_height - 1;
-
-					const cc_u16f plane_address = i == 0 ? (rendering_window_plane ? state->window_address : state->plane_a_address) : state->plane_b_address;
-
-					/* The extra two tiles on the left of the scanline */
-					const cc_u16f EXTRA_TILE_PAIR = 1;
-
-					/* Get the value used to offset the writes to the metapixel buffer */
-					const cc_u16f hscroll_scroll_offset = hscroll % TILE_PAIR_WIDTH;
-
-					/* Get the value used to offset the reads from the plane map */
-					const cc_u16f plane_x_offset = 0 - EXTRA_TILE_PAIR - hscroll / TILE_PAIR_WIDTH;
-
-					/* Obtain the pointer used to write metapixels to the buffer */
-					cc_u8l *metapixels_pointer = plane_metapixels + hscroll_scroll_offset;
-
-					cc_u16f j;
-
-					/* Render tiles */
-					for (j = 0; j < SCANLINE_WIDTH_IN_TILE_PAIRS + EXTRA_TILE_PAIR; ++j)
-					{
-						cc_u16f vscroll;
-
-						/* Get the vertical scroll value */
-						if (rendering_window_plane)
-						{
-							vscroll = 0;
-						}
-						else
-						{
-							switch (state->vscroll_mode)
-							{
-								default:
-									/* Should never happen. */
-									assert(0);
-									/* Fallthrough */
-								case VDP_VSCROLL_MODE_FULL:
-									vscroll = state->vsram[i];
-									break;
-
-								case VDP_VSCROLL_MODE_2CELL:
-									vscroll = state->vsram[((j - EXTRA_TILE_PAIR) * 2 + i) % CC_COUNT_OF(state->vsram)];
-									break;
-							}
-						}
-
-						{
-							/* Get the Y coordinate of the pixel in the plane */
-							const cc_u16f pixel_y_in_plane = vscroll + scanline;
-
-							/* Get the coordinates of the tile in the plane */
-							const cc_u16f tile_x = ((plane_x_offset + j) * 2) & plane_width_bitmask;
-							const cc_u16f tile_y = (pixel_y_in_plane >> tile_info.height_power) & plane_height_bitmask;
-							const cc_u16f vram_address = plane_address + (tile_y * plane_width + tile_x) * 2;
-
-							RenderTilePair(vdp, pixel_y_in_plane, vram_address, &tile_info, &metapixels_pointer);
-						}
-					}
+					RenderTilePair(vdp, pixel_y_in_plane, vram_address, &tile_info, &metapixels_pointer);
 				}
 			}
 		}
