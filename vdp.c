@@ -484,8 +484,8 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 	   This is done by offsetting where the pixels start being written to the buffer.
 	   This is why the buffer has an extra 16 bytes at the beginning, and an extra 15 bytes at
 	   the end.
-	   Also of note is that this function renders a tile's entire width, regardless of whether
-	   it's fully on-screen or not. This is why VDP_MAX_SCANLINE_WIDTH is rounded up to 8.
+	   Also of note is that this function renders a tile pair's entire width, regardless of whether
+	   it's fully on-screen or not. This is why VDP_MAX_SCANLINE_WIDTH is rounded up to 16.
 	   In both cases, these extra bytes exist to catch the 'overflow' values that are written
 	   outside the visible portion of the buffer. */
 	cc_u8l plane_metapixels[TILE_PAIR_WIDTH + SCANLINE_WIDTH_IN_TILE_PAIRS * TILE_PAIR_WIDTH + (TILE_PAIR_WIDTH - 1)];
