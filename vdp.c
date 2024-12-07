@@ -31,10 +31,15 @@ typedef struct TileInfo
 	cc_u16f height_power, height_mask, size;
 } TileInfo;
 
-static TileInfo MakeTileInfo(VDP_State* const state)
+static unsigned int GetTileHeightPower(const VDP_State* const state)
+{
+	return state->double_resolution_enabled ? 4 : 3;
+}
+
+static TileInfo MakeTileInfo(const VDP_State* const state)
 {
 	TileInfo tile_info;
-	tile_info.height_power = state->double_resolution_enabled ? 4 : 3;
+	tile_info.height_power = GetTileHeightPower(state);
 	tile_info.height_mask = (1 << tile_info.height_power) - 1;
 	tile_info.size = (TILE_WIDTH << tile_info.height_power) / 2;
 	return tile_info;
@@ -997,7 +1002,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 			case 18:
 				/* WINDOW V POSITION */
 				vdp->state->window.aligned_bottom = (data & 0x80) != 0;
-				vdp->state->window.vertical_boundary = (data & 0x1F) * 8; /* Measured in scanlines. */ /* TODO: Surely this needs to be doubled for interlace mode 2? */
+				vdp->state->window.vertical_boundary = (data & 0x1F) << GetTileHeightPower(vdp->state); /* Measured in scanlines. */
 				break;
 
 			case 19:
