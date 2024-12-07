@@ -296,9 +296,9 @@ void VDP_State_Initialise(VDP_State* const state)
 	state->kdebug_buffer[CC_COUNT_OF(state->kdebug_buffer) - 1] = '\0';
 }
 
-static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f tile_x, const cc_u16f tile_y, const cc_u16f plane_address, const TileInfo* const tile_info, cc_u8l** const metapixels_pointer)
+static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f vram_address, const TileInfo* const tile_info, cc_u8l** const metapixels_pointer)
 {
-	const VDP_TileMetadata tile = VDP_DecomposeTileMetadata(VDP_ReadVRAMWord(vdp->state, plane_address + (tile_y * vdp->state->plane_width + tile_x) * 2));
+	const VDP_TileMetadata tile = VDP_DecomposeTileMetadata(VDP_ReadVRAMWord(vdp->state, vram_address));
 
 	/* Get the Y coordinate of the pixel in the tile */
 	const cc_u16f pixel_y_in_tile = (pixel_y_in_plane & tile_info->height_mask) ^ (tile.y_flip ? tile_info->height_mask : 0);
@@ -562,8 +562,9 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 							/* Get the coordinates of the tile in the plane */
 							const cc_u16f tile_x = (plane_x_offset + j) & plane_width_bitmask;
 							const cc_u16f tile_y = (pixel_y_in_plane >> tile_info.height_power) & plane_height_bitmask;
+							const cc_u16f vram_address = plane_address + (tile_y * vdp->state->plane_width + tile_x) * 2;
 
-							RenderTile(vdp, pixel_y_in_plane, tile_x, tile_y, plane_address, &tile_info, &metapixels_pointer);
+							RenderTile(vdp, pixel_y_in_plane, vram_address, &tile_info, &metapixels_pointer);
 						}
 					}
 				}
@@ -589,7 +590,12 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 			/* Render tiles */
 			for (i = start; i < end; ++i)
-				RenderTile(vdp, scanline, i, scanline >> tile_info.height_power, state->window_address, &tile_info, &metapixels_pointer);
+			{
+				const cc_u16f tile_x = i;
+				const cc_u16f tile_y = scanline >> tile_info.height_power;
+				const cc_u16f vram_address = state->window_address + (tile_y * window_plane_width + tile_x) * 2;
+				RenderTile(vdp, scanline, vram_address, &tile_info, &metapixels_pointer);
+			}
 		}
 
 		/* Restore the plane size, since we meddled with it earlier for the window plane. */
