@@ -309,7 +309,42 @@ void VDP_State_Initialise(VDP_State* const state)
 	state->kdebug_buffer[CC_COUNT_OF(state->kdebug_buffer) - 1] = '\0';
 }
 
-static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f vram_address, const TileInfo* const tile_info, cc_u8l** const metapixels_pointer)
+static cc_u16f GetHScrollTableOffset(const VDP_State* const state, const cc_u16f scanline, const TileInfo* const tile_info)
+{
+	switch (state->hscroll_mode)
+	{
+		default:
+			/* Should never happen. */
+			assert(0);
+			/* Fallthrough */
+		case VDP_HSCROLL_MODE_FULL:
+			return 0;
+
+		case VDP_HSCROLL_MODE_1CELL:
+			return (scanline >> tile_info->height_power << tile_info->height_power) * 4;
+
+		case VDP_HSCROLL_MODE_1LINE:
+			return (scanline >> state->double_resolution_enabled) * 4;
+	}
+}
+
+static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u16f tile_pair)
+{
+	switch (state->vscroll_mode)
+	{
+		default:
+			/* Should never happen. */
+			assert(0);
+			/* Fallthrough */
+		case VDP_VSCROLL_MODE_FULL:
+			return 0;
+
+		case VDP_VSCROLL_MODE_2CELL:
+			return ((tile_pair - EXTRA_TILE_PAIR) * 2) % CC_COUNT_OF(state->vsram);
+	}
+}
+
+static void RenderTile(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f pixel_y_in_plane, const cc_u16f vram_address, const TileInfo* const tile_info, cc_u8l** const metapixels_pointer)
 {
 	const VDP_TileMetadata tile = VDP_DecomposeTileMetadata(VDP_ReadVRAMWord(vdp->state, vram_address));
 
@@ -324,10 +359,10 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 
 	const cc_u8l (* const blit_lookup)[1 << 4] = vdp->constant->blit_lookup[metapixel_upper_bits];
 
-	cc_u16f i;
+	cc_u8f i;
 
 	/* TODO - Unroll this loop? */
-	for (i = 0; i < 8; ++i)
+	for (i = start; i < end; ++i)
 	{
 		/* Get the X coordinate of the pixel in the tile */
 		const cc_u8f pixel_x_in_tile = i ^ byte_index_xor;
@@ -341,10 +376,70 @@ static void RenderTile(const VDP* const vdp, const cc_u16f pixel_y_in_plane, con
 	}
 }
 
-static void RenderTilePair(const VDP* const vdp, const cc_u16f pixel_y_in_plane, const cc_u16f vram_address, const TileInfo* const tile_info, cc_u8l** const metapixels_pointer)
+static void RenderTilePair(const VDP* const vdp, const cc_u16f start, const cc_u16f end, const cc_u16f pixel_y_in_plane, const cc_u16f vram_address, const TileInfo* const tile_info, cc_u8l** const metapixels_pointer)
 {
-	RenderTile(vdp, pixel_y_in_plane, vram_address + 0, tile_info, metapixels_pointer);
-	RenderTile(vdp, pixel_y_in_plane, vram_address + 2, tile_info, metapixels_pointer);
+	cc_u8f i;
+
+	for (i = 0; i < TILE_PAIR_WIDTH / TILE_WIDTH; ++i)
+	{
+		const cc_u8f lower = TILE_WIDTH * i;
+		const cc_u8f upper = lower + TILE_WIDTH;
+
+		RenderTile(vdp, CC_CLAMP(lower, upper, start) - lower, CC_CLAMP(lower, upper, end) - lower, pixel_y_in_plane, vram_address + i * 2, tile_info, metapixels_pointer);
+	}
+}
+
+static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const TileInfo* const tile_info, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, const cc_u16f scroll_offset, cc_u8l* const metapixels)
+{
+	VDP_State* const state = vdp->state;
+
+	const cc_u16f plane_width = state->plane_width;
+	const cc_u16f plane_width_bitmask = state->plane_width - 1;
+	const cc_u16f plane_height_bitmask = state->plane_height - 1;
+	const cc_u16f plane_address = plane_index == 0 ? state->plane_a_address : state->plane_b_address;
+
+	const cc_u16f tile_height_power = tile_info->height_power;
+
+	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
+
+	cc_u8f i;
+
+	for (i = start; i < end && i < SCANLINE_WIDTH_IN_TILE_PAIRS + EXTRA_TILE_PAIR; ++i)
+	{
+		const cc_u16f vscroll = state->vsram[plane_index + GetVScrollTableOffset(state, i)];
+
+		/* Get the Y coordinate of the pixel in the plane */
+		const cc_u16f pixel_y_in_plane = vscroll + scanline;
+
+		/* Get the coordinates of the tile in the plane */
+		const cc_u16f tile_x = ((plane_x_offset + i) * 2) & plane_width_bitmask;
+		const cc_u16f tile_y = (pixel_y_in_plane >> tile_height_power) & plane_height_bitmask;
+		const cc_u16f vram_address = plane_address + (tile_y * plane_width + tile_x) * 2;
+
+		RenderTilePair(vdp, i == start ? scroll_offset : 0, i == end - 1 ? scroll_offset : TILE_PAIR_WIDTH, pixel_y_in_plane, vram_address, tile_info, &metapixels_pointer);
+	}
+}
+
+static void RenderWindowPlane(const VDP* const vdp, const cc_u16f start, const cc_u16f end, const cc_u16f scanline, const TileInfo* const tile_info, cc_u8l* const metapixels)
+{
+	/* TODO: Emulate the bug where the tiles to the right of the window plane distort
+	   if Plane A is scrolled horizontally by an amount that is not a multiple of 16. */
+	const VDP_State* const state = vdp->state;
+
+	const cc_u16f tile_y = scanline >> tile_info->height_power;
+	const cc_u16f window_plane_width = 32 << state->h40_enabled;
+
+	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
+	cc_u16f vram_address = state->window_address + tile_y * window_plane_width * 2;
+
+	cc_u8f i;
+
+	/* Render tiles */
+	for (i = start; i < end && i < SCANLINE_WIDTH_IN_TILE_PAIRS; ++i)
+	{
+		RenderTilePair(vdp, 0, TILE_PAIR_WIDTH, scanline, vram_address, tile_info, &metapixels_pointer);
+		vram_address += 4;
+	}
 }
 
 static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* const state, const cc_u16f scanline, const TileInfo* const tile_info)
@@ -434,41 +529,6 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 	state->allow_sprite_masking = cc_false;
 }
 
-static cc_u16f GetHScrollTableOffset(const VDP_State* const state, const cc_u16f scanline, const TileInfo* const tile_info)
-{
-	switch (state->hscroll_mode)
-	{
-		default:
-			/* Should never happen. */
-			assert(0);
-			/* Fallthrough */
-		case VDP_HSCROLL_MODE_FULL:
-			return 0;
-
-		case VDP_HSCROLL_MODE_1CELL:
-			return (scanline >> tile_info->height_power << tile_info->height_power) * 4;
-
-		case VDP_HSCROLL_MODE_1LINE:
-			return (scanline >> state->double_resolution_enabled) * 4;
-	}
-}
-
-static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u16f tile_pair)
-{
-	switch (state->vscroll_mode)
-	{
-		default:
-			/* Should never happen. */
-			assert(0);
-			/* Fallthrough */
-		case VDP_VSCROLL_MODE_FULL:
-			return 0;
-
-		case VDP_VSCROLL_MODE_2CELL:
-			return ((tile_pair - EXTRA_TILE_PAIR) * 2) % CC_COUNT_OF(state->vsram);
-	}
-}
-
 void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_ScanlineRenderedCallback scanline_rendered_callback, const void* const scanline_rendered_callback_user_data)
 {
 	const VDP_Constant* const constant = vdp->constant;
@@ -477,18 +537,8 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 	cc_u16f i;
 
-	/* The original hardware has a bug where if you use V-scroll and H-scroll at the same time,
-	   the partially off-screen leftmost column will use an invalid V-scroll value.
-	   To simulate this, 16 extra pixels are rendered at the left size of the scanline.
-	   Depending on the H-scroll value, these pixels may appear on the left side of the screen.
-	   This is done by offsetting where the pixels start being written to the buffer.
-	   This is why the buffer has an extra 16 bytes at the beginning, and an extra 15 bytes at
-	   the end.
-	   Also of note is that this function renders a tile pair's entire width, regardless of whether
-	   it's fully on-screen or not. This is why VDP_MAX_SCANLINE_WIDTH is rounded up to 16.
-	   In both cases, these extra bytes exist to catch the 'overflow' values that are written
-	   outside the visible portion of the buffer. */
-	cc_u8l plane_metapixels[TILE_PAIR_WIDTH + SCANLINE_WIDTH_IN_TILE_PAIRS * TILE_PAIR_WIDTH + (TILE_PAIR_WIDTH - 1)];
+	/* TODO: Should this just be the normal scanline width? */
+	cc_u8l plane_metapixels[SCANLINE_WIDTH_IN_TILE_PAIRS * TILE_PAIR_WIDTH];
 
 	assert(scanline < VDP_MAX_SCANLINES);
 
@@ -502,88 +552,44 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 		 * Setup *
 		 * ***** */
 
-		const cc_u16f window_plane_width = state->h40_enabled ? 64 : 32;
-		const cc_u16f window_plane_height = 32;
-
 		/* The padding bytes of the left and right are for allowing sprites to overdraw at the
 		   edges of the screen. */
 		cc_u8l sprite_metapixels[(MAX_SPRITE_WIDTH - 1) + VDP_MAX_SCANLINE_WIDTH + (MAX_SPRITE_WIDTH - 1)][2];
 
+		cc_u8f plane_index;
 
 		/* *********** */
 		/* Draw planes */
 		/* *********** */
-		for (i = 2; i-- > 0; )
+		for (plane_index = 2; plane_index-- > 0; )
 		{
 			/* Notably, we allow Plane A to render in the Window Plane's place when the latter is disabled. */
 			/* TODO: Test if this works properly in Interlace Mode 2. */
-			const cc_bool rendering_window_plane = i == 0 && (scanline < state->window.vertical_boundary) != state->window.aligned_bottom && !vdp->configuration->window_disabled;
+			const cc_bool window_plane_active = plane_index == 0 && !vdp->configuration->window_disabled;
+			const cc_bool full_window_plane_line = window_plane_active && (scanline < state->window.vertical_boundary) != state->window.aligned_bottom;
 
-			/* The window plane has a hardcoded size, unlike the other planes. */
-			/* Sonic 3's 'Data Select' menu background relies on this. */
-			const cc_u16f plane_width = rendering_window_plane ? window_plane_width : state->plane_width;
-			const cc_u16f plane_height = rendering_window_plane ? window_plane_height : state->plane_height;
+			const cc_u16f left_boundary = full_window_plane_line ? 0 : window_plane_active && !state->window.aligned_right ? state->window.horizontal_boundary : 0;
+			const cc_u16f right_boundary = full_window_plane_line ? 0 : window_plane_active && state->window.aligned_right ? state->window.horizontal_boundary : SCANLINE_WIDTH_IN_TILE_PAIRS;
 
-			if (rendering_window_plane || !vdp->configuration->planes_disabled[i])
+			/* Left-aligned window plane. */
+			RenderWindowPlane(vdp, 0, left_boundary, scanline, &tile_info, plane_metapixels);
+
+			/* Scrolling plane. */
+			if (!vdp->configuration->planes_disabled[plane_index])
 			{
-				const cc_u16f hscroll = rendering_window_plane ? 0 : VDP_ReadVRAMWord(state, state->hscroll_address + i * 2 + GetHScrollTableOffset(state, scanline, &tile_info));
-
-				const cc_u16f plane_width_bitmask = plane_width - 1;
-				const cc_u16f plane_height_bitmask = plane_height - 1;
-
-				const cc_u16f plane_address = i == 0 ? (rendering_window_plane ? state->window_address : state->plane_a_address) : state->plane_b_address;
+				const cc_u16f hscroll = VDP_ReadVRAMWord(state, state->hscroll_address + plane_index * 2 + GetHScrollTableOffset(state, scanline, &tile_info));
 
 				/* Get the value used to offset the writes to the metapixel buffer */
-				const cc_u16f hscroll_scroll_offset = hscroll % TILE_PAIR_WIDTH;
+				const cc_u16f scroll_offset = TILE_PAIR_WIDTH - (hscroll % TILE_PAIR_WIDTH);
 
 				/* Get the value used to offset the reads from the plane map */
-				const cc_u16f plane_x_offset = 0 - EXTRA_TILE_PAIR - hscroll / TILE_PAIR_WIDTH;
+				const cc_u16f plane_x_offset = -(hscroll / TILE_PAIR_WIDTH + EXTRA_TILE_PAIR);
 
-				/* Obtain the pointer used to write metapixels to the buffer */
-				cc_u8l *metapixels_pointer = plane_metapixels + hscroll_scroll_offset;
-
-				cc_u16f j;
-
-				/* Render tiles */
-				for (j = 0; j < SCANLINE_WIDTH_IN_TILE_PAIRS + EXTRA_TILE_PAIR; ++j)
-				{
-					const cc_u16f vscroll = rendering_window_plane ? 0 : state->vsram[i + GetVScrollTableOffset(state, j)];
-
-					/* Get the Y coordinate of the pixel in the plane */
-					const cc_u16f pixel_y_in_plane = vscroll + scanline;
-
-					/* Get the coordinates of the tile in the plane */
-					const cc_u16f tile_x = ((plane_x_offset + j) * 2) & plane_width_bitmask;
-					const cc_u16f tile_y = (pixel_y_in_plane >> tile_info.height_power) & plane_height_bitmask;
-					const cc_u16f vram_address = plane_address + (tile_y * plane_width + tile_x) * 2;
-
-					RenderTilePair(vdp, pixel_y_in_plane, vram_address, &tile_info, &metapixels_pointer);
-				}
+				RenderScrollingPlane(vdp, left_boundary, right_boundary + EXTRA_TILE_PAIR, &tile_info, scanline, plane_index, plane_x_offset, scroll_offset, plane_metapixels);
 			}
-		}
 
-		/* ************************************ *
-		 * Draw horizontal part of window plane *
-		 * ************************************ */
-		if (!vdp->configuration->window_disabled)
-		{
-			/* TODO: Emulate the bug where the tiles to the right of the window plane distort
-			   if Plane A is scrolled horizontally by an amount that is not a multiple of 16. */
-			const cc_u16f start = state->window.aligned_right ? state->window.horizontal_boundary : 0;
-			const cc_u16f end = state->window.aligned_right ? SCANLINE_WIDTH_IN_TILE_PAIRS : state->window.horizontal_boundary;
-			const cc_u16f tile_y = scanline >> tile_info.height_power;
-
-			cc_u16f vram_address = state->window_address + tile_y * window_plane_width * 2;
-
-			/* Obtain the pointer used to write metapixels to the buffer */
-			cc_u8l *metapixels_pointer = &plane_metapixels[TILE_PAIR_WIDTH + start * TILE_PAIR_WIDTH];
-
-			/* Render tiles */
-			for (i = start; i < end; ++i)
-			{
-				RenderTilePair(vdp, scanline, vram_address, &tile_info, &metapixels_pointer);
-				vram_address += 4;
-			}
+			/* Right-aligned window plane. */
+			RenderWindowPlane(vdp, right_boundary, SCANLINE_WIDTH_IN_TILE_PAIRS, scanline, &tile_info, plane_metapixels);
 		}
 
 		/* ************ *
@@ -657,7 +663,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 
 		{
 			const cc_u8l *sprite_metapixels_pointer = sprite_metapixels[MAX_SPRITE_WIDTH - 1];
-			cc_u8l *plane_metapixels_pointer = &plane_metapixels[TILE_PAIR_WIDTH];
+			cc_u8l *plane_metapixels_pointer = plane_metapixels;
 
 			if (state->shadow_highlight_enabled)
 			{
@@ -681,7 +687,7 @@ void VDP_RenderScanline(const VDP* const vdp, const cc_u16f scanline, const VDP_
 	}
 
 	/* Send pixels to the frontend to be displayed */
-	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, &plane_metapixels[TILE_PAIR_WIDTH], (state->h40_enabled ? 40 : 32) * TILE_WIDTH, (state->v30_enabled ? 30 : 28) << tile_info.height_power);
+	scanline_rendered_callback((void*)scanline_rendered_callback_user_data, scanline, plane_metapixels, (state->h40_enabled ? 40 : 32) * TILE_WIDTH, (state->v30_enabled ? 30 : 28) << tile_info.height_power);
 }
 
 cc_u16f VDP_ReadData(const VDP* const vdp)
@@ -977,13 +983,13 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 			case 17:
 				/* WINDOW H POSITION */
 				vdp->state->window.aligned_right = (data & 0x80) != 0;
-				vdp->state->window.horizontal_boundary = (data & 0x1F) * 2; /* Measured in tiles. */
+				vdp->state->window.horizontal_boundary = (data & 0x1F); /* Measured in tile pairs. */
 				break;
 
 			case 18:
 				/* WINDOW V POSITION */
 				vdp->state->window.aligned_bottom = (data & 0x80) != 0;
-				vdp->state->window.vertical_boundary = (data & 0x1F) << GetTileHeightPower(vdp->state); /* Measured in scanlines. */
+				vdp->state->window.vertical_boundary = (data & 0x1F) << GetTileHeightPower(vdp->state); /* Measured in tiles. */
 				break;
 
 			case 19:
