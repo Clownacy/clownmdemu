@@ -217,12 +217,9 @@ void SyncMCDM68kForReal(const ClownMDEmu* const clownmdemu, const Clown68000_Rea
 {
 	const cc_bool mcd_m68k_not_running = clownmdemu->state->mega_cd.m68k.bus_requested || clownmdemu->state->mega_cd.m68k.reset_held;
 
-	if (!mcd_m68k_not_running)
-	{
-		CPUCallbackUserData* const other_state = (CPUCallbackUserData*)m68k_read_write_callbacks->user_data;
+	CPUCallbackUserData* const other_state = (CPUCallbackUserData*)m68k_read_write_callbacks->user_data;
 
-		SyncCPUCommon(clownmdemu, &other_state->sync.mcd_m68k, target_cycle.cycle, SyncMCDM68kForRealCallback, m68k_read_write_callbacks);
-	}
+	SyncCPUCommon(clownmdemu, &other_state->sync.mcd_m68k, target_cycle.cycle, mcd_m68k_not_running, SyncMCDM68kForRealCallback, m68k_read_write_callbacks);
 }
 
 static cc_u16f SyncMCDM68kCallback(const ClownMDEmu* const clownmdemu, void* const user_data)
@@ -252,7 +249,7 @@ void SyncMCDM68k(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const 
 
 	/* In order to support the timer interrupt (IRQ3), we hijack this function to update an IRQ3 sync object instead. */
 	/* This sync object will raise interrupts whilst also synchronising the 68000. */
-	SyncCPUCommon(clownmdemu, &other_state->sync.mcd_m68k_irq3, target_cycle.cycle, SyncMCDM68kCallback, &m68k_read_write_callbacks);
+	SyncCPUCommon(clownmdemu, &other_state->sync.mcd_m68k_irq3, target_cycle.cycle, cc_false, SyncMCDM68kCallback, &m68k_read_write_callbacks);
 
 	/* Now that we're done with IRQ3, finish synchronising the 68000. */
 	SyncMCDM68kForReal(clownmdemu, &m68k_read_write_callbacks, target_cycle);

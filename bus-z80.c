@@ -16,16 +16,13 @@ void SyncZ80(const ClownMDEmu* const clownmdemu, CPUCallbackUserData* const othe
 {
 	const cc_bool z80_not_running = clownmdemu->state->z80.bus_requested || clownmdemu->state->z80.reset_held;
 
-	if (!z80_not_running)
-	{
-		Z80_ReadAndWriteCallbacks z80_read_write_callbacks;
+	Z80_ReadAndWriteCallbacks z80_read_write_callbacks;
 
-		z80_read_write_callbacks.read = Z80ReadCallback;
-		z80_read_write_callbacks.write = Z80WriteCallback;
-		z80_read_write_callbacks.user_data = other_state;
+	z80_read_write_callbacks.read = Z80ReadCallback;
+	z80_read_write_callbacks.write = Z80WriteCallback;
+	z80_read_write_callbacks.user_data = other_state;
 
-		SyncCPUCommon(clownmdemu, &other_state->sync.z80, target_cycle.cycle, SyncZ80Callback, &z80_read_write_callbacks);
-	}
+	SyncCPUCommon(clownmdemu, &other_state->sync.z80, target_cycle.cycle, z80_not_running, SyncZ80Callback, &z80_read_write_callbacks);
 }
 
 cc_u16f Z80ReadCallbackWithCycle(const void* const user_data, const cc_u16f address, const CycleMegaDrive target_cycle)

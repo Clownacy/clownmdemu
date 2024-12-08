@@ -61,7 +61,7 @@ CycleMegaCD CycleMegaDriveToMegaCD(const ClownMDEmu *clownmdemu, CycleMegaDrive 
 CycleMegaDrive CycleMegaCDToMegaDrive(const ClownMDEmu *clownmdemu, CycleMegaCD cycle);
 
 cc_u32f SyncCommon(SyncState *sync, cc_u32f target_cycle, cc_u32f clock_divisor);
-void SyncCPUCommon(const ClownMDEmu *clownmdemu, SyncCPUState *sync, cc_u32f target_cycle, SyncCPUCommonCallback callback, const void *user_data);
+void SyncCPUCommon(const ClownMDEmu *clownmdemu, SyncCPUState *sync, cc_u32f target_cycle, cc_bool cpu_not_running, SyncCPUCommonCallback callback, const void *user_data);
 cc_u8f SyncFM(CPUCallbackUserData *other_state, CycleMegaDrive target_cycle);
 void SyncPSG(CPUCallbackUserData *other_state, CycleMegaDrive target_cycle);
 void SyncPCM(CPUCallbackUserData *other_state, CycleMegaCD target_cycle);

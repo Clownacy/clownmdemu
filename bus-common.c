@@ -82,12 +82,12 @@ cc_u32f SyncCommon(SyncState* const sync, const cc_u32f target_cycle, const cc_u
 	return cycles_to_do;
 }
 
-void SyncCPUCommon(const ClownMDEmu* const clownmdemu, SyncCPUState* const sync, const cc_u32f target_cycle, const SyncCPUCommonCallback callback, const void* const user_data)
+void SyncCPUCommon(const ClownMDEmu* const clownmdemu, SyncCPUState* const sync, const cc_u32f target_cycle, const cc_bool cpu_not_running, const SyncCPUCommonCallback callback, const void* const user_data)
 {
 	/* Store this in a local variable to make the upcoming code faster. */
 	cc_u16f countdown = *sync->cycle_countdown;
 
-	if (countdown == 0)
+	if (countdown == 0 || cpu_not_running)
 	{
 		sync->current_cycle = target_cycle;
 	}
