@@ -15,7 +15,8 @@
 #include "log.h"
 
 #define TILE_WIDTH 8
-#define TILE_PAIR_WIDTH (TILE_WIDTH * 2)
+#define TILE_PAIR_COUNT 2
+#define TILE_PAIR_WIDTH (TILE_WIDTH * TILE_PAIR_COUNT)
 #define SCANLINE_WIDTH_IN_TILE_PAIRS CC_DIVIDE_CEILING(VDP_MAX_SCANLINE_WIDTH, TILE_PAIR_WIDTH)
 #define MAX_SPRITE_WIDTH (TILE_WIDTH * 4)
 
@@ -376,7 +377,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f start, const cc_u
 {
 	cc_u8f i;
 
-	for (i = 0; i < TILE_PAIR_WIDTH / TILE_WIDTH; ++i)
+	for (i = 0; i < TILE_PAIR_COUNT; ++i)
 	{
 		const cc_u8f lower = TILE_WIDTH * i;
 		const cc_u8f upper = lower + TILE_WIDTH;
@@ -426,7 +427,7 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 	const cc_u16f window_plane_width = 32 << state->h40_enabled;
 
 	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
-	cc_u16f vram_address = state->window_address + tile_y * window_plane_width * 2;
+	cc_u16f vram_address = state->window_address + (tile_y * window_plane_width + start * TILE_PAIR_COUNT) * 2;
 
 	cc_u8f i;
 
