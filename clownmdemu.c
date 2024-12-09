@@ -273,7 +273,6 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 	const cc_u16f cycles_per_scanline = cycles_per_frame_mega_drive.cycle / television_vertical_resolution;
 	const CycleMegaCD cycles_per_frame_mega_cd = MakeCycleMegaCD(clownmdemu->configuration->general.tv_standard == CLOWNMDEMU_TV_STANDARD_PAL ? CLOWNMDEMU_DIVIDE_BY_PAL_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK) : CLOWNMDEMU_DIVIDE_BY_NTSC_FRAMERATE(CLOWNMDEMU_MCD_MASTER_CLOCK));
 
-	Clown68000_ReadWriteCallbacks m68k_read_write_callbacks, mcd_m68k_read_write_callbacks;
 	CPUCallbackUserData cpu_callback_user_data;
 	cc_u8f h_int_counter;
 	cc_u8f i;
@@ -293,14 +292,6 @@ void ClownMDEmu_Iterate(const ClownMDEmu* const clownmdemu)
 	cpu_callback_user_data.sync.pcm.current_cycle = 0;
 	for (i = 0; i < CC_COUNT_OF(cpu_callback_user_data.sync.io_ports); ++i)
 		cpu_callback_user_data.sync.io_ports[i].current_cycle = 0;
-
-	m68k_read_write_callbacks.read_callback = M68kReadCallback;
-	m68k_read_write_callbacks.write_callback = M68kWriteCallback;
-	m68k_read_write_callbacks.user_data = &cpu_callback_user_data;
-
-	mcd_m68k_read_write_callbacks.read_callback = MCDM68kReadCallback;
-	mcd_m68k_read_write_callbacks.write_callback = MCDM68kWriteCallback;
-	mcd_m68k_read_write_callbacks.user_data = &cpu_callback_user_data;
 
 	/* Reload H-Int counter at the top of the screen, just like real hardware does */
 	h_int_counter = clownmdemu->state->vdp.h_int_interval;
