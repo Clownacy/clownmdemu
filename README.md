@@ -1,15 +1,14 @@
 # Overview
 
-This is clownmdemu, a Sega Mega Drive (a.k.a. Sega Genesis) emulator.
+This is ClownMDEmu, a Sega Mega Drive (a.k.a. Sega Genesis) emulator.
 
-It is currently in the very early stages of development: it can run some games,
-but many standard features of the Mega Drive are unemulated (see `TODO.md` for
-more information).
+Some standard features of the Mega Drive are currently unemulated (see
+`TODO.md` for more information).
 
 
 # Frontends
 
-To actually run software with clownmdemu, you will need to use a frontend.
+To actually run software with ClownMDEmu, you will need to use a frontend.
 Currently there are two official frontends:
 - The standalone frontend, which includes a variety of debugging menus:
   https://github.com/Clownacy/clownmdemu-frontend
@@ -20,7 +19,7 @@ Currently there are two official frontends:
 
 # Design
 
-clownmdemu's code adheres to the following principles, emphasising minimalism
+ClownMDEmu's code adheres to the following principles, emphasising minimalism
 and portability:
 
 - Use C89. This is required in order to support as many compilers as possible.
@@ -80,13 +79,13 @@ and portability:
   custom. Likewise, a custom YM2612 emulation core is used instead of
   [Nuked-OPN2](https://github.com/nukeykt/Nuked-OPN2).
 
-clownmdemu itself is implemented as a library, with all platform-specific logic
+ClownMDEmu itself is implemented as a library, with all platform-specific logic
 being relegated to a separate frontend program.
 
-clownmdemu attempts to balance correctness with performance, acting as a more
+ClownMDEmu attempts to balance correctness with performance, acting as a more
 high-level emulator than accuracy-focussed alternatives may.
 
-clownmdemu exposes a relatively low-level interface: audio from the FM and PSG
+ClownMDEmu exposes a relatively low-level interface: audio from the FM and PSG
 are output separately at their native sample rates, and video is output a
 single scanline at a time in its native indexed format. This is to give the
 frontend the most flexibility in how it can process the data for delivery to
@@ -97,7 +96,7 @@ resampling and mixing.
 
 # Compiling
 
-clownmdemu can be built using CMake, however it should not be hard to make it
+ClownMDEmu can be built using CMake, however it should not be hard to make it
 use a different build system if necessary as the emulator's build process is
 not complicated.
 
@@ -107,5 +106,5 @@ to pull in these submodules before compiling.
 
 # Licence
 
-clownmdemu is free software, licensed under the AGPLv3 (or any later version).
+ClownMDEmu is free software, licensed under the AGPLv3 (or any later version).
 See `LICENCE.txt` for more information.
