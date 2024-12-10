@@ -5,10 +5,13 @@ This is ClownMDEmu, a Sega Mega Drive (a.k.a. Sega Genesis) emulator.
 Some standard features of the Mega Drive are currently unemulated (see
 `TODO.md` for more information).
 
+This repository contains ClownMDEmu's emulation core. It is intended to be
+self-contained and highly-portable.
+
 
 # Frontends
 
-To actually run software with ClownMDEmu, you will need to use a frontend.
+To actually run software with ClownMDEmu, a frontend is needed.
 Currently there are two official frontends:
 - The standalone frontend, which includes a variety of debugging menus:
   https://github.com/Clownacy/clownmdemu-frontend
@@ -19,8 +22,8 @@ Currently there are two official frontends:
 
 # Design
 
-ClownMDEmu's code adheres to the following principles, emphasising minimalism
-and portability:
+The emulation core's code adheres to the following principles, emphasising
+minimalism and portability:
 
 - Use C89. This is required in order to support as many compilers as possible.
   Ideally, the code should be valid C++ as well, in order to support both C and
@@ -62,7 +65,7 @@ and portability:
     - -2147483647 to 2147483647 for 'long'.
     - 0 to 4294967295 for 'unsigned long'.
 
-  - Do not assume that 'char' is always signed by default: it is not. For
+  - Do not assume that 'char' is always signed by default; it is not. For
     instance, it is unsigned by default on ARM CPUs.
 
   - Do not rely on C language extensions.
@@ -79,13 +82,13 @@ and portability:
   custom. Likewise, a custom YM2612 emulation core is used instead of
   [Nuked-OPN2](https://github.com/nukeykt/Nuked-OPN2).
 
-ClownMDEmu itself is implemented as a library, with all platform-specific logic
+The emulation core is implemented as a library, with all platform-specific logic
 being relegated to a separate frontend program.
 
 ClownMDEmu attempts to balance correctness with performance, acting as a more
 high-level emulator than accuracy-focussed alternatives may.
 
-ClownMDEmu exposes a relatively low-level interface: audio from the FM and PSG
+The core exposes a relatively low-level interface: audio from the FM and PSG
 are output separately at their native sample rates, and video is output a
 single scanline at a time in its native indexed format. This is to give the
 frontend the most flexibility in how it can process the data for delivery to
@@ -96,11 +99,11 @@ resampling and mixing.
 
 # Compiling
 
-ClownMDEmu can be built using CMake, however it should not be hard to make it
-use a different build system if necessary as the emulator's build process is
-not complicated.
+ClownMDEmu can be built using CMake, however it should not be hard to make the
+core use a different build system if necessary as its build process is not
+complicated.
 
-Be aware that this repo uses Git submodules: use `git submodule update --init`
+Be aware that this repo uses Git submodules; use `git submodule update --init`
 to pull in these submodules before compiling.
 
 
