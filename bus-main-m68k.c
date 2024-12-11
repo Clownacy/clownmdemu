@@ -362,9 +362,12 @@ cc_u16f M68kReadCallbackWithCycleWithDMA(const void* const user_data, const cc_u
 	else if (address == 0xC00008)
 	{
 		/* H/V COUNTER */
-		/* TODO: Double-resolution mode. */
 		/* TODO: The V counter emulation is incredibly inaccurate: the timing is likely wrong, and it should be incremented while in the blanking areas too. */
-		value = clownmdemu->state->current_scanline << 8 | GetHCounterValue(clownmdemu, target_cycle);
+		const cc_u8f h_counter = GetHCounterValue(clownmdemu, target_cycle);
+		const cc_u8f v_counter = clownmdemu->state->vdp.double_resolution_enabled
+			? ((clownmdemu->state->current_scanline & 0x7F) << 1) | ((clownmdemu->state->current_scanline & 0x80) >> 7)
+			: clownmdemu->state->current_scanline;
+		value = v_counter << 8 | h_counter;
 	}
 	else if (address >= 0xC00010 && address <= 0xC00016)
 	{
