@@ -119,8 +119,9 @@ typedef struct VDP_State
 		cc_u16l vertical_boundary;
 	} window;
 
-	cc_u16l plane_width;
-	cc_u16l plane_height;
+	cc_u8l plane_width_bitmask;
+	cc_u8l plane_height_bitmask;
+	cc_u8l plane_pitch;
 
 	cc_bool display_enabled;
 	cc_bool v_int_enabled;

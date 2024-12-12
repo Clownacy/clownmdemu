@@ -275,8 +275,8 @@ void VDP_State_Initialise(VDP_State* const state)
 	state->window.horizontal_boundary = 0;
 	state->window.vertical_boundary = 0;
 
-	state->plane_width = 32;
-	state->plane_height = 32;
+	state->plane_width_bitmask = 0x1F;
+	state->plane_height_bitmask = 0x1F;
 
 	state->display_enabled = cc_false;
 	state->v_int_enabled = cc_false;
@@ -390,9 +390,9 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_s8f start, const
 {
 	VDP_State* const state = vdp->state;
 
-	const cc_u16f plane_width = state->plane_width;
-	const cc_u16f plane_width_bitmask = state->plane_width - 1;
-	const cc_u16f plane_height_bitmask = state->plane_height - 1;
+	const cc_u16f plane_width_bitmask = state->plane_width_bitmask;
+	const cc_u16f plane_height_bitmask = state->plane_height_bitmask;
+	const cc_u16f plane_pitch = state->plane_pitch;
 	const cc_u16f plane_address = plane_index == 0 ? state->plane_a_address : state->plane_b_address;
 
 	const cc_u16f tile_height_power = tile_info->height_power;
@@ -411,7 +411,7 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_s8f start, const
 		/* Get the coordinates of the tile in the plane */
 		const cc_u16f tile_x = ((plane_x_offset + i) * 2) & plane_width_bitmask;
 		const cc_u16f tile_y = (pixel_y_in_plane >> tile_height_power) & plane_height_bitmask;
-		const cc_u16f vram_address = plane_address + (tile_y * plane_width + tile_x) * 2;
+		const cc_u16f vram_address = plane_address + (tile_y * plane_pitch + tile_x) * 2;
 
 		RenderTilePair(vdp, i == start - 1 ? scroll_offset : 0, i == end - 1 ? scroll_offset : TILE_PAIR_WIDTH, pixel_y_in_plane, vram_address, tile_info, &metapixels_pointer);
 	}
@@ -424,10 +424,10 @@ static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc
 	const VDP_State* const state = vdp->state;
 
 	const cc_u16f tile_y = scanline >> tile_info->height_power;
-	const cc_u16f window_plane_width = 32 << state->h40_enabled;
+	const cc_u16f window_plane_pitch = 32 << state->h40_enabled;
 
 	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
-	cc_u16f vram_address = state->window_address + (tile_y * window_plane_width + start * TILE_PAIR_COUNT) * 2;
+	cc_u16f vram_address = state->window_address + (tile_y * window_plane_pitch + start * TILE_PAIR_COUNT) * 2;
 
 	cc_u8f i;
 
@@ -936,40 +936,48 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 					switch (width_index)
 					{
 						case 0:
-							vdp->state->plane_width = 32;
+							vdp->state->plane_width_bitmask = 0x1F;
+							vdp->state->plane_pitch = vdp->state->plane_width_bitmask + 1;
 							break;
 
 						case 1:
-							vdp->state->plane_width = 64;
+							vdp->state->plane_width_bitmask = 0x3F;
+							vdp->state->plane_pitch = vdp->state->plane_width_bitmask + 1;
 							break;
 
 						case 2:
-							/* TODO: I swear some dumb Electronic Arts game uses this. */
-							LogMessage("Prohibited plane width selected");
+							/* I swear some dumb Electronic Arts game uses this. */
+							LogMessage("Prohibited plane width mode '2' selected - all rows will be copies of the top row");
+							/* This appears to be what happens on real hardware. */
+							vdp->state->plane_width_bitmask = 0x1F;
+							vdp->state->plane_pitch = 0;
 							break;
 
 						case 3:
-							vdp->state->plane_width = 128;
+							vdp->state->plane_width_bitmask = 0x7F;
+							vdp->state->plane_pitch = vdp->state->plane_width_bitmask + 1;
 							break;
 					}
 
 					switch (height_index)
 					{
 						case 0:
-							vdp->state->plane_height = 32;
+							vdp->state->plane_height_bitmask = 0x1F;
 							break;
 
 						case 1:
-							vdp->state->plane_height = 64;
+							vdp->state->plane_height_bitmask = 0x3F;
 							break;
 
 						case 2:
-							/* TODO: I swear some dumb Electronic Arts game uses this. */
-							LogMessage("Prohibited plane height selected");
+							/* I swear some dumb Electronic Arts game uses this. */
+							LogMessage("Prohibited plane height mode '2' selected - should use '0' instead");
+							/* This appears to be what happens on real hardware. */
+							vdp->state->plane_height_bitmask = 0x1F;
 							break;
 
 						case 3:
-							vdp->state->plane_height = 128;
+							vdp->state->plane_height_bitmask = 0x7F;
 							break;
 					}
 				}
