@@ -326,7 +326,7 @@ static cc_u16f GetHScrollTableOffset(const VDP_State* const state, const cc_u16f
 	}
 }
 
-static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u16f tile_pair)
+static cc_u16f GetVScrollTableOffset(const VDP_State* const state, const cc_u8f tile_pair)
 {
 	switch (state->vscroll_mode)
 	{
@@ -386,7 +386,7 @@ static void RenderTilePair(const VDP* const vdp, const cc_u16f start, const cc_u
 	}
 }
 
-static void RenderScrollingPlane(const VDP* const vdp, const cc_s8f start, const cc_s8f end, const TileInfo* const tile_info, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, const cc_u16f scroll_offset, cc_u8l* const metapixels)
+static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const TileInfo* const tile_info, const cc_u16f scanline, const cc_u8f plane_index, const cc_u16f plane_x_offset, const cc_u16f scroll_offset, cc_u8l* const metapixels)
 {
 	VDP_State* const state = vdp->state;
 
@@ -399,28 +399,33 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_s8f start, const
 
 	cc_u8l *metapixels_pointer = &metapixels[start * TILE_PAIR_WIDTH];
 
-	cc_s8f i;
+	cc_u8f i;
 
-	for (i = start - 1; i < end && i < SCANLINE_WIDTH_IN_TILE_PAIRS; ++i)
+	/* Note that we do an extra tile here. */
+	for (i = start; i <= end && i < SCANLINE_WIDTH_IN_TILE_PAIRS + 1; ++i)
 	{
-		const cc_u16f vscroll = state->vsram[plane_index + GetVScrollTableOffset(state, i)];
+		/* The '-1' here causes the first tile pair V-scroll value to be invalid, recreating a behaviour that occurs on real Mega Drives. */
+		const cc_u16f vscroll = state->vsram[plane_index + GetVScrollTableOffset(state, i - 1)];
 
 		/* Get the Y coordinate of the pixel in the plane */
 		const cc_u16f pixel_y_in_plane = vscroll + scanline;
 
+		/* This recreates the behaviour where the wrong tiles are drawn to the right of the window
+		   plane when Plane A is scrolled horizontally by an amount that is not a multiple of 16. */
+		/* Unsigned integer underflow prevents this behaviour from occurring when the window plane is not visible. */
+		const cc_u16f clamped_i = CC_MAX(start, i - 1);
+
 		/* Get the coordinates of the tile in the plane */
-		const cc_u16f tile_x = ((plane_x_offset + i) * 2) & plane_width_bitmask;
+		const cc_u16f tile_x = ((plane_x_offset + clamped_i) * 2) & plane_width_bitmask;
 		const cc_u16f tile_y = (pixel_y_in_plane >> tile_height_power) & plane_height_bitmask;
 		const cc_u16f vram_address = plane_address + (tile_y * plane_pitch + tile_x) * 2;
 
-		RenderTilePair(vdp, i == start - 1 ? scroll_offset : 0, i == end - 1 ? scroll_offset : TILE_PAIR_WIDTH, pixel_y_in_plane, vram_address, tile_info, &metapixels_pointer);
+		RenderTilePair(vdp, i == start ? scroll_offset : 0, i == end ? scroll_offset : TILE_PAIR_WIDTH, pixel_y_in_plane, vram_address, tile_info, &metapixels_pointer);
 	}
 }
 
 static void RenderWindowPlane(const VDP* const vdp, const cc_u8f start, const cc_u8f end, const cc_u16f scanline, const TileInfo* const tile_info, cc_u8l* const metapixels)
 {
-	/* TODO: Emulate the bug where the tiles to the right of the window plane distort
-	   if Plane A is scrolled horizontally by an amount that is not a multiple of 16. */
 	const VDP_State* const state = vdp->state;
 
 	const cc_u16f tile_y = scanline >> tile_info->height_power;
