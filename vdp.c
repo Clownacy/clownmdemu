@@ -463,7 +463,7 @@ static void RenderSprites(cc_u8l (* const sprite_metapixels)[2], VDP_State* cons
 		const cc_u16f width = sprite_row_cache_entry->width;
 		const cc_u16f height = sprite_row_cache_entry->height;
 		const VDP_TileMetadata tile = VDP_DecomposeTileMetadata(VDP_ReadVRAMWord(state, sprite_index + 4));
-		const cc_u16f x = VDP_ReadVRAMWord(state, sprite_index + 6) % 0x200;
+		const cc_u16f x = VDP_ReadVRAMWord(state, sprite_index + 6) & 0x1FF;
 
 		const cc_u8f metapixel_high_bits = (tile.priority << 2) | tile.palette_line;
 
@@ -1150,7 +1150,7 @@ VDP_CachedSprite VDP_GetCachedSprite(const VDP_State* const state, const cc_u16f
 
 	const cc_u8l* const bytes = state->sprite_table_cache[sprite_index];
 
-	cached_sprite.y = (((bytes[0] & 3) << 8) | bytes[1]) % (0x200 << state->double_resolution_enabled);
+	cached_sprite.y = (((bytes[0] & 3) << 8) | bytes[1]) & (0x3FF >> !state->double_resolution_enabled);
 	cached_sprite.width = ((bytes[2] >> 2) & 3) + 1;
 	cached_sprite.height = (bytes[2] & 3) + 1;
 	cached_sprite.link = bytes[3] & 0x7F;
