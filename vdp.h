@@ -121,7 +121,6 @@ typedef struct VDP_State
 
 	cc_u8l plane_width_bitmask;
 	cc_u8l plane_height_bitmask;
-	cc_u8l plane_pitch;
 
 	cc_bool display_enabled;
 	cc_bool v_int_enabled;

@@ -392,7 +392,7 @@ static void RenderScrollingPlane(const VDP* const vdp, const cc_u8f start, const
 
 	const cc_u16f plane_width_bitmask = state->plane_width_bitmask;
 	const cc_u16f plane_height_bitmask = state->plane_height_bitmask;
-	const cc_u16f plane_pitch = state->plane_pitch;
+	const cc_u16f plane_pitch = plane_width_bitmask + 1;
 	const cc_u16f plane_address = plane_index == 0 ? state->plane_a_address : state->plane_b_address;
 
 	const cc_u16f tile_height_power = tile_info->height_power;
@@ -938,32 +938,6 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 				}
 				else
 				{
-					switch (width_index)
-					{
-						case 0:
-							vdp->state->plane_width_bitmask = 0x1F;
-							vdp->state->plane_pitch = vdp->state->plane_width_bitmask + 1;
-							break;
-
-						case 1:
-							vdp->state->plane_width_bitmask = 0x3F;
-							vdp->state->plane_pitch = vdp->state->plane_width_bitmask + 1;
-							break;
-
-						case 2:
-							/* I swear some dumb Electronic Arts game uses this. */
-							LogMessage("Prohibited plane width mode '2' selected - all rows will be copies of the top row");
-							/* This appears to be what happens on real hardware. */
-							vdp->state->plane_width_bitmask = 0x1F;
-							vdp->state->plane_pitch = 0;
-							break;
-
-						case 3:
-							vdp->state->plane_width_bitmask = 0x7F;
-							vdp->state->plane_pitch = vdp->state->plane_width_bitmask + 1;
-							break;
-					}
-
 					switch (height_index)
 					{
 						case 0:
@@ -984,6 +958,30 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 						case 3:
 							vdp->state->plane_height_bitmask = 0x7F;
 							break;
+					}
+
+					switch (width_index)
+					{
+					case 0:
+						vdp->state->plane_width_bitmask = 0x1F;
+						break;
+
+					case 1:
+						vdp->state->plane_width_bitmask = 0x3F;
+						break;
+
+					case 2:
+						/* I swear some dumb Electronic Arts game uses this. */
+						LogMessage("Prohibited plane width mode '2' selected - all rows will be copies of the top row");
+						/* This appears to be what happens on real hardware. */
+						/* TODO: Check that the plane width is not just inherited from previous writes. */
+						vdp->state->plane_width_bitmask = 0x1F;
+						vdp->state->plane_height_bitmask = 0;
+						break;
+
+					case 3:
+						vdp->state->plane_width_bitmask = 0x7F;
+						break;
 					}
 				}
 
