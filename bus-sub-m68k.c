@@ -1,3 +1,7 @@
+/* TODO: */
+/* https://bitbucket.org/eke/genesis-plus-gx/issues/29/mega-cd-support */
+/* https://gendev.spritesmind.net/forum/viewtopic.php?t=3020 */
+
 #include "bus-sub-m68k.h"
 
 #include <assert.h>
