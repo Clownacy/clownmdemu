@@ -395,6 +395,12 @@ cc_u16f MCDM68kReadCallbackWithCycle(const void* const user_data, const cc_u32f 
 			value = (cc_u16f)PCM_ReadRegister(&clownmdemu->pcm, address_word & 0xFFF);
 		}
 	}
+	else if (address == 0xFF8000)
+	{
+		/* Reset */
+		/* TODO: Everything else here. */
+		value = 1; /* Signal that the Mega CD is ready. */
+	}
 	else if (address == 0xFF8002)
 	{
 		/* Memory mode / Write protect */
