@@ -158,6 +158,8 @@ static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, const
 
 static cc_u16f ReadAndIncrement(VDP_State* const state)
 {
+	const cc_u16f word_address = state->access.address_register / 2;
+
 	/* Oddly, leftover data from the FIFO resides in the unused bits. */
 	/* Validated with Nemesis' 'VDPFIFOTesting' homebrew. */
 	cc_u16f value = state->previous_data_writes[0];
@@ -165,17 +167,17 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 	switch (state->access.selected_buffer)
 	{
 		case VDP_ACCESS_VRAM:
-			value = VDP_ReadVRAMWord(state, state->access.address_register % CC_COUNT_OF(state->vram));
+			value = VDP_ReadVRAMWord(state, (word_address * 2) % CC_COUNT_OF(state->vram));
 			break;
 
 		case VDP_ACCESS_CRAM:
 			value &= ~0xEEE;
-			value |= state->cram[(state->access.address_register / 2) % CC_COUNT_OF(state->cram)];
+			value |= state->cram[word_address % CC_COUNT_OF(state->cram)];
 			break;
 
 		case VDP_ACCESS_VSRAM:
 			value &= ~0x7FF;
-			value |= state->vsram[(state->access.address_register / 2) % CC_COUNT_OF(state->vsram)];
+			value |= state->vsram[word_address % CC_COUNT_OF(state->vsram)];
 			break;
 
 		case VDP_ACCESS_VRAM_8BIT:
