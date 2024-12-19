@@ -167,10 +167,15 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 
 		case VDP_ACCESS_CRAM:
 			value = state->cram[(state->access.address_register / 2) % CC_COUNT_OF(state->cram)];
+			/* Oddly, leftover data from the FIFO resides in the unused bits. */
+			/* Validated with Nemesis' 'VDPFIFOTesting' homebrew. */
+			value |= state->previous_data_writes[0] & ~0xEEE;
 			break;
 
 		case VDP_ACCESS_VSRAM:
 			value = state->vsram[(state->access.address_register / 2) % CC_COUNT_OF(state->vsram)];
+			/* See above. */
+			value |= state->previous_data_writes[0] & ~0x7FF;
 			break;
 
 		default:
