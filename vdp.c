@@ -314,6 +314,7 @@ void VDP_State_Initialise(VDP_State* const state)
 	state->h_int_enabled = cc_false;
 	state->h40_enabled = cc_false;
 	state->v30_enabled = cc_false;
+	state->mega_drive_mode_enabled = cc_false;
 	state->shadow_highlight_enabled = cc_false;
 	state->double_resolution_enabled = cc_false;
 
@@ -888,7 +889,7 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 				vdp->state->v_int_enabled = (data & (1 << 5)) != 0;
 				vdp->state->dma.enabled = (data & (1 << 4)) != 0;
 				vdp->state->v30_enabled = (data & (1 << 3)) != 0;
-				/* TODO */
+				vdp->state->mega_drive_mode_enabled = (data & (1 << 2)) != 0;
 				break;
 
 			case 2:
@@ -920,9 +921,20 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 				break;
 
+			case 6:
+				/* Unused legacy register for Master System mode. */
+				/* TODO */
+				break;
+
 			case 7:
 				/* BACKGROUND COLOR */
 				vdp->state->background_colour = data & 0x3F;
+				break;
+
+			case 8:
+			case 9:
+				/* Unused legacy register for Master System mode. */
+				/* TODO */
 				break;
 
 			case 10:
@@ -930,234 +942,240 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 				vdp->state->h_int_interval = (cc_u8l)data;
 				break;
 
-			case 11:
-				/* MODE SET REGISTER NO.3 */
+			/* TODO: When Master System mode is supported, warn about invalid registers here! */
+		}
 
-				/* TODO - External interrupt */
-
-				vdp->state->vscroll_mode = data & 4 ? VDP_VSCROLL_MODE_2CELL : VDP_VSCROLL_MODE_FULL;
-
-				switch (data & 3)
-				{
-					case 0:
-						vdp->state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
-						break;
-
-					case 1:
-						/* TODO: Some unauthorised EA games use this, and it acts as
-						   a slightly unstable version of one of the other modes. */
-						LogMessage("Prohibitied H-scroll mode selected");
-						break;
-
-					case 2:
-						vdp->state->hscroll_mode = VDP_HSCROLL_MODE_1CELL;
-						break;
-
-					case 3:
-						vdp->state->hscroll_mode = VDP_HSCROLL_MODE_1LINE;
-						break;
-				}
-
-				break;
-
-			case 12:
-				/* MODE SET REGISTER NO.4 */
-				/* TODO */
-				vdp->state->h40_enabled = (data & ((1 << 7) | (1 << 0))) != 0;
-				vdp->state->shadow_highlight_enabled = (data & (1 << 3)) != 0;
-
-				/* Process the interlacing bits.
-				   To fully understand this, one has to understand how PAL and NTSC televisions display:
-				   NTSC televisions display 480 lines, however, they are divided into two 'fields' of
-				   240 lines. On one frame the cathode ray draws the even-numbered lines, then on the
-				   next frame it draw the odd-numbered lines. */
-				switch ((data >> 1) & 3)
-				{
-					case 0:
-						/* Regular '240p' mode: the 'Genesis Software Manual' seems to suggest that this
-						   mode only outputs the even-numbered lines, leaving the odd-numbered ones black. */
-						vdp->state->double_resolution_enabled = cc_false;
-						break;
-
-					case 1:
-						/* This mode renders the odd-numbered lines as well, but they are merely
-						   duplicates of the even lines. The 'Genesis Software Manual' warns that this
-						   can create severe vertical blurring. */
-						vdp->state->double_resolution_enabled = cc_false;
-						break;
-
-					case 2:
-						/* The 'Genesis Software Manual' warns that this is prohibited. Some unlicensed
-						   EA games use this. Apparently it creates an image that is slightly broken in
-						   some way. */
-						vdp->state->double_resolution_enabled = cc_false;
-						break;
-
-					case 3:
-						/* Double resolution mode: in this mode, the odd and even lines display different
-						   graphics, effectively turning the tiles from 8x8 to 8x16. */
-						vdp->state->double_resolution_enabled = cc_true;
-						break;
-				}
-
-				break;
-
-			case 13:
-				/* H SCROLL DATA TABLE BASE ADDRESS */
-				vdp->state->hscroll_address = (data & 0x3F) << 10;
-				break;
-
-			case 15:
-				/* AUTO INCREMENT DATA */
-				vdp->state->access.increment = (cc_u16l)data;
-				break;
-
-			case 16:
+		if (vdp->state->mega_drive_mode_enabled)
+		{
+			switch (reg)
 			{
-				/* SCROLL SIZE */
-				const cc_u16f width_index  = (data >> 0) & 3;
-				const cc_u16f height_index = (data >> 4) & 3;
+				case 11:
+					/* MODE SET REGISTER NO.3 */
 
-				if ((width_index == 3 && height_index != 0) || (height_index == 3 && width_index != 0))
-				{
-					/* TODO: So... what should happen? */
-					LogMessage("Selected plane size exceeds 64x64/32x128/128x32");
-				}
-				else
-				{
-					switch (height_index)
+					/* TODO - External interrupt */
+
+					vdp->state->vscroll_mode = data & 4 ? VDP_VSCROLL_MODE_2CELL : VDP_VSCROLL_MODE_FULL;
+
+					switch (data & 3)
 					{
 						case 0:
-							vdp->state->plane_height_bitmask = 0x1F;
+							vdp->state->hscroll_mode = VDP_HSCROLL_MODE_FULL;
 							break;
 
 						case 1:
-							vdp->state->plane_height_bitmask = 0x3F;
+							/* TODO: Some unauthorised EA games use this, and it acts as
+							   a slightly unstable version of one of the other modes. */
+							LogMessage("Prohibitied H-scroll mode selected");
+							break;
+
+						case 2:
+							vdp->state->hscroll_mode = VDP_HSCROLL_MODE_1CELL;
+							break;
+
+						case 3:
+							vdp->state->hscroll_mode = VDP_HSCROLL_MODE_1LINE;
+							break;
+					}
+
+					break;
+
+				case 12:
+					/* MODE SET REGISTER NO.4 */
+					/* TODO */
+					vdp->state->h40_enabled = (data & ((1 << 7) | (1 << 0))) != 0;
+					vdp->state->shadow_highlight_enabled = (data & (1 << 3)) != 0;
+
+					/* Process the interlacing bits.
+					   To fully understand this, one has to understand how PAL and NTSC televisions display:
+					   NTSC televisions display 480 lines, however, they are divided into two 'fields' of
+					   240 lines. On one frame the cathode ray draws the even-numbered lines, then on the
+					   next frame it draw the odd-numbered lines. */
+					switch ((data >> 1) & 3)
+					{
+						case 0:
+							/* Regular '240p' mode: the 'Genesis Software Manual' seems to suggest that this
+							   mode only outputs the even-numbered lines, leaving the odd-numbered ones black. */
+							vdp->state->double_resolution_enabled = cc_false;
+							break;
+
+						case 1:
+							/* This mode renders the odd-numbered lines as well, but they are merely
+							   duplicates of the even lines. The 'Genesis Software Manual' warns that this
+							   can create severe vertical blurring. */
+							vdp->state->double_resolution_enabled = cc_false;
+							break;
+
+						case 2:
+							/* The 'Genesis Software Manual' warns that this is prohibited. Some unlicensed
+							   EA games use this. Apparently it creates an image that is slightly broken in
+							   some way. */
+							vdp->state->double_resolution_enabled = cc_false;
+							break;
+
+						case 3:
+							/* Double resolution mode: in this mode, the odd and even lines display different
+							   graphics, effectively turning the tiles from 8x8 to 8x16. */
+							vdp->state->double_resolution_enabled = cc_true;
+							break;
+					}
+
+					break;
+
+				case 13:
+					/* H SCROLL DATA TABLE BASE ADDRESS */
+					vdp->state->hscroll_address = (data & 0x3F) << 10;
+					break;
+
+				case 14:
+					/* PATTERN NAME TABLE BASE ADDRESS 128KiB */
+					/* TODO */
+					break;
+
+				case 15:
+					/* AUTO INCREMENT DATA */
+					vdp->state->access.increment = (cc_u16l)data;
+					break;
+
+				case 16:
+				{
+					/* SCROLL SIZE */
+					const cc_u16f width_index  = (data >> 0) & 3;
+					const cc_u16f height_index = (data >> 4) & 3;
+
+					if ((width_index == 3 && height_index != 0) || (height_index == 3 && width_index != 0))
+					{
+						/* TODO: So... what should happen? */
+						LogMessage("Selected plane size exceeds 64x64/32x128/128x32");
+					}
+					else
+					{
+						switch (height_index)
+						{
+							case 0:
+								vdp->state->plane_height_bitmask = 0x1F;
+								break;
+
+							case 1:
+								vdp->state->plane_height_bitmask = 0x3F;
+								break;
+
+							case 2:
+								/* I swear some dumb Electronic Arts game uses this. */
+								LogMessage("Prohibited plane height mode '2' selected - should use '0' instead");
+								/* This appears to be what happens on real hardware. */
+								vdp->state->plane_height_bitmask = 0x1F;
+								break;
+
+							case 3:
+								vdp->state->plane_height_bitmask = 0x7F;
+								break;
+						}
+
+						switch (width_index)
+						{
+						case 0:
+							vdp->state->plane_width_bitmask = 0x1F;
+							break;
+
+						case 1:
+							vdp->state->plane_width_bitmask = 0x3F;
 							break;
 
 						case 2:
 							/* I swear some dumb Electronic Arts game uses this. */
-							LogMessage("Prohibited plane height mode '2' selected - should use '0' instead");
+							LogMessage("Prohibited plane width mode '2' selected - all rows will be copies of the top row");
 							/* This appears to be what happens on real hardware. */
-							vdp->state->plane_height_bitmask = 0x1F;
+							/* TODO: Check that the plane width is not just inherited from previous writes. */
+							vdp->state->plane_width_bitmask = 0x1F;
+							vdp->state->plane_height_bitmask = 0;
 							break;
 
 						case 3:
-							vdp->state->plane_height_bitmask = 0x7F;
+							vdp->state->plane_width_bitmask = 0x7F;
 							break;
+						}
 					}
 
-					switch (width_index)
-					{
-					case 0:
-						vdp->state->plane_width_bitmask = 0x1F;
-						break;
-
-					case 1:
-						vdp->state->plane_width_bitmask = 0x3F;
-						break;
-
-					case 2:
-						/* I swear some dumb Electronic Arts game uses this. */
-						LogMessage("Prohibited plane width mode '2' selected - all rows will be copies of the top row");
-						/* This appears to be what happens on real hardware. */
-						/* TODO: Check that the plane width is not just inherited from previous writes. */
-						vdp->state->plane_width_bitmask = 0x1F;
-						vdp->state->plane_height_bitmask = 0;
-						break;
-
-					case 3:
-						vdp->state->plane_width_bitmask = 0x7F;
-						break;
-					}
+					break;
 				}
 
-				break;
-			}
-
-			case 17:
-				/* WINDOW H POSITION */
-				vdp->state->window.aligned_right = (data & 0x80) != 0;
-				vdp->state->window.horizontal_boundary = (data & 0x1F); /* Measured in tile pairs. */
-				break;
-
-			case 18:
-				/* WINDOW V POSITION */
-				vdp->state->window.aligned_bottom = (data & 0x80) != 0;
-				vdp->state->window.vertical_boundary = (data & 0x1F) << GetTileHeightPower(vdp->state); /* Measured in tiles. */
-				break;
-
-			case 19:
-				/* DMA LENGTH COUNTER LOW */
-				vdp->state->dma.length &= ~(0xFFu << 0);
-				vdp->state->dma.length |= data << 0;
-				break;
-
-			case 20:
-				/* DMA LENGTH COUNTER HIGH */
-				vdp->state->dma.length &= ~(0xFFu << 8);
-				vdp->state->dma.length |= data << 8;
-				break;
-
-			case 21:
-				/* DMA SOURCE ADDRESS LOW */
-				vdp->state->dma.source_address_low &= ~(0xFFu << 0);
-				vdp->state->dma.source_address_low |= data << 0;
-				break;
-
-			case 22:
-				/* DMA SOURCE ADDRESS MID. */
-				vdp->state->dma.source_address_low &= ~(0xFFu << 8);
-				vdp->state->dma.source_address_low |= data << 8;
-				break;
-
-			case 23:
-				/* DMA SOURCE ADDRESS HIGH */
-				if ((data & 0x80) != 0)
-				{
-					vdp->state->dma.source_address_high = data & 0x3F;
-					vdp->state->dma.mode = (data & 0x40) != 0 ? VDP_DMA_MODE_COPY : VDP_DMA_MODE_FILL;
-				}
-				else
-				{
-					vdp->state->dma.source_address_high = data & 0x7F;
-					vdp->state->dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
-				}
-
-				break;
-
-			case 30:
-			{
-				/* Gens KMod debug register. Does not exist in real Mega Drives, but is a useful emulator feature for debugging. */
-				const char character = CC_SIGN_EXTEND(int, 7, (int)data);
-
-				/* This behaviour exactly matches Gens KMod v0.7. */
-				if (character < 0x20 && character != '\0')
+				case 17:
+					/* WINDOW H POSITION */
+					vdp->state->window.aligned_right = (data & 0x80) != 0;
+					vdp->state->window.horizontal_boundary = (data & 0x1F); /* Measured in tile pairs. */
 					break;
 
-				vdp->state->kdebug_buffer[vdp->state->kdebug_buffer_index++] = character;
+				case 18:
+					/* WINDOW V POSITION */
+					vdp->state->window.aligned_bottom = (data & 0x80) != 0;
+					vdp->state->window.vertical_boundary = (data & 0x1F) << GetTileHeightPower(vdp->state); /* Measured in tiles. */
+					break;
 
-				/* The last byte of the buffer is always set to 0, so we don't need to do it here. */
-				if (character == '\0' || vdp->state->kdebug_buffer_index == CC_COUNT_OF(vdp->state->kdebug_buffer) - 1)
+				case 19:
+					/* DMA LENGTH COUNTER LOW */
+					vdp->state->dma.length &= ~(0xFFu << 0);
+					vdp->state->dma.length |= data << 0;
+					break;
+
+				case 20:
+					/* DMA LENGTH COUNTER HIGH */
+					vdp->state->dma.length &= ~(0xFFu << 8);
+					vdp->state->dma.length |= data << 8;
+					break;
+
+				case 21:
+					/* DMA SOURCE ADDRESS LOW */
+					vdp->state->dma.source_address_low &= ~(0xFFu << 0);
+					vdp->state->dma.source_address_low |= data << 0;
+					break;
+
+				case 22:
+					/* DMA SOURCE ADDRESS MID. */
+					vdp->state->dma.source_address_low &= ~(0xFFu << 8);
+					vdp->state->dma.source_address_low |= data << 8;
+					break;
+
+				case 23:
+					/* DMA SOURCE ADDRESS HIGH */
+					if ((data & 0x80) != 0)
+					{
+						vdp->state->dma.source_address_high = data & 0x3F;
+						vdp->state->dma.mode = (data & 0x40) != 0 ? VDP_DMA_MODE_COPY : VDP_DMA_MODE_FILL;
+					}
+					else
+					{
+						vdp->state->dma.source_address_high = data & 0x7F;
+						vdp->state->dma.mode = VDP_DMA_MODE_MEMORY_TO_VRAM;
+					}
+
+					break;
+
+				case 30:
 				{
-					vdp->state->kdebug_buffer_index = 0;
-					kdebug_callback((void*)kdebug_callback_user_data, vdp->state->kdebug_buffer);
+					/* Gens KMod debug register. Does not exist in real Mega Drives, but is a useful emulator feature for debugging. */
+					const char character = CC_SIGN_EXTEND(int, 7, (int)data);
+
+					/* This behaviour exactly matches Gens KMod v0.7. */
+					if (character < 0x20 && character != '\0')
+						break;
+
+					vdp->state->kdebug_buffer[vdp->state->kdebug_buffer_index++] = character;
+
+					/* The last byte of the buffer is always set to 0, so we don't need to do it here. */
+					if (character == '\0' || vdp->state->kdebug_buffer_index == CC_COUNT_OF(vdp->state->kdebug_buffer) - 1)
+					{
+						vdp->state->kdebug_buffer_index = 0;
+						kdebug_callback((void*)kdebug_callback_user_data, vdp->state->kdebug_buffer);
+					}
+
+					break;
 				}
 
-				break;
+				default:
+					/* Invalid */
+					LogMessage("Attempted to set invalid VDP register (0x%" CC_PRIXFAST16 ")", reg);
+					break;
 			}
-
-			case 6:
-			case 8:
-			case 9:
-			case 14:
-				/* Unused legacy register */
-				break;
-
-			default:
-				/* Invalid */
-				LogMessage("Attempted to set invalid VDP register (0x%" CC_PRIXFAST16 ")", reg);
-				break;
 		}
 	}
 

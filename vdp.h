@@ -128,6 +128,7 @@ typedef struct VDP_State
 	cc_bool h_int_enabled;
 	cc_bool h40_enabled;
 	cc_bool v30_enabled;
+	cc_bool mega_drive_mode_enabled;
 	cc_bool shadow_highlight_enabled;
 	cc_bool double_resolution_enabled;
 
