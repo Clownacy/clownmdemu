@@ -158,7 +158,9 @@ static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, const
 
 static cc_u16f ReadAndIncrement(VDP_State* const state)
 {
-	cc_u16f value;
+	/* Oddly, leftover data from the FIFO resides in the unused bits. */
+	/* Validated with Nemesis' 'VDPFIFOTesting' homebrew. */
+	cc_u16f value = state->previous_data_writes[0];
 
 	switch (state->access.selected_buffer)
 	{
@@ -167,22 +169,18 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 			break;
 
 		case VDP_ACCESS_CRAM:
-			value = state->cram[(state->access.address_register / 2) % CC_COUNT_OF(state->cram)];
-			/* Oddly, leftover data from the FIFO resides in the unused bits. */
-			/* Validated with Nemesis' 'VDPFIFOTesting' homebrew. */
-			value |= state->previous_data_writes[0] & ~0xEEE;
+			value &= ~0xEEE;
+			value |= state->cram[(state->access.address_register / 2) % CC_COUNT_OF(state->cram)];
 			break;
 
 		case VDP_ACCESS_VSRAM:
-			value = state->vsram[(state->access.address_register / 2) % CC_COUNT_OF(state->vsram)];
-			/* See above. */
-			value |= state->previous_data_writes[0] & ~0x7FF;
+			value &= ~0x7FF;
+			value |= state->vsram[(state->access.address_register / 2) % CC_COUNT_OF(state->vsram)];
 			break;
 
 		case VDP_ACCESS_VRAM_8BIT:
-			value = state->vram[(state->access.address_register ^ 1) % CC_COUNT_OF(state->vram)];
-			/* See above. */
-			value |= state->previous_data_writes[0] & ~0xFF;
+			value &= ~0xFF;
+			value |= state->vram[(state->access.address_register ^ 1) % CC_COUNT_OF(state->vram)];
 			break;
 
 		default:
@@ -190,7 +188,6 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 			assert(0);
 			/* Fallthrough */
 		case VDP_ACCESS_INVALID:
-			value = 0;
 			LogMessage("VDP read attempted with invalid access mode specified (0x%" CC_PRIXFAST16 ")", state->access.code_register);
 			break;
 	}
