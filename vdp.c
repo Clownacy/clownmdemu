@@ -760,20 +760,22 @@ cc_u16f VDP_ReadControl(const VDP* const vdp)
 	return 0x3400 | (fifo_empty << 9) | (vdp->state->currently_in_vblank << 3);
 }
 
+static void UpdateFakeFIFO(VDP_State* const state, const cc_u16f value)
+{
+	const cc_u8f last = CC_COUNT_OF(state->previous_data_writes) - 1;
+	cc_u8f i;
+
+	for (i = 0; i < last; ++i)
+		state->previous_data_writes[i] = state->previous_data_writes[i + 1];
+
+	state->previous_data_writes[last] = value;
+}
+
 void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data)
 {
 	vdp->state->access.write_pending = cc_false;
 
-	/* Add the value to the fake FIFO. */
-	{
-		const cc_u8f last = CC_COUNT_OF(vdp->state->previous_data_writes) - 1;
-		cc_u8f i;
-
-		for (i = 0; i < last; ++i)
-			vdp->state->previous_data_writes[i] = vdp->state->previous_data_writes[i + 1];
-
-		vdp->state->previous_data_writes[last] = value;
-	}
+	UpdateFakeFIFO(vdp->state, value);
 
 	if (IsInReadMode(vdp->state))
 	{
@@ -1188,7 +1190,9 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 		{
 			if (vdp->state->dma.mode == VDP_DMA_MODE_MEMORY_TO_VRAM)
 			{
-				WriteAndIncrement(vdp->state, read_callback((void*)read_callback_user_data, ((cc_u32f)vdp->state->dma.source_address_high << 17) | ((cc_u32f)vdp->state->dma.source_address_low << 1)), colour_updated_callback, colour_updated_callback_user_data);
+				const cc_u16f value = read_callback((void*)read_callback_user_data, ((cc_u32f)vdp->state->dma.source_address_high << 17) | ((cc_u32f)vdp->state->dma.source_address_low << 1));
+				UpdateFakeFIFO(vdp->state, value);
+				WriteAndIncrement(vdp->state, value, colour_updated_callback, colour_updated_callback_user_data);
 			}
 			else /*if (state->dma.mode == VDP_DMA_MODE_COPY)*/
 			{
