@@ -148,6 +148,7 @@ static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, const
 			assert(0);
 			/* Fallthrough */
 		case VDP_ACCESS_INVALID:
+		case VDP_ACCESS_VRAM_8BIT:
 			LogMessage("VDP write attempted with invalid access mode specified (0x%" CC_PRIXFAST16 ")", state->access.code_register);
 			break;
 	}
@@ -176,6 +177,12 @@ static cc_u16f ReadAndIncrement(VDP_State* const state)
 			value = state->vsram[(state->access.address_register / 2) % CC_COUNT_OF(state->vsram)];
 			/* See above. */
 			value |= state->previous_data_writes[0] & ~0x7FF;
+			break;
+
+		case VDP_ACCESS_VRAM_8BIT:
+			value = state->vram[(state->access.address_register ^ 1) % CC_COUNT_OF(state->vram)];
+			/* See above. */
+			value |= state->previous_data_writes[0] & ~0xFF;
 			break;
 
 		default:
@@ -1141,6 +1148,10 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 
 		case 2: /* VSRAM */
 			vdp->state->access.selected_buffer = VDP_ACCESS_VSRAM;
+			break;
+
+		case 6: /* VRAM (8-bit, undocumented) */
+			vdp->state->access.selected_buffer = VDP_ACCESS_VRAM_8BIT;
 			break;
 
 		default: /* Invalid */
