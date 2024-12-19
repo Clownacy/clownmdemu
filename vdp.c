@@ -820,24 +820,58 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 /* TODO - Retention of partial commands */
 void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_ColourUpdatedCallback colour_updated_callback, const void* const colour_updated_callback_user_data, const VDP_ReadCallback read_callback, const void* const read_callback_user_data, const VDP_KDebugCallback kdebug_callback, const void* const kdebug_callback_user_data)
 {
-	if (vdp->state->access.write_pending)
+	if (vdp->state->access.write_pending || (value & 0xC000) != 0x8000)
 	{
-		/* This is an "address set" command (part 2). */
-		const cc_u16f code_bitmask = vdp->state->dma.enabled ? 0x3C : 0x1C;
+		if (vdp->state->access.write_pending)
+		{
+			/* This is an "address set" command (part 2). */
+			const cc_u16f code_bitmask = vdp->state->dma.enabled ? 0x3C : 0x1C;
 
-		vdp->state->access.write_pending = cc_false;
-		vdp->state->access.address_register = (vdp->state->access.address_register & 0x3FFF) | ((value & 3) << 14);
-		vdp->state->access.code_register = (vdp->state->access.code_register & ~code_bitmask) | ((value >> 2) & code_bitmask);
+			vdp->state->access.write_pending = cc_false;
+			vdp->state->access.address_register = (vdp->state->access.address_register & 0x3FFF) | ((value & 3) << 14);
+			vdp->state->access.code_register = (vdp->state->access.code_register & ~code_bitmask) | ((value >> 2) & code_bitmask);
+		}
+		else
+		{
+			/* This is an "address set" command (part 1). */
+			vdp->state->access.write_pending = cc_true;
+			vdp->state->access.address_register = (value & 0x3FFF) | (vdp->state->access.address_register & (3 << 14));
+			vdp->state->access.code_register = ((value >> 14) & 3) | (vdp->state->access.code_register & 0x3C);
+		}
+
+		switch ((vdp->state->access.code_register >> 1) & 7)
+		{
+		case 0: /* VRAM */
+			vdp->state->access.selected_buffer = VDP_ACCESS_VRAM;
+			break;
+
+		case 4: /* CRAM (read) */
+		case 1: /* CRAM (write) */
+			vdp->state->access.selected_buffer = VDP_ACCESS_CRAM;
+			break;
+
+		case 2: /* VSRAM */
+			vdp->state->access.selected_buffer = VDP_ACCESS_VSRAM;
+			break;
+
+		case 6: /* VRAM (8-bit, undocumented) */
+			vdp->state->access.selected_buffer = VDP_ACCESS_VRAM_8BIT;
+			break;
+
+		default: /* Invalid */
+			vdp->state->access.selected_buffer = VDP_ACCESS_INVALID;
+			break;
+		}
 	}
-	else if ((value & 0xC000) == 0x8000)
+	else
 	{
 		/* This is a "register set" command. */
 		const cc_u16f reg = (value >> 8) & 0x1F;
 		const cc_u16f data = value & 0xFF;
 
 		/* This is relied upon by Sonic 3D Blast (the opening FMV will have broken colours otherwise). */
-		/* TODO: Does the DMA enable bit prevent this from clearing bit 5? */
-		vdp->state->access.code_register = 0;
+		/* This is further verified by Nemesis' 'VDPFIFOTesting' homebrew. */
+		vdp->state->access.selected_buffer = VDP_ACCESS_INVALID;
 
 		/* This command is setting a register */
 		switch (reg)
@@ -1125,37 +1159,6 @@ void VDP_WriteControl(const VDP* const vdp, const cc_u16f value, const VDP_Colou
 				LogMessage("Attempted to set invalid VDP register (0x%" CC_PRIXFAST16 ")", reg);
 				break;
 		}
-	}
-	else
-	{
-		/* This is an "address set" command (part 1). */
-		vdp->state->access.write_pending = cc_true;
-		vdp->state->access.address_register = (value & 0x3FFF) | (vdp->state->access.address_register & (3 << 14));
-		vdp->state->access.code_register = ((value >> 14) & 3) | (vdp->state->access.code_register & 0x3C);
-	}
-
-	switch ((vdp->state->access.code_register >> 1) & 7)
-	{
-		case 0: /* VRAM */
-			vdp->state->access.selected_buffer = VDP_ACCESS_VRAM;
-			break;
-
-		case 4: /* CRAM (read) */
-		case 1: /* CRAM (write) */
-			vdp->state->access.selected_buffer = VDP_ACCESS_CRAM;
-			break;
-
-		case 2: /* VSRAM */
-			vdp->state->access.selected_buffer = VDP_ACCESS_VSRAM;
-			break;
-
-		case 6: /* VRAM (8-bit, undocumented) */
-			vdp->state->access.selected_buffer = VDP_ACCESS_VRAM_8BIT;
-			break;
-
-		default: /* Invalid */
-			vdp->state->access.selected_buffer = VDP_ACCESS_INVALID;
-			break;
 	}
 
 	if (IsDMAPending(vdp->state) && vdp->state->dma.mode != VDP_DMA_MODE_FILL)
