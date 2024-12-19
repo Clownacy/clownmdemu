@@ -120,8 +120,28 @@ static void WriteAndIncrement(VDP_State* const state, const cc_u16f value, const
 		}
 
 		case VDP_ACCESS_VSRAM:
-			state->vsram[(state->access.address_register / 2) % CC_COUNT_OF(state->vsram)] = (cc_u16l)(value & 0x7FF);
+		{
+			const cc_u8f limit = 40;
+			const cc_u8f index_wrapped = (state->access.address_register / 2) % CC_COUNT_OF(state->vsram);
+
+			/* VRAM only holds 40 valid words, so discard the remaining 14. */
+			if (index_wrapped < limit)
+			{
+				const cc_u16l vscroll = (cc_u16l)(value & 0x7FF);
+
+				/* The first two values are mirrored in the 'empty' 14 words. */
+				if (index_wrapped < 2)
+				{
+					cc_u8f i;
+					for (i = limit + index_wrapped; i < CC_COUNT_OF(state->vsram); i += 2)
+						state->vsram[i] = vscroll;
+				}
+
+				state->vsram[index_wrapped] = vscroll;
+			}
+
 			break;
+		}
 
 		default:
 			/* Should never happen. */
