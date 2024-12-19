@@ -156,6 +156,10 @@ typedef struct VDP_State
 		VDP_SpriteRowCacheRow rows[VDP_MAX_SCANLINES];
 	} sprite_row_cache;
 
+	/* A placeholder for the FIFO, needed for CRAM/VSRAM DMA fills. */
+	/* TODO: Implement the actual VDP FIFO. */
+	cc_u16l previous_data_writes[4];
+
 	/* Gens KMod's custom debug register 30. */
 	cc_u16l kdebug_buffer_index;
 	char kdebug_buffer[0x100];

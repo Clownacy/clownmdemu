@@ -302,6 +302,8 @@ void VDP_State_Initialise(VDP_State* const state)
 	state->sprite_row_cache.needs_updating = cc_true;
 	memset(state->sprite_row_cache.rows, 0, sizeof(state->sprite_row_cache.rows));
 
+	memset(state->previous_data_writes, 0, sizeof(state->previous_data_writes));
+
 	state->kdebug_buffer_index = 0;
 	/* This byte never gets overwritten, so we can set it ahead of time. */
 	state->kdebug_buffer[CC_COUNT_OF(state->kdebug_buffer) - 1] = '\0';
@@ -730,6 +732,17 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 {
 	vdp->state->access.write_pending = cc_false;
 
+	/* Add the value to the fake FIFO. */
+	{
+		const cc_u8f last = CC_COUNT_OF(vdp->state->previous_data_writes) - 1;
+		cc_u8f i;
+
+		for (i = 0; i < last; ++i)
+			vdp->state->previous_data_writes[i] = vdp->state->previous_data_writes[i + 1];
+
+		vdp->state->previous_data_writes[last] = value;
+	}
+
 	if (IsInReadMode(vdp->state))
 	{
 		/* Invalid input, but defined behaviour */
@@ -752,8 +765,17 @@ void VDP_WriteData(const VDP* const vdp, const cc_u16f value, const VDP_ColourUp
 
 			do
 			{
-				WriteVRAM(vdp->state, vdp->state->access.address_register ^ 1, (cc_u8f)(value >> 8));
-				vdp->state->access.address_register += vdp->state->access.increment;
+				if (vdp->state->access.selected_buffer == VDP_ACCESS_VRAM)
+				{
+					WriteVRAM(vdp->state, vdp->state->access.address_register ^ 1, (cc_u8f)(value >> 8));
+					vdp->state->access.address_register += vdp->state->access.increment;
+				}
+				else
+				{
+					/* On real Mega Drives, the fill value for CRAM and VSRAM is fetched from earlier in the FIFO, which appears to be a bug. */
+					/* Verified with Nemesis' 'VDPFIFOTesting' homebrew. */
+					WriteAndIncrement(vdp->state, vdp->state->previous_data_writes[0], colour_updated_callback, colour_updated_callback_user_data);
+				}
 
 				/* Yes, even DMA fills do this, according to
 				   'https://gendev.spritesmind.net/forum/viewtopic.php?p=21016#p21016'. */
